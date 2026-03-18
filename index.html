@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="高三(3)班课表">
+<title>贵阳八中高三(3)班课程表</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: rgba(255,255,255,0.08);
+    --accent: #f0c060;
+    --accent2: #7eb8f7;
+    --accent3: #a78bfa;
+    --accent4: #6ee7b7;
+    --text: #e8eaf0;
+    --text-dim: #8892a4;
+    --radius: 12px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans SC', sans-serif;
+    min-height: 100vh;
+  }
+
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, #1a1d27 0%, #12152a 100%);
+    padding: 52px 20px 20px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  .header::before {
+    content: '';
+    position: absolute;
+    top: -60px; left: 50%;
+    transform: translateX(-50%);
+    width: 300px; height: 300px;
+    background: radial-gradient(circle, rgba(240,192,96,0.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .header h1 {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--accent);
+  }
+  .header-date {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-top: 4px;
+    letter-spacing: 1px;
+  }
+
+  /* Today card */
+  .today-cards {
+    padding: 14px 16px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .info-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .info-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+  }
+  .info-card.weather::before { background: var(--accent2); }
+  .info-card.evening::before { background: var(--accent3); }
+  .info-card.sanji::before { background: var(--accent4); }
+
+  .info-card-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+  .info-card.weather .info-card-title { color: var(--accent2); }
+  .info-card.evening .info-card-title { color: var(--accent3); }
+  .info-card.sanji .info-card-title { color: var(--accent4); }
+
+  .weather-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .weather-icon { font-size: 28px; }
+  .weather-temp { font-size: 24px; font-weight: 700; color: var(--text); }
+  .weather-desc { font-size: 13px; color: var(--text-dim); margin-top: 2px; }
+
+  .evening-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .evening-item {
+    background: rgba(167,139,250,0.08);
+    border-radius: 8px;
+    padding: 8px 10px;
+  }
+  .evening-label { font-size: 10px; color: var(--text-dim); margin-bottom: 3px; }
+  .evening-teacher { font-size: 14px; font-weight: 700; color: var(--text); }
+  .evening-time { font-size: 10px; color: var(--accent3); margin-top: 1px; }
+
+  .sanji-content {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    font-family: 'Noto Serif SC', serif;
+  }
+  .sanji-sub { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 8px;
+    padding: 14px 16px 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    margin-top: 14px;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    flex-shrink: 0;
+    padding: 8px 14px;
+    border-radius: 8px 8px 0 0;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    color: var(--text-dim);
+    border: 1px solid transparent;
+    border-bottom: none;
+    transition: all 0.2s;
+    background: transparent;
+  }
+  .tab.active { color: var(--accent); background: var(--bg); border-color: var(--border); }
+  .tab.today-tab { color: var(--accent4); }
+  .tab.today-tab.active { color: var(--accent4); }
+
+  /* Day view */
+  .day-view { padding: 16px; display: none; animation: fadeIn 0.3s ease; }
+  .day-view.active { display: block; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+
+  .section-label {
+    font-size: 11px; font-weight: 700; letter-spacing: 2px;
+    color: var(--text-dim); margin: 20px 0 10px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-label::after { content:''; flex:1; height:1px; background:var(--border); }
+  .section-label.morning { color: var(--accent); }
+  .section-label.afternoon { color: var(--accent2); }
+
+  .period-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    position: relative;
+    overflow: hidden;
+  }
+  .period-card::before {
+    content: ''; position: absolute;
+    left: 0; top: 0; bottom: 0; width: 3px;
+  }
+  .period-card.morning::before { background: var(--accent); }
+  .period-card.afternoon::before { background: var(--accent2); }
+  .period-card.special::before { background: var(--accent3); }
+
+  .period-num {
+    width: 32px; height: 32px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; flex-shrink: 0;
+  }
+  .morning .period-num { background: rgba(240,192,96,0.15); color: var(--accent); }
+  .afternoon .period-num { background: rgba(126,184,247,0.15); color: var(--accent2); }
+  .special .period-num { background: rgba(167,139,250,0.15); color: var(--accent3); }
+
+  .period-info { flex: 1; min-width: 0; }
+  .period-time { font-size: 11px; color: var(--text-dim); margin-bottom: 3px; }
+  .period-subject { font-size: 17px; font-weight: 700; font-family: 'Noto Serif SC', serif; color: var(--text); }
+  .period-teacher { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+  .period-card.special .period-subject { color: var(--accent3); font-size: 14px; }
+
+  .break-bar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 0; color: var(--text-dim); font-size: 12px; letter-spacing: 1px;
+  }
+  .break-bar::before, .break-bar::after { content:''; flex:1; height:1px; background:var(--border); }
+
+  .footer {
+    text-align: center; padding: 24px 20px 40px;
+    font-size: 11px; color: var(--text-dim); line-height: 1.8;
+    border-top: 1px solid var(--border); margin-top: 8px;
+  }
+  .no-data { color: var(--text-dim); font-size: 13px; text-align: center; padding: 20px 0; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>贵阳八中 高三（3）班</h1>
+  <div class="header-date" id="headerDate">—</div>
+</div>
+
+<div class="today-cards">
+  <!-- Weather -->
+  <div class="info-card weather">
+    <div class="info-card-title">🌤 今日天气 · 贵阳</div>
+    <div class="weather-row">
+      <div class="weather-icon" id="weatherIcon">⏳</div>
+      <div>
+        <div class="weather-temp" id="weatherTemp">获取中...</div>
+        <div class="weather-desc" id="weatherDesc"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Evening supervisor -->
+  <div class="info-card evening">
+    <div class="info-card-title">🌙 今晚晚自习 · 高三(3)班</div>
+    <div class="evening-grid">
+      <div class="evening-item">
+        <div class="evening-label">一段晚自习</div>
+        <div class="evening-teacher" id="ev1Teacher">—</div>
+        <div class="evening-time">18:30–20:30</div>
+      </div>
+      <div class="evening-item">
+        <div class="evening-label">二段晚自习</div>
+        <div class="evening-teacher" id="ev2Teacher">—</div>
+        <div class="evening-time">20:50–22:00</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sanji test -->
+  <div class="info-card sanji">
+    <div class="info-card-title">📝 今日三基测试</div>
+    <div class="sanji-content" id="sanjiContent">—</div>
+    <div class="sanji-sub" id="sanjiSub"></div>
+  </div>
+</div>
+
+<!-- Tabs -->
+<div class="tabs">
+  <div class="tab" onclick="switchDay(0)">周一</div>
+  <div class="tab" onclick="switchDay(1)">周二</div>
+  <div class="tab" onclick="switchDay(2)">周三</div>
+  <div class="tab" onclick="switchDay(3)">周四</div>
+  <div class="tab" onclick="switchDay(4)">周五</div>
+  <div class="tab" onclick="switchDay(5)">周六</div>
+</div>
+
+<div id="content"></div>
+
+<div class="footer">
+  心理健康教育每月一次 · 日语生上课地点：录播教室2<br>
+  2026.02.24 — 2026.06.07
+</div>
+
+<script>
+// ============ SCHEDULE DATA ============
+const schedule = [
+  // 周一
+  [
+    {sub:'化学',teacher:'孙文军',type:'morning'},{sub:'生物',teacher:'白永乾',type:'morning'},{sub:'数学',teacher:'严云春',type:'morning'},
+    null,
+    {sub:'语文',teacher:'王诗雨',type:'morning'},{sub:'外语',teacher:'李姜苇',type:'morning'},
+    null,
+    {sub:'体育与健康',teacher:'孙卫理',type:'afternoon'},{sub:'物理',teacher:'陈科仲',type:'afternoon'},{sub:'物理',teacher:'陈科仲',type:'afternoon'},{sub:'班会/团组织生活',teacher:'',type:'special'},
+  ],
+  // 周二
+  [
+    {sub:'数学',teacher:'严云春',type:'morning'},{sub:'外语',teacher:'李姜苇',type:'morning'},{sub:'外语',teacher:'李姜苇',type:'morning'},
+    null,
+    {sub:'化学',teacher:'孙文军',type:'morning'},{sub:'化学',teacher:'孙文军',type:'morning'},
+    null,
+    {sub:'生物',teacher:'白永乾',type:'afternoon'},{sub:'语文',teacher:'王诗雨',type:'afternoon'},{sub:'语文',teacher:'王诗雨',type:'afternoon'},{sub:'物理',teacher:'陈科仲',type:'afternoon'},
+  ],
+  // 周三
+  [
+    {sub:'外语',teacher:'李姜苇',type:'morning'},{sub:'物理',teacher:'陈科仲',type:'morning'},{sub:'生物',teacher:'白永乾',type:'morning'},
+    null,
+    {sub:'数学',teacher:'严云春',type:'morning'},{sub:'化学',teacher:'孙文军',type:'morning'},
+    null,
+    {sub:'语文',teacher:'王诗雨',type:'afternoon'},{sub:'周考1/心理健康',teacher:'',type:'special'},{sub:'周考1/心理健康',teacher:'',type:'special'},{sub:'周考1/心理健康',teacher:'',type:'special'},
+  ],
+  // 周四
+  [
+    {sub:'物理',teacher:'陈科仲',type:'morning'},{sub:'数学',teacher:'严云春',type:'morning'},{sub:'数学',teacher:'严云春',type:'morning'},
+    null,
+    {sub:'化学',teacher:'孙文军',type:'morning'},{sub:'语文',teacher:'王诗雨',type:'morning'},
+    null,
+    {sub:'体育与健康',teacher:'孙卫理',type:'afternoon'},{sub:'生物',teacher:'白永乾',type:'afternoon'},{sub:'外语',teacher:'李姜苇',type:'afternoon'},{sub:'外语',teacher:'李姜苇',type:'afternoon'},
+  ],
+  // 周五
+  [
+    {sub:'生物',teacher:'白永乾',type:'morning'},{sub:'生物',teacher:'白永乾',type:'morning'},{sub:'外语',teacher:'李姜苇',type:'morning'},
+    null,
+    {sub:'语文',teacher:'王诗雨',type:'morning'},{sub:'语文',teacher:'王诗雨',type:'morning'},
+    null,
+    {sub:'物理',teacher:'陈科仲',type:'afternoon'},{sub:'化学',teacher:'孙文军',type:'afternoon'},{sub:'数学',teacher:'严云春',type:'afternoon'},{sub:'数学',teacher:'严云春',type:'afternoon'},
+  ],
+  // 周六
+  [
+    {sub:'语文',teacher:'王诗雨',type:'morning'},{sub:'数学',teacher:'严云春',type:'morning'},{sub:'外语',teacher:'李姜苇',type:'morning'},
+    null,
+    {sub:'周考2',teacher:'',type:'special'},{sub:'周考2',teacher:'',type:'special'},
+    null,
+    {sub:'生物',teacher:'白永乾',type:'afternoon'},{sub:'物理',teacher:'陈科仲',type:'afternoon'},{sub:'化学',teacher:'孙文军',type:'afternoon'},{sub:'—',teacher:'',type:'afternoon'},
+  ],
+];
+
+const times = ['7:40～8:20','8:30～9:10','9:20～10:00',null,'10:30～11:15','11:25～12:05',null,'2:00～2:40','2:50～3:30','3:40～4:25','4:35～5:15'];
+const periodNums = [1,2,3,null,4,5,null,6,7,8,9];
+
+// ============ EVENING STUDY DATA (高三3班) ============
+// Key: YYYY-MM-DD, value: [一段老师, 二段老师(高三3班列)]
+// 一段晚自习 高三3班 = 第3列
+// 二段晚自习 高三3班 = 高三(5)班列 (3rd col in 二段)
+const eveningData = {
+  '2026-02-23': ['龙安凤','吴斌'],
+  '2026-02-24': ['陈科仲','—'],
+  '2026-02-25': ['白永乾','—'],
+  '2026-02-26': ['孙文军','许官月'],
+  '2026-02-27': ['李姜苇','荀晓琳'],
+  '2026-03-02': ['王诗雨','王诗雨'],
+  '2026-03-03': ['严云春','廖春水'],
+  '2026-03-04': ['陈科仲','罩志涛'],
+  '2026-03-05': ['白永乾','—'],
+  '2026-03-09': ['孙文军','华娉'],
+  '2026-03-10': ['李姜苇','温泉'],
+  '2026-03-11': ['王诗雨','严云春'],
+  '2026-03-12': ['严云春','荀晓琳'],
+  '2026-03-16': ['陈科仲','张熙'],
+  '2026-03-17': ['白永乾','陈天野'],
+  '2026-03-18': ['孙文军','罩志涛'],
+  '2026-03-19': ['李姜苇','李姜苇'],
+  '2026-03-20': ['王诗雨','王诗雨'],
+  '2026-03-23': ['严云春','华娉'],
+  '2026-03-24': ['陈科仲','朱江培'],
+  '2026-03-25': ['白永乾','张捷'],
+  '2026-03-26': ['孙文军','戴斌'],
+  '2026-03-27': ['李姜苇','廖春水'],
+  '2026-03-28': ['龙安凤','吴斌'],
+};
+
+// ============ SANJI (三基) DATA for 高三3班 ============
+// From the monthly schedule image (2026年3月)
+const sanjiData = {
+  '2026-03-02': '选考科目1',
+  '2026-03-03': '语文',
+  '2026-03-05': '外语',
+  '2026-03-09': '物理/历史',
+  '2026-03-10': '听力',
+  '2026-03-11': '语文',
+  '2026-03-13': '数学',
+  '2026-03-16': '选考科目1',
+  '2026-03-17': '语文',
+  '2026-03-19': '外语',
+  '2026-03-20': '综合（取消）',
+  '2026-03-21': '物理/历史',
+  '2026-03-23': '物理/历史',
+  '2026-03-24': '听力',
+  '2026-03-25': '外语',
+  '2026-03-26': '数学',
+  '2026-03-27': '选考科目2',
+  '2026-03-28': '周考暂停，统一加课',
+  '2026-03-30': '联考（智定）',
+  '2026-04-02': '选考科目2',
+  '2026-04-03': '外语',
+};
+
+// ============ WEATHER ============
+async function fetchWeather() {
+  try {
+    const res = await fetch('https://wttr.in/Guiyang?format=j1');
+    const data = await res.json();
+    const cur = data.current_condition[0];
+    const temp = cur.temp_C;
+    const desc = cur.weatherDesc[0].value;
+    const feels = cur.FeelsLikeC;
+    const icons = {
+      'Sunny':'☀️','Clear':'🌙','Partly cloudy':'⛅','Cloudy':'☁️',
+      'Overcast':'☁️','Mist':'🌫','Fog':'🌫','Light rain':'🌧','Moderate rain':'🌧',
+      'Heavy rain':'🌧','Light snow':'❄️','Blizzard':'❄️','Thundery outbreaks':'⛈',
+      'Patchy rain possible':'🌦','Patchy snow possible':'🌨',
+    };
+    let icon = '🌡';
+    for (const [k,v] of Object.entries(icons)) {
+      if (desc.toLowerCase().includes(k.toLowerCase())) { icon = v; break; }
+    }
+    const descMap = {
+      'Sunny':'晴','Clear':'晴','Partly cloudy':'多云','Cloudy':'阴','Overcast':'阴天',
+      'Mist':'薄雾','Fog':'大雾','Light rain':'小雨','Moderate rain':'中雨','Heavy rain':'大雨',
+      'Light snow':'小雪','Blizzard':'暴雪','Thundery outbreaks':'雷阵雨',
+      'Patchy rain possible':'局部有雨','Patchy snow possible':'局部有雪',
+    };
+    let descZh = desc;
+    for (const [k,v] of Object.entries(descMap)) {
+      if (desc.toLowerCase().includes(k.toLowerCase())) { descZh = v; break; }
+    }
+    document.getElementById('weatherIcon').textContent = icon;
+    document.getElementById('weatherTemp').textContent = temp + '°C';
+    document.getElementById('weatherDesc').textContent = descZh + '  体感 ' + feels + '°C';
+  } catch(e) {
+    document.getElementById('weatherTemp').textContent = '获取失败';
+    document.getElementById('weatherDesc').textContent = '请检查网络';
+  }
+}
+
+// ============ DATE & TODAY INFO ============
+function padZ(n) { return String(n).padStart(2,'0'); }
+
+function updateTodayInfo() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = padZ(now.getMonth()+1);
+  const d = padZ(now.getDate());
+  const dateKey = `${y}-${m}-${d}`;
+  const weekDays = ['周日','周一','周二','周三','周四','周五','周六'];
+  const wd = weekDays[now.getDay()];
+
+  document.getElementById('headerDate').textContent = `${y}年${m}月${d}日  ${wd}`;
+
+  // Evening
+  const ev = eveningData[dateKey];
+  if (ev) {
+    document.getElementById('ev1Teacher').textContent = ev[0] || '—';
+    document.getElementById('ev2Teacher').textContent = ev[1] || '—';
+  } else {
+    const isWeekend = now.getDay()===0||now.getDay()===6;
+    document.getElementById('ev1Teacher').textContent = isWeekend ? '无晚自习' : '暂无数据';
+    document.getElementById('ev2Teacher').textContent = isWeekend ? '无晚自习' : '暂无数据';
+  }
+
+  // Sanji
+  const sanji = sanjiData[dateKey];
+  if (sanji) {
+    document.getElementById('sanjiContent').textContent = sanji;
+    document.getElementById('sanjiSub').textContent = '高三年级三基测试';
+  } else {
+    document.getElementById('sanjiContent').textContent = '今日无三基测试';
+    document.getElementById('sanjiSub').textContent = '';
+  }
+}
+
+// ============ BUILD SCHEDULE ============
+function buildSchedule() {
+  const container = document.getElementById('content');
+  schedule.forEach((day, di) => {
+    const div = document.createElement('div');
+    div.className = 'day-view';
+    let morningShown = false, afternoonShown = false;
+    let html = '';
+
+    day.forEach((period, i) => {
+      const num = periodNums[i];
+      const time = times[i];
+
+      if (period === null) {
+        if (i===3) html += '<div class="break-bar">课间操</div>';
+        else if (i===6) html += '<div class="break-bar">午 休</div>';
+        return;
+      }
+
+      if (!morningShown && num && num<=5) {
+        html += '<div class="section-label morning">🌤 上午</div>';
+        morningShown = true;
+      }
+      if (!afternoonShown && num && num>=6) {
+        html += '<div class="section-label afternoon">🌆 下午</div>';
+        afternoonShown = true;
+      }
+
+      const cls = period.type;
+      const subj = period.sub || '—';
+      html += `<div class="period-card ${cls}">
+        <div class="period-num">${num||''}</div>
+        <div class="period-info">
+          <div class="period-time">${time||''}</div>
+          <div class="period-subject">${subj}</div>
+          ${period.teacher ? `<div class="period-teacher">👤 ${period.teacher}</div>` : ''}
+        </div>
+      </div>`;
+    });
+
+    div.innerHTML = html;
+    container.appendChild(div);
+  });
+}
+
+function switchDay(idx) {
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===idx));
+  document.querySelectorAll('.day-view').forEach((d,i)=>d.classList.toggle('active',i===idx));
+}
+
+// ============ INIT ============
+buildSchedule();
+updateTodayInfo();
+fetchWeather();
+
+// Auto switch to today
+const todayJS = new Date().getDay(); // 0=Sun
+if (todayJS>=1 && todayJS<=6) {
+  switchDay(todayJS-1);
+  document.querySelectorAll('.tab')[todayJS-1]?.scrollIntoView({inline:'center',behavior:'smooth'});
+} else {
+  switchDay(0);
+}
+
+// Mark today's tab
+const todayTabIdx = new Date().getDay()-1;
+if (todayTabIdx>=0 && todayTabIdx<6) {
+  document.querySelectorAll('.tab')[todayTabIdx]?.classList.add('today-tab');
+}
+</script>
+</body>
+</html>
