@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="高三(3)班课表">
+<title>贵阳八中高三(3)班课程表</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: rgba(255,255,255,0.08);
+    --accent: #f0c060;
+    --accent2: #7eb8f7;
+    --accent3: #a78bfa;
+    --text: #e8eaf0;
+    --text-dim: #8892a4;
+    --morning: rgba(254, 197, 61, 0.08);
+    --afternoon: rgba(126, 184, 247, 0.08);
+    --radius: 12px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans SC', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, #1a1d27 0%, #12152a 100%);
+    padding: 52px 20px 24px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  .header::before {
+    content: '';
+    position: absolute;
+    top: -60px; left: 50%;
+    transform: translateX(-50%);
+    width: 300px; height: 300px;
+    background: radial-gradient(circle, rgba(240,192,96,0.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .header h1 {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--accent);
+    position: relative;
+  }
+  .header p {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 6px;
+    letter-spacing: 1px;
+  }
+
+  /* Tab bar */
+  .tabs {
+    display: flex;
+    gap: 8px;
+    padding: 16px 16px 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    flex-shrink: 0;
+    padding: 8px 16px;
+    border-radius: 8px 8px 0 0;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    color: var(--text-dim);
+    border: 1px solid transparent;
+    border-bottom: none;
+    transition: all 0.2s;
+    background: transparent;
+    letter-spacing: 0.5px;
+  }
+  .tab.active {
+    color: var(--accent);
+    background: var(--bg);
+    border-color: var(--border);
+  }
+  .tab:not(.active):active { opacity: 0.7; }
+
+  /* Day view */
+  .day-view { padding: 16px; display: none; animation: fadeIn 0.3s ease; }
+  .day-view.active { display: block; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+  /* Period cards */
+  .section-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin: 20px 0 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+  .section-label.morning { color: var(--accent); }
+  .section-label.afternoon { color: var(--accent2); }
+
+  .period-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    transition: transform 0.15s, box-shadow 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+  .period-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+  }
+  .period-card.morning::before { background: var(--accent); }
+  .period-card.afternoon::before { background: var(--accent2); }
+  .period-card:active { transform: scale(0.98); }
+
+  .period-num {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700;
+    flex-shrink: 0;
+  }
+  .morning .period-num { background: rgba(240,192,96,0.15); color: var(--accent); }
+  .afternoon .period-num { background: rgba(126,184,247,0.15); color: var(--accent2); }
+
+  .period-info { flex: 1; min-width: 0; }
+  .period-time { font-size: 11px; color: var(--text-dim); margin-bottom: 3px; }
+  .period-subject {
+    font-size: 17px;
+    font-weight: 700;
+    font-family: 'Noto Serif SC', serif;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .period-teacher {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  /* Empty / special cards */
+  .period-card.empty .period-subject { color: var(--text-dim); font-size: 14px; font-weight: 400; font-family: 'Noto Sans SC', sans-serif; }
+  .period-card.special { background: rgba(167,139,250,0.08); border-color: rgba(167,139,250,0.2); }
+  .period-card.special::before { background: var(--accent3); }
+  .special .period-num { background: rgba(167,139,250,0.15); color: var(--accent3); }
+  .special .period-subject { color: var(--accent3); }
+
+  /* Break card */
+  .break-bar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 0; margin: 4px 0;
+    color: var(--text-dim); font-size: 12px; letter-spacing: 1px;
+  }
+  .break-bar::before, .break-bar::after {
+    content: ''; flex: 1; height: 1px;
+    background: var(--border);
+  }
+
+  /* Footer */
+  .footer {
+    text-align: center;
+    padding: 24px 20px 40px;
+    font-size: 11px;
+    color: var(--text-dim);
+    line-height: 1.8;
+    border-top: 1px solid var(--border);
+    margin-top: 8px;
+  }
+  .footer span {
+    display: inline-block;
+    background: rgba(240,192,96,0.1);
+    color: var(--accent);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    margin-bottom: 6px;
+  }
+
+  /* Add to home screen hint */
+  .hint {
+    background: linear-gradient(135deg, rgba(240,192,96,0.1), rgba(126,184,247,0.1));
+    border: 1px solid rgba(240,192,96,0.2);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    margin: 16px;
+    font-size: 12px;
+    color: var(--text-dim);
+    display: flex; align-items: center; gap: 10px;
+    line-height: 1.6;
+  }
+  .hint-icon { font-size: 20px; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>贵阳八中 高三（3）班</h1>
+  <p>2026.02.24 — 2026.06.07</p>
+</div>
+
+<div class="hint" id="hint">
+  <div class="hint-icon">📲</div>
+  <div>点击底部 <strong style="color:var(--accent)">分享</strong> 按钮，选择「<strong style="color:var(--accent)">添加到主屏幕</strong>」即可像APP一样使用</div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchDay(0)">周一</div>
+  <div class="tab" onclick="switchDay(1)">周二</div>
+  <div class="tab" onclick="switchDay(2)">周三</div>
+  <div class="tab" onclick="switchDay(3)">周四</div>
+  <div class="tab" onclick="switchDay(4)">周五</div>
+  <div class="tab" onclick="switchDay(5)">周六</div>
+</div>
+
+<div id="content"></div>
+
+<div class="footer">
+  <span>📌 备注</span><br>
+  心理健康教育每月一次<br>
+  日语生上课地点：录播教室2
+</div>
+
+<script>
+const schedule = [
+  // 周一
+  [
+    { sub:'化学', teacher:'孙文军', type:'morning' },
+    { sub:'生物', teacher:'白永乾', type:'morning' },
+    { sub:'数学', teacher:'严云春', type:'morning' },
+    null, // 课间操
+    { sub:'语文', teacher:'王诗雨', type:'morning' },
+    { sub:'外语', teacher:'李姜苇', type:'morning' },
+    null, // 午休
+    { sub:'体育与健康', teacher:'孙卫理', type:'afternoon' },
+    { sub:'物理', teacher:'陈科仲', type:'afternoon' },
+    { sub:'物理', teacher:'陈科仲', type:'afternoon' },
+    { sub:'班会/团组织生活', teacher:'', type:'special' },
+  ],
+  // 周二
+  [
+    { sub:'数学', teacher:'严云春', type:'morning' },
+    { sub:'外语', teacher:'李姜苇', type:'morning' },
+    { sub:'外语', teacher:'李姜苇', type:'morning' },
+    null,
+    { sub:'化学', teacher:'孙文军', type:'morning' },
+    { sub:'化学', teacher:'孙文军', type:'morning' },
+    null,
+    { sub:'生物', teacher:'白永乾', type:'afternoon' },
+    { sub:'语文', teacher:'王诗雨', type:'afternoon' },
+    { sub:'语文', teacher:'王诗雨', type:'afternoon' },
+    { sub:'物理', teacher:'陈科仲', type:'afternoon' },
+  ],
+  // 周三
+  [
+    { sub:'外语', teacher:'李姜苇', type:'morning' },
+    { sub:'物理', teacher:'陈科仲', type:'morning' },
+    { sub:'生物', teacher:'白永乾', type:'morning' },
+    null,
+    { sub:'数学', teacher:'严云春', type:'morning' },
+    { sub:'化学', teacher:'孙文军', type:'morning' },
+    null,
+    { sub:'语文', teacher:'王诗雨', type:'afternoon' },
+    { sub:'周考1/心理健康', teacher:'', type:'special' },
+    { sub:'周考1/心理健康', teacher:'', type:'special' },
+    { sub:'周考1/心理健康', teacher:'', type:'special' },
+  ],
+  // 周四
+  [
+    { sub:'物理', teacher:'陈科仲', type:'morning' },
+    { sub:'数学', teacher:'严云春', type:'morning' },
+    { sub:'数学', teacher:'严云春', type:'morning' },
+    null,
+    { sub:'化学', teacher:'孙文军', type:'morning' },
+    { sub:'语文', teacher:'王诗雨', type:'morning' },
+    null,
+    { sub:'体育与健康', teacher:'孙卫理', type:'afternoon' },
+    { sub:'生物', teacher:'白永乾', type:'afternoon' },
+    { sub:'外语', teacher:'李姜苇', type:'afternoon' },
+    { sub:'外语', teacher:'李姜苇', type:'afternoon' },
+  ],
+  // 周五
+  [
+    { sub:'生物', teacher:'白永乾', type:'morning' },
+    { sub:'生物', teacher:'白永乾', type:'morning' },
+    { sub:'外语', teacher:'李姜苇', type:'morning' },
+    null,
+    { sub:'语文', teacher:'王诗雨', type:'morning' },
+    { sub:'语文', teacher:'王诗雨', type:'morning' },
+    null,
+    { sub:'物理', teacher:'陈科仲', type:'afternoon' },
+    { sub:'化学', teacher:'孙文军', type:'afternoon' },
+    { sub:'数学', teacher:'严云春', type:'afternoon' },
+    { sub:'数学', teacher:'严云春', type:'afternoon' },
+  ],
+  // 周六
+  [
+    { sub:'语文', teacher:'王诗雨', type:'morning' },
+    { sub:'数学', teacher:'严云春', type:'morning' },
+    { sub:'外语', teacher:'李姜苇', type:'morning' },
+    null,
+    { sub:'周考2', teacher:'', type:'special' },
+    { sub:'周考2', teacher:'', type:'special' },
+    null,
+    { sub:'生物', teacher:'白永乾', type:'afternoon' },
+    { sub:'物理', teacher:'陈科仲', type:'afternoon' },
+    { sub:'化学', teacher:'孙文军', type:'afternoon' },
+    { sub:'', teacher:'', type:'empty' },
+  ],
+];
+
+const times = [
+  '7:40～8:20','8:30～9:10','9:20～10:00',
+  null,
+  '10:30～11:15','11:25～12:05',
+  null,
+  '2:00～2:40','2:50～3:30','3:40～4:25','4:35～5:15'
+];
+
+const periodNums = [1,2,3,null,4,5,null,6,7,8,9];
+
+function switchDay(idx) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', i===idx));
+  document.querySelectorAll('.day-view').forEach((d,i) => d.classList.toggle('active', i===idx));
+  // Dismiss hint after first use
+  document.getElementById('hint').style.display='none';
+}
+
+function buildSchedule() {
+  const container = document.getElementById('content');
+  schedule.forEach((day, di) => {
+    const div = document.createElement('div');
+    div.className = 'day-view' + (di===0?' active':'');
+
+    let morningDone = false, afternoonDone = false;
+    let html = '';
+
+    day.forEach((period, i) => {
+      const num = periodNums[i];
+      const time = times[i];
+
+      if (period === null) {
+        if (!morningDone && i === 3) {
+          html += '<div class="break-bar">课间操</div>';
+        } else if (!afternoonDone && i === 6) {
+          morningDone = true;
+          html += '<div class="break-bar">午 休</div>';
+        }
+        return;
+      }
+
+      if (!morningDone && num <= 3) {
+        if (!html.includes('上午')) {
+          html += '<div class="section-label morning">🌤 上午</div>';
+        }
+      }
+      if (morningDone && !afternoonDone && num >= 6) {
+        afternoonDone = true;
+        html += '<div class="section-label afternoon">🌆 下午</div>';
+      }
+
+      const isEmpty = !period.sub;
+      const cls = isEmpty ? 'empty' : period.type;
+      const subjDisplay = isEmpty ? '— 无课 —' : period.sub;
+
+      html += `<div class="period-card ${cls}">
+        <div class="period-num">${num}</div>
+        <div class="period-info">
+          <div class="period-time">${time || ''}</div>
+          <div class="period-subject">${subjDisplay}</div>
+          ${period.teacher ? `<div class="period-teacher">👤 ${period.teacher}</div>` : ''}
+        </div>
+      </div>`;
+    });
+
+    div.innerHTML = html;
+    container.appendChild(div);
+  });
+}
+
+buildSchedule();
+
+// Auto-switch to today
+const dayMap = [0,1,2,3,4,5]; // Mon=1..Sat=6 in JS
+const today = new Date().getDay(); // 0=Sun,1=Mon...6=Sat
+if (today >= 1 && today <= 6) {
+  switchDay(today - 1);
+  document.querySelectorAll('.tab')[today-1].scrollIntoView({inline:'center',behavior:'smooth'});
+}
+</script>
+</body>
+</html>
