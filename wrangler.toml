@@ -1,0 +1,7 @@
+name = "schedule-guiyang8-33"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+[[kv_namespaces]]
+binding = "SCHEDULE_KV"
+id = "6a08c97d81c5489aa0f73be62c798627"
