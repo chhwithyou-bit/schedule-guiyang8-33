@@ -186,9 +186,72 @@ html,body {
   display:flex; align-items:center; justify-content:center; font-family:inherit;
 }
 .sync-indicator { font-size:11px; color:var(--t3); text-align:center; padding:4px 0 2px; }
+
+/* ===== DRAWER ===== */
+.drawer-overlay {
+  display:none; position:fixed; inset:0; background:rgba(0,0,0,.6);
+  z-index:500; backdrop-filter:blur(4px);
+}
+.drawer-overlay.open { display:block; }
+.drawer {
+  position:fixed; top:0; left:0; bottom:0; width:280px;
+  background:var(--s1); z-index:501;
+  transform:translateX(-100%); transition:transform .32s cubic-bezier(.32,0,.15,1);
+  display:flex; flex-direction:column; overflow:hidden;
+}
+.drawer.open { transform:translateX(0); }
+.drawer-safe { height:env(safe-area-inset-top,44px); }
+.drawer-header { padding:16px 20px 12px; border-bottom:1px solid var(--border); }
+.drawer-school { font-size:12px; color:var(--t2); margin-bottom:2px; }
+.drawer-title { font-size:20px; font-weight:700; }
+.drawer-nav { flex:1; padding:12px 12px; display:flex; flex-direction:column; gap:4px; }
+.drawer-item {
+  display:flex; align-items:center; gap:14px; padding:13px 14px;
+  border-radius:12px; cursor:pointer; text-decoration:none; color:var(--text);
+  font-size:16px; font-weight:500; transition:background .15s;
+}
+.drawer-item:active, .drawer-item.active { background:var(--s2); }
+.drawer-item-icon { font-size:20px; width:28px; text-align:center; flex-shrink:0; }
+.drawer-item-label { flex:1; }
+.drawer-item-badge {
+  font-size:11px; font-weight:600; background:var(--blue);
+  color:#fff; padding:2px 7px; border-radius:20px;
+}
+.drawer-footer { padding:16px 20px; border-top:1px solid var(--border); font-size:12px; color:var(--t3); }
+
+/* hamburger button */
+.ham-btn {
+  background:var(--s2); border:none; color:var(--text); 
+  width:36px; height:36px; border-radius:10px; cursor:pointer;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px;
+  margin-top:8px; flex-shrink:0;
+}
+.ham-btn span { display:block; width:16px; height:1.5px; background:var(--text); border-radius:2px; }
 </style>
 </head>
 <body>
+<!-- ===== DRAWER ===== -->
+<div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-safe"></div>
+  <div class="drawer-header">
+    <div class="drawer-school">贵阳八中</div>
+    <div class="drawer-title">高三（3）班</div>
+  </div>
+  <nav class="drawer-nav">
+    <a class="drawer-item active" href="index.html" onclick="closeDrawer()">
+      <span class="drawer-item-icon">📚</span>
+      <span class="drawer-item-label">课程表</span>
+    </a>
+    <a class="drawer-item" href="billiards.html" onclick="closeDrawer()">
+      <span class="drawer-item-icon">🎱</span>
+      <span class="drawer-item-label">台球游戏</span>
+      <span class="drawer-item-badge">NEW</span>
+    </a>
+  </nav>
+  <div class="drawer-footer">2025-2026 第二学期 · 至6月7日</div>
+</div>
+
 <div class="safe-top"></div>
 <div class="header">
   <div class="header-left">
@@ -196,7 +259,12 @@ html,body {
     <div class="hdr-title">高三（3）班</div>
     <div class="hdr-date" id="hdrDate"></div>
   </div>
-  <button class="admin-btn" onclick="openAdmin()">⚙️ 更新</button>
+  <div style="display:flex;gap:8px;align-items:flex-start">
+    <button class="ham-btn" onclick="openDrawer()">
+      <span></span><span></span><span></span>
+    </button>
+    <button class="admin-btn" onclick="openAdmin()">⚙️ 更新</button>
+  </div>
 </div>
 
 <div class="cards">
@@ -636,6 +704,16 @@ async function init() {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') refreshData();
   });
+}
+
+// ==================== DRAWER ====================
+function openDrawer() {
+  document.getElementById('drawer').classList.add('open');
+  document.getElementById('drawerOverlay').classList.add('open');
+}
+function closeDrawer() {
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('drawerOverlay').classList.remove('open');
 }
 
 init();
