@@ -10,3 +10,6 @@ id = "6a08c97d81c5489aa0f73be62c798627"
 type = "Text"
 globs = ["**/*.html"]
 fallbacks = []
+
+[assets]
+directory = "./public"

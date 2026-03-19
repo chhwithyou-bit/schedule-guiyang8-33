@@ -231,6 +231,16 @@ canvas#biltable { border-radius:5px;box-shadow:0 0 0 7px #3d2008,0 0 0 13px #2a1
 .foul-toast.show { opacity:1; }
 .place-hint { position:fixed;bottom:110px;left:50%;transform:translateX(-50%);background:rgba(255,214,10,0.92);color:#000;padding:6px 14px;border-radius:16px;font-size:13px;font-weight:700;z-index:100;pointer-events:none;display:none;white-space:nowrap; }
 .place-hint.show { display:block; }
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: url('/bg.jpg') center/cover no-repeat;
+  opacity: 0.13;
+  z-index: 0;
+  pointer-events: none;
+}
 </style>
 </head>
 <body>
