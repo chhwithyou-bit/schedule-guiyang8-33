@@ -1,3 +1,6 @@
+// 导入同一目录下的 html 文件
+import htmlContent from './index.html';
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -39,7 +42,9 @@ export default {
       });
     }
 
-    // Serve static assets (index.html etc.)
-    return env.ASSETS.fetch(request);
+    // 修复 1101 错误：直接返回导入的 HTML 字符串
+    return new Response(htmlContent, {
+      headers: { 'Content-Type': 'text/html;charset=UTF-8' }
+    });
   }
 };
