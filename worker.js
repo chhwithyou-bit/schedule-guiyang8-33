@@ -1,4 +1,5 @@
 import htmlContent from './index.html';
+import billiardsContent from './billiards.html';
 
 export default {
   async fetch(request, env) {
@@ -44,7 +45,14 @@ export default {
       }
     }
 
-    // 3. 返回 HTML 网页 (修复 1101 错误)
+    // 3. 返回台球游戏页面
+    if (url.pathname === '/billiards.html' || url.pathname === '/billiards') {
+      return new Response(billiardsContent, {
+        headers: { 'Content-Type': 'text/html;charset=UTF-8' }
+      });
+    }
+
+    // 4. 返回 HTML 网页 (修复 1101 错误)
     return new Response(htmlContent, {
       headers: { 'Content-Type': 'text/html;charset=UTF-8' }
     });
