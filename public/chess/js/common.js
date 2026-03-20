@@ -128,12 +128,14 @@ window.onload = function(){
 		}
 	})
 	
-	//人机对弈
+	//人机对弈（已移除，保留兼容）
+	if (com.get("indexDy")) {
 	com.get("indexDy").addEventListener("click", function(e) {
 		com.get("indexBox").style.display = "none";
 		com.get("menuQj").style.display = "none";
 		com.get("menuDy").style.display = "block";
 	})
+	}
 	
 	//挑战棋局
 	com.get("indexQj").addEventListener("click", function(e) {

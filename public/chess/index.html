@@ -9,12 +9,12 @@
 /* 修正布局 */
 .chess_box { position: relative !important; }
 
-/* 菜单框：加高以容纳4个按钮，overflow hidden裁掉底部小字 */
+/* 菜单框：只保留3个按钮，overflow hidden裁掉底部小字 */
 .menu_box {
   position: relative !important;
-  height: 290px !important;
+  height: 260px !important;
   overflow: hidden !important;
-  padding-top: 150px !important;
+  padding-top: 160px !important;
 }
 
 /* 回合提示 */
@@ -57,7 +57,6 @@
 <!-- 主菜单 -->
 <div class="menu_box" id="menuBox">
   <div class="menu_init" id="indexBox">
-    <a id="indexDy">人机对弈</a>
     <a id="indexPvp">双人对战</a>
     <a id="indexQj">挑战棋局</a>
     <a id="stypeBtn">更换皮肤</a>
