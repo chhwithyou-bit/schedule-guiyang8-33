@@ -3,13 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <title>中国象棋 in html5</title>
-<meta name="viewport" content="width=device-width; initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <link href="css/chess.css" rel="stylesheet" type="text/css">
 <!--[if lt IE 9]>
 <script> alert("对不起，您的浏览器不支持HTML5，请升级浏览器至IE9、firefox或者谷歌浏览器！")</script>
 < ![endif]-->
 </head>
 <body>
+<!-- 返回按钮 -->
+<div style="position:fixed;top:12px;left:12px;z-index:9999;">
+  <a href="/" style="display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,0.6);color:white;padding:8px 16px;border-radius:20px;font-family:PingFang SC,sans-serif;font-size:14px;font-weight:500;text-decoration:none;backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.25);-webkit-backdrop-filter:blur(8px);">‹ 返回课程表</a>
+</div>
 <div id="chessBox" class="chess_box">
 	<canvas id="chess"></canvas>
 	<audio src="audio/click.wav" id="clickAudio" preload="auto"></audio>
