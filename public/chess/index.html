@@ -8,6 +8,10 @@
 <!--[if lt IE 9]>
 <script> alert("对不起，您的浏览器不支持HTML5，请升级浏览器至IE9、firefox或者谷歌浏览器！")</script>
 < ![endif]-->
+<style>
+.chess_box { position: relative !important; }
+.menu_box  { position: relative !important; }
+</style>
 </head>
 <body>
 <!-- 返回按钮 -->
@@ -23,9 +27,13 @@
 		<input type="button" name="gohomeBtn" id="gohomeBtn" value="  返回首页  " />
 		<input type="button" name="regretBtn" id="regretBtn" value="  悔   棋  " />
 	</div>
+	<!-- 双人对战回合提示 -->
+	<div id="pvpTurnTip" style="display:none;position:absolute;top:8px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,0.92);padding:5px 18px;border-radius:20px;font-size:15px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,0.25);white-space:nowrap;z-index:10;"></div>
 </div>
 <div class="menu_box" id="menuBox">
-	<div class="menu_init" id="indexBox"><a id="indexDy">人机对弈</a><a id="indexQj">挑战棋局</a><a id="stypeBtn">更换皮肤</a></div>
+	<!-- 遮住图片底部作者信息 -->
+	<div style="position:absolute;bottom:0;left:0;right:0;height:32px;background:#3d2408;z-index:1;"></div>
+	<div class="menu_init" id="indexBox" style="position:relative;z-index:2;"><a id="indexDy">人机对弈</a><a id="indexPvp">双人对战</a><a id="indexQj">挑战棋局</a><a id="stypeBtn">更换皮肤</a></div>
 	<div class="menu_dy" id="menuDy">
 		<div class="menu_info">
 			<div class="menu_fh" id="menuFh"></div>
@@ -65,5 +73,127 @@
 <script type="text/javascript" src="js/gambit.js"></script>
 <script type="text/javascript" src="js/clasli.js"></script>
 <script type="text/javascript" charset="utf-8" src="js/cordova-2.2.0.js"></script>
+<script type="text/javascript">
+// ===== 双人对战模式 =====
+play.pvpMode = false; // 标记是否双人模式
+
+// 双人模式：允许红黑双方都能操作，不触发 AI
+play.pvpClickMan = function(key, x, y) {
+  var man = com.mans[key];
+  var nowTurn = play.pvpTurn; // 1=红方, -1=黑方
+  // 吃子
+  if (play.nowManKey && play.nowManKey != key && man.my != com.mans[play.nowManKey].my) {
+    if (play.indexOfPs(com.mans[play.nowManKey].ps, [x, y])) {
+      man.isShow = false;
+      var pace = com.mans[play.nowManKey].x + "" + com.mans[play.nowManKey].y;
+      delete play.map[com.mans[play.nowManKey].y][com.mans[play.nowManKey].x];
+      play.map[y][x] = play.nowManKey;
+      com.showPane(com.mans[play.nowManKey].x, com.mans[play.nowManKey].y, x, y);
+      com.mans[play.nowManKey].x = x;
+      com.mans[play.nowManKey].y = y;
+      com.mans[play.nowManKey].alpha = 1;
+      play.pace.push(pace + x + y);
+      play.nowManKey = false;
+      com.pane.isShow = false;
+      com.dot.dots = [];
+      com.show();
+      com.get("clickAudio").play();
+      play.pvpTurn = -play.pvpTurn; // 换手
+      play.pvpShowTurn();
+      if (key == "j0") play.pvpShowWin(1);
+      if (key == "J0") play.pvpShowWin(-1);
+    }
+  } else {
+    // 选中棋子（只能选当前回合的棋子）
+    if (man.my === nowTurn) {
+      if (com.mans[play.nowManKey]) com.mans[play.nowManKey].alpha = 1;
+      man.alpha = 0.8;
+      com.pane.isShow = false;
+      play.nowManKey = key;
+      com.mans[key].ps = com.mans[key].bl();
+      com.dot.dots = com.mans[key].ps;
+      com.show();
+      com.get("selectAudio").play();
+    }
+  }
+};
+
+play.pvpClickPoint = function(x, y) {
+  var key = play.nowManKey;
+  var man = com.mans[key];
+  if (play.nowManKey) {
+    if (play.indexOfPs(com.mans[key].ps, [x, y])) {
+      var pace = man.x + "" + man.y;
+      delete play.map[man.y][man.x];
+      play.map[y][x] = key;
+      com.showPane(man.x, man.y, x, y);
+      man.x = x;
+      man.y = y;
+      man.alpha = 1;
+      play.pace.push(pace + x + y);
+      play.nowManKey = false;
+      com.dot.dots = [];
+      com.show();
+      com.get("clickAudio").play();
+      play.pvpTurn = -play.pvpTurn;
+      play.pvpShowTurn();
+    }
+  }
+};
+
+play.pvpShowTurn = function() {
+  var el = com.get("pvpTurnTip");
+  if (!el) return;
+  el.textContent = play.pvpTurn === 1 ? "🔴 红方行棋" : "⚫ 黑方行棋";
+  el.style.color = play.pvpTurn === 1 ? "#FF4400" : "#222";
+};
+
+play.pvpShowWin = function(my) {
+  play.isPlay = false;
+  alert(my === 1 ? "🔴 红方胜利！" : "⚫ 黑方胜利！");
+};
+
+play.pvpClickCanvas = function(e) {
+  if (!play.isPlay) return false;
+  var key = play.getClickMan(e);
+  var point = play.getClickPoint(e);
+  var x = point.x, y = point.y;
+  if (key) {
+    play.pvpClickMan(key, x, y);
+  } else {
+    play.pvpClickPoint(x, y);
+  }
+};
+
+play.startPvp = function() {
+  play.pvpMode = true;
+  play.pvpTurn = 1; // 红方先
+  play.init(3); // 用标准初始化，但不会触发AI
+  // 移除 AI 的 click 监听，换成 PVP 监听
+  com.canvas.removeEventListener("click", play.clickCanvas);
+  com.canvas.addEventListener("click", play.pvpClickCanvas);
+  // 显示回合提示
+  var tip = com.get("pvpTurnTip");
+  if (tip) { tip.style.display = "block"; play.pvpShowTurn(); }
+  com.get("bnBox").style.display = "block";
+  // 重开按钮重置为PVP模式
+  com.get("restartBtn").onclick = function() { play.startPvp(); };
+};
+
+// 等 common.js 的 window.onload 跑完后再绑定双人按钮
+var _pvpBindTimer = setInterval(function() {
+  var btn = com.get("indexPvp");
+  var tip = com.get("pvpTurnTip");
+  if (btn && tip) {
+    clearInterval(_pvpBindTimer);
+    btn.addEventListener("click", function() {
+      com.get("indexBox").style.display = "none";
+      com.get("menuDy").style.display = "none";
+      com.get("menuQj").style.display = "none";
+      play.startPvp();
+    });
+  }
+}, 100);
+</script>
 </body>
 </html>
