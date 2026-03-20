@@ -33,7 +33,7 @@
 }
 
 html, body {
-  background: url('public/chess/img/stype_3/1') center/cover no-repeat fixed;
+  background: url('public/chess/img/stype_3/bg1.jpg') center/cover no-repeat fixed;
   color: #f0e6d0;
   font-family: 'Noto Serif SC', 'STSong', 'SimSun', serif;
   height: 100%;
@@ -623,9 +623,7 @@ class ChessRenderer {
   constructor(canvas) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
-    this.bgImage = new Image();
-    this.bgImage.src = 'public/chess/img/stype_3/bg.png';
-    this.bgImage.onload = () => { if (window.game) window.game.render(); };
+    this.bgImageLoaded = false;
     this.resize();
   }
 
@@ -660,6 +658,8 @@ class ChessRenderer {
     this.canvas.height = this.bh;
     this.canvas.style.width = this.bw + 'px';
     this.canvas.style.height = this.bh + 'px';
+    this.canvas.style.backgroundImage = "url('public/chess/img/stype_3/bg.png')";
+    this.canvas.style.backgroundSize = '100% 100%';
   }
 
   cellToXY(row, col) {
@@ -680,18 +680,9 @@ class ChessRenderer {
     const ctx = this.ctx;
     const { bw, bh, cell, pad } = this;
 
-    // Board background - use bg.png image
-    if (this.bgImage && this.bgImage.complete) {
-      ctx.drawImage(this.bgImage, 0, 0, bw, bh);
-    } else {
-      // Fallback gradient while image loads
-      const grad = ctx.createLinearGradient(0, 0, bw, bh);
-      grad.addColorStop(0, '#d4a85a');
-      grad.addColorStop(0.5, '#c8993f');
-      grad.addColorStop(1, '#b8832a');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, bw, bh);
-    }
+    // Board background - drawn via CSS background-image on canvas
+    // Just clear the canvas (transparent) so CSS bg shows through
+    ctx.clearRect(0, 0, bw, bh);
 
     // Grid lines
     ctx.strokeStyle = '#6b3e0f';
