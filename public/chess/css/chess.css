@@ -1,4 +1,4 @@
-body{  font-size: 12px; line-height: 150%; text-align:center; display:flex; justify-content:center; align-items:center; min-height:100vh; margin:0; padding:0;}
+body{  font-size: 12px; line-height: 150%; text-align:center;}
 .chess_box,.menu_dy,.menu_qj{ display:none}
 .menu_box{ display:block; width:316px; height:232px; padding-top:190px; background:url(../img/init_bg.png); margin:60px auto 0;}
 .menu_box a{ width:214px; height:46px; text-align:center; line-height:46px; background:url(../img/btn_bg.png) center 0 no-repeat; display:block; margin:10px 0 10px 45px; font: normal 18px/46px"�?�???�?"; color:#FF8A00; cursor:pointer; }
