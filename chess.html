@@ -33,7 +33,7 @@
 }
 
 html, body {
-  background: var(--bg);
+  background: url('public/chess/img/stype_3/1') center/cover no-repeat fixed;
   color: #f0e6d0;
   font-family: 'Noto Serif SC', 'STSong', 'SimSun', serif;
   height: 100%;
@@ -47,10 +47,7 @@ body::before {
   content: '';
   position: fixed;
   inset: 0;
-  background: 
-    radial-gradient(ellipse at 20% 20%, rgba(180,100,20,0.15) 0%, transparent 60%),
-    radial-gradient(ellipse at 80% 80%, rgba(150,60,10,0.1) 0%, transparent 60%),
-    repeating-linear-gradient(45deg, transparent, transparent 40px, rgba(255,200,100,0.015) 40px, rgba(255,200,100,0.015) 80px);
+  background: rgba(0,0,0,0.15);
   z-index: 0;
   pointer-events: none;
 }
@@ -626,6 +623,9 @@ class ChessRenderer {
   constructor(canvas) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
+    this.bgImage = new Image();
+    this.bgImage.src = 'public/chess/img/stype_3/bg.png';
+    this.bgImage.onload = () => { if (window.game) window.game.render(); };
     this.resize();
   }
 
@@ -680,22 +680,17 @@ class ChessRenderer {
     const ctx = this.ctx;
     const { bw, bh, cell, pad } = this;
 
-    // Board background
-    const grad = ctx.createLinearGradient(0, 0, bw, bh);
-    grad.addColorStop(0, '#d4a85a');
-    grad.addColorStop(0.5, '#c8993f');
-    grad.addColorStop(1, '#b8832a');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, bw, bh);
-
-    // Wood grain texture (subtle lines)
-    ctx.strokeStyle = 'rgba(160,100,30,0.08)';
-    ctx.lineWidth = 1;
-    for (let i = 0; i < bh; i += 3) {
-      ctx.beginPath();
-      ctx.moveTo(0, i + Math.sin(i*0.1)*2);
-      ctx.lineTo(bw, i + Math.sin(i*0.1)*2);
-      ctx.stroke();
+    // Board background - use bg.png image
+    if (this.bgImage && this.bgImage.complete) {
+      ctx.drawImage(this.bgImage, 0, 0, bw, bh);
+    } else {
+      // Fallback gradient while image loads
+      const grad = ctx.createLinearGradient(0, 0, bw, bh);
+      grad.addColorStop(0, '#d4a85a');
+      grad.addColorStop(0.5, '#c8993f');
+      grad.addColorStop(1, '#b8832a');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, bw, bh);
     }
 
     // Grid lines
