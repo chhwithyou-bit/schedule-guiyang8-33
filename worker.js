@@ -53,7 +53,9 @@ export default {
     }
 
     
-
+if (url.pathname.match(/\.(jpg|jpeg|png|gif|ico)$/i)) {
+      return new Response('Image Not Found', { status: 404 });
+    }
     // 5. 返回 HTML 网页 (修复 1101 错误)
     return new Response(htmlContent, {
       headers: { 'Content-Type': 'text/html;charset=UTF-8' }
@@ -70,3 +72,8 @@ export default {
     });
   }
 };
+
+    // 拦截静态资源：如果请求的是图片等静态文件，直接返回 404，防止返回 HTML
+    
+
+    
