@@ -10,7 +10,7 @@
 .chess_box { position: relative !important; }
 
 /* 自定义背景 */
-body { background: url(img/stype_3/1) center/cover no-repeat fixed !important; }
+body { background: url(img/stype_3/bg1.jpg) center/cover no-repeat fixed !important; }
 
 /* 菜单框：只保留2个按钮 */
 .menu_box {
@@ -176,6 +176,8 @@ play.startPvp = function() {
   play.pvpTurn = 1;
   // play.init 会绑定 AI 的 clickCanvas，先初始化再替换
   play.init(3);
+  // 强制恢复正确背景（common.js的init会覆盖body背景）
+  document.body.style.background = "url(img/stype_3/bg1.jpg) center/cover no-repeat fixed";
   com.canvas.removeEventListener("click", play.clickCanvas);
   com.canvas.addEventListener("click", play.pvpClickCanvas);
   // 显示回合提示
