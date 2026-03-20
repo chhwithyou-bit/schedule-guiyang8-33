@@ -264,6 +264,10 @@ body::before {
       <span class="drawer-item-label">象棋游戏</span>
       <span class="drawer-item-badge">NEW</span>
     </button>
+    <button class="drawer-item" id="nav-nodes" onclick="navTo('nodes')">
+      <span class="drawer-item-icon">🔗</span>
+      <span class="drawer-item-label">节点分享</span>
+    </button>
   </nav>
   <div class="drawer-footer">2025-2026 第二学期 · 至6月7日</div>
 </div>
@@ -432,6 +436,486 @@ body::before {
   <div class="place-hint" id="placeHint">点击左半区放置白球</div>
 </div><!-- end page-billiards -->
 
+<!-- ===== PAGE: NODES ===== -->
+<div class="page" id="page-nodes">
+<style>
+#page-nodes {
+  overflow-y: auto;
+  background: #070d16;
+}
+.nd-safe { height: env(safe-area-inset-top, 44px); }
+.nd-header {
+  padding: 6px 16px 14px;
+  display: flex; align-items: flex-start; gap: 12px;
+  background: linear-gradient(180deg, #0b1525 0%, #070d16 100%);
+  border-bottom: 1px solid rgba(96,192,255,0.1);
+}
+.nd-header-ham {
+  background: rgba(96,192,255,0.08); border: none;
+  color: #60c0ff; width: 36px; height: 36px; border-radius: 10px;
+  cursor: pointer; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 5px;
+  margin-top: 8px; flex-shrink: 0;
+}
+.nd-header-ham span { display: block; width: 16px; height: 1.5px; background: #60c0ff; border-radius: 2px; }
+.nd-header-text { padding-top: 6px; }
+.nd-header-sub { font-size: 12px; color: rgba(96,192,255,0.5); margin-bottom: 2px; }
+.nd-header-title { font-size: 26px; font-weight: 700; color: #e0f0ff; letter-spacing: -0.5px; }
+
+.nd-body { padding: 16px; max-width: 500px; margin: 0 auto; }
+
+/* Cards */
+.nd-card {
+  background: #0d1b2a;
+  border: 1px solid rgba(96,192,255,0.12);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 14px;
+}
+.nd-card-title {
+  font-size: 13px; font-weight: 700; color: rgba(96,192,255,0.7);
+  text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px;
+}
+
+/* Inputs */
+.nd-input {
+  width: 100%; padding: 12px 14px;
+  background: #060e1a; border: 1px solid rgba(96,192,255,0.15);
+  border-radius: 10px; color: #e0f0ff; font-size: 15px;
+  outline: none; box-sizing: border-box; font-family: inherit;
+  transition: border-color .2s;
+}
+.nd-input:focus { border-color: rgba(96,192,255,0.5); }
+.nd-input::placeholder { color: rgba(96,192,255,0.25); }
+
+/* Buttons */
+.nd-btn {
+  width: 100%; padding: 13px; margin-top: 10px;
+  border: none; border-radius: 10px;
+  font-size: 15px; font-weight: 700; cursor: pointer;
+  font-family: inherit; letter-spacing: 0.5px; transition: opacity .15s;
+}
+.nd-btn:active { opacity: 0.8; }
+.nd-btn-primary { background: linear-gradient(135deg, #1565c0, #0d47a1); color: #fff; }
+.nd-btn-purple  { background: linear-gradient(135deg, #6a1b9a, #4a148c); color: #fff; }
+.nd-btn-teal    { background: linear-gradient(135deg, #00695c, #004d40); color: #fff; }
+.nd-btn-sm {
+  padding: 7px 14px; font-size: 12px; font-weight: 700;
+  border: none; border-radius: 8px; cursor: pointer; font-family: inherit;
+}
+.nd-btn-danger  { background: rgba(239,83,80,0.15); color: #ef5350; border: 1px solid rgba(239,83,80,0.3); }
+.nd-btn-muted   { background: rgba(96,192,255,0.08); color: #60c0ff; border: 1px solid rgba(96,192,255,0.2); }
+
+/* Error message */
+.nd-err { color: #ef5350; font-size: 13px; text-align: center; margin-top: 8px; display: none; }
+.nd-ok  { color: #66bb6a; font-size: 13px; text-align: center; margin-top: 8px; display: none; }
+
+/* Node item */
+.nd-node-item {
+  display: flex; align-items: center; gap: 10px;
+  background: #060e1a; border: 1px solid rgba(96,192,255,0.1);
+  border-radius: 10px; padding: 11px 13px; margin-bottom: 7px;
+  cursor: pointer; transition: border-color .15s;
+}
+.nd-node-item:has(input:checked) { border-color: rgba(96,192,255,0.45); background: #0a1828; }
+.nd-node-item input[type=checkbox] {
+  width: 18px; height: 18px; accent-color: #60c0ff; flex-shrink: 0; cursor: pointer;
+}
+.nd-node-name {
+  flex: 1; font-size: 14px; color: #c8e6ff; font-weight: 500;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.nd-node-proto {
+  font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 20px; flex-shrink: 0;
+}
+.nd-proto-ss     { background: rgba(255,183,77,0.15); color: #ffb74d; }
+.nd-proto-vmess  { background: rgba(96,192,255,0.15); color: #60c0ff; }
+.nd-proto-trojan { background: rgba(102,187,106,0.15); color: #66bb6a; }
+.nd-proto-vless  { background: rgba(191,90,242,0.15); color: #bf5af2; }
+.nd-proto-ssr    { background: rgba(255,167,38,0.15); color: #ffa726; }
+
+/* Toast */
+.nd-toast {
+  position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%) translateY(20px);
+  background: #1b5e20; color: #a5d6a7; padding: 12px 24px;
+  border-radius: 30px; font-size: 14px; font-weight: 600;
+  opacity: 0; transition: all .3s; pointer-events: none; white-space: nowrap; z-index: 999;
+}
+.nd-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* Separator */
+.nd-sep { display: flex; align-items: center; gap: 10px; margin: 12px 0; }
+.nd-sep-line { flex: 1; height: 1px; background: rgba(96,192,255,0.1); }
+.nd-sep-text { font-size: 11px; color: rgba(96,192,255,0.3); }
+
+/* Link button */
+.nd-link-btn { background: none; border: none; color: rgba(96,192,255,0.4); font-size: 12px; cursor: pointer; font-family: inherit; }
+.nd-link-btn:active { color: #60c0ff; }
+</style>
+
+<div class="nd-safe"></div>
+<div class="nd-header">
+  <button class="nd-header-ham" onclick="openDrawer()">
+    <span></span><span></span><span></span>
+  </button>
+  <div class="nd-header-text">
+    <div class="nd-header-sub">共享网络</div>
+    <div class="nd-header-title">节点分享</div>
+  </div>
+</div>
+
+<div class="nd-body">
+
+  <!-- ── 未登录 ── -->
+  <div id="nd-view-login">
+    <div style="text-align:center;padding:32px 0 24px;">
+      <div style="font-size:52px;margin-bottom:12px;">🔐</div>
+      <div style="font-size:18px;font-weight:700;color:#e0f0ff;">访问节点库</div>
+      <div style="font-size:13px;color:rgba(96,192,255,0.4);margin-top:4px;">请输入访问密码</div>
+    </div>
+    <div class="nd-card">
+      <input id="nd-user-pwd" class="nd-input" type="password" placeholder="访问密码"
+        onkeydown="if(event.key==='Enter')ndUserLogin()">
+      <button class="nd-btn nd-btn-primary" onclick="ndUserLogin()">进入</button>
+      <div class="nd-err" id="nd-user-err">密码错误，请重试</div>
+      <div class="nd-sep"><div class="nd-sep-line"></div><div class="nd-sep-text">OR</div><div class="nd-sep-line"></div></div>
+      <div style="text-align:center;">
+        <button class="nd-link-btn" onclick="ndShowView('admin-login')">管理员入口 →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Admin 登录 ── -->
+  <div id="nd-view-admin-login" style="display:none;">
+    <div style="text-align:center;padding:32px 0 24px;">
+      <div style="font-size:52px;margin-bottom:12px;">⚙️</div>
+      <div style="font-size:18px;font-weight:700;color:#e0f0ff;">管理员登录</div>
+    </div>
+    <div class="nd-card">
+      <input id="nd-admin-user" class="nd-input" type="text" placeholder="用户名"
+        style="margin-bottom:8px;">
+      <input id="nd-admin-pass" class="nd-input" type="password" placeholder="密码"
+        onkeydown="if(event.key==='Enter')ndAdminLogin()">
+      <button class="nd-btn nd-btn-purple" onclick="ndAdminLogin()">进入管理</button>
+      <div class="nd-err" id="nd-admin-err">用户名或密码错误</div>
+      <div style="text-align:center;margin-top:14px;">
+        <button class="nd-link-btn" onclick="ndShowView('login')">← 返回</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 普通用户面板 ── -->
+  <div id="nd-view-user" style="display:none;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div style="font-size:14px;color:rgba(96,192,255,0.6);">
+        共 <span id="nd-total-count" style="color:#60c0ff;font-weight:700;">0</span> 个节点
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="nd-btn-sm nd-btn-muted" onclick="ndSelectAll()">全选</button>
+        <button class="nd-btn-sm nd-btn-primary" onclick="ndCopySelected()">复制选中</button>
+      </div>
+    </div>
+    <div id="nd-user-list"></div>
+    <div id="nd-user-empty" style="display:none;text-align:center;padding:48px 0;color:rgba(96,192,255,0.3);">
+      <div style="font-size:36px;margin-bottom:8px;">📭</div>
+      <div style="font-size:14px;">暂无节点，请联系管理员</div>
+    </div>
+    <div style="text-align:right;margin-top:20px;padding-bottom:32px;">
+      <button class="nd-link-btn" onclick="ndLogout()">退出</button>
+    </div>
+  </div>
+
+  <!-- ── Admin 面板 ── -->
+  <div id="nd-view-admin" style="display:none;">
+
+    <!-- 导入订阅 -->
+    <div class="nd-card">
+      <div class="nd-card-title">📥 导入订阅</div>
+      <input id="nd-sub-url" class="nd-input" type="text" placeholder="粘贴订阅链接 (http://...)">
+      <button class="nd-btn nd-btn-teal" onclick="ndImportSub()" style="margin-top:10px;">解析并导入节点</button>
+      <div class="nd-err" id="nd-import-err"></div>
+      <div class="nd-ok"  id="nd-import-ok"></div>
+    </div>
+
+    <!-- 节点管理 -->
+    <div class="nd-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+        <div class="nd-card-title" style="margin-bottom:0;">
+          📋 节点列表
+          <span id="nd-admin-count" style="color:#60c0ff;font-size:12px;margin-left:6px;text-transform:none;letter-spacing:0;font-weight:400;"></span>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button class="nd-btn-sm nd-btn-danger" onclick="ndAdminDeleteSelected()">删除选中</button>
+          <button class="nd-btn-sm" style="background:rgba(239,83,80,0.08);color:#ef5350;border:1px solid rgba(239,83,80,0.2);padding:7px 10px;font-size:11px;border-radius:8px;cursor:pointer;" onclick="ndAdminClearAll()">清空</button>
+        </div>
+      </div>
+      <div id="nd-admin-list" style="max-height:280px;overflow-y:auto;"></div>
+      <div id="nd-admin-empty" style="display:none;text-align:center;padding:24px;color:rgba(96,192,255,0.3);font-size:14px;">暂无节点</div>
+    </div>
+
+    <!-- 密码管理 -->
+    <div class="nd-card">
+      <div class="nd-card-title">🔑 密码管理</div>
+      <div style="font-size:12px;color:rgba(96,192,255,0.4);margin-bottom:6px;">用户访问密码</div>
+      <div style="display:flex;gap:8px;margin-bottom:14px;">
+        <input id="nd-set-userpwd" class="nd-input" type="text" placeholder="设置用户密码（4位以上）" style="margin-bottom:0;">
+        <button class="nd-btn-sm nd-btn-muted" style="flex-shrink:0;white-space:nowrap;" onclick="ndSetUserPwd()">保存</button>
+      </div>
+      <div style="font-size:12px;color:rgba(96,192,255,0.4);margin-bottom:6px;">Admin 凭据</div>
+      <input id="nd-set-admin-user" class="nd-input" type="text" placeholder="新用户名" style="margin-bottom:8px;">
+      <div style="display:flex;gap:8px;">
+        <input id="nd-set-admin-pass" class="nd-input" type="text" placeholder="新密码（6位以上）" style="margin-bottom:0;">
+        <button class="nd-btn-sm nd-btn-muted" style="flex-shrink:0;white-space:nowrap;" onclick="ndSetAdminCred()">保存</button>
+      </div>
+      <div class="nd-err" id="nd-pwd-err"></div>
+      <div class="nd-ok"  id="nd-pwd-ok"></div>
+    </div>
+
+    <div style="text-align:right;padding-bottom:32px;">
+      <button class="nd-link-btn" onclick="ndLogout()">退出管理</button>
+    </div>
+  </div>
+
+</div><!-- nd-body -->
+
+<div class="nd-toast" id="nd-toast"></div>
+</div><!-- end page-nodes -->
+
+<script>
+// ============================================================
+// NODES PAGE STATE
+// ============================================================
+let ndRole      = null;   // 'user' | 'admin'
+let ndAdminUser = '';
+let ndAdminPass = '';
+let ndNodes     = [];     // { name, raw, proto }
+
+function ndShowView(name) {
+  ['login','admin-login','user','admin'].forEach(v => {
+    document.getElementById('nd-view-' + v).style.display = v === name ? '' : 'none';
+  });
+}
+
+function ndLogout() {
+  ndRole = null; ndAdminUser = ''; ndAdminPass = ''; ndNodes = [];
+  document.getElementById('nd-user-pwd').value = '';
+  document.getElementById('nd-admin-user').value = '';
+  document.getElementById('nd-admin-pass').value = '';
+  ndShowView('login');
+}
+
+// Show toast
+function ndToast(msg, ok = true) {
+  const el = document.getElementById('nd-toast');
+  el.textContent = msg;
+  el.style.background = ok ? '#1b5e20' : '#7f1d1d';
+  el.style.color = ok ? '#a5d6a7' : '#fca5a5';
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+// Get proto label from raw URL
+function ndProto(raw) {
+  if (raw.startsWith('vmess://'))  return ['vmess',  'nd-proto-vmess'];
+  if (raw.startsWith('trojan://')) return ['trojan', 'nd-proto-trojan'];
+  if (raw.startsWith('vless://'))  return ['vless',  'nd-proto-vless'];
+  if (raw.startsWith('ssr://'))    return ['ssr',    'nd-proto-ssr'];
+  return ['ss', 'nd-proto-ss'];
+}
+
+// ── 普通用户登录 ──
+async function ndUserLogin() {
+  const pwd = document.getElementById('nd-user-pwd').value.trim();
+  const errEl = document.getElementById('nd-user-err');
+  errEl.style.display = 'none';
+  if (!pwd) return;
+  try {
+    const r = await fetch('/api/nodes?pwd=' + encodeURIComponent(pwd));
+    if (!r.ok) { errEl.style.display = ''; return; }
+    ndNodes = await r.json();
+    ndRole = 'user';
+    ndRenderUserNodes();
+    ndShowView('user');
+  } catch { errEl.style.display = ''; }
+}
+
+// ── Admin 登录 ──
+async function ndAdminLogin() {
+  const u = document.getElementById('nd-admin-user').value.trim();
+  const p = document.getElementById('nd-admin-pass').value;
+  const errEl = document.getElementById('nd-admin-err');
+  errEl.style.display = 'none';
+  if (!u || !p) return;
+  try {
+    const r = await fetch('/api/nodes', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'getNodes', adminUser: u, adminPass: p })
+    });
+    if (!r.ok) { errEl.style.display = ''; return; }
+    const data = await r.json();
+    ndAdminUser = u; ndAdminPass = p; ndRole = 'admin';
+    ndNodes = data.nodes || [];
+    ndRenderAdminNodes();
+    ndShowView('admin');
+  } catch { errEl.style.display = ''; }
+}
+
+// ── 渲染用户节点列表 ──
+function ndRenderUserNodes() {
+  const list  = document.getElementById('nd-user-list');
+  const empty = document.getElementById('nd-user-empty');
+  document.getElementById('nd-total-count').textContent = ndNodes.length;
+  if (!ndNodes.length) { list.innerHTML = ''; empty.style.display = ''; return; }
+  empty.style.display = 'none';
+  list.innerHTML = ndNodes.map((n, i) => {
+    const [proto, cls] = ndProto(n.raw);
+    return `
+    <label class="nd-node-item">
+      <input type="checkbox" data-idx="${i}">
+      <div class="nd-node-name">${n.name}</div>
+      <span class="nd-node-proto ${cls}">${proto.toUpperCase()}</span>
+    </label>`;
+  }).join('');
+}
+
+// ── 全选 ──
+function ndSelectAll() {
+  const boxes = document.querySelectorAll('#nd-user-list input[type=checkbox]');
+  const allChecked = [...boxes].every(b => b.checked);
+  boxes.forEach(b => b.checked = !allChecked);
+}
+
+// ── 复制选中节点 ──
+async function ndCopySelected() {
+  const selected = [...document.querySelectorAll('#nd-user-list input[type=checkbox]:checked')]
+    .map(b => ndNodes[+b.dataset.idx].raw);
+  if (!selected.length) { ndToast('请先勾选节点', false); return; }
+  try {
+    await navigator.clipboard.writeText(selected.join('\n'));
+    ndToast(`✅ 已复制 ${selected.length} 个节点，粘贴到 Shadowrocket 即可`);
+  } catch {
+    // fallback for older browsers
+    const ta = document.createElement('textarea');
+    ta.value = selected.join('\n');
+    document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+    ndToast(`✅ 已复制 ${selected.length} 个节点`);
+  }
+}
+
+// ── Admin：渲染节点列表 ──
+function ndRenderAdminNodes() {
+  const list  = document.getElementById('nd-admin-list');
+  const empty = document.getElementById('nd-admin-empty');
+  const cnt   = document.getElementById('nd-admin-count');
+  cnt.textContent = ndNodes.length ? `(${ndNodes.length})` : '';
+  if (!ndNodes.length) { list.innerHTML = ''; empty.style.display = ''; return; }
+  empty.style.display = 'none';
+  list.innerHTML = ndNodes.map((n, i) => {
+    const [proto, cls] = ndProto(n.raw);
+    return `
+    <label class="nd-node-item" style="margin-bottom:6px;">
+      <input type="checkbox" data-idx="${i}">
+      <div class="nd-node-name" style="font-size:13px;">${n.name}</div>
+      <span class="nd-node-proto ${cls}">${proto.toUpperCase()}</span>
+    </label>`;
+  }).join('');
+}
+
+// ── Admin：导入订阅 ──
+async function ndImportSub() {
+  const url   = document.getElementById('nd-sub-url').value.trim();
+  const errEl = document.getElementById('nd-import-err');
+  const okEl  = document.getElementById('nd-import-ok');
+  errEl.style.display = 'none'; okEl.style.display = 'none';
+  if (!url) return;
+  okEl.textContent = '解析中...'; okEl.style.display = '';
+  try {
+    const r = await fetch('/api/nodes', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'importSub', adminUser: ndAdminUser, adminPass: ndAdminPass, subUrl: url })
+    });
+    const data = await r.json();
+    okEl.style.display = 'none';
+    if (data.ok) {
+      okEl.textContent = `✅ 成功导入 ${data.count} 个节点`;
+      okEl.style.display = '';
+      ndNodes = [...ndNodes, ...(data.nodes || [])];
+      ndRenderAdminNodes();
+      document.getElementById('nd-sub-url').value = '';
+    } else {
+      errEl.textContent = '❌ ' + (data.msg || '导入失败');
+      errEl.style.display = '';
+    }
+  } catch (e) {
+    okEl.style.display = 'none';
+    errEl.textContent = '❌ 网络错误：' + e.message;
+    errEl.style.display = '';
+  }
+}
+
+// ── Admin：删除选中节点 ──
+async function ndAdminDeleteSelected() {
+  const idxs = [...document.querySelectorAll('#nd-admin-list input[type=checkbox]:checked')]
+    .map(b => +b.dataset.idx);
+  if (!idxs.length) { ndToast('请先勾选要删除的节点', false); return; }
+  const r = await fetch('/api/nodes', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'deleteNodes', adminUser: ndAdminUser, adminPass: ndAdminPass, indexes: idxs })
+  });
+  if ((await r.json()).ok) {
+    ndNodes = ndNodes.filter((_, i) => !idxs.includes(i));
+    ndRenderAdminNodes();
+    ndToast(`已删除 ${idxs.length} 个节点`);
+  }
+}
+
+// ── Admin：清空全部 ──
+async function ndAdminClearAll() {
+  if (!confirm('确认清空所有节点？')) return;
+  await fetch('/api/nodes', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'clearNodes', adminUser: ndAdminUser, adminPass: ndAdminPass })
+  });
+  ndNodes = []; ndRenderAdminNodes(); ndToast('已清空');
+}
+
+// ── Admin：设置用户密码 ──
+async function ndSetUserPwd() {
+  const pwd   = document.getElementById('nd-set-userpwd').value.trim();
+  const errEl = document.getElementById('nd-pwd-err');
+  const okEl  = document.getElementById('nd-pwd-ok');
+  errEl.style.display = 'none'; okEl.style.display = 'none';
+  const r = await fetch('/api/nodes', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'setUserPwd', adminUser: ndAdminUser, adminPass: ndAdminPass, pwd })
+  });
+  const data = await r.json();
+  if (data.ok) { okEl.textContent = '✅ 用户密码已更新'; okEl.style.display = ''; }
+  else { errEl.textContent = '❌ ' + (data.msg || '更新失败'); errEl.style.display = ''; }
+}
+
+// ── Admin：修改 Admin 凭据 ──
+async function ndSetAdminCred() {
+  const newUser = document.getElementById('nd-set-admin-user').value.trim();
+  const newPass = document.getElementById('nd-set-admin-pass').value.trim();
+  const errEl   = document.getElementById('nd-pwd-err');
+  const okEl    = document.getElementById('nd-pwd-ok');
+  errEl.style.display = 'none'; okEl.style.display = 'none';
+  const r = await fetch('/api/nodes', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'setAdminCred', adminUser: ndAdminUser, adminPass: ndAdminPass, newUser, newPass })
+  });
+  const data = await r.json();
+  if (data.ok) {
+    ndAdminUser = newUser; ndAdminPass = newPass;
+    okEl.textContent = '✅ Admin 凭据已更新'; okEl.style.display = '';
+  } else {
+    errEl.textContent = '❌ ' + (data.msg || '更新失败'); errEl.style.display = '';
+  }
+}
+</script>
+
 <script>
 // ============================================================
 // NAVIGATION
@@ -445,16 +929,22 @@ function navTo(page) {
   const from = document.getElementById('page-' + currentPage);
   const to   = document.getElementById('page-' + page);
 
-  // slide direction: schedule→billiards = left, billiards→schedule = right
   if (page === 'billiards') {
     from.classList.add('behind');
     from.classList.remove('active');
     to.style.transform = 'translateX(100%)';
     to.classList.add('active');
     setTimeout(() => { to.style.transform = ''; }, 10);
-    // Init billiards when first entering
     if (!bilInitialized) { bilInit(); bilInitialized = true; }
     else bilResizeCanvas();
+  } else if (page === 'nodes') {
+    from.classList.add('behind');
+    from.classList.remove('active');
+    to.style.transform = 'translateX(100%)';
+    to.classList.add('active');
+    setTimeout(() => { to.style.transform = ''; }, 10);
+    // 如果未登录，重置到登录界面
+    if (!ndRole) ndShowView('login');
   } else {
     to.classList.remove('behind');
     to.classList.add('active');
@@ -462,7 +952,10 @@ function navTo(page) {
   }
 
   document.getElementById('nav-schedule').classList.toggle('active', page === 'schedule');
-  document.getElementById('nav-billiards').classList.toggle('active', page === 'billiards');
+  const navBil = document.getElementById('nav-billiards');
+  if (navBil) navBil.classList.toggle('active', page === 'billiards');
+  const navNd = document.getElementById('nav-nodes');
+  if (navNd) navNd.classList.toggle('active', page === 'nodes');
   currentPage = page;
 }
 
