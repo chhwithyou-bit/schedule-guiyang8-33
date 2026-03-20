@@ -5,84 +5,119 @@
 <title>中国象棋 in html5</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <link href="css/chess.css" rel="stylesheet" type="text/css">
-<!--[if lt IE 9]>
-<script> alert("对不起，您的浏览器不支持HTML5，请升级浏览器至IE9、firefox或者谷歌浏览器！")</script>
-< ![endif]-->
 <style>
+/* 修正布局 */
 .chess_box { position: relative !important; }
-.menu_box  { position: relative !important; }
+
+/* 菜单框：加高以容纳4个按钮，overflow hidden裁掉底部小字 */
+.menu_box {
+  position: relative !important;
+  height: 290px !important;
+  overflow: hidden !important;
+  padding-top: 150px !important;
+}
+
+/* 回合提示 */
+#pvpTurnTip {
+  display: none;
+  position: absolute;
+  top: 8px; left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255,255,255,0.93);
+  padding: 5px 20px;
+  border-radius: 20px;
+  font-size: 15px;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  white-space: nowrap;
+  z-index: 10;
+}
 </style>
 </head>
 <body>
+
 <!-- 返回按钮 -->
 <div style="position:fixed;top:12px;left:12px;z-index:9999;">
   <a href="/" style="display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,0.6);color:white;padding:8px 16px;border-radius:20px;font-family:PingFang SC,sans-serif;font-size:14px;font-weight:500;text-decoration:none;backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.25);-webkit-backdrop-filter:blur(8px);">‹ 返回课程表</a>
 </div>
+
+<!-- 棋盘区域 -->
 <div id="chessBox" class="chess_box">
-	<canvas id="chess"></canvas>
-	<audio src="audio/click.wav" id="clickAudio" preload="auto"></audio>
-	<audio src="audio/select.wav" id="selectAudio" preload="auto"></audio>
-	<div class="bn_box" id="bnBox">
-		<input type="button" name="restartBtn" id="restartBtn" value="  重新开始  " />
-		<input type="button" name="gohomeBtn" id="gohomeBtn" value="  返回首页  " />
-		<input type="button" name="regretBtn" id="regretBtn" value="  悔   棋  " />
-	</div>
-	<!-- 双人对战回合提示 -->
-	<div id="pvpTurnTip" style="display:none;position:absolute;top:8px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,0.92);padding:5px 18px;border-radius:20px;font-size:15px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,0.25);white-space:nowrap;z-index:10;"></div>
+  <canvas id="chess"></canvas>
+  <audio src="audio/click.wav" id="clickAudio" preload="auto"></audio>
+  <audio src="audio/select.wav" id="selectAudio" preload="auto"></audio>
+  <div class="bn_box" id="bnBox">
+    <input type="button" name="restartBtn" id="restartBtn" value="  重新开始  " />
+    <input type="button" name="gohomeBtn" id="gohomeBtn" value="  返回首页  " />
+    <input type="button" name="regretBtn" id="regretBtn" value="  悔   棋  " />
+  </div>
+  <div id="pvpTurnTip"></div>
 </div>
+
+<!-- 主菜单 -->
 <div class="menu_box" id="menuBox">
-	<!-- 遮住图片底部作者信息 -->
-	<div style="position:absolute;bottom:0;left:0;right:0;height:32px;background:#3d2408;z-index:1;"></div>
-	<div class="menu_init" id="indexBox" style="position:relative;z-index:2;"><a id="indexDy">人机对弈</a><a id="indexPvp">双人对战</a><a id="indexQj">挑战棋局</a><a id="stypeBtn">更换皮肤</a></div>
-	<div class="menu_dy" id="menuDy">
-		<div class="menu_info">
-			<div class="menu_fh" id="menuFh"></div>
-			<label>
-				<input name="depth" type="radio" value="2">
-				菜鸟水平</label>
-			<br />
-			<label>
-				<input name="depth" type="radio" value="3" checked>
-				中级水平</label>
-			<br />
-			<label>
-				<input name="depth" type="radio" value="4">
-				高手水平</label>
-		</div>
-		<a id="playBtn">开始对弈</a> </div>
-	<div class="menu_qj" id="menuQj">
-		<div class="menu_info">
-			<div class="menu_fh" id="menuGb"></div>
-			<label>
-				<input name="clasli" type="radio" value="0" checked>
-				八卦阵法</label>
-			<br />
-			<label>
-				<input name="clasli" type="radio" value="1">
-				很二棋局</label>
-			<br />
-			<label>
-				<input name="clasli" type="radio" value="2">
-				七星会阵</label>
-		</div>
-		<a id = "clasliBtn">开始挑战</a> </div>
+  <div class="menu_init" id="indexBox">
+    <a id="indexDy">人机对弈</a>
+    <a id="indexPvp">双人对战</a>
+    <a id="indexQj">挑战棋局</a>
+    <a id="stypeBtn">更换皮肤</a>
+  </div>
+
+  <!-- 人机对弈子菜单 -->
+  <div class="menu_dy" id="menuDy">
+    <div class="menu_info">
+      <div class="menu_fh" id="menuFh"></div>
+      <label><input name="depth" type="radio" value="2"> 菜鸟水平</label><br />
+      <label><input name="depth" type="radio" value="3" checked> 中级水平</label><br />
+      <label><input name="depth" type="radio" value="4"> 高手水平</label>
+    </div>
+    <a id="playBtn">开始对弈</a>
+  </div>
+
+  <!-- 挑战棋局子菜单 -->
+  <div class="menu_qj" id="menuQj">
+    <div class="menu_info">
+      <div class="menu_fh" id="menuGb"></div>
+      <label><input name="clasli" type="radio" value="0" checked> 八卦阵法</label><br />
+      <label><input name="clasli" type="radio" value="1"> 很二棋局</label><br />
+      <label><input name="clasli" type="radio" value="2"> 七星会阵</label>
+    </div>
+    <a id="clasliBtn">开始挑战</a>
+  </div>
 </div>
+
 <script type="text/javascript" src="js/common.js"></script>
 <script type="text/javascript" src="js/play.js"></script>
 <script type="text/javascript" src="js/AI.js"></script>
 <script type="text/javascript" src="js/gambit.js"></script>
 <script type="text/javascript" src="js/clasli.js"></script>
-<script type="text/javascript" charset="utf-8" src="js/cordova-2.2.0.js"></script>
-<script type="text/javascript">
-// ===== 双人对战模式 =====
-play.pvpMode = false; // 标记是否双人模式
 
-// 双人模式：允许红黑双方都能操作，不触发 AI
+<script type="text/javascript">
+// ============================================================
+// 双人对战 PVP 模式
+// ============================================================
+
+play.pvpTurn = 1; // 1=红方, -1=黑方
+
+play.pvpShowTurn = function() {
+  var el = com.get("pvpTurnTip");
+  if (!el) return;
+  el.textContent = play.pvpTurn === 1 ? "🔴 红方行棋" : "⚫ 黑方行棋";
+  el.style.color  = play.pvpTurn === 1 ? "#cc2200" : "#111";
+};
+
+play.pvpShowWin = function(my) {
+  play.isPlay = false;
+  setTimeout(function() {
+    alert(my === 1 ? "🔴 红方胜利！" : "⚫ 黑方胜利！");
+  }, 100);
+};
+
+// 双人点击棋子
 play.pvpClickMan = function(key, x, y) {
   var man = com.mans[key];
-  var nowTurn = play.pvpTurn; // 1=红方, -1=黑方
   // 吃子
-  if (play.nowManKey && play.nowManKey != key && man.my != com.mans[play.nowManKey].my) {
+  if (play.nowManKey && play.nowManKey !== key && man.my !== com.mans[play.nowManKey].my) {
     if (play.indexOfPs(com.mans[play.nowManKey].ps, [x, y])) {
       man.isShow = false;
       var pace = com.mans[play.nowManKey].x + "" + com.mans[play.nowManKey].y;
@@ -98,14 +133,16 @@ play.pvpClickMan = function(key, x, y) {
       com.dot.dots = [];
       com.show();
       com.get("clickAudio").play();
-      play.pvpTurn = -play.pvpTurn; // 换手
+      // 判断胜负
+      if (key === "j0") { play.pvpShowWin(1);  return; }
+      if (key === "J0") { play.pvpShowWin(-1); return; }
+      // 换手
+      play.pvpTurn = -play.pvpTurn;
       play.pvpShowTurn();
-      if (key == "j0") play.pvpShowWin(1);
-      if (key == "J0") play.pvpShowWin(-1);
     }
   } else {
-    // 选中棋子（只能选当前回合的棋子）
-    if (man.my === nowTurn) {
+    // 只能选当前回合己方棋子
+    if (man.my === play.pvpTurn) {
       if (com.mans[play.nowManKey]) com.mans[play.nowManKey].alpha = 1;
       man.alpha = 0.8;
       com.pane.isShow = false;
@@ -118,82 +155,70 @@ play.pvpClickMan = function(key, x, y) {
   }
 };
 
+// 双人点击空点
 play.pvpClickPoint = function(x, y) {
   var key = play.nowManKey;
+  if (!key) return;
   var man = com.mans[key];
-  if (play.nowManKey) {
-    if (play.indexOfPs(com.mans[key].ps, [x, y])) {
-      var pace = man.x + "" + man.y;
-      delete play.map[man.y][man.x];
-      play.map[y][x] = key;
-      com.showPane(man.x, man.y, x, y);
-      man.x = x;
-      man.y = y;
-      man.alpha = 1;
-      play.pace.push(pace + x + y);
-      play.nowManKey = false;
-      com.dot.dots = [];
-      com.show();
-      com.get("clickAudio").play();
-      play.pvpTurn = -play.pvpTurn;
-      play.pvpShowTurn();
-    }
+  if (play.indexOfPs(com.mans[key].ps, [x, y])) {
+    var pace = man.x + "" + man.y;
+    delete play.map[man.y][man.x];
+    play.map[y][x] = key;
+    com.showPane(man.x, man.y, x, y);
+    man.x = x; man.y = y; man.alpha = 1;
+    play.pace.push(pace + x + y);
+    play.nowManKey = false;
+    com.dot.dots = [];
+    com.show();
+    com.get("clickAudio").play();
+    play.pvpTurn = -play.pvpTurn;
+    play.pvpShowTurn();
   }
 };
 
-play.pvpShowTurn = function() {
-  var el = com.get("pvpTurnTip");
-  if (!el) return;
-  el.textContent = play.pvpTurn === 1 ? "🔴 红方行棋" : "⚫ 黑方行棋";
-  el.style.color = play.pvpTurn === 1 ? "#FF4400" : "#222";
-};
-
-play.pvpShowWin = function(my) {
-  play.isPlay = false;
-  alert(my === 1 ? "🔴 红方胜利！" : "⚫ 黑方胜利！");
-};
-
+// 双人模式总点击入口
 play.pvpClickCanvas = function(e) {
-  if (!play.isPlay) return false;
-  var key = play.getClickMan(e);
+  if (!play.isPlay) return;
+  var key   = play.getClickMan(e);
   var point = play.getClickPoint(e);
-  var x = point.x, y = point.y;
   if (key) {
-    play.pvpClickMan(key, x, y);
+    play.pvpClickMan(key, point.x, point.y);
   } else {
-    play.pvpClickPoint(x, y);
+    play.pvpClickPoint(point.x, point.y);
   }
 };
 
+// 启动双人对战
 play.startPvp = function() {
-  play.pvpMode = true;
-  play.pvpTurn = 1; // 红方先
-  play.init(3); // 用标准初始化，但不会触发AI
-  // 移除 AI 的 click 监听，换成 PVP 监听
+  play.pvpTurn = 1;
+  // play.init 会绑定 AI 的 clickCanvas，先初始化再替换
+  play.init(3);
   com.canvas.removeEventListener("click", play.clickCanvas);
   com.canvas.addEventListener("click", play.pvpClickCanvas);
   // 显示回合提示
   var tip = com.get("pvpTurnTip");
   if (tip) { tip.style.display = "block"; play.pvpShowTurn(); }
-  com.get("bnBox").style.display = "block";
-  // 重开按钮重置为PVP模式
-  com.get("restartBtn").onclick = function() { play.startPvp(); };
+  // 重开按钮也用PVP重启
+  com.get("restartBtn").onclick = function() {
+    com.canvas.removeEventListener("click", play.pvpClickCanvas);
+    play.startPvp();
+  };
 };
 
-// 等 common.js 的 window.onload 跑完后再绑定双人按钮
-var _pvpBindTimer = setInterval(function() {
-  var btn = com.get("indexPvp");
-  var tip = com.get("pvpTurnTip");
-  if (btn && tip) {
-    clearInterval(_pvpBindTimer);
-    btn.addEventListener("click", function() {
+// 等 common.js window.onload 执行完后绑定双人按钮
+var _pvpTimer = setInterval(function() {
+  if (com.get("indexPvp")) {
+    clearInterval(_pvpTimer);
+    com.get("indexPvp").addEventListener("click", function() {
       com.get("indexBox").style.display = "none";
-      com.get("menuDy").style.display = "none";
-      com.get("menuQj").style.display = "none";
+      com.get("menuDy").style.display  = "none";
+      com.get("menuQj").style.display  = "none";
+      com.get("menuBox").style.display = "none";
       play.startPvp();
     });
   }
-}, 100);
+}, 50);
 </script>
+
 </body>
 </html>
