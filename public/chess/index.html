@@ -9,12 +9,12 @@
 /* 修正布局 */
 .chess_box { position: relative !important; }
 
-/* 菜单框：只保留3个按钮，overflow hidden裁掉底部小字 */
+/* 菜单框：只保留2个按钮 */
 .menu_box {
   position: relative !important;
-  height: 260px !important;
+  height: 180px !important;
   overflow: hidden !important;
-  padding-top: 160px !important;
+  padding-top: 100px !important;
 }
 
 /* 回合提示 */
@@ -58,32 +58,8 @@
 <div class="menu_box" id="menuBox">
   <div class="menu_init" id="indexBox">
     <a id="indexPvp">双人对战</a>
-    <a id="indexQj">挑战棋局</a>
     <a id="stypeBtn">更换皮肤</a>
   </div>
-
-  <!-- 人机对弈子菜单 -->
-  <div class="menu_dy" id="menuDy">
-    <div class="menu_info">
-      <div class="menu_fh" id="menuFh"></div>
-      <label><input name="depth" type="radio" value="2"> 菜鸟水平</label><br />
-      <label><input name="depth" type="radio" value="3" checked> 中级水平</label><br />
-      <label><input name="depth" type="radio" value="4"> 高手水平</label>
-    </div>
-    <a id="playBtn">开始对弈</a>
-  </div>
-
-  <!-- 挑战棋局子菜单 -->
-  <div class="menu_qj" id="menuQj">
-    <div class="menu_info">
-      <div class="menu_fh" id="menuGb"></div>
-      <label><input name="clasli" type="radio" value="0" checked> 八卦阵法</label><br />
-      <label><input name="clasli" type="radio" value="1"> 很二棋局</label><br />
-      <label><input name="clasli" type="radio" value="2"> 七星会阵</label>
-    </div>
-    <a id="clasliBtn">开始挑战</a>
-  </div>
-</div>
 
 <script type="text/javascript" src="js/common.js"></script>
 <script type="text/javascript" src="js/play.js"></script>
@@ -210,8 +186,6 @@ var _pvpTimer = setInterval(function() {
     clearInterval(_pvpTimer);
     com.get("indexPvp").addEventListener("click", function() {
       com.get("indexBox").style.display = "none";
-      com.get("menuDy").style.display  = "none";
-      com.get("menuQj").style.display  = "none";
       com.get("menuBox").style.display = "none";
       play.startPvp();
     });

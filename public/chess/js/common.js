@@ -73,24 +73,7 @@ window.onload = function(){
 	//com.bg.show();
 	//play.init();
 	
-	//开始对弈
-	com.get("playBtn").addEventListener("click", function(e) {
-		play.isPlay=true ;
-		var depth = parseInt(getRadioValue("depth"), 10) || 3;
-
-		play.init( depth );
-		com.get("chessBox").style.display = "block";
-		com.get("menuBox").style.display = "none";
-	})
-	
-	//开始挑战
-	com.get("clasliBtn").addEventListener("click", function(e) {
-		play.isPlay=true ;
-		var clasli = parseInt(getRadioValue("clasli"), 10) || 0;
-		play.init( 4, com.clasli[clasli].map );
-		com.get("chessBox").style.display = "block";
-		com.get("menuBox").style.display = "none";
-	})
+	// 人机对弈功能已删除
 	
 	// 悔棋
 	com.get("regretBtn").addEventListener("click", function(e) {
@@ -102,23 +85,9 @@ window.onload = function(){
 		com.get("chessBox").style.display = "none";
 		com.get("menuBox").style.display = "block";
 		com.get("indexBox").style.display = "block";
-		com.get("menuQj").style.display = "none";
-		com.get("menuDy").style.display = "none";
 	})
 	
-	//返回
-	com.get("menuFh").addEventListener("click", function(e) {
-		com.get("indexBox").style.display = "block";
-		com.get("menuQj").style.display = "none";
-		com.get("menuDy").style.display = "none";
-	})
-	
-	//返回关闭
-	com.get("menuGb").addEventListener("click", function(e) {
-		com.get("indexBox").style.display = "block";
-		com.get("menuQj").style.display = "none";
-		com.get("menuDy").style.display = "none";
-	})
+	// 子菜单返回功能已删除
 	
 	//重新开始棋局
 	com.get("restartBtn").addEventListener("click", function(e) {
@@ -128,21 +97,7 @@ window.onload = function(){
 		}
 	})
 	
-	//人机对弈（已移除，保留兼容）
-	if (com.get("indexDy")) {
-	com.get("indexDy").addEventListener("click", function(e) {
-		com.get("indexBox").style.display = "none";
-		com.get("menuQj").style.display = "none";
-		com.get("menuDy").style.display = "block";
-	})
-	}
-	
-	//挑战棋局
-	com.get("indexQj").addEventListener("click", function(e) {
-		com.get("indexBox").style.display = "none";
-		com.get("menuQj").style.display = "block";
-		com.get("menuDy").style.display = "none";
-	})
+	// 人机对弈功能已完全移除
 
 	//换肤
 	com.get("stypeBtn").addEventListener("click", function(e) {

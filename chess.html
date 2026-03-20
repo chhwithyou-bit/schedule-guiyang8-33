@@ -633,17 +633,29 @@ class ChessRenderer {
     const wrap = document.getElementById('board-wrap');
     const ww = wrap.clientWidth - 12;
     const wh = wrap.clientHeight - 12;
-    // Board ratio: 9 cols, 10 rows + padding
-    const padRatio = 0.08;
-    const cellSize = Math.min(
-      Math.floor(ww / (9 + padRatio * 2)),
-      Math.floor(wh / (10 + padRatio * 2))
-    );
-    this.cell = cellSize;
-    this.pad = Math.round(cellSize * 0.65);
-    this.pieceR = Math.round(cellSize * 0.42);
-    this.bw = cellSize * 8 + this.pad * 2;
-    this.bh = cellSize * 9 + this.pad * 2;
+    
+    // Safety check: if container has no size yet, use window dimensions
+    if (ww <= 0 || wh <= 0) {
+      const cellSize = Math.min(40, window.innerWidth / 11, window.innerHeight / 13);
+      this.cell = cellSize;
+      this.pad = Math.round(cellSize * 0.65);
+      this.pieceR = Math.round(cellSize * 0.42);
+      this.bw = cellSize * 8 + this.pad * 2;
+      this.bh = cellSize * 9 + this.pad * 2;
+    } else {
+      // Board ratio: 9 cols, 10 rows + padding
+      const padRatio = 0.08;
+      const cellSize = Math.min(
+        Math.floor(ww / (9 + padRatio * 2)),
+        Math.floor(wh / (10 + padRatio * 2))
+      );
+      this.cell = cellSize;
+      this.pad = Math.round(cellSize * 0.65);
+      this.pieceR = Math.round(cellSize * 0.42);
+      this.bw = cellSize * 8 + this.pad * 2;
+      this.bh = cellSize * 9 + this.pad * 2;
+    }
+    
     this.canvas.width = this.bw;
     this.canvas.height = this.bh;
     this.canvas.style.width = this.bw + 'px';
@@ -961,8 +973,21 @@ class ChessGame {
       this.render();
     });
 
-    this.render();
-    this.updateUI();
+    // Wait for DOM layout to complete before rendering
+    if (document.readyState === 'loading') {
+      window.addEventListener('load', () => {
+        this.renderer.resize();
+        this.render();
+        this.updateUI();
+      });
+    } else {
+      // If document is already loaded, use requestAnimationFrame to ensure layout is complete
+      requestAnimationFrame(() => {
+        this.renderer.resize();
+        this.render();
+        this.updateUI();
+      });
+    }
   }
 
   handleClick(e) {
