@@ -1,5 +1,5 @@
 import htmlContent from './index.html';
-import billiardsContent from './billiards.html';
+import chessContent from './chess.html';
 
 export default {
   async fetch(request, env) {
@@ -27,7 +27,7 @@ export default {
     if (url.pathname === '/api/proxy-gemini' && request.method === 'POST') {
       if (request.method === 'OPTIONS') return this.handleCORS();
       
-      const GEMINI_KEY = 'AIzaSyAx1iLyi7qIO9KLBMtc_1wey18Eaz1J9H0'; // <--- 填入你的 Key
+      const GEMINI_KEY = 'AIzaSyAx1iLyi7qIO9KLBMtc_1wey18Eaz1J9H0';
       const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`;
 
       try {
@@ -45,13 +45,19 @@ export default {
       }
     }
 
-    // 3. 返回台球游戏页面
-    if (url.pathname === '/billiards.html' || url.pathname === '/billiards') {
-      return new Response(billiardsContent, {
+    // 3. 返回象棋游戏页面
+    if (url.pathname === '/chess.html' || url.pathname === '/chess') {
+      return new Response(chessContent, {
         headers: { 'Content-Type': 'text/html;charset=UTF-8' }
       });
     }
 
+    // 4. 拦截静态资源请求，返回 404
+    if (url.pathname.match(/\.(jpg|jpeg|png|gif|ico|svg|css|js|woff|woff2|ttf)$/)) {
+      return new Response('Not Found', { status: 404 });
+    }
+
+    // 5. 返回主 HTML 网页
     return new Response(htmlContent, {
       headers: { 'Content-Type': 'text/html;charset=UTF-8' }
     });
@@ -67,8 +73,3 @@ export default {
     });
   }
 };
-
-    // 拦截静态资源：如果请求的是图片等静态文件，直接返回 404，防止返回 HTML
-    
-
-    
