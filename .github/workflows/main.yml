@@ -1,0 +1,19 @@
+name: Get AS209242 IPs
+
+on:
+  workflow_dispatch:
+
+jobs:
+  get-ips:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 获取AS209242所有IP段
+        run: |
+          curl -s "https://bgp.tools/as/209242" | python3 -c "
+          import sys, re
+          content = sys.stdin.read()
+          # 提取所有IPv4段
+          ips = re.findall(r'\d+\.\d+\.\d+\.\d+/\d+', content)
+          for ip in ips:
+              print(ip)
+          "
