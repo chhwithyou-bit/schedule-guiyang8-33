@@ -15,30 +15,51 @@ jobs:
           CF_AUTH_KEY: ${{ secrets.CF_AUTH_KEY }}
           ZONE_ID: ${{ secrets.ZONE_ID }}
         run: |
-          DATA=$(curl -s -A "Mozilla/5.0" "https://vps789.com/public/sum/cfIpApi")
-          
-          BEST_IP=$(echo $DATA | python3 -c "
-          import sys, json
-          data = json.load(sys.stdin)
+          python3 << 'EOF'
+          import os, json, urllib.request
+
+          email = os.environ['CF_AUTH_EMAIL']
+          key = os.environ['CF_AUTH_KEY']
+          zone_id = os.environ['ZONE_ID']
+          headers = {'X-Auth-Email': email, 'X-Auth-Key': key, 'Content-Type': 'application/json'}
+
+          # 拉取优选IP
+          req = urllib.request.Request('https://vps789.com/public/sum/cfIpApi', headers={'User-Agent': 'Mozilla/5.0'})
+          data = json.loads(urllib.request.urlopen(req, timeout=10).read())
           candidates = []
-          for key, arr in data.get('data', {}).items():
+          for arr in data.get('data', {}).values():
               if isinstance(arr, list):
                   for item in arr:
                       if isinstance(item, dict) and 'ip' in item:
                           candidates.append((item.get('avgScore', 0), item['ip']))
           candidates.sort(reverse=True)
-          print(candidates[0][1] if candidates else '')
-          ")
-          
-          echo "最优IP: $BEST_IP"
-          
-          if [ -z "$BEST_IP" ]; then
-            echo "未获取到IP，退出"
-            exit 1
-          fi
+          best_ip = candidates[0][1]
+          print(f'最优IP: {best_ip} 评分: {candidates[0][0]}')
 
-          # 先查当前IP
-          CURRENT=$(curl -s \
-            "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records" \
-            -H "X-Auth-Email: $CF_AUTH_EMAIL" \
-            -H "X-Aut
+          # 查当前DNS记录
+          req = urllib.request.Request(f'https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records', headers=headers)
+          result = json.loads(urllib.request.urlopen(req).read())
+          record = result['result'][0]
+          record_id = record['id']
+          current_ip = record['content']
+          print(f'当前IP: {current_ip}  记录ID: {record_id}')
+
+          if current_ip == best_ip:
+              print('IP未变化，无需更新')
+              exit(0)
+
+          # 删除旧记录
+          req = urllib.request.Request(f'https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records/{record_id}', headers=headers, method='DELETE')
+          del_result = json.loads(urllib.request.urlopen(req).read())
+          print(f'删除结果: {del_result["success"]}')
+
+          # 创建新记录
+          body = json.dumps({'type': 'A', 'name': 'xn--3prv04ai7du1mlsm.icu', 'content': best_ip, 'ttl': 60, 'proxied': False}).encode()
+          req = urllib.request.Request(f'https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records', data=body, headers=headers, method='POST')
+          create_result = json.loads(urllib.request.urlopen(req).read())
+          if create_result['success']:
+              print(f'✅ DNS更新成功: {current_ip} → {best_ip}')
+          else:
+              print(f'❌ DNS更新失败: {create_result}')
+              exit(1)
+          EOF
