@@ -1,35 +1,56 @@
 name: Byoip DNS Updater
 
 on:
+  schedule:
+    - cron: '*/10 * * * *'
   workflow_dispatch:
 
 jobs:
   update-dns:
     runs-on: ubuntu-latest
     steps:
-      - name: 查DNS记录
+      - name: 拉取优选IP并更新DNS
         env:
           CF_AUTH_EMAIL: ${{ secrets.CF_AUTH_EMAIL }}
           CF_AUTH_KEY: ${{ secrets.CF_AUTH_KEY }}
+          ZONE_ID: ${{ secrets.ZONE_ID }}
+          RECORD_ID: ${{ secrets.RECORD_ID }}
         run: |
-          echo "=== 试路径1 ==="
-          curl -s \
-            "https://api.cloudflare.com/client/v4/zones/0375a9c9a4aeb1187a2e82b077cba25b/dns_records" \
-            -H "X-Auth-Email: $CF_AUTH_EMAIL" \
-            -H "X-Auth-Key: $CF_AUTH_KEY"
+          DATA=$(curl -s -A "Mozilla/5.0" "https://vps789.com/public/sum/cfIpApi")
           
-          echo ""
-          echo "=== 试路径2 ==="
-          curl -s \
-            "https://api.cloudflare.com/client/v4/zones/0375a9c9a4aeb1187a2e82b077cba25b/dns/records?per_page=100" \
-            -H "X-Auth-Email: $CF_AUTH_EMAIL" \
-            -H "X-Auth-Key: $CF_AUTH_KEY"
-
-          echo ""
-          echo "=== 试路径3 GraphQL ==="
-          curl -s -X POST \
-            "https://api.cloudflare.com/client/v4/graphql" \
+          BEST_IP=$(echo $DATA | python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          candidates = []
+          for key, arr in data.get('data', {}).items():
+              if isinstance(arr, list):
+                  for item in arr:
+                      if isinstance(item, dict) and 'ip' in item:
+                          candidates.append((item.get('avgScore', 0), item['ip']))
+          candidates.sort(reverse=True)
+          print(candidates[0][1] if candidates else '')
+          ")
+          
+          echo "最优IP: $BEST_IP"
+          
+          if [ -z "$BEST_IP" ]; then
+            echo "未获取到IP，退出"
+            exit 1
+          fi
+          
+          RESULT=$(curl -s -X PUT \
+            "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records/$RECORD_ID" \
             -H "X-Auth-Email: $CF_AUTH_EMAIL" \
             -H "X-Auth-Key: $CF_AUTH_KEY" \
             -H "Content-Type: application/json" \
-            --data '{"query":"{ viewer { zones(filter: {zoneTag: \"0375a9c9a4aeb1187a2e82b077cba25b\"}) { id } } }"}'
+            --data "{\"type\":\"A\",\"name\":\"xn--3prv04ai7du1mlsm.icu\",\"content\":\"$BEST_IP\",\"ttl\":60,\"proxied\":false}")
+          
+          echo "更新结果: $RESULT"
+          
+          SUCCESS=$(echo $RESULT | python3 -c "import sys,json; print(json.load(sys.stdin).get('success', False))")
+          if [ "$SUCCESS" = "True" ]; then
+            echo "✅ DNS更新成功: $BEST_IP"
+          else
+            echo "❌ DNS更新失败"
+            exit 1
+          fi
