@@ -1,72 +1,21 @@
 name: Byoip DNS Updater
 
 on:
-  schedule:
-    - cron: '*/10 * * * *'
   workflow_dispatch:
 
 jobs:
   update-dns:
     runs-on: ubuntu-latest
     steps:
-      - name: 拉取优选IP并更新DNS
+      - name: 测试
         env:
           CF_AUTH_EMAIL: ${{ secrets.CF_AUTH_EMAIL }}
           CF_AUTH_KEY: ${{ secrets.CF_AUTH_KEY }}
           ZONE_ID: ${{ secrets.ZONE_ID }}
         run: |
-          # 拉取优选IP
-          DATA=$(curl -s -A "Mozilla/5.0" "https://vps789.com/public/sum/cfIpApi")
-          BEST_IP=$(python3 -c "
-          import sys, json
-          data = json.loads('''$DATA'''.replace(\"'\", ''))
-          candidates = []
-          for arr in data.get('data', {}).values():
-              if isinstance(arr, list):
-                  for item in arr:
-                      if isinstance(item, dict) and 'ip' in item:
-                          candidates.append((item.get('avgScore', 0), item['ip']))
-          candidates.sort(reverse=True)
-          print(candidates[0][1])
-          ")
-          echo "最优IP: $BEST_IP"
-
-          # 用curl查DNS记录
-          DNS=$(curl -s \
-            "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records" \
+          echo "ZONE_ID长度: ${#ZONE_ID}"
+          
+          curl -s \
+            "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records" \
             -H "X-Auth-Email: $CF_AUTH_EMAIL" \
-            -H "X-Auth-Key: $CF_AUTH_KEY")
-          echo "DNS记录: $DNS"
-
-          RECORD_ID=$(echo $DNS | python3 -c "import sys,json; r=json.load(sys.stdin)['result']; print(r[0]['id'])")
-          CURRENT_IP=$(echo $DNS | python3 -c "import sys,json; r=json.load(sys.stdin)['result']; print(r[0]['content'])")
-          echo "当前IP: $CURRENT_IP 记录ID: $RECORD_ID"
-
-          if [ "$CURRENT_IP" = "$BEST_IP" ]; then
-            echo "✅ IP未变化"
-            exit 0
-          fi
-
-          # 删除旧记录
-          DEL=$(curl -s -X DELETE \
-            "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records/$RECORD_ID" \
-            -H "X-Auth-Email: $CF_AUTH_EMAIL" \
-            -H "X-Auth-Key: $CF_AUTH_KEY")
-          echo "删除结果: $DEL"
-
-          # 创建新记录
-          CREATE=$(curl -s -X POST \
-            "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records" \
-            -H "X-Auth-Email: $CF_AUTH_EMAIL" \
-            -H "X-Auth-Key: $CF_AUTH_KEY" \
-            -H "Content-Type: application/json" \
-            -d "{\"type\":\"A\",\"name\":\"xn--3prv04ai7du1mlsm.icu\",\"content\":\"$BEST_IP\",\"ttl\":60,\"proxied\":false}")
-          echo "创建结果: $CREATE"
-
-          SUCCESS=$(echo $CREATE | python3 -c "import sys,json; print(json.load(sys.stdin).get('success',False))")
-          if [ "$SUCCESS" = "True" ]; then
-            echo "✅ DNS更新成功: $CURRENT_IP → $BEST_IP"
-          else
-            echo "❌ DNS更新失败"
-            exit 1
-          fi
+            -H "X-Auth-Key: $CF_AUTH_KEY"
