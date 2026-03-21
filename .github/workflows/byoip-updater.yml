@@ -9,12 +9,13 @@ jobs:
   update-dns:
     runs-on: ubuntu-latest
     steps:
-      - name: 拉取优选IP并更新DNS
+      - name: 更新DNS
         env:
           CF_AUTH_EMAIL: ${{ secrets.CF_AUTH_EMAIL }}
           CF_AUTH_KEY: ${{ secrets.CF_AUTH_KEY }}
           ZONE_ID: ${{ secrets.ZONE_ID }}
         run: |
+          # 从vps789拉取IP，优先选91.193.59.x段，其次91.193.58.x，最后才用其他
           DATA=$(curl -s -A "Mozilla/5.0" "https://vps789.com/public/sum/cfIpApi")
           BEST_IP=$(echo "$DATA" | python3 -c "
           import sys, json
@@ -24,11 +25,24 @@ jobs:
               if isinstance(arr, list):
                   for item in arr:
                       if isinstance(item, dict) and 'ip' in item:
-                          candidates.append((item.get('avgScore', 0), item['ip']))
+                          ip = item['ip']
+                          score = item.get('avgScore', 0)
+                          # 91.193.59.x段额外加分
+                          if ip.startswith('91.193.59.'):
+                              score += 1000
+                          elif ip.startswith('91.193.58.'):
+                              score += 500
+                          candidates.append((score, ip))
           candidates.sort(reverse=True)
-          print(candidates[0][1])
+          print(candidates[0][1] if candidates else '')
           ")
+
           echo "最优IP: $BEST_IP"
+
+          if [ -z "$BEST_IP" ]; then
+            echo "未获取到IP，退出"
+            exit 1
+          fi
 
           DNS=$(curl -s \
             "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records" \
@@ -37,7 +51,7 @@ jobs:
 
           RECORD_ID=$(echo "$DNS" | python3 -c "import sys,json; print(json.load(sys.stdin)['result'][0]['id'])")
           CURRENT_IP=$(echo "$DNS" | python3 -c "import sys,json; print(json.load(sys.stdin)['result'][0]['content'])")
-          echo "当前IP: $CURRENT_IP 记录ID: $RECORD_ID"
+          echo "当前IP: $CURRENT_IP"
 
           if [ "$CURRENT_IP" = "$BEST_IP" ]; then
             echo "✅ IP未变化"
@@ -48,7 +62,6 @@ jobs:
             "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records/$RECORD_ID" \
             -H "X-Auth-Email: $CF_AUTH_EMAIL" \
             -H "X-Auth-Key: $CF_AUTH_KEY")
-          echo "删除结果: $DEL"
 
           CREATE=$(curl -s -X POST \
             "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records" \
@@ -56,12 +69,11 @@ jobs:
             -H "X-Auth-Key: $CF_AUTH_KEY" \
             -H "Content-Type: application/json" \
             -d "{\"type\":\"A\",\"name\":\"xn--3prv04ai7du1mlsm.icu\",\"content\":\"$BEST_IP\",\"ttl\":60,\"proxied\":false}")
-          echo "创建结果: $CREATE"
 
           SUCCESS=$(echo "$CREATE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('success',False))")
           if [ "$SUCCESS" = "True" ]; then
             echo "✅ DNS更新成功: $CURRENT_IP → $BEST_IP"
           else
-            echo "❌ DNS更新失败"
+            echo "❌ DNS更新失败: $CREATE"
             exit 1
           fi
