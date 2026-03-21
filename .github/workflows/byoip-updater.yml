@@ -7,20 +7,20 @@ jobs:
   update-dns:
     runs-on: ubuntu-latest
     steps:
-      - name: 查询账号权限
+      - name: 测试DNS接口
         env:
           CF_AUTH_EMAIL: ${{ secrets.CF_AUTH_EMAIL }}
           CF_AUTH_KEY: ${{ secrets.CF_AUTH_KEY }}
         run: |
-          echo "=== 查询用户权限 ==="
+          echo "=== 用账号ID方式查询 ==="
           curl -s \
-            "https://api.cloudflare.com/client/v4/user/tokens/verify" \
+            "https://api.cloudflare.com/client/v4/accounts/7c2ffe3811c552918d720f4b0b819208/dns_records?zone_name=xn--3prv04ai7du1mlsm.icu" \
             -H "X-Auth-Email: $CF_AUTH_EMAIL" \
             -H "X-Auth-Key: $CF_AUTH_KEY"
           
           echo ""
-          echo "=== 直接查Zone详情 ==="
+          echo "=== 用Punycode域名查Zone ==="
           curl -s \
-            "https://api.cloudflare.com/client/v4/zones/0375a9c9a4aeb1187a2e82b077cba25b" \
+            "https://api.cloudflare.com/client/v4/zones?name=xn--3prv04ai7du1mlsm.icu" \
             -H "X-Auth-Email: $CF_AUTH_EMAIL" \
             -H "X-Auth-Key: $CF_AUTH_KEY"
