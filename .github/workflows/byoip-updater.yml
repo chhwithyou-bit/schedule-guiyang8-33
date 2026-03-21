@@ -23,36 +23,42 @@ jobs:
           zone_id = os.environ['ZONE_ID']
           headers = {'X-Auth-Email': email, 'X-Auth-Key': key, 'Content-Type': 'application/json'}
 
-          # 91.193.59.x 段，扫描可用IP
-          candidates = [f"91.193.59.{i}" for i in range(1, 255)]
+          # 按ITDog测速结果排序，延迟低的在前
+          MY_IPS = [
+              "91.193.59.120",
+              "91.193.59.17",
+              "91.193.59.179",
+              "91.193.59.168",
+              "91.193.59.123",
+              "91.193.59.19",
+              "91.193.59.167",
+          ]
 
+          # 随机打乱，避免总用同一个IP
+          random.shuffle(MY_IPS)
+
+          # 用nc检测443端口
           def check(ip):
               try:
                   result = subprocess.run(
-                      ['curl', '-s', '-o', '/dev/null', '-w', '%{http_code}',
-                       '--connect-timeout', '3', '-m', '5',
-                       '-H', 'Host: xn--3prv04ai7du1mlsm.icu',
-                       f'https://{ip}/'],
-                      capture_output=True, text=True)
-                  code = result.stdout.strip()
-                  return code not in ['000', '403']
+                      ['nc', '-z', '-w', '3', ip, '443'],
+                      capture_output=True, timeout=5)
+                  return result.returncode == 0
               except:
                   return False
 
-          # 随机取20个测试，找第一个可用的
-          sample = random.sample(candidates, 20)
           best_ip = None
-          for ip in sample:
+          for ip in MY_IPS:
               if check(ip):
                   best_ip = ip
-                  print(f'✅ 可用IP: {ip}')
+                  print(f'✅ 可用: {ip}')
                   break
               else:
-                  print(f'❌ 不可用: {ip}')
+                  print(f'❌ 不通: {ip}')
 
           if not best_ip:
-              print('91.193.59.x段无可用IP，退出')
-              exit(1)
+              print('所有IP不可用，保留现有DNS')
+              exit(0)
 
           # 查当前DNS
           req = urllib.request.Request(
