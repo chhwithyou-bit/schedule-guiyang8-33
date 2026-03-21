@@ -14,7 +14,6 @@ jobs:
           CF_AUTH_EMAIL: ${{ secrets.CF_AUTH_EMAIL }}
           CF_AUTH_KEY: ${{ secrets.CF_AUTH_KEY }}
           ZONE_ID: ${{ secrets.ZONE_ID }}
-          RECORD_ID: ${{ secrets.RECORD_ID }}
         run: |
           DATA=$(curl -s -A "Mozilla/5.0" "https://vps789.com/public/sum/cfIpApi")
           
@@ -38,14 +37,8 @@ jobs:
             exit 1
           fi
 
-          # 试PATCH + dns_records路径
-          RESULT=$(curl -s -X PATCH \
-            "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records/$RECORD_ID" \
+          # 先查当前IP
+          CURRENT=$(curl -s \
+            "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records" \
             -H "X-Auth-Email: $CF_AUTH_EMAIL" \
-            -H "X-Auth-Key: $CF_AUTH_KEY" \
-            -H "Content-Type: application/json" \
-            --data "{\"content\":\"$BEST_IP\",\"ttl\":60}")
-          
-          echo "PATCH结果: $RESULT"
-          
-          SUCCESS=$(echo $RESULT | python3 -c "import sys,json; print(json.load(sys.stdin).get('success', False))")
+            -H "X-Aut
