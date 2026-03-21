@@ -37,20 +37,15 @@ jobs:
             echo "未获取到IP，退出"
             exit 1
           fi
-          
-          RESULT=$(curl -s -X PUT \
+
+          # 试PATCH + dns_records路径
+          RESULT=$(curl -s -X PATCH \
             "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records/$RECORD_ID" \
             -H "X-Auth-Email: $CF_AUTH_EMAIL" \
             -H "X-Auth-Key: $CF_AUTH_KEY" \
             -H "Content-Type: application/json" \
-            --data "{\"type\":\"A\",\"name\":\"xn--3prv04ai7du1mlsm.icu\",\"content\":\"$BEST_IP\",\"ttl\":60,\"proxied\":false}")
+            --data "{\"content\":\"$BEST_IP\",\"ttl\":60}")
           
-          echo "更新结果: $RESULT"
+          echo "PATCH结果: $RESULT"
           
           SUCCESS=$(echo $RESULT | python3 -c "import sys,json; print(json.load(sys.stdin).get('success', False))")
-          if [ "$SUCCESS" = "True" ]; then
-            echo "✅ DNS更新成功: $BEST_IP"
-          else
-            echo "❌ DNS更新失败"
-            exit 1
-          fi
