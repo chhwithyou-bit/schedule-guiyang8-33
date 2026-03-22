@@ -678,23 +678,20 @@ async function adminLogin() {
   if (!user || !pwd) { showToast('⚠️ 请输入用户名和密码', 'error'); return; }
   const btn = document.querySelector('#nodes-admin-login button');
   btn.textContent = '验证中...'; btn.disabled = true;
-  const payload = { adminUser: user, adminPass: pwd, action: 'getNodes' };
   try {
     const r = await fetch('/api/nodes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({ adminUser: user, adminPass: pwd, action: 'getNodes' })
     });
-    const respText = await r.text();
-    alert('【调试】发送:\n' + JSON.stringify(payload) + '\n\n状态码: ' + r.status + '\n\n返回:\n' + respText);
     if (r.status === 401) {
       showToast('❌ 用户名或密码错误', 'error');
       document.getElementById('admin-pwd-input').value = '';
       document.getElementById('admin-pwd-input').focus();
       return;
     }
-    const data = JSON.parse(respText);
     nodesRole = 'admin'; nodesAdminUser = user; nodesAdminPwd = pwd;
+    const data = await r.json();
     nodesAllNodes = data.nodes || [];
     renderAdminNodes();
     document.getElementById('nodes-admin-login').style.display = 'none';
