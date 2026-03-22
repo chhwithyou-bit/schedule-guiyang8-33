@@ -1560,20 +1560,25 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
   // ══ 展开/收起 ══
   function expand() {
     open = true;
+    // 确保收起尺寸是正确起点
+    mp.style.transition = 'none';
+    mp.style.width  = '52px';
+    mp.style.height = '52px';
     mp.classList.add('open');
-    // 动态计算展开高度
-    mp.style.height = '';
     requestAnimationFrame(() => {
-      const h = $('mp-body').scrollHeight + 2;
-      mp.style.transition = [
-        'width 0.52s cubic-bezier(0.34,1.4,0.64,1)',
-        'height 0.52s cubic-bezier(0.34,1.4,0.64,1)',
-        'border-radius 0.52s cubic-bezier(0.34,1.4,0.64,1)',
-        'box-shadow 0.4s ease',
-        'border-color 0.3s ease'
-      ].join(',');
-      mp.style.height = h + 'px';
-      clamp();
+      requestAnimationFrame(() => {
+        const h = $('mp-body').scrollHeight + 2;
+        mp.style.transition = [
+          'width 0.52s cubic-bezier(0.34,1.4,0.64,1)',
+          'height 0.52s cubic-bezier(0.34,1.4,0.64,1)',
+          'border-radius 0.52s cubic-bezier(0.34,1.4,0.64,1)',
+          'box-shadow 0.4s ease',
+          'border-color 0.3s ease'
+        ].join(',');
+        mp.style.width  = '285px';
+        mp.style.height = h + 'px';
+        clamp();
+      });
     });
   }
 
@@ -1581,8 +1586,14 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
     open = false; listOpen = false;
     listArea.classList.remove('show');
     mp.classList.remove('open');
-    mp.style.height = '52px';
+    // 先关闭transition再重置，避免下次展开时尺寸错乱
+    mp.style.transition = 'none';
     mp.style.width  = '52px';
+    mp.style.height = '52px';
+    // 恢复transition（延迟一帧）
+    requestAnimationFrame(() => {
+      mp.style.transition = '';
+    });
   }
 
   function clamp() {
