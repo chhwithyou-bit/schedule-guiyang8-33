@@ -1576,9 +1576,9 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
     listWrap.classList.remove('show');
   }
 
-  // 点收起态图标 → 展开
-  el('mp-icon').addEventListener('touchend', e => { e.preventDefault(); if(!expanded) expand(); });
-  el('mp-icon').addEventListener('click', e => { if(!expanded) expand(); });
+  // 点收起态图标 → 展开（只在没有拖动时触发）
+  el('mp-icon').addEventListener('touchend', e => { e.preventDefault(); if(!expanded && !moved) expand(); });
+  el('mp-icon').addEventListener('click', e => { if(!expanded && !moved) expand(); });
   // 关闭按钮
   el('mpb-close').addEventListener('touchend', e => { e.preventDefault(); e.stopPropagation(); collapse(); });
   el('mpb-close').addEventListener('click',    e => { e.stopPropagation(); collapse(); });
@@ -1598,17 +1598,30 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
     if (!PL.length) return;
     idx = ((i % PL.length) + PL.length) % PL.length;
     const t = PL[idx];
-    audio.src = t.url;
+    // encodeURI handles Chinese characters in filenames
+    try { audio.src = encodeURI(decodeURI(t.url)); } catch(e) { audio.src = t.url; }
     nameEl.textContent  = t.name;
     artistEl.textContent = t.artist || '';
     fill.style.width = '0%'; curEl.textContent = '0:00'; durEl.textContent = '0:00';
+    audio.load(); // force reload
     render();
     if (play) doPlay();
   }
 
   function doPlay() {
-    const p = audio.play();
-    if (p) p.then(() => setP(true)).catch(() => setP(false));
+    const tryPlay = () => {
+      const p = audio.play();
+      if (p) p.then(() => setP(true)).catch(err => {
+        console.error('[music] play failed:', err.message);
+        setP(false);
+      });
+    };
+    // If audio is not loaded yet, wait for canplay
+    if (audio.readyState >= 2) {
+      tryPlay();
+    } else {
+      audio.addEventListener('canplay', tryPlay, { once: true });
+    }
   }
 
   function setP(v) {
@@ -1656,18 +1669,21 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
   }
 
   // ── 拖动 ──
-  let drag=false, moved=false, ox=0, oy=0;
+  let drag=false, moved=false, ox=0, oy=0, startX=0, startY=0;
   mp.addEventListener('touchstart', e => {
+    // 如果点在展开内容区域内，不启动拖动
+    if(expanded) return;
     moved = false; drag = true;
     const t=e.touches[0], r=mp.getBoundingClientRect();
     ox=t.clientX-r.left; oy=t.clientY-r.top;
+    startX=t.clientX; startY=t.clientY;
   }, {passive:true});
   document.addEventListener('touchmove', e => {
     if(!drag) return;
     const t=e.touches[0];
-    const dx=Math.abs(t.clientX-ox-mp.getBoundingClientRect().left);
-    const dy=Math.abs(t.clientY-oy-mp.getBoundingClientRect().top);
-    if(dx>5||dy>5) moved=true;
+    const dx=Math.abs(t.clientX-startX);
+    const dy=Math.abs(t.clientY-startY);
+    if(dx>8||dy>8) moved=true;
     if(!moved) return;
     let x=t.clientX-ox, y=t.clientY-oy;
     const W=window.innerWidth, H=window.innerHeight;
@@ -1748,29 +1764,9 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
   };
 
   // ── 初始化 ──
-  let userInteracted = false;
-  let playlistReady  = false;
-
-  function tryAutoPlay() {
-    if (userInteracted && playlistReady && !playing && audio.src) {
-      doPlay();
-    }
-  }
-
-  function markInteracted() {
-    if (userInteracted) return;
-    userInteracted = true;
-    tryAutoPlay();
-  }
-  document.addEventListener('touchstart', markInteracted, {once:true, passive:true});
-  document.addEventListener('click', markInteracted, {once:true});
-
-  // 修改fetchPL在加载完后通知ready
-  (async () => {
-    await fetchPL();
-    playlistReady = true;
-    tryAutoPlay();
-  })();
+  // 浏览器安全策略：必须用户直接点播放键才能播放
+  // 只加载歌单，不尝试自动播放
+  fetchPL();
 })();
 </script>
 </body>
