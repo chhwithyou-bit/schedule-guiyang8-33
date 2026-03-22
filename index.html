@@ -1592,6 +1592,7 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
         ].join(',');
         mp.style.width  = CARD_W + 'px';
         mp.style.height = h + 'px';
+        window._mpBaseH = h; // 记录基础高度供列表开关使用
         // 同时检查底部
         const top = parseFloat(mp.style.top) || mp.getBoundingClientRect().top;
         const H = window.innerHeight;
@@ -1743,32 +1744,34 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
       'box-shadow 0.3s ease', 'border-color 0.2s ease'
     ].join(',');
 
-    function resizeCard(){
+    function resizeCard(withList){
       if(!open) return;
       mp.style.transition = SPRING_T;
-      mp.style.height = ($('mp-body').scrollHeight + 2) + 'px';
+      const bh = window._mpBaseH || 0;
+      if(withList){
+        const addH = $('mp-add').classList.contains('show') ? 46 : 0;
+        mp.style.height = (bh + 155 + addH) + 'px';
+      } else {
+        mp.style.height = bh + 'px';
+      }
     }
 
     function toggleList(){
-      listOpen = !listOpen;
       if(listOpen){
-        // 展开：先加class，等一帧让浏览器计算高度，再量
-        listArea.classList.add('show');
-        setTimeout(()=>{
-          resizeCard();
-          // 检查底部溢出
-          setTimeout(()=>{
-            const H=window.innerHeight, r=mp.getBoundingClientRect();
-            if(r.bottom > H-8) mp.style.top = Math.max(8, H-mp.offsetHeight-8)+'px';
-          }, 450);
-        }, 20);
-      } else {
-        // 收起：先量去掉列表后的高度，再移除class
-        const listH = listArea.scrollHeight;
-        const curH  = mp.offsetHeight;
+        // 收起
+        listOpen = false;
         listArea.classList.remove('show');
-        mp.style.transition = SPRING_T;
-        mp.style.height = Math.max(52, curH - listH) + 'px';
+        resizeCard(false);
+      } else {
+        // 展开
+        listOpen = true;
+        listArea.classList.add('show');
+        resizeCard(true);
+        // 检查底部溢出
+        setTimeout(()=>{
+          const H=window.innerHeight, r=mp.getBoundingClientRect();
+          if(r.bottom > H-8) mp.style.top = Math.max(8, H-mp.offsetHeight-8)+'px';
+        }, 450);
       }
     }
     listBtn.addEventListener('touchend', e=>{
