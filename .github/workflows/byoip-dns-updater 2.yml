@@ -32,7 +32,7 @@ jobs:
           }
           DNS_NAME          = 'xn--3prv04ai7du1mlsm.icu'
           SAMPLE_PER_PREFIX = 1   # 每个 prefix 随机取 1 个 IP
-          MAX_CANDIDATES    = 60  # 最多并发测 60 个，控制总时长
+          MAX_CANDIDATES    = 360  # 最多并发测 60 个，控制总时长
           TEST_TIMEOUT      = 4   # 单个 IP 测速超时（秒）
           MAX_WORKERS       = 30  # 并发线程数（60个IP / 30线程 ≈ 8秒跑完）
 
