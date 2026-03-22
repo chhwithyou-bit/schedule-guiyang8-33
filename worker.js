@@ -198,7 +198,7 @@ export default {
         const R2_BASE = 'https://thefallback.cc.cd';
         let list = JSON.parse(await env.SCHEDULE_KV.get('music_playlist') || '[]');
         if (!list.length) {
-          list = [{ name: '花海', artist: '周杰伦', url: R2_BASE + '/music/花海.mp3' }];
+          list = [{ name: '花海', artist: '周杰伦', url: R2_BASE + '/花海.mp3' }];
         }
         return jsonResp({ ok: true, list });
       }
