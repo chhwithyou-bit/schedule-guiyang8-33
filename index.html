@@ -1528,7 +1528,7 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
       </button>
       <button class="mpb play" id="mpb-play">
         <svg id="mpb-play-ico" viewBox="0 0 24 24">
-          <polygon points="5,3 19,12 5,21" fill="rgba(96,192,255,0.9)" stroke="none"/>
+          <polygon points="6,3 20,12 6,21" fill="rgba(96,192,255,0.9)" stroke="none"/>
         </svg>
       </button>
       <button class="mpb" id="mpb-next">
@@ -1560,24 +1560,42 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
   // ══ 展开/收起 ══
   function expand() {
     open = true;
-    // 确保收起尺寸是正确起点
     mp.style.transition = 'none';
     mp.style.width  = '52px';
     mp.style.height = '52px';
     mp.classList.add('open');
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
+        const W = window.innerWidth;
         const h = $('mp-body').scrollHeight + 2;
+        const CARD_W = 285;
+        // 先把left推到不超出右边缘，让卡片从正确位置弹出
+        let left = parseFloat(mp.style.left) || mp.getBoundingClientRect().left;
+        if(!mp.style.left || mp.style.right !== 'auto'){
+          mp.style.right  = 'auto';
+          mp.style.bottom = 'auto';
+          mp.style.left   = left + 'px';
+          mp.style.top    = mp.getBoundingClientRect().top + 'px';
+        }
+        if(left + CARD_W > W - 8){
+          left = W - CARD_W - 8;
+          mp.style.left = left + 'px';
+        }
         mp.style.transition = [
           'width 0.52s cubic-bezier(0.34,1.4,0.64,1)',
           'height 0.52s cubic-bezier(0.34,1.4,0.64,1)',
           'border-radius 0.52s cubic-bezier(0.34,1.4,0.64,1)',
+          'left 0.35s cubic-bezier(0.34,1.2,0.64,1)',
+          'top 0.35s cubic-bezier(0.34,1.2,0.64,1)',
           'box-shadow 0.4s ease',
           'border-color 0.3s ease'
         ].join(',');
-        mp.style.width  = '285px';
+        mp.style.width  = CARD_W + 'px';
         mp.style.height = h + 'px';
-        clamp();
+        // 同时检查底部
+        const top = parseFloat(mp.style.top) || mp.getBoundingClientRect().top;
+        const H = window.innerHeight;
+        if(top + h > H - 8) mp.style.top = Math.max(8, H - h - 8) + 'px';
       });
     });
   }
@@ -1692,7 +1710,7 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
     playing=v;
     playIco.innerHTML = v
       ? '<rect x="5" y="3" width="4" height="18" fill="rgba(96,192,255,0.9)" stroke="none"/><rect x="15" y="3" width="4" height="18" fill="rgba(96,192,255,0.9)" stroke="none"/>'
-      : '<polygon points="5,3 19,12 5,21" fill="rgba(96,192,255,0.9)" stroke="none"/>';
+      : '<polygon points="6,3 20,12 6,21" fill="rgba(96,192,255,0.9)" stroke="none"/>';
     disc.classList.toggle('spin', v);
     mp.classList.toggle('playing', v);
   }
@@ -1718,26 +1736,40 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
   (function(){
     const listBtn = $('mpb-list');
     let listTapped = false;
+    const SPRING_T = [
+      'width 0.42s cubic-bezier(0.34,1.3,0.64,1)',
+      'height 0.42s cubic-bezier(0.34,1.3,0.64,1)',
+      'border-radius 0.42s cubic-bezier(0.34,1.3,0.64,1)',
+      'box-shadow 0.3s ease', 'border-color 0.2s ease'
+    ].join(',');
+
+    function resizeCard(){
+      if(!open) return;
+      mp.style.transition = SPRING_T;
+      mp.style.height = ($('mp-body').scrollHeight + 2) + 'px';
+    }
+
     function toggleList(){
       listOpen = !listOpen;
-      listArea.classList.toggle('show', listOpen);
-      // 等列表展开/收起动画结束后重算高度
-      setTimeout(() => {
-        if(!open) return;
-        const SPRING = [
-          'width 0.42s cubic-bezier(0.34,1.3,0.64,1)',
-          'height 0.42s cubic-bezier(0.34,1.3,0.64,1)',
-          'border-radius 0.42s cubic-bezier(0.34,1.3,0.64,1)',
-          'box-shadow 0.3s ease', 'border-color 0.2s ease'
-        ].join(',');
-        mp.style.transition = SPRING;
-        mp.style.height = ($('mp-body').scrollHeight + 2) + 'px';
-        // 展开时检查底部溢出
-        if(listOpen) setTimeout(()=>{
-          const H=window.innerHeight, r=mp.getBoundingClientRect();
-          if(r.bottom > H-8) mp.style.top = Math.max(8, H-mp.offsetHeight-8)+'px';
-        }, 450);
-      }, 380); // 等列表动画 0.38s 结束
+      if(listOpen){
+        // 展开：先加class，等一帧让浏览器计算高度，再量
+        listArea.classList.add('show');
+        setTimeout(()=>{
+          resizeCard();
+          // 检查底部溢出
+          setTimeout(()=>{
+            const H=window.innerHeight, r=mp.getBoundingClientRect();
+            if(r.bottom > H-8) mp.style.top = Math.max(8, H-mp.offsetHeight-8)+'px';
+          }, 450);
+        }, 20);
+      } else {
+        // 收起：先量去掉列表后的高度，再移除class
+        const listH = listArea.scrollHeight;
+        const curH  = mp.offsetHeight;
+        listArea.classList.remove('show');
+        mp.style.transition = SPRING_T;
+        mp.style.height = Math.max(52, curH - listH) + 'px';
+      }
     }
     listBtn.addEventListener('touchend', e=>{
       e.preventDefault(); e.stopPropagation();
@@ -1816,11 +1848,22 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
   window.musicSetAdminMode=v=>{$('mp-add').classList.toggle('show',v);render();};
 
   // ══ 初始化 ══
+  let plReady=false, userTouched=false;
+  function tryAutoPlay(){
+    if(plReady && userTouched && !playing && audio.src) doPlay();
+  }
+  const _fetchPL = fetchPL;
+  fetchPL = async function(){
+    await _fetchPL();
+    plReady = true;
+    tryAutoPlay();
+  };
   fetchPL();
-  document.addEventListener('touchstart',function once(){
-    if(PL.length&&!playing&&audio.src) doPlay();
-    document.removeEventListener('touchstart',once);
-  },{once:true,passive:true});
+  // 第一次触摸屏幕立即播放（iOS合规）
+  document.addEventListener('touchstart', function once(){
+    userTouched = true;
+    tryAutoPlay();
+  },{once:true, passive:true});
 
 })();
 </script>
