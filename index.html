@@ -1457,7 +1457,7 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
   transition: max-height 0.38s cubic-bezier(0.22,1,0.36,1);
   flex-shrink: 0;
 }
-.mp-list-area.show { max-height: 155px; overflow-y: auto; }
+.mp-list-area.show { max-height: 170px; overflow-y: auto; }
 .mp-list-area::-webkit-scrollbar { width: 2px; }
 .mp-list-area::-webkit-scrollbar-thumb { background: rgba(96,192,255,0.2); border-radius: 1px; }
 .mp-li {
@@ -1744,13 +1744,20 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
       'box-shadow 0.3s ease', 'border-color 0.2s ease'
     ].join(',');
 
+    const ITEM_H = 34;  // 每首歌行高 px
+    const MAX_ITEMS = 5; // 最多显示几首
+    function listHeight(){
+      // 按实际歌曲数量算，超过5首就固定5首高度滚动
+      const n = Math.min(PL.length, MAX_ITEMS);
+      const addH = $('mp-add').classList.contains('show') ? 44 : 0;
+      return n * ITEM_H + addH + (PL.length ? 1 : 0); // +1 防止最后一行截断
+    }
     function resizeCard(withList){
       if(!open) return;
       mp.style.transition = SPRING_T;
       const bh = window._mpBaseH || 0;
       if(withList){
-        const addH = $('mp-add').classList.contains('show') ? 46 : 0;
-        mp.style.height = (bh + 155 + addH) + 'px';
+        mp.style.height = (bh + listHeight()) + 'px';
       } else {
         mp.style.height = bh + 'px';
       }
@@ -1784,6 +1791,9 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
       e.stopPropagation();
       if(!listTapped) toggleList();
     });
+    // 暴露给外部（歌单变化时重算）
+    window._mpResizeCard = resizeCard;
+    window._mpListOpen   = () => listOpen;
   })();
 
   audio.addEventListener('ended',()=>load(idx+1,true));
@@ -1817,6 +1827,9 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
     if(idx>=PL.length)idx=Math.max(0,PL.length-1);
     PL.length?load(idx,false):(audio.src='',nameEl.textContent='-',setP(false));
     render();
+    // 删歌后重算列表高度
+    if(window._mpResizeCard && window._mpListOpen && window._mpListOpen())
+      window._mpResizeCard(true);
   };
 
   // ══ 添加 ══
