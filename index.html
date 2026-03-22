@@ -1475,7 +1475,7 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
 </style>
 
 <!-- FAB 按钮 -->
-<div id="music-fab" onclick="musicTogglePlayer()">
+<div id="music-fab">
   <div class="fab-ring"></div>
   <svg viewBox="0 0 24 24"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg>
 </div>
@@ -1570,21 +1570,29 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
   const playlistEl = document.getElementById('mp-playlist');
   const urlInput = document.getElementById('mp-url-input');
 
-  // ── 拖动逻辑 ──
-  let dragEl = null, dragOffX = 0, dragOffY = 0, dragging = false, dragMoved = false;
+  // ── 拖动逻辑（带阈值，避免误判点击为拖动）──
+  let dragEl = null, dragOffX = 0, dragOffY = 0, dragStartX = 0, dragStartY = 0;
+  let dragging = false, dragMoved = false;
+  const DRAG_THRESHOLD = 6;
+
   function startDrag(e, el) {
     dragEl = el;
     const touch = e.touches ? e.touches[0] : e;
     const rect = el.getBoundingClientRect();
     dragOffX = touch.clientX - rect.left;
     dragOffY = touch.clientY - rect.top;
+    dragStartX = touch.clientX;
+    dragStartY = touch.clientY;
     dragging = true; dragMoved = false;
     e.preventDefault();
   }
   function onDragMove(e) {
     if (!dragging || !dragEl) return;
-    dragMoved = true;
     const touch = e.touches ? e.touches[0] : e;
+    const dx = touch.clientX - dragStartX;
+    const dy = touch.clientY - dragStartY;
+    if (!dragMoved && Math.sqrt(dx*dx + dy*dy) < DRAG_THRESHOLD) return;
+    dragMoved = true;
     let x = touch.clientX - dragOffX;
     let y = touch.clientY - dragOffY;
     const W = window.innerWidth, H = window.innerHeight;
@@ -1607,12 +1615,26 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
   document.addEventListener('mouseup', onDragEnd);
   document.addEventListener('touchend', onDragEnd);
 
-  // FAB click（没拖动才触发）
-  fab.addEventListener('click', e => { if (!dragMoved) musicTogglePlayer(); });
+  // FAB tap/click（没拖动才触发，防止双触发）
+  let fabTapped = false;
+  fab.addEventListener('touchend', e => {
+    if (!dragMoved) {
+      fabTapped = true;
+      musicTogglePlayer();
+      setTimeout(() => fabTapped = false, 400);
+    }
+  });
+  fab.addEventListener('click', e => {
+    if (!fabTapped && !dragMoved) musicTogglePlayer();
+  });
 
   window.musicTogglePlayer = function() {
     playerOpen = !playerOpen;
     player.classList.toggle('open', playerOpen);
+    // 第一次打开时自动开始播放
+    if (playerOpen && playlist.length && !isPlaying) {
+      audio.play().then(() => setPlaying(true)).catch(() => {});
+    }
   };
 
   // ── 播放控制 ──
