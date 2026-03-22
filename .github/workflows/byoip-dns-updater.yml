@@ -39,12 +39,39 @@ jobs:
           # ── 1. 从 ipregistry 拉取 AS209242 全量 prefix ──────────────────
           print('📡 正在从 ipregistry 拉取 AS209242 prefix 列表...')
           try:
-              url = f'https://api.ipregistry.co/AS209242?key={ipreg_key}&fields=prefixes'
+              # 不加 fields 参数，拿完整响应避免结构变化
+              url = f'https://api.ipregistry.co/AS209242?key={ipreg_key}'
               req = urllib.request.Request(url, headers={'Accept': 'application/json'})
               raw = urllib.request.urlopen(req, timeout=15).read()
               data = json.loads(raw)
-              prefixes_v4 = [p['prefix'] for p in data.get('prefixes', {}).get('ipv4', [])]
+
+              # 调试：打印顶层 key 结构，方便排查
+              print(f'🔍 响应顶层 keys: {list(data.keys())}')
+
+              # ipregistry ASN 响应结构：data['prefixes']['ipv4'] 是列表
+              # 每个元素形如 {"prefix": "1.2.3.0/24", ...}
+              prefixes_raw = data.get('prefixes', {})
+              if isinstance(prefixes_raw, dict):
+                  ipv4_list = prefixes_raw.get('ipv4', [])
+              else:
+                  # 万一结构不同，直接打印前2条方便排查
+                  print(f'⚠️  prefixes 字段结构异常: {type(prefixes_raw)} → {str(prefixes_raw)[:300]}')
+                  ipv4_list = []
+
+              # 兼容字段名 prefix / cidr / network
+              def extract_cidr(entry):
+                  for field in ('prefix', 'cidr', 'network', 'ip'):
+                      if field in entry:
+                          return entry[field]
+                  return None
+
+              prefixes_v4 = [c for e in ipv4_list if (c := extract_cidr(e)) is not None]
               print(f'✅ 获取到 {len(prefixes_v4)} 个 IPv4 prefix')
+
+              # 若为空则打印前2条原始结构辅助调试
+              if not prefixes_v4 and ipv4_list:
+                  print(f'⚠️  ipv4_list 前2条: {ipv4_list[:2]}')
+
           except Exception as e:
               print(f'❌ 拉取 prefix 失败: {e}，保留现有DNS')
               exit(0)
