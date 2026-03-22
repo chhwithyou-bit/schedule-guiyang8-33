@@ -1456,7 +1456,7 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
 .mp-times { display: flex; justify-content: space-between; font-size: 9px; color: rgba(255,255,255,0.25); }
 
 /* 控制区 */
-.mp-ctrl { display: flex; align-items: center; justify-content: center; gap: 0px; padding: 2px 6px 10px; flex-shrink: 0; }
+.mp-ctrl { display: flex; align-items: center; justify-content: center; gap: 4px; padding: 0px 6px 10px; flex-shrink: 0; }
 .mpb {
   width: 36px; height: 36px; border-radius: 50%;
   background: none; border: none;
@@ -1478,12 +1478,15 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
 
 /* 歌单 */
 .mp-list-area {
-  border-top: 1px solid rgba(255,255,255,0.07);
-  max-height: 0; overflow: hidden;
-  transition: max-height 0.38s cubic-bezier(0.22,1,0.36,1);
+  border-top: 0px solid rgba(255,255,255,0.07);
+  overflow-y: auto;
   flex-shrink: 0;
+  display: none;
 }
-.mp-list-area.show { max-height: 200px; overflow-y: auto; }
+.mp-list-area.show {
+  display: block;
+  border-top-width: 1px;
+}
 .mp-list-area::-webkit-scrollbar { width: 2px; }
 .mp-list-area::-webkit-scrollbar-thumb { background: rgba(96,192,255,0.2); border-radius: 1px; }
 .mp-li {
@@ -1802,9 +1805,9 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
       } else {
         // 展开
         listOpen = true;
-        listArea.classList.add('show');
-        // 等一帧让 DOM 渲染出来再量高度
-        requestAnimationFrame(() => resizeCard(true));
+        render(); // 先填充内容
+        listArea.classList.add('show'); // 再显示
+        requestAnimationFrame(() => resizeCard(true)); // 再算高度
         // 列表展开后推着卡片往上，确保不超出底部
         setTimeout(()=>{
           const H=window.innerHeight, r=mp.getBoundingClientRect();
