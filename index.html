@@ -1301,52 +1301,94 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
 
 <!-- ══════════════════ 音乐播放器 ══════════════════ -->
 <style>
-  #music-fab {
+  /* ── 迷你播放条（常驻） ── */
+  #music-mini {
     position: fixed;
-    width: 48px; height: 48px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.15);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    border: 1px solid rgba(255,255,255,0.25);
-    box-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.2);
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer; z-index: 9999;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    right: 12px;
+    bottom: 80px;
+    z-index: 10001;
+    width: 220px;
+    height: 52px;
+    background: rgba(18,28,50,0.82);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 30px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.1);
+    display: flex;
+    align-items: center;
+    padding: 0 8px 0 10px;
+    gap: 8px;
+    cursor: pointer;
     touch-action: none;
-    right: 20px; bottom: 90px;
+    transition: box-shadow 0.2s;
   }
-  #music-fab:active { transform: scale(0.92); }
-  #music-fab svg { width: 22px; height: 22px; fill: #fff; transition: opacity 0.3s; }
-  #music-fab .fab-ring {
-    position: absolute; inset: -3px; border-radius: 50%;
-    border: 2px solid rgba(255,255,255,0);
-    transition: border-color 0.4s;
-  }
-  #music-fab.playing .fab-ring {
-    border-color: rgba(255,255,255,0.5);
-    animation: fab-spin 4s linear infinite;
-  }
-  @keyframes fab-spin { to { transform: rotate(360deg); } }
+  #music-mini:active { box-shadow: 0 4px 16px rgba(0,0,0,0.5); }
 
-  #music-player {
-    position: fixed; z-index: 10000;
-    width: 300px;
-    background: rgba(20,28,48,0.75);
-    backdrop-filter: blur(30px) saturate(200%);
-    -webkit-backdrop-filter: blur(30px) saturate(200%);
-    border: 1px solid rgba(255,255,255,0.15);
-    border-radius: 20px;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12);
+  .mini-disc {
+    width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+    background: linear-gradient(135deg,#1e3a5f,#0d1b2a);
+    border: 1px solid rgba(255,255,255,0.12);
+    display: flex; align-items: center; justify-content: center;
     overflow: hidden;
+  }
+  .mini-disc svg { width: 16px; height: 16px; fill: rgba(96,192,255,0.8); }
+  .mini-disc.spinning { animation: disc-spin 6s linear infinite; }
+  @keyframes disc-spin { to { transform: rotate(360deg); } }
+
+  .mini-info { flex: 1; min-width: 0; }
+  .mini-title {
+    font-size: 12px; font-weight: 600; color: #fff;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    line-height: 1.3;
+  }
+  .mini-artist { font-size: 10px; color: rgba(255,255,255,0.45); line-height: 1.3; }
+
+  .mini-play-btn {
+    width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+    background: rgba(96,192,255,0.18);
+    border: 1px solid rgba(96,192,255,0.3);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+  }
+  .mini-play-btn:active { transform: scale(0.88); }
+  .mini-play-btn svg { width: 14px; height: 14px; fill: #60c0ff; }
+
+  /* 进度条在迷你条底部 */
+  .mini-progress {
+    position: absolute; bottom: 0; left: 10px; right: 10px;
+    height: 2px; border-radius: 1px;
+    background: rgba(255,255,255,0.1);
+    overflow: hidden;
+  }
+  .mini-progress-fill {
+    height: 100%; border-radius: 1px;
+    background: linear-gradient(90deg,#60c0ff,#a78bfa);
+    width: 0%; transition: width 0.5s linear;
+  }
+
+  /* ── 完整播放器面板 ── */
+  #music-panel {
+    position: fixed;
+    z-index: 10002;
+    width: 300px;
+    right: 12px;
+    bottom: 144px;
+    background: rgba(14,22,42,0.88);
+    backdrop-filter: blur(32px) saturate(200%);
+    -webkit-backdrop-filter: blur(32px) saturate(200%);
+    border: 1px solid rgba(255,255,255,0.13);
+    border-radius: 22px;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.1);
+    overflow: hidden;
+    transform: scale(0.92) translateY(12px);
     transform-origin: bottom right;
-    transform: scale(0.6) translateY(20px);
     opacity: 0;
     pointer-events: none;
-    transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1), opacity 0.25s ease;
-    right: 16px; bottom: 150px;
+    transition: transform 0.32s cubic-bezier(0.34,1.45,0.64,1), opacity 0.22s ease;
   }
-  #music-player.open {
+  #music-panel.open {
     transform: scale(1) translateY(0);
     opacity: 1;
     pointer-events: all;
@@ -1354,155 +1396,160 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
 
   .mp-header {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 14px 16px 8px;
-    cursor: grab;
-    user-select: none;
+    padding: 14px 14px 8px;
+    cursor: grab; user-select: none;
   }
   .mp-header:active { cursor: grabbing; }
-  .mp-title-area { display: flex; align-items: center; gap: 8px; }
-  .mp-title-area span { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.9); letter-spacing: 0.3px; }
-  .mp-close {
-    width: 24px; height: 24px; border-radius: 50%;
+  .mp-header-left { display: flex; align-items: center; gap: 7px; }
+  .mp-header-left span { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.88); }
+  .mp-close-btn {
+    width: 26px; height: 26px; border-radius: 50%;
     background: rgba(255,255,255,0.1); border: none;
-    color: rgba(255,255,255,0.6); font-size: 14px; cursor: pointer;
+    color: rgba(255,255,255,0.55); font-size: 13px;
     display: flex; align-items: center; justify-content: center;
-    transition: background 0.2s;
+    cursor: pointer; transition: background 0.15s;
   }
-  .mp-close:hover { background: rgba(255,255,255,0.2); }
+  .mp-close-btn:active { background: rgba(255,255,255,0.2); }
 
-  .mp-cover-area {
-    padding: 0 16px 12px;
+  .mp-cover-row {
     display: flex; align-items: center; gap: 12px;
+    padding: 0 14px 12px;
   }
   .mp-cover {
-    width: 52px; height: 52px; border-radius: 12px;
-    background: linear-gradient(135deg, #1e3a5f, #0d1b2a);
+    width: 54px; height: 54px; border-radius: 12px; flex-shrink: 0;
+    background: linear-gradient(135deg,#1a3055,#0d1b2a);
     border: 1px solid rgba(255,255,255,0.1);
     display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0; overflow: hidden;
-    transition: transform 0.3s;
+    overflow: hidden;
   }
-  .mp-cover.spinning { animation: cover-spin 8s linear infinite; }
-  .mp-cover img { width: 100%; height: 100%; object-fit: cover; border-radius: 12px; }
-  .mp-cover svg { width: 24px; height: 24px; fill: rgba(255,255,255,0.3); }
-  @keyframes cover-spin { to { transform: rotate(360deg); border-radius: 50%; } }
-  .mp-info { flex: 1; min-width: 0; }
-  .mp-song-name {
-    font-size: 14px; font-weight: 600; color: #fff;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    margin-bottom: 3px;
-  }
-  .mp-song-artist { font-size: 12px; color: rgba(255,255,255,0.5); }
+  .mp-cover svg { width: 24px; height: 24px; fill: rgba(96,192,255,0.4); }
+  .mp-cover.spinning { animation: disc-spin 8s linear infinite; border-radius: 50%; }
+  .mp-meta { flex: 1; min-width: 0; }
+  .mp-song-name { font-size: 15px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 3px; }
+  .mp-song-artist { font-size: 12px; color: rgba(255,255,255,0.45); }
 
-  .mp-progress-area { padding: 0 16px 10px; }
-  .mp-progress-bar {
+  .mp-progress-area { padding: 2px 14px 10px; }
+  .mp-bar {
     width: 100%; height: 3px; border-radius: 2px;
-    background: rgba(255,255,255,0.1); cursor: pointer; margin-bottom: 6px;
-    position: relative;
+    background: rgba(255,255,255,0.1); position: relative;
+    cursor: pointer; margin-bottom: 5px;
   }
-  .mp-progress-fill {
+  .mp-bar-fill {
     height: 100%; border-radius: 2px;
-    background: linear-gradient(90deg, #60c0ff, #a78bfa);
-    width: 0%; transition: width 0.5s linear;
-    pointer-events: none;
+    background: linear-gradient(90deg,#60c0ff,#a78bfa);
+    width: 0%; pointer-events: none;
+    transition: width 0.5s linear;
   }
-  .mp-time { display: flex; justify-content: space-between; font-size: 10px; color: rgba(255,255,255,0.35); }
+  .mp-time { display: flex; justify-content: space-between; font-size: 10px; color: rgba(255,255,255,0.3); }
 
-  .mp-controls {
-    display: flex; align-items: center; justify-content: center; gap: 20px;
-    padding: 0 16px 16px;
+  .mp-ctrl-row {
+    display: flex; align-items: center; justify-content: center; gap: 22px;
+    padding: 0 14px 16px;
   }
-  .mp-btn {
-    background: none; border: none; cursor: pointer; padding: 0;
+  .mp-ctrl-btn {
+    background: none; border: none; cursor: pointer;
+    color: rgba(255,255,255,0.65);
     display: flex; align-items: center; justify-content: center;
-    color: rgba(255,255,255,0.7); transition: color 0.2s, transform 0.15s;
+    transition: color 0.15s, transform 0.12s;
+    padding: 6px;
   }
-  .mp-btn:hover { color: #fff; transform: scale(1.1); }
-  .mp-btn:active { transform: scale(0.9); }
-  .mp-btn svg { width: 20px; height: 20px; fill: currentColor; }
-  .mp-btn.play-btn {
-    width: 44px; height: 44px; border-radius: 50%;
-    background: rgba(255,255,255,0.15);
-    border: 1px solid rgba(255,255,255,0.2);
-    color: #fff;
+  .mp-ctrl-btn:active { transform: scale(0.85); color: #fff; }
+  .mp-ctrl-btn svg { width: 22px; height: 22px; fill: currentColor; pointer-events: none; }
+  .mp-ctrl-btn.main {
+    width: 48px; height: 48px; border-radius: 50%;
+    background: rgba(96,192,255,0.18);
+    border: 1px solid rgba(96,192,255,0.3);
+    color: #60c0ff;
   }
-  .mp-btn.play-btn svg { width: 20px; height: 20px; }
-  .mp-btn.play-btn:hover { background: rgba(255,255,255,0.25); transform: scale(1.05); }
+  .mp-ctrl-btn.main:active { background: rgba(96,192,255,0.3); }
+  .mp-ctrl-btn.main svg { width: 22px; height: 22px; }
 
-  .mp-playlist {
-    border-top: 1px solid rgba(255,255,255,0.08);
-    max-height: 160px; overflow-y: auto;
+  .mp-list {
+    border-top: 1px solid rgba(255,255,255,0.07);
+    max-height: 150px; overflow-y: auto;
   }
-  .mp-playlist::-webkit-scrollbar { width: 3px; }
-  .mp-playlist::-webkit-scrollbar-track { background: transparent; }
-  .mp-playlist::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
-  .mp-playlist-item {
+  .mp-list::-webkit-scrollbar { width: 2px; }
+  .mp-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 1px; }
+  .mp-list-item {
     display: flex; align-items: center; gap: 10px;
-    padding: 9px 16px; cursor: pointer;
-    transition: background 0.15s;
-    font-size: 12px; color: rgba(255,255,255,0.6);
+    padding: 9px 14px; cursor: pointer;
+    transition: background 0.12s;
+    font-size: 12px; color: rgba(255,255,255,0.55);
   }
-  .mp-playlist-item:hover { background: rgba(255,255,255,0.06); }
-  .mp-playlist-item.active { color: #60c0ff; background: rgba(96,192,255,0.08); }
-  .mp-playlist-item .pl-num { width: 16px; text-align: center; font-size: 11px; flex-shrink: 0; }
-  .mp-playlist-item .pl-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .mp-playlist-item .pl-del {
-    opacity: 0; color: rgba(255,255,255,0.3); font-size: 14px; line-height: 1;
-    transition: opacity 0.15s;
-    background: none; border: none; cursor: pointer; padding: 0 2px;
-  }
-  .mp-playlist-item:hover .pl-del { opacity: 1; }
+  .mp-list-item:active { background: rgba(255,255,255,0.06); }
+  .mp-list-item.active { color: #60c0ff; }
+  .mp-list-item .li-num { width: 16px; text-align: center; font-size: 11px; flex-shrink: 0; color: rgba(255,255,255,0.3); }
+  .mp-list-item.active .li-num { color: #60c0ff; }
+  .mp-list-item .li-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mp-list-item .li-del { opacity:0; background:none; border:none; color:rgba(255,255,255,0.3); cursor:pointer; padding:0 2px; font-size:13px; transition:opacity 0.12s; }
+  .mp-list-item:hover .li-del { opacity:1; }
 
-  .mp-add-area {
-    padding: 10px 12px 14px;
-    border-top: 1px solid rgba(255,255,255,0.08);
-    display: flex; gap: 6px;
+  .mp-add-row {
+    padding: 8px 10px 12px;
+    border-top: 1px solid rgba(255,255,255,0.07);
+    display: none; gap: 6px;
   }
+  .mp-add-row.show { display: flex; }
   .mp-add-input {
-    flex: 1; background: rgba(255,255,255,0.07);
-    border: 1px solid rgba(255,255,255,0.12); border-radius: 10px;
-    color: #fff; font-size: 12px; padding: 7px 10px; outline: none;
-    transition: border-color 0.2s;
+    flex:1; background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 10px;
+    color:#fff; font-size:12px; padding:7px 10px; outline:none;
+    transition: border-color 0.15s;
   }
-  .mp-add-input::placeholder { color: rgba(255,255,255,0.3); }
-  .mp-add-input:focus { border-color: rgba(96,192,255,0.5); }
-  .mp-add-btn {
-    background: rgba(96,192,255,0.2); border: 1px solid rgba(96,192,255,0.3);
-    border-radius: 10px; color: #60c0ff; font-size: 12px; padding: 7px 12px;
-    cursor: pointer; white-space: nowrap; transition: background 0.2s;
+  .mp-add-input::placeholder { color:rgba(255,255,255,0.25); }
+  .mp-add-input:focus { border-color: rgba(96,192,255,0.45); }
+  .mp-add-submit {
+    background: rgba(96,192,255,0.18); border:1px solid rgba(96,192,255,0.28);
+    border-radius:10px; color:#60c0ff; font-size:12px; padding:7px 11px;
+    cursor:pointer; white-space:nowrap; transition:background 0.15s;
   }
-  .mp-add-btn:hover { background: rgba(96,192,255,0.35); }
+  .mp-add-submit:active { background: rgba(96,192,255,0.32); }
+  .mp-footer-hint {
+    padding: 7px 14px 12px; text-align:center;
+    font-size:11px; color:rgba(255,255,255,0.2);
+  }
 </style>
 
-<!-- FAB 按钮 -->
-<div id="music-fab">
-  <div class="fab-ring"></div>
-  <svg viewBox="0 0 24 24"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg>
+<!-- 迷你播放条 -->
+<div id="music-mini">
+  <div class="mini-disc" id="mini-disc">
+    <svg viewBox="0 0 24 24"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg>
+  </div>
+  <div class="mini-info">
+    <div class="mini-title" id="mini-title">加载中...</div>
+    <div class="mini-artist" id="mini-artist">-</div>
+  </div>
+  <div class="mini-play-btn" id="mini-play-btn">
+    <svg id="mini-play-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+  </div>
+  <div class="mini-progress">
+    <div class="mini-progress-fill" id="mini-progress-fill"></div>
+  </div>
 </div>
 
-<!-- 播放器面板 -->
-<div id="music-player">
+<!-- 完整播放器面板 -->
+<div id="music-panel">
   <div class="mp-header" id="mp-drag-handle">
-    <div class="mp-title-area">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="rgba(96,192,255,0.8)"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg>
-      <span>音乐播放器</span>
+    <div class="mp-header-left">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="#60c0ff"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg>
+      <span>正在播放</span>
     </div>
-    <button class="mp-close" onclick="musicTogglePlayer()">✕</button>
+    <button class="mp-close-btn" id="mp-close-btn">✕</button>
   </div>
 
-  <div class="mp-cover-area">
+  <div class="mp-cover-row">
     <div class="mp-cover" id="mp-cover">
       <svg viewBox="0 0 24 24"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg>
     </div>
-    <div class="mp-info">
-      <div class="mp-song-name" id="mp-song-name">未选择歌曲</div>
-      <div class="mp-song-artist" id="mp-song-artist">添加音乐开始播放</div>
+    <div class="mp-meta">
+      <div class="mp-song-name" id="mp-song-name">-</div>
+      <div class="mp-song-artist" id="mp-song-artist">-</div>
     </div>
   </div>
 
   <div class="mp-progress-area">
-    <div class="mp-progress-bar" id="mp-progress-bar" onclick="musicSeek(event)">
-      <div class="mp-progress-fill" id="mp-progress-fill"></div>
+    <div class="mp-bar" id="mp-bar">
+      <div class="mp-bar-fill" id="mp-bar-fill"></div>
     </div>
     <div class="mp-time">
       <span id="mp-cur">0:00</span>
@@ -1510,239 +1557,228 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
     </div>
   </div>
 
-  <div class="mp-controls">
-    <button class="mp-btn" onclick="musicPrev()" title="上一首">
+  <div class="mp-ctrl-row">
+    <button class="mp-ctrl-btn" id="btn-prev">
       <svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
     </button>
-    <button class="mp-btn play-btn" id="mp-play-btn" onclick="musicTogglePlay()">
+    <button class="mp-ctrl-btn main" id="btn-play">
       <svg id="mp-play-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
     </button>
-    <button class="mp-btn" onclick="musicNext()" title="下一首">
+    <button class="mp-ctrl-btn" id="btn-next">
       <svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zm2-8.14L11.03 12 8 14.14V9.86zM16 6h2v12h-2z"/></svg>
     </button>
   </div>
 
-  <div class="mp-playlist" id="mp-playlist"></div>
-
-  <div class="mp-add-area" id="mp-add-area" style="display:none;">
-    <input class="mp-add-input" id="mp-url-input" placeholder="歌名,歌手,mp3链接..." />
-    <button class="mp-add-btn" onclick="musicAddTrack()">添加</button>
+  <div class="mp-list" id="mp-list"></div>
+  <div class="mp-add-row" id="mp-add-row">
+    <input class="mp-add-input" id="mp-add-input" placeholder="歌名,歌手,mp3链接" />
+    <button class="mp-add-submit" id="mp-add-submit">添加</button>
   </div>
-  <div id="mp-hint" style="padding:8px 16px 14px;text-align:center;font-size:11px;color:rgba(255,255,255,0.25);">歌单由管理员维护</div>
+  <div class="mp-footer-hint" id="mp-footer-hint">歌单由管理员维护</div>
 </div>
 
 <script>
 (function(){
   const audio = new Audio();
-  audio.preload = 'metadata';
-  let playlist = [];
-  let currentIdx = 0;
-  let isPlaying = false;
-  let playerOpen = false;
+  let playlist = [], idx = 0, playing = false, panelOpen = false;
 
-  // 从服务器加载歌单
-  async function loadPlaylistFromServer() {
-    try {
-      const r = await fetch('/api/music');
-      const data = await r.json();
-      if (data.ok && data.list.length) {
-        playlist = data.list;
-        currentIdx = 0;
-        renderPlaylist();
-        const t = playlist[0];
-        songName.textContent = t.name;
-        songArtist.textContent = t.artist || '未知艺术家';
-        audio.src = t.url;
-      }
-    } catch(e) { console.log('歌单加载失败', e); }
-  }
+  const mini       = document.getElementById('music-mini');
+  const miniDisc   = document.getElementById('mini-disc');
+  const miniTitle  = document.getElementById('mini-title');
+  const miniArtist = document.getElementById('mini-artist');
+  const miniPlayBtn= document.getElementById('mini-play-btn');
+  const miniPlayIco= document.getElementById('mini-play-icon');
+  const miniFill   = document.getElementById('mini-progress-fill');
 
-  const fab = document.getElementById('music-fab');
-  const player = document.getElementById('music-player');
-  const playIcon = document.getElementById('mp-play-icon');
-  const playBtn = document.getElementById('mp-play-btn');
-  const songName = document.getElementById('mp-song-name');
+  const panel      = document.getElementById('music-panel');
+  const cover      = document.getElementById('mp-cover');
+  const songName   = document.getElementById('mp-song-name');
   const songArtist = document.getElementById('mp-song-artist');
-  const cover = document.getElementById('mp-cover');
-  const progressFill = document.getElementById('mp-progress-fill');
-  const curTime = document.getElementById('mp-cur');
-  const durTime = document.getElementById('mp-dur');
-  const playlistEl = document.getElementById('mp-playlist');
-  const urlInput = document.getElementById('mp-url-input');
+  const barFill    = document.getElementById('mp-bar-fill');
+  const curEl      = document.getElementById('mp-cur');
+  const durEl      = document.getElementById('mp-dur');
+  const playIcon   = document.getElementById('mp-play-icon');
+  const listEl     = document.getElementById('mp-list');
+  const addRow     = document.getElementById('mp-add-row');
+  const addInput   = document.getElementById('mp-add-input');
+  const hintEl     = document.getElementById('mp-footer-hint');
 
-  // ── 拖动逻辑（带阈值，避免误判点击为拖动）──
-  let dragEl = null, dragOffX = 0, dragOffY = 0, dragStartX = 0, dragStartY = 0;
-  let dragging = false, dragMoved = false;
-  const DRAG_THRESHOLD = 6;
-
-  function startDrag(e, el) {
-    dragEl = el;
-    const touch = e.touches ? e.touches[0] : e;
-    const rect = el.getBoundingClientRect();
-    dragOffX = touch.clientX - rect.left;
-    dragOffY = touch.clientY - rect.top;
-    dragStartX = touch.clientX;
-    dragStartY = touch.clientY;
-    dragging = true; dragMoved = false;
-    e.preventDefault();
+  // ── 面板开关 ──
+  function togglePanel() {
+    panelOpen = !panelOpen;
+    panel.classList.toggle('open', panelOpen);
   }
-  function onDragMove(e) {
-    if (!dragging || !dragEl) return;
-    const touch = e.touches ? e.touches[0] : e;
-    const dx = touch.clientX - dragStartX;
-    const dy = touch.clientY - dragStartY;
-    if (!dragMoved && Math.sqrt(dx*dx + dy*dy) < DRAG_THRESHOLD) return;
-    dragMoved = true;
-    let x = touch.clientX - dragOffX;
-    let y = touch.clientY - dragOffY;
+  document.getElementById('mp-close-btn').addEventListener('click', e => {
+    e.stopPropagation();
+    panelOpen = false;
+    panel.classList.remove('open');
+  });
+
+  // ── 迷你条：点击信息区打开面板，点播放键播放 ──
+  let miniDragging = false, miniDragMoved = false;
+  let dragOffX = 0, dragOffY = 0;
+
+  mini.addEventListener('touchstart', e => {
+    miniDragMoved = false;
+    const t = e.touches[0];
+    const r = mini.getBoundingClientRect();
+    dragOffX = t.clientX - r.left;
+    dragOffY = t.clientY - r.top;
+    miniDragging = true;
+  }, { passive: true });
+
+  document.addEventListener('touchmove', e => {
+    if (!miniDragging) return;
+    miniDragMoved = true;
+    const t = e.touches[0];
+    let x = t.clientX - dragOffX;
+    let y = t.clientY - dragOffY;
     const W = window.innerWidth, H = window.innerHeight;
-    const w = dragEl.offsetWidth, h = dragEl.offsetHeight;
-    x = Math.max(0, Math.min(x, W - w));
-    y = Math.max(0, Math.min(y, H - h));
-    dragEl.style.right = 'auto'; dragEl.style.bottom = 'auto';
-    dragEl.style.left = x + 'px'; dragEl.style.top = y + 'px';
-  }
-  function onDragEnd() { dragging = false; dragEl = null; }
+    x = Math.max(0, Math.min(x, W - mini.offsetWidth));
+    y = Math.max(0, Math.min(y, H - mini.offsetHeight));
+    mini.style.right = 'auto'; mini.style.bottom = 'auto';
+    mini.style.left = x + 'px'; mini.style.top = y + 'px';
+    // 面板跟随
+    panel.style.right = 'auto'; panel.style.bottom = 'auto';
+    panel.style.left = x + 'px';
+    panel.style.top = (y - panel.offsetHeight - 8) + 'px';
+  }, { passive: true });
 
-  // FAB 拖动
-  fab.addEventListener('mousedown', e => startDrag(e, fab));
-  fab.addEventListener('touchstart', e => startDrag(e, fab), {passive:false});
-  // Player 拖动（通过 header）
-  document.getElementById('mp-drag-handle').addEventListener('mousedown', e => startDrag(e, player));
-  document.getElementById('mp-drag-handle').addEventListener('touchstart', e => startDrag(e, player), {passive:false});
-  document.addEventListener('mousemove', onDragMove);
-  document.addEventListener('touchmove', onDragMove, {passive:false});
-  document.addEventListener('mouseup', onDragEnd);
-  document.addEventListener('touchend', onDragEnd);
+  document.addEventListener('touchend', () => { miniDragging = false; });
 
-  // FAB tap/click（没拖动才触发，防止双触发）
-  let fabTapped = false;
-  fab.addEventListener('touchend', e => {
-    if (!dragMoved) {
-      fabTapped = true;
-      musicTogglePlayer();
-      setTimeout(() => fabTapped = false, 400);
+  mini.addEventListener('touchend', e => {
+    if (miniDragMoved) return;
+    const target = e.target;
+    if (miniPlayBtn.contains(target) || target === miniPlayBtn) {
+      togglePlay();
+    } else {
+      togglePanel();
     }
   });
-  fab.addEventListener('click', e => {
-    if (!fabTapped && !dragMoved) musicTogglePlayer();
-  });
 
-  window.musicTogglePlayer = function() {
-    playerOpen = !playerOpen;
-    player.classList.toggle('open', playerOpen);
-    // 第一次打开时自动开始播放
-    if (playerOpen && playlist.length && !isPlaying) {
-      audio.play().then(() => setPlaying(true)).catch(() => {});
-    }
-  };
+  // 桌面端
+  miniPlayBtn.addEventListener('click', e => { e.stopPropagation(); togglePlay(); });
+  mini.addEventListener('click', e => {
+    if (!miniPlayBtn.contains(e.target)) togglePanel();
+  });
 
   // ── 播放控制 ──
-  function loadTrack(idx, autoplay) {
+  function loadTrack(i, autoplay) {
     if (!playlist.length) return;
-    idx = (idx + playlist.length) % playlist.length;
-    currentIdx = idx;
-    localStorage.setItem('music_idx', idx);
+    idx = (i + playlist.length) % playlist.length;
     const t = playlist[idx];
     audio.src = t.url;
+    miniTitle.textContent = t.name;
+    miniArtist.textContent = t.artist || '';
     songName.textContent = t.name;
     songArtist.textContent = t.artist || '未知艺术家';
-    progressFill.style.width = '0%';
-    curTime.textContent = '0:00';
-    durTime.textContent = '0:00';
-    renderPlaylist();
-    if (autoplay) audio.play().then(() => setPlaying(true)).catch(()=>{});
+    barFill.style.width = '0%';
+    miniFill.style.width = '0%';
+    curEl.textContent = '0:00';
+    durEl.textContent = '0:00';
+    renderList();
+    if (autoplay) audio.play().then(() => setPlaying(true)).catch(() => {});
   }
 
   function setPlaying(v) {
-    isPlaying = v;
-    playIcon.innerHTML = v
-      ? '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>'
-      : '<path d="M8 5v14l11-7z"/>';
+    playing = v;
+    const pausePath = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+    const playPath  = '<path d="M8 5v14l11-7z"/>';
+    playIcon.innerHTML     = v ? pausePath : playPath;
+    miniPlayIco.innerHTML  = v ? pausePath : playPath;
+    miniDisc.classList.toggle('spinning', v);
     cover.classList.toggle('spinning', v);
-    fab.classList.toggle('playing', v);
   }
 
-  window.musicTogglePlay = function() {
+  function togglePlay() {
     if (!playlist.length) return;
-    if (!audio.src) loadTrack(currentIdx, true);
-    else if (isPlaying) { audio.pause(); setPlaying(false); }
-    else audio.play().then(() => setPlaying(true)).catch(()=>{});
-  };
-  window.musicPrev = () => loadTrack(currentIdx - 1, isPlaying);
-  window.musicNext = () => loadTrack(currentIdx + 1, isPlaying);
+    if (!audio.src && playlist.length) loadTrack(0, true);
+    else if (playing) { audio.pause(); setPlaying(false); }
+    else audio.play().then(() => setPlaying(true)).catch(() => {});
+  }
 
-  audio.addEventListener('ended', () => loadTrack(currentIdx + 1, true));
+  document.getElementById('btn-play').addEventListener('click', togglePlay);
+  document.getElementById('btn-prev').addEventListener('click', () => loadTrack(idx - 1, playing));
+  document.getElementById('btn-next').addEventListener('click', () => loadTrack(idx + 1, playing));
+
+  audio.addEventListener('ended', () => loadTrack(idx + 1, true));
   audio.addEventListener('timeupdate', () => {
     if (!audio.duration) return;
-    const pct = (audio.currentTime / audio.duration) * 100;
-    progressFill.style.width = pct + '%';
-    curTime.textContent = fmt(audio.currentTime);
-    durTime.textContent = fmt(audio.duration);
+    const p = (audio.currentTime / audio.duration) * 100;
+    barFill.style.width = p + '%';
+    miniFill.style.width = p + '%';
+    curEl.textContent = fmt(audio.currentTime);
+    durEl.textContent = fmt(audio.duration);
   });
-  audio.addEventListener('loadedmetadata', () => { durTime.textContent = fmt(audio.duration); });
+  audio.addEventListener('loadedmetadata', () => { durEl.textContent = fmt(audio.duration); });
 
-  window.musicSeek = function(e) {
+  document.getElementById('mp-bar').addEventListener('click', e => {
     if (!audio.duration) return;
-    const bar = document.getElementById('mp-progress-bar');
-    const rect = bar.getBoundingClientRect();
-    const pct = (e.clientX - rect.left) / rect.width;
-    audio.currentTime = pct * audio.duration;
-  };
+    const r = e.currentTarget.getBoundingClientRect();
+    audio.currentTime = ((e.clientX - r.left) / r.width) * audio.duration;
+  });
 
   function fmt(s) {
     s = Math.floor(s || 0);
-    return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0');
+    return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
   }
 
   // ── 歌单 ──
-  function renderPlaylist() {
+  function renderList() {
     const isAdmin = !!(window.nodesAdminUser && window.nodesAdminPwd);
-    playlistEl.innerHTML = playlist.map((t, i) => `
-      <div class="mp-playlist-item ${i===currentIdx?'active':''}" onclick="musicPlay(${i})">
-        <span class="pl-num">${i===currentIdx&&isPlaying?'▶':i+1}</span>
-        <span class="pl-name">${t.name}${t.artist?' - <span style="opacity:0.5">'+t.artist+'</span>':''}</span>
-        ${isAdmin ? `<button class="pl-del" onclick="event.stopPropagation();musicRemove(${i})">✕</button>` : ''}
-      </div>`).join('') || '<div style="padding:14px 16px;font-size:12px;color:rgba(255,255,255,0.3);text-align:center;">暂无歌曲</div>';
+    listEl.innerHTML = playlist.map((t, i) => `
+      <div class="mp-list-item ${i===idx?'active':''}" onclick="mpPlay(${i})">
+        <span class="li-num">${i===idx&&playing?'▶':i+1}</span>
+        <span class="li-name">${t.name}${t.artist?' <span style="opacity:.45">- '+t.artist+'</span>':''}</span>
+        ${isAdmin?`<button class="li-del" onclick="event.stopPropagation();mpRemove(${i})">✕</button>`:''}
+      </div>`).join('') || '<div style="padding:14px;text-align:center;font-size:12px;color:rgba(255,255,255,0.25)">暂无歌曲</div>';
   }
 
-  window.musicPlay = function(i) { loadTrack(i, true); };
-
-  // 管理员删除歌曲
-  window.musicRemove = async function(i) {
+  window.mpPlay = i => loadTrack(i, true);
+  window.mpRemove = async i => {
     playlist.splice(i, 1);
-    await savePlaylistToServer();
-    if (currentIdx >= playlist.length) currentIdx = Math.max(0, playlist.length - 1);
-    if (playlist.length) loadTrack(currentIdx, false);
-    else { audio.src=''; songName.textContent='未选择歌曲'; songArtist.textContent=''; setPlaying(false); }
-    renderPlaylist();
+    await saveList();
+    if (idx >= playlist.length) idx = Math.max(0, playlist.length - 1);
+    if (playlist.length) loadTrack(idx, false);
+    else { audio.src = ''; miniTitle.textContent = '-'; setPlaying(false); }
+    renderList();
   };
 
-  // 管理员添加歌曲：格式"歌名,歌手,url" 或直接url
-  window.musicAddTrack = async function() {
-    const raw = urlInput.value.trim();
+  // ── 添加歌曲 ──
+  async function addTrack() {
+    const raw = addInput.value.trim();
     if (!raw) return;
     let name, artist = '', url;
-    if (raw.includes(',')) {
-      const parts = raw.split(',');
-      name = parts[0].trim();
-      artist = parts[1].trim();
-      url = parts[2].trim();
+    if (raw.split(',').length >= 3) {
+      const p = raw.split(',');
+      name = p[0].trim(); artist = p[1].trim(); url = p[2].trim();
     } else {
       url = raw;
-      let n = url.split('/').pop().split('?')[0];
-      name = decodeURIComponent(n).replace(/\.[^.]+$/, '') || '未知歌曲';
+      name = decodeURIComponent(url.split('/').pop().split('?')[0]).replace(/\.[^.]+$/, '') || '未知';
     }
-    if (!url) return;
     playlist.push({ name, artist, url });
-    await savePlaylistToServer();
-    urlInput.value = '';
-    renderPlaylist();
+    await saveList();
+    addInput.value = '';
+    renderList();
     if (playlist.length === 1) loadTrack(0, true);
-  };
+  }
+  document.getElementById('mp-add-submit').addEventListener('click', addTrack);
+  addInput.addEventListener('keydown', e => { if (e.key === 'Enter') addTrack(); });
 
-  // 保存歌单到服务器（需要管理员登录态）
-  async function savePlaylistToServer() {
+  // ── 服务器同步 ──
+  async function loadFromServer() {
+    try {
+      const r = await fetch('/api/music');
+      const d = await r.json();
+      if (d.ok && d.list.length) {
+        playlist = d.list;
+        loadTrack(0, false);
+        renderList();
+      }
+    } catch(e) {}
+  }
+
+  async function saveList() {
     if (!window.nodesAdminUser || !window.nodesAdminPwd) return;
     try {
       await fetch('/api/music', {
@@ -1750,20 +1786,49 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ adminUser: window.nodesAdminUser, adminPass: window.nodesAdminPwd, action: 'setList', list: playlist })
       });
-    } catch(e) { console.log('保存失败', e); }
+    } catch(e) {}
   }
 
-  // 管理员登录后显示编辑功能
-  window.musicSetAdminMode = function(isAdmin) {
-    document.getElementById('mp-add-area').style.display = isAdmin ? 'flex' : 'none';
-    document.getElementById('mp-hint').style.display = isAdmin ? 'none' : '';
-    renderPlaylist();
+  // ── 管理员模式 ──
+  window.musicSetAdminMode = v => {
+    addRow.classList.toggle('show', v);
+    hintEl.style.display = v ? 'none' : '';
+    renderList();
   };
 
-  urlInput.addEventListener('keydown', e => { if(e.key==='Enter') musicAddTrack(); });
+  // ── 面板拖动 ──
+  let pDrag = false, pDragMoved = false, pOffX = 0, pOffY = 0;
+  document.getElementById('mp-drag-handle').addEventListener('touchstart', e => {
+    pDragMoved = false; pDrag = true;
+    const t = e.touches[0], r = panel.getBoundingClientRect();
+    pOffX = t.clientX - r.left; pOffY = t.clientY - r.top;
+  }, { passive: true });
+  document.addEventListener('touchmove', e => {
+    if (!pDrag) return;
+    pDragMoved = true;
+    const t = e.touches[0];
+    let x = t.clientX - pOffX, y = t.clientY - pOffY;
+    const W = window.innerWidth, H = window.innerHeight;
+    x = Math.max(0, Math.min(x, W - panel.offsetWidth));
+    y = Math.max(0, Math.min(y, H - panel.offsetHeight));
+    panel.style.right = 'auto'; panel.style.bottom = 'auto';
+    panel.style.left = x + 'px'; panel.style.top = y + 'px';
+  }, { passive: true });
+  document.addEventListener('touchend', () => { pDrag = false; });
 
-  // 初始化：从服务器加载歌单
-  loadPlaylistFromServer();
+  // ── 初始化 ──
+  loadFromServer();
+
+  // 用户首次交互自动播放
+  const autoPlay = () => {
+    if (playlist.length && !playing) {
+      audio.play().then(() => setPlaying(true)).catch(() => {});
+    }
+    document.removeEventListener('touchstart', autoPlay);
+    document.removeEventListener('click', autoPlay);
+  };
+  document.addEventListener('touchstart', autoPlay, { once: true });
+  document.addEventListener('click', autoPlay, { once: true });
 })();
 </script>
 </body>
