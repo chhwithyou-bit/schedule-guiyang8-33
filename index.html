@@ -690,8 +690,8 @@ async function adminLogin() {
       document.getElementById('admin-pwd-input').focus();
       return;
     }
-    nodesRole = 'admin'; nodesAdminUser = user; nodesAdminPwd = pwd;
     const data = await r.json();
+    nodesRole = 'admin'; nodesAdminUser = user; nodesAdminPwd = pwd;
     nodesAllNodes = data.nodes || [];
     renderAdminNodes();
     document.getElementById('nodes-admin-login').style.display = 'none';
@@ -756,7 +756,7 @@ async function adminImportSub() {
     const r = await fetch('/api/nodes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ adminPwd: nodesAdminPwd, action: 'importSub', subUrl: url })
+      body: JSON.stringify({ adminUser: nodesAdminUser, adminPass: nodesAdminPwd, action: 'importSub', subUrl: url })
     });
     const data = await r.json();
     if (data.ok) {
@@ -778,7 +778,7 @@ async function adminDeleteSelected() {
     const r = await fetch('/api/nodes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ adminPwd: nodesAdminPwd, action: 'deleteNodes', indexes: idxs })
+      body: JSON.stringify({ adminUser: nodesAdminUser, adminPass: nodesAdminPwd, action: 'deleteNodes', indexes: idxs })
     });
     if ((await r.json()).ok) {
       nodesAllNodes = nodesAllNodes.filter((_, i) => !idxs.includes(i));
@@ -794,7 +794,7 @@ async function adminClearAll() {
     await fetch('/api/nodes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ adminPwd: nodesAdminPwd, action: 'clearNodes' })
+      body: JSON.stringify({ adminUser: nodesAdminUser, adminPass: nodesAdminPwd, action: 'clearNodes' })
     });
     nodesAllNodes = []; renderAdminNodes();
     showToast('✅ 已清空所有节点', 'success');
@@ -808,7 +808,7 @@ async function adminSetUserPwd() {
     const r = await fetch('/api/nodes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ adminPwd: nodesAdminPwd, action: 'setUserPwd', pwd })
+      body: JSON.stringify({ adminUser: nodesAdminUser, adminPass: nodesAdminPwd, action: 'setUserPwd', pwd })
     });
     if ((await r.json()).ok) {
       showToast('✅ 用户密码已更新', 'success');
