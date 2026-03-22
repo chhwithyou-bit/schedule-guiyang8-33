@@ -1612,15 +1612,23 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
     const tryPlay = () => {
       const p = audio.play();
       if (p) p.then(() => setP(true)).catch(err => {
-        console.error('[music] play failed:', err.message);
+        alert('播放失败\n类型: ' + err.name + '\n原因: ' + err.message + '\n音频地址: ' + (audio.src||'空').slice(0,100) + '\nreadyState: ' + audio.readyState);
         setP(false);
       });
     };
-    // If audio is not loaded yet, wait for canplay
     if (audio.readyState >= 2) {
       tryPlay();
     } else {
-      audio.addEventListener('canplay', tryPlay, { once: true });
+      // 等canplay超时5秒还没响应也报错
+      let fired = false;
+      const onCan = () => { fired = true; tryPlay(); };
+      audio.addEventListener('canplay', onCan, { once: true });
+      audio.addEventListener('error', e => {
+        if (!fired) alert('音频加载错误\ncode: ' + (audio.error&&audio.error.code) + '\nmsg: ' + (audio.error&&audio.error.message) + '\nsrc: ' + (audio.src||'空').slice(0,100));
+      }, { once: true });
+      setTimeout(() => {
+        if (!fired) alert('超时：5秒内canplay未触发\nreadyState: ' + audio.readyState + '\nsrc: ' + (audio.src||'空').slice(0,100));
+      }, 5000);
     }
   }
 
