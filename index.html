@@ -403,7 +403,7 @@ body::before {
         <div class="preview-json" id="previewJson"></div>
         <div class="action-row">
           <button class="btn-cancel" onclick="cancelPreview()">✕ 重来</button>
-          <button class="btn-confirm" onclick="confirmSave()">✓ 确认保存</button>
+          <button class="btn-confirm" onclick="confirmSave()">✓ 确认保存到 Gist</button>
         </div>
       </div>
     </div>
@@ -477,7 +477,9 @@ body::before {
   <div class="safe-top"></div>
   <div class="header" style="background:linear-gradient(135deg,#0d1b2a,#1a2a4a);border-bottom:1px solid #1e3a5f;">
     <div class="header-left">
-      <button onclick="openDrawer()" style="background:none;border:none;color:#60c0ff;font-size:22px;padding:4px 8px;cursor:pointer;line-height:1;">☰</button>
+      <button class="hamburger" onclick="openDrawer()">
+        <span></span><span></span><span></span>
+      </button>
       <div class="header-title" style="color:#60c0ff;">🔗 节点分享</div>
     </div>
   </div>
@@ -908,31 +910,31 @@ const ANTHROPIC_KEY='sk-ant-api03-CSlPOGMLwl5tD3WcHsw79rG_k_AELkrR594fatxMjIvYqr
 const GIST_ID_KEY='ks_gist';
 function loadCredentials(){}
 function saveCredentials(){}
-async function loadFromKV(silent=false){
+async function loadFromGist(silent=false){
+  const gistId=localStorage.getItem(GIST_ID_KEY);
+  if(!gistId){S=DEFAULT_S;EV=DEFAULT_EV;SJ=DEFAULT_SJ;return;}
   try{
     if(!silent)document.getElementById('syncIndicator').textContent='正在同步数据…';
-    const res=await fetch('/api/schedule');
-    if(!res.ok)throw new Error('KV fetch failed');
-    const content=await res.json();
-    if(content&&(content.S||content.EV||content.SJ)){
-      S=content.S||DEFAULT_S;EV=content.EV||DEFAULT_EV;SJ=content.SJ||DEFAULT_SJ;
-      document.getElementById('syncIndicator').textContent='✓ 已同步 · '+new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
-    } else {
-      S=DEFAULT_S;EV=DEFAULT_EV;SJ=DEFAULT_SJ;
-      document.getElementById('syncIndicator').textContent='✓ 使用默认数据';
-    }
+    const res=await fetch(`https://api.github.com/gists/${gistId}`,{headers:{Authorization:`token ${GH_TOKEN}`,Accept:'application/vnd.github.v3+json'}});
+    if(!res.ok)throw new Error('Gist fetch failed');
+    const data=await res.json();
+    const content=JSON.parse(data.files['schedule_data.json'].content);
+    S=content.S||DEFAULT_S;EV=content.EV||DEFAULT_EV;SJ=content.SJ||DEFAULT_SJ;
+    document.getElementById('syncIndicator').textContent='✓ 已同步 · '+new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
   }catch(e){
-    S=DEFAULT_S;EV=DEFAULT_EV;SJ=DEFAULT_SJ;
+    if(!S){S=DEFAULT_S;EV=DEFAULT_EV;SJ=DEFAULT_SJ;}
     document.getElementById('syncIndicator').textContent='⚠ 使用本地默认数据';
   }
-  // 无论成功失败，都重新渲染
-  document.getElementById('content').innerHTML=''; build(); updateToday();
 }
-async function refreshData(){await loadFromKV(true);}
-async function saveToKV(newData){
-  const res=await fetch('/api/schedule',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(newData)});
-  if(!res.ok)throw new Error('KV 保存失败');
-  return true;
+async function refreshData(){await loadFromGist(true);document.getElementById('content').innerHTML='';build();updateToday();}
+async function saveToGist(newData){
+  let gistId=localStorage.getItem(GIST_ID_KEY);
+  const payload={files:{'schedule_data.json':{content:JSON.stringify(newData,null,2)}}};
+  let res;
+  if(gistId){res=await fetch(`https://api.github.com/gists/${gistId}`,{method:'PATCH',headers:{Authorization:`token ${GH_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify(payload)});}
+  else{res=await fetch('https://api.github.com/gists',{method:'POST',headers:{Authorization:`token ${GH_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({...payload,description:'贵阳八中高三(3)班课程表数据',public:true})});}
+  if(!res.ok){const err=await res.json();throw new Error(err.message||'Gist 保存失败');}
+  const result=await res.json();localStorage.setItem(GIST_ID_KEY,result.id);return result.id;
 }
 let currentTab='sj',currentFile=null,parsedData=null;
 function openAdmin(){loadCredentials();document.getElementById('adminModal').classList.add('open');}
@@ -967,10 +969,10 @@ async function parseImage(){
 async function confirmSave(){
   if(!parsedData)return;const btn=document.querySelector('.btn-confirm');btn.disabled=true;btn.textContent='保存中…';
   try{saveCredentials();const current={S:S||DEFAULT_S,EV:EV||DEFAULT_EV,SJ:SJ||DEFAULT_SJ};if(parsedData.SJ)current.SJ={...current.SJ,...parsedData.SJ};if(parsedData.EV)current.EV={...current.EV,...parsedData.EV};if(parsedData.S)current.S=parsedData.S;
-    await saveToKV(current);S=current.S;EV=current.EV;SJ=current.SJ;
+    await saveToGist(current);S=current.S;EV=current.EV;SJ=current.SJ;
     document.getElementById('content').innerHTML='';build();updateToday();setStatus('✅ 已保存！','ok');document.getElementById('previewSection').className='preview-section';setTimeout(closeAdmin,1500);
   }catch(e){setStatus('❌ 保存失败：'+e.message,'err');}
-  finally{btn.disabled=false;btn.textContent='✓ 确认保存';}
+  finally{btn.disabled=false;btn.textContent='✓ 确认保存到 Gist';}
 }
 function build(){
   const c=document.getElementById('content');S.forEach(day=>{
@@ -994,7 +996,7 @@ function updateToday(){
   const sj=SJ[k];document.getElementById('sanjiVal').textContent=sj||'今日无';document.getElementById('sanjiSub').textContent=sj?'三基测试':'';
 }
 function sw(i){document.querySelectorAll('.seg-btn').forEach((b,j)=>b.classList.toggle('active',j===i));document.querySelectorAll('.day-view').forEach((d,j)=>d.classList.toggle('active',j===i));}
-async function scheduleInit(){await loadFromKV();build();updateToday();const td=new Date().getDay();const ti=(td>=1&&td<=6)?td-1:0;sw(ti);document.querySelectorAll('.seg-btn')[ti]?.classList.add('today-dot');setInterval(refreshData,5*60*1000);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')refreshData();});}
+async function scheduleInit(){await loadFromGist();build();updateToday();const td=new Date().getDay();const ti=(td>=1&&td<=6)?td-1:0;sw(ti);document.querySelectorAll('.seg-btn')[ti]?.classList.add('today-dot');setInterval(refreshData,5*60*1000);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')refreshData();});}
 scheduleInit();
 
 // ============================================================
