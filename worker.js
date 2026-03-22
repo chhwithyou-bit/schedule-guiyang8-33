@@ -192,7 +192,31 @@ export default {
       }
     }
 
-    // ── 4. 象棋页面跳转 ────────────────────────────────────
+    // ── 4. 音乐歌单 API ────────────────────────────────────
+    if (url.pathname === '/api/music') {
+      if (request.method === 'GET') {
+        const R2_BASE = 'https://thefallback.cc.cd';
+        let list = JSON.parse(await env.SCHEDULE_KV.get('music_playlist') || '[]');
+        if (!list.length) {
+          list = [{ name: '花海', artist: '周杰伦', url: R2_BASE + '/music/花海.mp3' }];
+        }
+        return jsonResp({ ok: true, list });
+      }
+      if (request.method === 'POST') {
+        let body;
+        try { body = await request.json(); } catch { return jsonResp({ ok: false, msg: '格式错误' }, 400); }
+        if (!(await verifyAdmin(env, body.adminUser, body.adminPass))) {
+          return jsonResp({ ok: false, msg: '无权限' }, 401);
+        }
+        if (body.action === 'setList') {
+          await env.SCHEDULE_KV.put('music_playlist', JSON.stringify(body.list || []));
+          return jsonResp({ ok: true });
+        }
+        return jsonResp({ ok: false, msg: '未知操作' }, 400);
+      }
+    }
+
+    // ── 5. 象棋页面跳转 ────────────────────────────────────
     if (url.pathname === '/chess' || url.pathname === '/chess/') {
       return Response.redirect(url.origin + '/chess/index.html', 302);
     }
