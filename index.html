@@ -1714,32 +1714,42 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
   btn('mpb-play', togglePlay);
   btn('mpb-prev', ()=>load(idx-1,playing));
   btn('mpb-next', ()=>load(idx+1,playing));
-  btn('mpb-list', ()=>{
-    listOpen=!listOpen;
-    listArea.classList.toggle('show',listOpen);
-    // 精确计算高度：展开内容高度
-    setTimeout(()=>{
-      if(open){
-        const h = $('mp-body').scrollHeight + 2;
-        mp.style.transition = [
-          'width 0.4s cubic-bezier(0.34,1.3,0.64,1)',
-          'height 0.4s cubic-bezier(0.34,1.3,0.64,1)',
-          'border-radius 0.4s cubic-bezier(0.34,1.3,0.64,1)',
-          'box-shadow 0.3s ease',
-          'border-color 0.2s ease'
+  // 列表按钮单独处理，避免 btn() 防抖和 setTimeout 冲突
+  (function(){
+    const listBtn = $('mpb-list');
+    let listTapped = false;
+    function toggleList(){
+      listOpen = !listOpen;
+      listArea.classList.toggle('show', listOpen);
+      // 等列表展开/收起动画结束后重算高度
+      setTimeout(() => {
+        if(!open) return;
+        const SPRING = [
+          'width 0.42s cubic-bezier(0.34,1.3,0.64,1)',
+          'height 0.42s cubic-bezier(0.34,1.3,0.64,1)',
+          'border-radius 0.42s cubic-bezier(0.34,1.3,0.64,1)',
+          'box-shadow 0.3s ease', 'border-color 0.2s ease'
         ].join(',');
-        mp.style.height = h + 'px';
-        // 展开列表后检查是否超出屏幕
+        mp.style.transition = SPRING;
+        mp.style.height = ($('mp-body').scrollHeight + 2) + 'px';
+        // 展开时检查底部溢出
         if(listOpen) setTimeout(()=>{
-          const W=window.innerWidth, H=window.innerHeight;
-          const r=mp.getBoundingClientRect();
-          if(r.bottom > H-8){
-            mp.style.top = Math.max(8, H - mp.offsetHeight - 8) + 'px';
-          }
-        }, 420);
-      }
-    }, 10);
-  });
+          const H=window.innerHeight, r=mp.getBoundingClientRect();
+          if(r.bottom > H-8) mp.style.top = Math.max(8, H-mp.offsetHeight-8)+'px';
+        }, 450);
+      }, 380); // 等列表动画 0.38s 结束
+    }
+    listBtn.addEventListener('touchend', e=>{
+      e.preventDefault(); e.stopPropagation();
+      listTapped = true;
+      toggleList();
+      setTimeout(()=>listTapped=false, 400);
+    });
+    listBtn.addEventListener('click', e=>{
+      e.stopPropagation();
+      if(!listTapped) toggleList();
+    });
+  })();
 
   audio.addEventListener('ended',()=>load(idx+1,true));
   audio.addEventListener('timeupdate',()=>{
