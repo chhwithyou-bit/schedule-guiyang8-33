@@ -1301,461 +1301,511 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
 
 <!-- ══════════════════ 音乐播放器 ══════════════════ -->
 <style>
-#mplayer {
+/* ── 收起态：小球 ── */
+#mp {
   position: fixed;
-  right: 16px;
-  bottom: 80px;
+  right: 18px;
+  bottom: 90px;
   z-index: 10001;
-  width: 56px;
-  height: 56px;
-  border-radius: 28px;
-  overflow: hidden;
-  transition: width 0.42s cubic-bezier(0.34,1.3,0.64,1),
-              height 0.42s cubic-bezier(0.34,1.3,0.64,1),
-              border-radius 0.42s cubic-bezier(0.34,1.3,0.64,1);
-  background: rgba(14,22,42,0.90);
-  backdrop-filter: blur(28px) saturate(200%);
-  -webkit-backdrop-filter: blur(28px) saturate(200%);
-  border: 1px solid rgba(255,255,255,0.14);
-  box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1);
-  touch-action: none;
-  cursor: pointer;
-}
-#mplayer.expanded {
-  width: 280px;
-  height: 200px;
-  border-radius: 20px;
-  cursor: default;
-}
-
-/* 收起态：只显示音符图标 */
-#mp-icon {
-  position: absolute;
-  top: 0; left: 0;
-  width: 56px; height: 56px;
-  display: flex; align-items: center; justify-content: center;
-  transition: opacity 0.2s;
-  pointer-events: none;
-}
-#mplayer:not(.expanded) #mp-icon { pointer-events: all; }
-#mp-icon svg { width: 26px; height: 26px; fill: #60c0ff; display: block; }
-#mplayer.expanded #mp-icon { opacity: 0; pointer-events: none; }
-
-/* 旋转环 */
-#mp-ring {
-  position: absolute;
-  top: -3px; left: -3px; right: -3px; bottom: -3px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
-  border: 2px solid transparent;
-  transition: border-color 0.3s;
-  pointer-events: none;
+  background: rgba(255,255,255,0.12);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1.5px solid rgba(255,255,255,0.22);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.35);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  touch-action: none;
+  transition: box-shadow 0.2s;
+  user-select: none;
 }
-#mplayer.playing #mp-ring {
-  border-color: rgba(96,192,255,0.5);
-  animation: ring-spin 3s linear infinite;
+#mp:active { box-shadow: 0 2px 12px rgba(0,0,0,0.4); }
+#mp-ball-icon svg {
+  width: 24px; height: 24px; fill: rgba(255,255,255,0.9);
+  display: block;
 }
-@keyframes ring-spin { to { transform: rotate(360deg); } }
+#mp.playing #mp-ball-icon svg {
+  animation: mp-pulse 2s ease-in-out infinite;
+}
+@keyframes mp-pulse {
+  0%,100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(0.88); }
+}
 
-/* 展开态内容 */
-#mp-body {
-  position: absolute;
-  inset: 0;
+/* ── 展开态：卡片 ── */
+#mp-card {
+  position: fixed;
+  z-index: 10002;
+  width: 285px;
+  right: 18px;
+  bottom: 154px;
+  background: rgba(12,20,40,0.72);
+  backdrop-filter: blur(36px) saturate(200%);
+  -webkit-backdrop-filter: blur(36px) saturate(200%);
+  border: 1.5px solid rgba(255,255,255,0.18);
+  border-radius: 22px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.1);
+  overflow: hidden;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.18s 0.1s;
-  display: flex;
-  flex-direction: column;
-  padding: 12px 14px 10px;
+  transform: scale(0.88) translateY(16px);
+  transform-origin: bottom right;
+  transition: opacity 0.45s cubic-bezier(0.22,1,0.36,1),
+              transform 0.45s cubic-bezier(0.22,1,0.36,1);
 }
-#mplayer.expanded #mp-body {
+#mp-card.open {
   opacity: 1;
   pointer-events: all;
+  transform: scale(1) translateY(0);
 }
 
-/* 顶部行：歌名 + 关闭 */
-.mpb-top {
-  display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+/* 卡片拖动把手区 */
+#mp-card-header {
+  padding: 13px 14px 0;
+  display: flex; align-items: center; justify-content: space-between;
+  cursor: grab; user-select: none;
+  touch-action: none;
 }
-.mpb-disc {
-  width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
-  background: linear-gradient(135deg,#1a3055,#0d1b2a);
-  border: 1px solid rgba(255,255,255,0.1);
-  display: flex; align-items: center; justify-content: center;
+#mp-card-header:active { cursor: grabbing; }
+.mp-card-title {
+  font-size: 11px; font-weight: 600;
+  color: rgba(255,255,255,0.4);
+  letter-spacing: 0.5px; text-transform: uppercase;
 }
-.mpb-disc svg { width: 16px; height: 16px; fill: rgba(96,192,255,0.7); }
-.mpb-disc.spin { animation: ring-spin 5s linear infinite; }
-.mpb-info { flex: 1; min-width: 0; }
-.mpb-name {
-  font-size: 13px; font-weight: 700; color: #fff;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.mpb-artist { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 1px; }
-.mpb-close {
-  width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0;
+#mp-x {
+  width: 22px; height: 22px; border-radius: 50%;
   background: rgba(255,255,255,0.1); border: none;
   color: rgba(255,255,255,0.5); font-size: 12px;
   display: flex; align-items: center; justify-content: center;
-  cursor: pointer;
+  cursor: pointer; transition: background 0.15s;
+  line-height: 1;
 }
+#mp-x:active { background: rgba(255,255,255,0.2); }
+
+/* 歌曲信息行 */
+.mp-info-row {
+  display: flex; align-items: center; gap: 11px;
+  padding: 10px 14px 8px;
+}
+.mp-disc {
+  width: 46px; height: 46px; border-radius: 50%; flex-shrink: 0;
+  background: linear-gradient(135deg,#1a3055,#0a1525);
+  border: 1.5px solid rgba(255,255,255,0.1);
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+.mp-disc svg { width: 20px; height: 20px; fill: rgba(255,255,255,0.5); }
+.mp-disc.spin { animation: disc-rot 6s linear infinite; }
+@keyframes disc-rot { to { transform: rotate(360deg); } }
+.mp-meta { flex:1; min-width:0; }
+.mp-name { font-size:14px; font-weight:700; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.mp-artist { font-size:11px; color:rgba(255,255,255,0.4); margin-top:2px; }
 
 /* 进度条 */
-.mpb-bar-wrap {
+.mp-prog-wrap {
+  padding: 2px 14px 6px;
+}
+.mp-prog-bg {
   height: 3px; border-radius: 2px;
   background: rgba(255,255,255,0.1);
-  margin-bottom: 4px; cursor: pointer;
+  cursor: pointer; position: relative; margin-bottom: 5px;
 }
-.mpb-bar-fill {
+.mp-prog-fill {
   height: 100%; border-radius: 2px;
-  background: linear-gradient(90deg,#60c0ff,#a78bfa);
+  background: linear-gradient(90deg, rgba(255,255,255,0.8), rgba(255,255,255,0.5));
   width: 0%; pointer-events: none;
-  transition: width 0.5s linear;
+  transition: width 0.4s linear;
 }
-.mpb-time {
+.mp-time-row {
   display: flex; justify-content: space-between;
-  font-size: 10px; color: rgba(255,255,255,0.3);
-  margin-bottom: 8px;
+  font-size: 10px; color: rgba(255,255,255,0.28);
 }
 
-/* 控制按钮 */
-.mpb-ctrl {
-  display: flex; align-items: center; justify-content: center; gap: 18px;
-}
-.mpb-btn {
-  background: none; border: none; cursor: pointer;
-  color: rgba(255,255,255,0.65); padding: 4px;
+/* 控制按钮行 — 图标按钮，无背景，线条感 */
+.mp-ctrl {
   display: flex; align-items: center; justify-content: center;
-  transition: color 0.15s, transform 0.1s;
+  gap: 4px; padding: 4px 10px 14px;
+}
+.mp-btn {
+  width: 44px; height: 44px; border-radius: 50%;
+  background: none; border: none;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: rgba(255,255,255,0.7);
+  transition: color 0.15s, transform 0.12s;
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
-.mpb-btn:active { transform: scale(0.82); color: #fff; }
-.mpb-btn svg { width: 20px; height: 20px; fill: currentColor; pointer-events: none; }
-.mpb-btn.play {
-  width: 42px; height: 42px; border-radius: 50%;
-  background: rgba(96,192,255,0.2);
-  border: 1px solid rgba(96,192,255,0.35);
-  color: #60c0ff;
+.mp-btn:active { transform: scale(0.82); color: #fff; }
+.mp-btn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.mp-btn.play {
+  width: 52px; height: 52px;
+  border: 1.5px solid rgba(255,255,255,0.3);
+  color: #fff;
 }
-.mpb-btn.play svg { width: 20px; height: 20px; }
+.mp-btn.play svg { width: 24px; height: 24px; stroke-width: 1.6; }
 
-/* 歌单（收起默认隐藏，展开后按钮切换） */
-#mp-list-wrap {
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  background: rgba(14,22,42,0.97);
-  border-radius: 0 0 20px 20px;
+/* 歌单 */
+.mp-list-wrap {
+  border-top: 1px solid rgba(255,255,255,0.08);
   max-height: 0; overflow: hidden;
-  transition: max-height 0.3s ease;
-  border-top: 1px solid rgba(255,255,255,0.07);
+  transition: max-height 0.35s cubic-bezier(0.22,1,0.36,1);
 }
-#mp-list-wrap.show { max-height: 180px; overflow-y: auto; }
-#mp-list-wrap::-webkit-scrollbar { width: 2px; }
-#mp-list-wrap::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); }
+.mp-list-wrap.open { max-height: 160px; overflow-y: auto; }
+.mp-list-wrap::-webkit-scrollbar { width: 2px; }
+.mp-list-wrap::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 1px; }
 .mp-li {
-  display: flex; align-items: center; gap: 8px;
+  display: flex; align-items: center; gap: 9px;
   padding: 9px 14px; cursor: pointer; font-size: 12px;
-  color: rgba(255,255,255,0.55);
+  color: rgba(255,255,255,0.5);
   transition: background 0.12s;
   -webkit-tap-highlight-color: transparent;
 }
-.mp-li:active { background: rgba(255,255,255,0.06); }
-.mp-li.on { color: #60c0ff; }
-.mp-li .ln { width: 14px; text-align:center; font-size:11px; flex-shrink:0; color:rgba(255,255,255,0.25); }
-.mp-li.on .ln { color:#60c0ff; }
-.mp-li .lt { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.mp-li .ld { opacity:0; background:none; border:none; color:rgba(255,255,255,0.3); cursor:pointer; padding:0 2px; font-size:13px; }
-.mp-li:hover .ld { opacity:1; }
-.mp-add-row {
-  display: none; gap: 6px; padding: 8px 10px 10px;
+.mp-li:active { background: rgba(255,255,255,0.05); }
+.mp-li.on { color: rgba(255,255,255,0.9); }
+.mp-li .li-n { width:14px; text-align:center; font-size:10px; flex-shrink:0; color:rgba(255,255,255,0.25); }
+.mp-li.on .li-n { color:rgba(255,255,255,0.6); }
+.mp-li .li-t { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.mp-li .li-d { opacity:0; background:none; border:none; color:rgba(255,255,255,0.25); cursor:pointer; padding:0 2px; font-size:13px; -webkit-tap-highlight-color:transparent; }
+.mp-li:hover .li-d { opacity:1; }
+
+/* 添加行（管理员专用） */
+.mp-add {
+  display: none; gap: 6px;
+  padding: 8px 10px 12px;
   border-top: 1px solid rgba(255,255,255,0.07);
 }
-.mp-add-row.on { display: flex; }
-.mp-add-inp {
-  flex:1; background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.1);
-  border-radius:8px; color:#fff; font-size:11px; padding:6px 8px; outline:none;
+.mp-add.on { display: flex; }
+.mp-add input {
+  flex:1; background:rgba(255,255,255,0.07);
+  border:1px solid rgba(255,255,255,0.1); border-radius:9px;
+  color:#fff; font-size:11px; padding:7px 9px; outline:none;
 }
-.mp-add-inp::placeholder { color:rgba(255,255,255,0.25); }
-.mp-add-ok {
-  background:rgba(96,192,255,0.18); border:1px solid rgba(96,192,255,0.28);
-  border-radius:8px; color:#60c0ff; font-size:11px; padding:6px 10px; cursor:pointer;
+.mp-add input::placeholder { color:rgba(255,255,255,0.25); }
+.mp-add input:focus { border-color:rgba(255,255,255,0.25); }
+.mp-add button {
+  background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.18);
+  border-radius:9px; color:rgba(255,255,255,0.8); font-size:12px;
+  padding:7px 12px; cursor:pointer;
 }
 </style>
 
-<div id="mplayer">
-  <div id="mp-ring"></div>
-  <!-- 收起态图标 -->
-  <div id="mp-icon">
-    <svg viewBox="0 0 24 24" style="display:block;margin:auto"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg>
+<!-- 收起态小球 -->
+<div id="mp">
+  <div id="mp-ball-icon">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path d="M9 18V5l12-2v13" stroke="rgba(255,255,255,0.9)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <circle cx="6" cy="18" r="3" stroke="rgba(255,255,255,0.9)" stroke-width="1.8" fill="none"/>
+      <circle cx="18" cy="16" r="3" stroke="rgba(255,255,255,0.9)" stroke-width="1.8" fill="none"/>
+    </svg>
   </div>
-  <!-- 展开态内容 -->
-  <div id="mp-body">
-    <div class="mpb-top">
-      <div class="mpb-disc" id="mpb-disc">
-        <svg viewBox="0 0 24 24"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg>
-      </div>
-      <div class="mpb-info">
-        <div class="mpb-name" id="mpb-name">加载中...</div>
-        <div class="mpb-artist" id="mpb-artist"></div>
-      </div>
-      <button class="mpb-close" id="mpb-close">✕</button>
+</div>
+
+<!-- 展开态卡片 -->
+<div id="mp-card">
+  <div id="mp-card-header">
+    <span class="mp-card-title">正在播放</span>
+    <button id="mp-x">✕</button>
+  </div>
+  <div class="mp-info-row">
+    <div class="mp-disc" id="mp-disc">
+      <svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13" stroke="rgba(255,255,255,0.5)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="6" cy="18" r="3" stroke="rgba(255,255,255,0.5)" stroke-width="1.8" fill="none"/><circle cx="18" cy="16" r="3" stroke="rgba(255,255,255,0.5)" stroke-width="1.8" fill="none"/></svg>
     </div>
-    <div class="mpb-bar-wrap" id="mpb-bar">
-      <div class="mpb-bar-fill" id="mpb-fill"></div>
-    </div>
-    <div class="mpb-time"><span id="mpb-cur">0:00</span><span id="mpb-dur">0:00</span></div>
-    <div class="mpb-ctrl">
-      <button class="mpb-btn" id="mpb-list-btn" title="歌单">
-        <svg viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
-      </button>
-      <button class="mpb-btn" id="mpb-prev">
-        <svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
-      </button>
-      <button class="mpb-btn play" id="mpb-play">
-        <svg id="mpb-play-ico" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-      </button>
-      <button class="mpb-btn" id="mpb-next">
-        <svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zm2-8.14L11.03 12 8 14.14V9.86zM16 6h2v12h-2z"/></svg>
-      </button>
-      <button class="mpb-btn" id="mpb-vol" title="音量" style="opacity:0.3;cursor:default">
-        <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
-      </button>
+    <div class="mp-meta">
+      <div class="mp-name" id="mp-name">加载中...</div>
+      <div class="mp-artist" id="mp-artist"></div>
     </div>
   </div>
-  <!-- 歌单下拉 -->
-  <div id="mp-list-wrap">
+  <div class="mp-prog-wrap">
+    <div class="mp-prog-bg" id="mp-prog">
+      <div class="mp-prog-fill" id="mp-fill"></div>
+    </div>
+    <div class="mp-time-row"><span id="mp-cur">0:00</span><span id="mp-dur">0:00</span></div>
+  </div>
+  <div class="mp-ctrl">
+    <!-- 歌单按钮 -->
+    <button class="mp-btn" id="mp-list-btn">
+      <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="15" y2="18"/></svg>
+    </button>
+    <!-- 上一首 -->
+    <button class="mp-btn" id="mp-prev">
+      <svg viewBox="0 0 24 24"><polygon points="19,20 9,12 19,4"/><line x1="5" y1="4" x2="5" y2="20"/></svg>
+    </button>
+    <!-- 播放/暂停 -->
+    <button class="mp-btn play" id="mp-play">
+      <svg id="mp-play-svg" viewBox="0 0 24 24">
+        <polygon points="5,3 19,12 5,21" fill="white" stroke="none"/>
+      </svg>
+    </button>
+    <!-- 下一首 -->
+    <button class="mp-btn" id="mp-next">
+      <svg viewBox="0 0 24 24"><polygon points="5,4 15,12 5,20"/><line x1="19" y1="4" x2="19" y2="20"/></svg>
+    </button>
+    <!-- 占位 -->
+    <button class="mp-btn" style="opacity:0;pointer-events:none">
+      <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/></svg>
+    </button>
+  </div>
+  <div class="mp-list-wrap" id="mp-list-wrap">
     <div id="mp-list"></div>
-    <div class="mp-add-row" id="mp-add-row">
-      <input class="mp-add-inp" id="mp-add-inp" placeholder="歌名,歌手,mp3链接 或直接粘链接"/>
-      <button class="mp-add-ok" id="mp-add-ok">+</button>
+    <div class="mp-add" id="mp-add">
+      <input id="mp-add-inp" placeholder="歌名,歌手,mp3链接"/>
+      <button id="mp-add-ok">+</button>
     </div>
-    <div id="mp-hint" style="padding:7px 14px 10px;text-align:center;font-size:10px;color:rgba(255,255,255,0.2)">歌单由管理员维护</div>
   </div>
 </div>
 
 <script>
 (function(){
   const audio = new Audio();
-  let PL = [], idx = 0, playing = false, expanded = false, listOpen = false;
+  let PL = [], idx = 0, playing = false, cardOpen = false, listOpen = false;
+  const $ = id => document.getElementById(id);
 
-  const el = id => document.getElementById(id);
-  const mp        = el('mplayer');
-  const mpRing    = el('mp-ring');
-  const disc      = el('mpb-disc');
-  const nameEl    = el('mpb-name');
-  const artistEl  = el('mpb-artist');
-  const fill      = el('mpb-fill');
-  const curEl     = el('mpb-cur');
-  const durEl     = el('mpb-dur');
-  const playIco   = el('mpb-play-ico');
-  const listWrap  = el('mp-list-wrap');
-  const listEl    = el('mp-list');
+  const ball     = $('mp');
+  const card     = $('mp-card');
+  const disc     = $('mp-disc');
+  const nameEl   = $('mp-name');
+  const artEl    = $('mp-artist');
+  const fillEl   = $('mp-fill');
+  const curEl    = $('mp-cur');
+  const durEl    = $('mp-dur');
+  const playSvg  = $('mp-play-svg');
+  const listWrap = $('mp-list-wrap');
+  const listEl   = $('mp-list');
 
-  // ── 展开 / 收起 ──
-  function expand() {
-    expanded = true;
-    mp.classList.add('expanded');
-    // clamp so panel never overflows screen
+  // ══ 卡片开关 ══
+  function openCard() {
+    cardOpen = true;
+    card.classList.add('open');
+    clampCard();
+  }
+  function closeCard() {
+    cardOpen = false; listOpen = false;
+    card.classList.remove('open');
+    listWrap.classList.remove('open');
+  }
+
+  // 把卡片夹在屏幕内
+  function clampCard() {
     requestAnimationFrame(() => {
-      const r = mp.getBoundingClientRect();
-      const H = window.innerHeight, W = window.innerWidth;
-      let top  = parseFloat(mp.style.top)  || r.top;
-      let left = parseFloat(mp.style.left) || r.left;
-      if (top < 8) { mp.style.bottom='auto'; mp.style.top = '8px'; }
-      if (top + mp.offsetHeight > H - 8) {
-        mp.style.bottom='auto';
-        mp.style.top = Math.max(8, H - mp.offsetHeight - 8) + 'px';
+      const W = window.innerWidth, H = window.innerHeight;
+      let r = card.getBoundingClientRect();
+      // 用 right/bottom 定位时转成 left/top
+      if (!card.style.left) {
+        card.style.right = 'auto';
+        card.style.bottom = 'auto';
+        card.style.left = (W - r.width - 18) + 'px';
+        card.style.top  = Math.max(8, r.top) + 'px';
+        r = card.getBoundingClientRect();
       }
-      if (left + mp.offsetWidth > W - 8) {
-        mp.style.right='auto';
-        mp.style.left = Math.max(8, W - mp.offsetWidth - 8) + 'px';
-      }
+      let left = parseFloat(card.style.left);
+      let top  = parseFloat(card.style.top);
+      left = Math.max(8, Math.min(left, W - r.width - 8));
+      top  = Math.max(8, Math.min(top,  H - r.height - 8));
+      card.style.left = left + 'px';
+      card.style.top  = top  + 'px';
     });
   }
-  function collapse() {
-    expanded = false; listOpen = false;
-    mp.classList.remove('expanded');
-    listWrap.classList.remove('show');
+
+  // ══ 小球：点击 vs 拖动 ══
+  let bDrag=false, bMoved=false, bOx=0, bOy=0, bSx=0, bSy=0;
+
+  ball.addEventListener('touchstart', e => {
+    bMoved=false; bDrag=true;
+    const t=e.touches[0], r=ball.getBoundingClientRect();
+    bOx=t.clientX-r.left; bOy=t.clientY-r.top;
+    bSx=t.clientX; bSy=t.clientY;
+  }, {passive:true});
+
+  document.addEventListener('touchmove', e => {
+    if(!bDrag) return;
+    const t=e.touches[0];
+    if(!bMoved && Math.hypot(t.clientX-bSx, t.clientY-bSy)<8) return;
+    bMoved=true;
+    const W=window.innerWidth, H=window.innerHeight;
+    let x=t.clientX-bOx, y=t.clientY-bOy;
+    x=Math.max(0,Math.min(x,W-ball.offsetWidth));
+    y=Math.max(0,Math.min(y,H-ball.offsetHeight));
+    ball.style.right='auto'; ball.style.bottom='auto';
+    ball.style.left=x+'px'; ball.style.top=y+'px';
+    // 卡片跟随
+    if(cardOpen){
+      const cw=card.offsetWidth, ch=card.offsetHeight;
+      let cx=x-(cw-ball.offsetWidth)/2;
+      let cy=y-ch-8;
+      cx=Math.max(8,Math.min(cx,W-cw-8));
+      cy=Math.max(8,Math.min(cy,H-ch-8));
+      card.style.left=cx+'px'; card.style.top=cy+'px';
+    }
+  }, {passive:true});
+
+  document.addEventListener('touchend', ()=>{
+    if(bDrag && !bMoved) toggleCard();
+    bDrag=false;
+  });
+
+  // 桌面
+  ball.addEventListener('click', e => { if(!bMoved) toggleCard(); });
+
+  function toggleCard() {
+    if(cardOpen) closeCard(); else openCard();
   }
 
-  // 点收起态图标 → 展开（只在没有拖动时触发）
-  el('mp-icon').addEventListener('touchend', e => { e.preventDefault(); if(!expanded && !moved) expand(); });
-  el('mp-icon').addEventListener('click', e => { if(!expanded && !moved) expand(); });
-  // 关闭按钮
-  el('mpb-close').addEventListener('touchend', e => { e.preventDefault(); e.stopPropagation(); collapse(); });
-  el('mpb-close').addEventListener('click',    e => { e.stopPropagation(); collapse(); });
+  $('mp-x').addEventListener('click',    e => { e.stopPropagation(); closeCard(); });
+  $('mp-x').addEventListener('touchend', e => { e.preventDefault(); e.stopPropagation(); closeCard(); });
 
-  // ── 歌单切换 ──
-  el('mpb-list-btn').addEventListener('touchend', e => { e.preventDefault(); e.stopPropagation(); toggleList(); });
-  el('mpb-list-btn').addEventListener('click',    e => { e.stopPropagation(); toggleList(); });
-  function toggleList() {
-    listOpen = !listOpen;
-    listWrap.classList.toggle('show', listOpen);
-    if (listOpen) mp.style.height = (200 + listWrap.scrollHeight) + 'px';
-    else mp.style.height = '';
-  }
+  // ══ 卡片拖动（header区域）══
+  let cDrag=false, cMoved=false, cOx=0, cOy=0;
+  $('mp-card-header').addEventListener('touchstart', e => {
+    cMoved=false; cDrag=true;
+    const t=e.touches[0], r=card.getBoundingClientRect();
+    // 确保用left/top定位
+    if(!card.style.left){
+      card.style.right='auto'; card.style.bottom='auto';
+      card.style.left=r.left+'px'; card.style.top=r.top+'px';
+    }
+    cOx=t.clientX-parseFloat(card.style.left);
+    cOy=t.clientY-parseFloat(card.style.top);
+  }, {passive:true});
 
-  // ── 播放控制 ──
-  function load(i, play) {
-    if (!PL.length) return;
-    idx = ((i % PL.length) + PL.length) % PL.length;
+  document.addEventListener('touchmove', e => {
+    if(!cDrag) return;
+    cMoved=true;
+    const t=e.touches[0];
+    const W=window.innerWidth, H=window.innerHeight;
+    let x=t.clientX-cOx, y=t.clientY-cOy;
+    x=Math.max(8,Math.min(x,W-card.offsetWidth-8));
+    y=Math.max(8,Math.min(y,H-card.offsetHeight-8));
+    card.style.left=x+'px'; card.style.top=y+'px';
+  }, {passive:true});
+
+  document.addEventListener('touchend', ()=>{ cDrag=false; });
+
+  // ══ 播放控制 ══
+  function load(i, autoplay) {
+    if(!PL.length) return;
+    idx = ((i%PL.length)+PL.length)%PL.length;
     const t = PL[idx];
-    // encodeURI handles Chinese characters in filenames
-    try { audio.src = encodeURI(decodeURI(t.url)); } catch(e) { audio.src = t.url; }
-    nameEl.textContent  = t.name;
-    artistEl.textContent = t.artist || '';
-    fill.style.width = '0%'; curEl.textContent = '0:00'; durEl.textContent = '0:00';
-    audio.load(); // force reload
+    audio.src = t.url;
+    audio.load();
+    nameEl.textContent = t.name;
+    artEl.textContent  = t.artist || '';
+    fillEl.style.width = '0%';
+    curEl.textContent  = '0:00';
+    durEl.textContent  = '0:00';
     render();
-    if (play) doPlay();
+    if(autoplay) doPlay();
   }
 
   function doPlay() {
-    const tryPlay = () => {
-      const p = audio.play();
-      if (p) p.then(() => setP(true)).catch(err => {
-        alert('播放失败\n类型: ' + err.name + '\n原因: ' + err.message + '\n音频地址: ' + (audio.src||'空').slice(0,100) + '\nreadyState: ' + audio.readyState);
-        setP(false);
-      });
-    };
-    if (audio.readyState >= 2) {
-      tryPlay();
-    } else {
-      // 等canplay超时5秒还没响应也报错
-      let fired = false;
-      const onCan = () => { fired = true; tryPlay(); };
-      audio.addEventListener('canplay', onCan, { once: true });
-      audio.addEventListener('error', e => {
-        if (!fired) alert('音频加载错误\ncode: ' + (audio.error&&audio.error.code) + '\nmsg: ' + (audio.error&&audio.error.message) + '\nsrc: ' + (audio.src||'空').slice(0,100));
-      }, { once: true });
-      setTimeout(() => {
-        if (!fired) alert('超时：5秒内canplay未触发\nreadyState: ' + audio.readyState + '\nsrc: ' + (audio.src||'空').slice(0,100));
-      }, 5000);
-    }
+    audio.play().then(()=>setP(true)).catch(()=>setP(false));
   }
 
   function setP(v) {
     playing = v;
-    playIco.innerHTML = v
-      ? '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>'
-      : '<path d="M8 5v14l11-7z"/>';
+    // 播放图标：暂停 || 播放
+    playSvg.innerHTML = v
+      ? '<rect x="6" y="4" width="4" height="16" fill="white" stroke="none"/><rect x="14" y="4" width="4" height="16" fill="white" stroke="none"/>'
+      : '<polygon points="5,3 19,12 5,21" fill="white" stroke="none"/>';
     disc.classList.toggle('spin', v);
-    mp.classList.toggle('playing', v);
+    ball.classList.toggle('playing', v);
   }
 
   function togglePlay() {
-    if (!PL.length) return;
-    if (!audio.src) { load(0, true); return; }
-    if (playing) { audio.pause(); setP(false); }
+    if(!PL.length) return;
+    if(!audio.src) { load(0,true); return; }
+    if(playing) { audio.pause(); setP(false); }
     else doPlay();
   }
 
-  el('mpb-play').addEventListener('touchend', e => { e.preventDefault(); e.stopPropagation(); togglePlay(); });
-  el('mpb-play').addEventListener('click',    e => { e.stopPropagation(); togglePlay(); });
-  el('mpb-prev').addEventListener('touchend', e => { e.preventDefault(); e.stopPropagation(); load(idx-1,playing); });
-  el('mpb-prev').addEventListener('click',    e => { e.stopPropagation(); load(idx-1,playing); });
-  el('mpb-next').addEventListener('touchend', e => { e.preventDefault(); e.stopPropagation(); load(idx+1,playing); });
-  el('mpb-next').addEventListener('click',    e => { e.stopPropagation(); load(idx+1,playing); });
+  // 按钮事件（同时绑touch和click，防止任何一个失效）
+  function bindBtn(id, fn) {
+    const el = $(id);
+    let tapped = false;
+    el.addEventListener('touchend', e => {
+      e.preventDefault(); e.stopPropagation();
+      tapped = true; fn();
+      setTimeout(()=>tapped=false, 300);
+    });
+    el.addEventListener('click', e => {
+      e.stopPropagation();
+      if(!tapped) fn();
+    });
+  }
+
+  bindBtn('mp-play', togglePlay);
+  bindBtn('mp-prev', () => load(idx-1, playing));
+  bindBtn('mp-next', () => load(idx+1, playing));
+  bindBtn('mp-list-btn', () => {
+    listOpen = !listOpen;
+    listWrap.classList.toggle('open', listOpen);
+    clampCard();
+  });
 
   audio.addEventListener('ended', () => load(idx+1, true));
   audio.addEventListener('timeupdate', () => {
-    if (!audio.duration) return;
-    const p = audio.currentTime / audio.duration * 100;
-    fill.style.width = p + '%';
+    if(!audio.duration) return;
+    fillEl.style.width = (audio.currentTime/audio.duration*100)+'%';
     curEl.textContent = fmt(audio.currentTime);
     durEl.textContent = fmt(audio.duration);
   });
   audio.addEventListener('loadedmetadata', () => { durEl.textContent = fmt(audio.duration); });
 
-  el('mpb-bar').addEventListener('click', e => {
-    if (!audio.duration) return;
+  $('mp-prog').addEventListener('click', e => {
+    if(!audio.duration) return;
     const r = e.currentTarget.getBoundingClientRect();
-    audio.currentTime = (e.clientX - r.left) / r.width * audio.duration;
+    audio.currentTime = (e.clientX-r.left)/r.width * audio.duration;
   });
 
   function fmt(s) {
-    s = Math.floor(s||0);
-    return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0');
+    s=Math.floor(s||0);
+    return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
   }
 
-  // ── 拖动 ──
-  let drag=false, moved=false, ox=0, oy=0, startX=0, startY=0;
-  mp.addEventListener('touchstart', e => {
-    // 如果点在展开内容区域内，不启动拖动
-    if(expanded) return;
-    moved = false; drag = true;
-    const t=e.touches[0], r=mp.getBoundingClientRect();
-    ox=t.clientX-r.left; oy=t.clientY-r.top;
-    startX=t.clientX; startY=t.clientY;
-  }, {passive:true});
-  document.addEventListener('touchmove', e => {
-    if(!drag) return;
-    const t=e.touches[0];
-    const dx=Math.abs(t.clientX-startX);
-    const dy=Math.abs(t.clientY-startY);
-    if(dx>8||dy>8) moved=true;
-    if(!moved) return;
-    let x=t.clientX-ox, y=t.clientY-oy;
-    const W=window.innerWidth, H=window.innerHeight;
-    x=Math.max(0,Math.min(x,W-mp.offsetWidth));
-    y=Math.max(0,Math.min(y,H-mp.offsetHeight));
-    mp.style.right='auto'; mp.style.bottom='auto';
-    mp.style.left=x+'px'; mp.style.top=y+'px';
-  }, {passive:true});
-  document.addEventListener('touchend', ()=>{ drag=false; });
-
-  // ── 渲染歌单 ──
+  // ══ 歌单渲染 ══
   function render() {
     const admin = !!(window.nodesAdminUser && window.nodesAdminPwd);
-    listEl.innerHTML = PL.map((t,i)=>`
+    listEl.innerHTML = PL.map((t,i) => `
       <div class="mp-li${i===idx?' on':''}" onclick="mpPlay(${i})">
-        <span class="ln">${i===idx&&playing?'▶':i+1}</span>
-        <span class="lt">${t.name}${t.artist?' <span style="opacity:.4">- '+t.artist+'</span>':''}</span>
-        ${admin?`<button class="ld" onclick="event.stopPropagation();mpDel(${i})">✕</button>`:''}
-      </div>`).join('') || '<div style="padding:12px;text-align:center;font-size:11px;color:rgba(255,255,255,0.2)">暂无歌曲</div>';
+        <span class="li-n">${i===idx&&playing?'▶':i+1}</span>
+        <span class="li-t">${t.name}${t.artist?` <span style="opacity:.4">- ${t.artist}</span>`:''}</span>
+        ${admin?`<button class="li-d" onclick="event.stopPropagation();mpDel(${i})">✕</button>`:''}
+      </div>`).join('') || '<div style="padding:12px 14px;font-size:11px;color:rgba(255,255,255,0.2)">暂无歌曲</div>';
   }
 
   window.mpPlay = i => load(i, true);
   window.mpDel  = async i => {
-    PL.splice(i,1);
-    await save();
+    PL.splice(i,1); await save();
     if(idx>=PL.length) idx=Math.max(0,PL.length-1);
-    if(PL.length) load(idx,false); else { audio.src=''; nameEl.textContent='-'; setP(false); }
+    PL.length ? load(idx,false) : (audio.src='', nameEl.textContent='-', setP(false));
     render();
   };
 
-  // ── 添加 ──
+  // ══ 添加歌曲 ══
   async function addTrack() {
-    const raw = el('mp-add-inp').value.trim();
+    const raw = $('mp-add-inp').value.trim();
     if(!raw) return;
-    let name='',artist='',url='';
-    const parts = raw.split(',');
-    if(parts.length>=3){ name=parts[0].trim(); artist=parts[1].trim(); url=parts[2].trim(); }
+    let name='', artist='', url='';
+    const pts = raw.split(',');
+    if(pts.length>=3){ name=pts[0].trim(); artist=pts[1].trim(); url=pts[2].trim(); }
     else { url=raw; name=decodeURIComponent(url.split('/').pop().split('?')[0]).replace(/\.[^.]+$/,'') || '未知'; }
-    PL.push({name,artist,url});
-    await save();
-    el('mp-add-inp').value='';
-    render();
+    PL.push({name,artist,url}); await save();
+    $('mp-add-inp').value=''; render();
     if(PL.length===1) load(0,true);
   }
-  el('mp-add-ok').addEventListener('click', addTrack);
-  el('mp-add-inp').addEventListener('keydown', e=>{ if(e.key==='Enter') addTrack(); });
+  bindBtn('mp-add-ok', addTrack);
+  $('mp-add-inp').addEventListener('keydown', e=>{ if(e.key==='Enter') addTrack(); });
 
-  // ── 服务器 ──
+  // ══ 服务器 ══
   async function fetchPL() {
-    const icon = document.querySelector('#mp-icon svg');
     try {
       const r = await fetch('/api/music');
       const d = await r.json();
       if(d.ok && d.list && d.list.length){
-        PL = d.list; load(0,false); render();
-        if(icon) icon.style.fill = '#60c0ff'; // 正常：蓝色
-      } else {
-        if(icon) icon.style.fill = '#ff9500'; // 歌单为空：橙色
-        console.warn('[music] API返回:', JSON.stringify(d));
+        PL = d.list; load(0, false); render();
       }
-    } catch(e){
-      if(icon) icon.style.fill = '#ff3b30'; // 请求失败：红色
-      console.error('[music] fetchPL失败:', e);
-    }
+    } catch(e){ console.error('[music]', e); }
   }
   async function save() {
     if(!window.nodesAdminUser||!window.nodesAdminPwd) return;
@@ -1766,15 +1816,19 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
   }
 
   window.musicSetAdminMode = v => {
-    el('mp-add-row').classList.toggle('on',v);
-    el('mp-hint').style.display = v?'none':'';
+    $('mp-add').classList.toggle('on', v);
     render();
   };
 
-  // ── 初始化 ──
-  // 浏览器安全策略：必须用户直接点播放键才能播放
-  // 只加载歌单，不尝试自动播放
+  // ══ 初始化 ══
   fetchPL();
+
+  // 第一次触摸屏幕自动播放
+  document.addEventListener('touchstart', function once(){
+    if(PL.length && !playing && audio.src) doPlay();
+    document.removeEventListener('touchstart', once);
+  }, {once:true, passive:true});
+
 })();
 </script>
 </body>
