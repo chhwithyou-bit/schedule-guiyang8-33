@@ -1312,11 +1312,11 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
   height: 52px;
   border-radius: 26px;
   /* 毛玻璃 */
-  background: rgba(12,20,42,0.72);
-  backdrop-filter: blur(28px) saturate(180%);
-  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  background: rgba(8,16,36,0.45);
+  backdrop-filter: blur(40px) saturate(220%) brightness(1.1);
+  -webkit-backdrop-filter: blur(40px) saturate(220%) brightness(1.1);
   /* 蓝色边框 */
-  border: 1.5px solid rgba(96,192,255,0.55);
+  border: 1.5px solid rgba(96,192,255,0.4);
   box-shadow: 0 0 0 0px rgba(96,192,255,0), 0 6px 24px rgba(0,0,0,0.4);
   overflow: hidden;
   cursor: pointer;
@@ -1337,7 +1337,7 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
 
 /* 展开态尺寸 */
 #mp.open {
-  width: 248px;
+  width: 285px;
   height: 52px; /* 先展宽，JS动态设高 */
   border-radius: 22px;
   border-color: rgba(96,192,255,0.35);
@@ -1372,7 +1372,7 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
   pointer-events: none;
   transition: opacity 0.18s;
   display: flex; flex-direction: column;
-  min-width: 248px;
+  min-width: 285px;
 }
 #mp.open #mp-body {
   opacity: 1;
@@ -1599,7 +1599,7 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
       requestAnimationFrame(() => {
         const W = window.innerWidth;
         const h = $('mp-body').scrollHeight + 2;
-        const CARD_W = 248;
+        const CARD_W = 285;
         // 先把left推到不超出右边缘，让卡片从正确位置弹出
         let left = parseFloat(mp.style.left) || mp.getBoundingClientRect().left;
         if(!mp.style.left || mp.style.right !== 'auto'){
