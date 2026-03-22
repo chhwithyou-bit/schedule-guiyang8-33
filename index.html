@@ -210,7 +210,7 @@ html,body {
 .bil-status .tag { font-size:10px;font-weight:700;padding:2px 6px;border-radius:5px;background:rgba(10,132,255,0.2);color:var(--blue); }
 .table-wrap { flex:1;display:flex;align-items:center;justify-content:center;padding:8px;overflow:hidden;position:relative; }
 canvas#biltable { border-radius:5px;box-shadow:0 0 0 7px #3d2008,0 0 0 13px #2a1505,0 16px 50px rgba(0,0,0,0.8);cursor:crosshair;touch-action:none;display:block; }
-.controls { flex-shrink:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(12px);border-top:1px solid var(--border);padding:10px 16px;padding-bottom:max(env(safe-area-inset-bottom,0px),10px);display:flex;align-items:center;gap:12px; }
+.controls { flex-shrink:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(12px);border-top:1px solid var(--border);padding:10px 16px;padding-bottom:max(env(safe-area-inset-bottom,0px),10px);display:flex;align-items:center;gap:12px;position:relative;z-index:50; }
 .power-wrap { flex:1;display:flex;align-items:center;gap:8px; }
 .power-label { font-size:11px;color:var(--t2);width:24px;text-align:right;flex-shrink:0; }
 .power-slider { flex:1;-webkit-appearance:none;appearance:none;height:6px;border-radius:3px;background:var(--s2);outline:none;cursor:pointer; }
@@ -1330,7 +1330,7 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
   @keyframes fab-spin { to { transform: rotate(360deg); } }
 
   #music-player {
-    position: fixed; z-index: 9998;
+    position: fixed; z-index: 10000;
     width: 300px;
     background: rgba(20,28,48,0.75);
     backdrop-filter: blur(30px) saturate(200%);
