@@ -1419,12 +1419,13 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
 .mp-artist { font-size: 10px; color: rgba(255,255,255,0.38); margin-top: 2px; }
 
 /* 进度条 */
-.mp-prog-area { padding: 0 13px 5px; flex-shrink: 0; }
+.mp-prog-area { padding: 4px 13px 6px; flex-shrink: 0; }
 .mp-prog-track {
   height: 2px; border-radius: 1px;
   background: rgba(255,255,255,0.1);
   position: relative; cursor: pointer;
-  margin-bottom: 5px;
+  margin-top: 6px;
+  margin-bottom: 8px;
 }
 /* 扩大触摸区用伪元素，不影响视觉高度 */
 .mp-prog-track::before {
