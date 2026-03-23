@@ -1312,24 +1312,22 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
   height: 52px;
   border-radius: 26px;
   /* 毛玻璃 */
-  background: rgba(12,20,42,0.72);
-  backdrop-filter: blur(28px) saturate(180%);
-  -webkit-backdrop-filter: blur(28px) saturate(180%);
-  /* 蓝色边框 */
-  border: 1.5px solid rgba(96,192,255,0.55);
-  box-shadow: 0 0 0 0px rgba(96,192,255,0), 0 6px 24px rgba(0,0,0,0.4);
+  background: rgba(20,30,55,0.28);
+  backdrop-filter: blur(48px) saturate(200%) brightness(1.08);
+  -webkit-backdrop-filter: blur(48px) saturate(200%) brightness(1.08);
+  border: 1px solid rgba(96,192,255,0.38);
+  box-shadow: 0 0 0 0px rgba(96,192,255,0), 0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08);
   overflow: hidden;
   cursor: pointer;
   touch-action: none;
   user-select: none;
-  will-change: width, height, border-radius;
   /* 弹簧动画 */
   transition:
-    width      0.38s cubic-bezier(0.4,0,0.2,1),
-    height     0.38s cubic-bezier(0.4,0,0.2,1),
-    border-radius 0.38s cubic-bezier(0.4,0,0.2,1),
-    box-shadow 0.3s ease,
-    border-color 0.22s ease;
+    width      0.52s cubic-bezier(0.34,1.4,0.64,1),
+    height     0.52s cubic-bezier(0.34,1.4,0.64,1),
+    border-radius 0.52s cubic-bezier(0.34,1.4,0.64,1),
+    box-shadow 0.4s ease,
+    border-color 0.3s ease;
 }
 #mp:not(.open):active {
   transform: scale(0.92);
@@ -1338,11 +1336,11 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
 
 /* 展开态尺寸 */
 #mp.open {
-  width: 285px;
-  height: 52px; /* 先展宽，JS动态设高 */
-  border-radius: 22px;
+  width: 248px;
+  height: 52px;
+  border-radius: 20px;
   border-color: rgba(96,192,255,0.35);
-  box-shadow: 0 0 0 3px rgba(96,192,255,0.08), 0 16px 48px rgba(0,0,0,0.5);
+  box-shadow: 0 0 0 2px rgba(96,192,255,0.06), 0 16px 48px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08);
   cursor: default;
 }
 
@@ -1373,7 +1371,7 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
   pointer-events: none;
   transition: opacity 0.18s;
   display: flex; flex-direction: column;
-  min-width: 285px;
+  min-width: 248px;
 }
 #mp.open #mp-body {
   opacity: 1;
@@ -1600,7 +1598,7 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
       requestAnimationFrame(() => {
         const W = window.innerWidth;
         const h = $('mp-body').scrollHeight + 2;
-        const CARD_W = 285;
+        const CARD_W = 248;
         // 先把left推到不超出右边缘，让卡片从正确位置弹出
         let left = parseFloat(mp.style.left) || mp.getBoundingClientRect().left;
         if(!mp.style.left || mp.style.right !== 'auto'){
@@ -1614,9 +1612,9 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
           mp.style.left = left + 'px';
         }
         mp.style.transition = [
-          'width 0.38s cubic-bezier(0.4,0,0.2,1)',
-          'height 0.38s cubic-bezier(0.4,0,0.2,1)',
-          'border-radius 0.38s cubic-bezier(0.4,0,0.2,1)',
+          'width 0.52s cubic-bezier(0.34,1.4,0.64,1)',
+          'height 0.52s cubic-bezier(0.34,1.4,0.64,1)',
+          'border-radius 0.52s cubic-bezier(0.34,1.4,0.64,1)',
           'left 0.35s cubic-bezier(0.34,1.2,0.64,1)',
           'top 0.35s cubic-bezier(0.34,1.2,0.64,1)',
           'box-shadow 0.4s ease',
@@ -1639,11 +1637,11 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
     mp.classList.remove('open');
     // 弹簧动画缩回小球
     mp.style.transition = [
-      'width 0.32s cubic-bezier(0.4,0,0.2,1)',
-      'height 0.32s cubic-bezier(0.4,0,0.2,1)',
-      'border-radius 0.32s cubic-bezier(0.4,0,0.2,1)',
-      'box-shadow 0.25s ease',
-      'border-color 0.2s ease'
+      'width 0.46s cubic-bezier(0.34,1.3,0.64,1)',
+      'height 0.46s cubic-bezier(0.34,1.3,0.64,1)',
+      'border-radius 0.46s cubic-bezier(0.34,1.3,0.64,1)',
+      'box-shadow 0.35s ease',
+      'border-color 0.25s ease'
     ].join(',');
     mp.style.width  = '52px';
     mp.style.height = '52px';
@@ -1771,10 +1769,10 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
     const listBtn = $('mpb-list');
     let listTapped = false;
     const SPRING_T = [
-      'width 0.32s cubic-bezier(0.4,0,0.2,1)',
-      'height 0.32s cubic-bezier(0.4,0,0.2,1)',
-      'border-radius 0.32s cubic-bezier(0.4,0,0.2,1)',
-      'box-shadow 0.25s ease', 'border-color 0.18s ease'
+      'width 0.42s cubic-bezier(0.34,1.3,0.64,1)',
+      'height 0.42s cubic-bezier(0.34,1.3,0.64,1)',
+      'border-radius 0.42s cubic-bezier(0.34,1.3,0.64,1)',
+      'box-shadow 0.3s ease', 'border-color 0.2s ease'
     ].join(',');
 
     const ITEM_H = 26;  // 每首歌行高 px
@@ -1807,17 +1805,22 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
       } else {
         // 展开
         listOpen = true;
-        render(); // 先填充内容
-        listArea.classList.add('show'); // 再显示
-        requestAnimationFrame(() => resizeCard(true)); // 再算高度
-        // 列表展开后推着卡片往上，确保不超出底部
-        setTimeout(()=>{
-          const H=window.innerHeight, r=mp.getBoundingClientRect();
-          if(r.bottom > H-8){
-            mp.style.transition = SPRING_T;
-            mp.style.top = Math.max(8, H-mp.offsetHeight-8)+'px';
-          }
-        }, 50);
+        render();
+        listArea.classList.add('show');
+        requestAnimationFrame(() => {
+          resizeCard(true);
+          // 动画进行中检查底部，推着走
+          setTimeout(()=>{
+            const H=window.innerHeight, r=mp.getBoundingClientRect();
+            if(r.bottom > H - 8){
+              mp.style.transition = [
+                'top 0.4s cubic-bezier(0.34,1.2,0.64,1)',
+                SPRING_T
+              ].join(',');
+              mp.style.top = Math.max(8, H - mp.offsetHeight - 8) + 'px';
+            }
+          }, 30);
+        });
       }
     }
     listBtn.addEventListener('touchend', e=>{
