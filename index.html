@@ -55,28 +55,54 @@ html, body {
 }
 
 /* ===== BACKGROUND SYSTEM ===== */
-#bg-canvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+#bg-canvas {
+  position: fixed; inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
 #bg-img {
-  position: fixed; inset: 0; z-index: 1; background-size: cover;
-  background-position: center; background-repeat: no-repeat;
-  background-image: url('/bg.jpg'); opacity: 0.28; pointer-events: none;
+  position: fixed; inset: 0;
+  z-index: 1;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-image: url('/bg.jpg'); /* 直接引用 public 目录下的 bg.jpg */
+  opacity: 0.28;
+  pointer-events: none;
 }
 
-/* ===== PAGE SYSTEM ===== */
+/* ===== PAGE SYSTEM (修复重叠 Bug) ===== */
 .page {
-  position: fixed; inset: 0; transform: translateX(100%); opacity: 0; pointer-events: none;
+  position: fixed;
+  inset: 0;
+  transform: translateX(100%);
+  opacity: 0;
+  pointer-events: none;
   transition: transform .42s cubic-bezier(.22,.8,.32,1), opacity .42s cubic-bezier(.22,.8,.32,1);
-  background: transparent; will-change: transform, opacity; z-index: 10;
+  background: transparent;
+  will-change: transform, opacity;
+  z-index: 10;
 }
-.page.active { transform: translateX(0); opacity: 1; pointer-events: all; }
+.page.active {
+  transform: translateX(0);
+  opacity: 1;
+  pointer-events: all;
+}
 .page.behind {
-  transform: translateX(-28%); opacity: 0; pointer-events: none;
+  transform: translateX(-28%);
+  opacity: 0;
+  pointer-events: none;
   transition: transform .42s cubic-bezier(.22,.8,.32,1), opacity .42s cubic-bezier(.22,.8,.32,1);
 }
 
 /* ===== STAGGER ENTRANCE ===== */
-@keyframes staggerIn { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
-.stagger > * { animation: staggerIn 0.45s cubic-bezier(.22,.8,.32,1) both; }
+@keyframes staggerIn {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.stagger > * {
+  animation: staggerIn 0.45s cubic-bezier(.22,.8,.32,1) both;
+}
 .stagger > *:nth-child(1) { animation-delay: 0.05s; }
 .stagger > *:nth-child(2) { animation-delay: 0.10s; }
 .stagger > *:nth-child(3) { animation-delay: 0.15s; }
@@ -86,81 +112,243 @@ html, body {
 
 /* ===== DRAWER ===== */
 .drawer-overlay {
-  display:none; position:fixed; inset:0; background: rgba(0,0,0,.55); z-index:800;
-  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  display:none; position:fixed; inset:0;
+  background: rgba(0,0,0,.55);
+  z-index:800;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 .drawer-overlay.open { display:block; animation: fadeIn 0.25s ease; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
 .drawer {
   position:fixed; top:0; left:0; bottom:0; width:270px;
-  background: rgba(2, 0, 41, 0.82); backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%); z-index:801; transform:translateX(-100%);
-  transition:transform .36s cubic-bezier(.22,.8,.32,1); display:flex; flex-direction:column;
-  overflow:hidden; border-right: 1px solid var(--glass-border);
+  background: rgba(2, 0, 41, 0.82);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  z-index:801;
+  transform:translateX(-100%);
+  transition:transform .36s cubic-bezier(.22,.8,.32,1);
+  display:flex; flex-direction:column; overflow:hidden;
+  border-right: 1px solid var(--glass-border);
 }
 .drawer.open { transform:translateX(0); }
 .drawer-safe { height:env(safe-area-inset-top,44px); }
-.drawer-header { padding:16px 22px 14px; border-bottom:1px solid var(--border); }
-.drawer-school { font-size:11px; color: var(--accent); font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom:3px; }
-.drawer-title { font-size:22px; font-weight:800; background: linear-gradient(135deg, var(--accent2), var(--accent3)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -0.5px; }
+.drawer-header {
+  padding:16px 22px 14px;
+  border-bottom:1px solid var(--border);
+}
+.drawer-school {
+  font-size:11px; color: var(--accent); font-weight: 600;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  margin-bottom:3px;
+}
+.drawer-title {
+  font-size:22px; font-weight:800;
+  background: linear-gradient(135deg, var(--accent2), var(--accent3));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  letter-spacing: -0.5px;
+}
 .drawer-nav { flex:1; padding:12px 10px; display:flex; flex-direction:column; gap:4px; }
-.drawer-item { display:flex; align-items:center; gap:13px; padding:13px 14px; border-radius:13px; cursor:pointer; color:var(--t2); font-size:15px; font-weight:600; transition: all .2s cubic-bezier(.22,.8,.32,1); border:none; background:none; width:100%; text-align:left; font-family: 'Outfit', 'PingFang SC', sans-serif; }
+.drawer-item {
+  display:flex; align-items:center; gap:13px; padding:13px 14px;
+  border-radius:13px; cursor:pointer; color:var(--t2);
+  font-size:15px; font-weight:600;
+  transition: all .2s cubic-bezier(.22,.8,.32,1);
+  border:none; background:none; width:100%; text-align:left;
+  font-family: 'Outfit', 'PingFang SC', sans-serif;
+}
 .drawer-item:active { background: var(--s2); transform: scale(0.97); }
-.drawer-item.active { background: rgba(255,119,16,0.15); color: var(--accent2); border: 1px solid rgba(255,119,16,0.25); }
+.drawer-item.active {
+  background: rgba(255,119,16,0.15);
+  color: var(--accent2);
+  border: 1px solid rgba(255,119,16,0.25);
+}
 .drawer-item-icon { font-size:20px; width:26px; text-align:center; flex-shrink:0; }
 .drawer-item-label { flex:1; }
-.drawer-footer { padding:14px 22px; border-top:1px solid var(--border); font-size:11px; color:var(--t3); font-family: 'Outfit', sans-serif; }
-.ham-btn { background: var(--s2); backdrop-filter: blur(8px); border: 1px solid var(--border); color:var(--text); width:38px; height:38px; border-radius:11px; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px; margin-top:8px; flex-shrink:0; transition: all 0.2s; }
+.drawer-item-badge {
+  font-size:10px; font-weight:700;
+  background: var(--accent); color:#fff; padding:2px 7px; border-radius:20px;
+  letter-spacing: 0.5px;
+}
+.drawer-footer {
+  padding:14px 22px;
+  border-top:1px solid var(--border);
+  font-size:11px; color:var(--t3);
+  font-family: 'Outfit', sans-serif;
+}
+.ham-btn {
+  background: var(--s2);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  color:var(--text);
+  width:38px; height:38px; border-radius:11px; cursor:pointer;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px;
+  margin-top:8px; flex-shrink:0;
+  transition: all 0.2s;
+}
 .ham-btn:active { transform: scale(0.9); opacity: 0.7; }
 .ham-btn span { display:block; width:16px; height:1.5px; background:var(--accent2); border-radius:2px; }
 
 /* ===== GLASS MIXIN ===== */
-.glass-card { background: var(--glass); backdrop-filter: blur(var(--glass-blur)) saturate(180%); -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%); border: 1px solid var(--glass-border); border-radius: var(--r); box-shadow: inset 0 1px 0 var(--glass-shine), 0 8px 32px rgba(0,0,0,0.35); }
+.glass-card {
+  background: var(--glass);
+  backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  border: 1px solid var(--glass-border); border-radius: var(--r);
+  box-shadow:
+    inset 0 1px 0 var(--glass-shine),
+    0 8px 32px rgba(0,0,0,0.35);
+}
 
 /* ===================== PAGE 1: SCHEDULE ===================== */
 #page-schedule { overflow-y: auto; background: transparent; }
 .safe-top { height: env(safe-area-inset-top,44px); }
-.header { padding: 6px 20px 16px; display:flex; align-items:flex-start; justify-content:space-between; }
-.hdr-school { font-size:11px; color: var(--accent); font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom:2px; }
-.hdr-title { font-size:36px; font-weight:800; letter-spacing:-1px; line-height:1.0; background: linear-gradient(135deg, #f5efe0 0%, var(--accent2) 60%, var(--accent) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.header {
+  padding: 6px 20px 16px;
+  display:flex; align-items:flex-start; justify-content:space-between;
+}
+.hdr-school {
+  font-size:11px; color: var(--accent);
+  font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+  margin-bottom:2px;
+}
+.hdr-title {
+  font-size:36px; font-weight:800; letter-spacing:-1px; line-height:1.0;
+  background: linear-gradient(135deg, #f5efe0 0%, var(--accent2) 60%, var(--accent) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
 .hdr-date { font-size:14px; color:var(--t2); margin-top:4px; font-weight:500; }
-.admin-btn { background: rgba(255,119,16,0.15); backdrop-filter: blur(8px); border: 1px solid rgba(255,119,16,0.3); color: var(--accent2); font-size:12px; padding:6px 12px; border-radius:20px; cursor:pointer; margin-top:8px; font-family: 'Outfit', 'PingFang SC', sans-serif; font-weight: 600; transition: all 0.2s; }
+.admin-btn {
+  background: rgba(255,119,16,0.15);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,119,16,0.3); color: var(--accent2);
+  font-size:12px; padding:6px 12px;
+  border-radius:20px; cursor:pointer; margin-top:8px;
+  font-family: 'Outfit', 'PingFang SC', sans-serif;
+  font-weight: 600;
+  transition: all 0.2s;
+}
 .admin-btn:active { opacity:.7; transform: scale(0.95); }
 .cards { display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:0 16px 12px; }
-.card { background: var(--glass); backdrop-filter: blur(var(--glass-blur)) saturate(180%); -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%); border: 1px solid var(--glass-border); border-radius: var(--r); padding:16px; box-shadow: inset 0 1px 0 var(--glass-shine), 0 4px 20px rgba(0,0,0,0.3); transition: transform 0.2s cubic-bezier(.22,.8,.32,1), box-shadow 0.2s; }
+.card {
+  background: var(--glass);
+  backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r);
+  padding:16px;
+  box-shadow: inset 0 1px 0 var(--glass-shine), 0 4px 20px rgba(0,0,0,0.3);
+  transition: transform 0.2s cubic-bezier(.22,.8,.32,1), box-shadow 0.2s;
+}
 .card:active { transform: scale(0.97); }
-.c-icon { width:32px; height:32px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:16px; margin-bottom:10px; }
+.c-icon {
+  width:32px; height:32px; border-radius:9px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:16px; margin-bottom:10px;
+}
 .c-icon.purple { background: rgba(160,110,221,0.2); }
 .c-icon.green  { background: rgba(255,119,16,0.18); }
 .c-label { font-size:11px; color:var(--t2); margin-bottom:3px; font-weight:600; letter-spacing:0.5px; }
 .c-val { font-size:18px; font-weight:700; line-height:1.2; }
 .c-sub { font-size:11px; color:var(--t2); margin-top:4px; }
 .ev-wrap { padding:0 16px 12px; }
-.ev-card { background: var(--glass); backdrop-filter: blur(var(--glass-blur)) saturate(180%); -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%); border: 1px solid var(--glass-border); border-radius: var(--r); padding:16px; box-shadow: inset 0 1px 0 var(--glass-shine), 0 4px 20px rgba(0,0,0,0.3); }
+.ev-card {
+  background: var(--glass);
+  backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r);
+  padding:16px;
+  box-shadow: inset 0 1px 0 var(--glass-shine), 0 4px 20px rgba(0,0,0,0.3);
+}
 .ev-head { display:flex; align-items:center; gap:9px; margin-bottom:13px; }
-.ev-icon { width:30px; height:30px; border-radius:8px; background: rgba(255,119,16,0.2); display:flex; align-items:center; justify-content:center; font-size:15px; }
+.ev-icon {
+  width:30px; height:30px; border-radius:8px;
+  background: rgba(255,119,16,0.2);
+  display:flex; align-items:center; justify-content:center; font-size:15px;
+}
 .ev-title { font-size:15px; font-weight:700; }
 .ev-slots { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-.ev-slot { background: var(--s2); backdrop-filter: blur(8px); border: 1px solid var(--border); border-radius:12px; padding:11px 13px; }
+.ev-slot {
+  background: var(--s2);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius:12px; padding:11px 13px;
+}
 .ev-slabel { font-size:11px; color:var(--t3); margin-bottom:4px; font-weight:600; letter-spacing:0.3px; }
 .ev-teacher { font-size:18px; font-weight:700; }
 .ev-time { font-size:11px; color:var(--accent); margin-top:4px; font-weight:600; }
 
-.seg-wrap { padding: 0 16px 8px; position: sticky; top: 0; z-index: 100; padding-top: 10px; }
-.seg { display:flex; background: rgba(2,0,41,0.6); backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius:12px; padding:3px; gap:2px; }
-.seg-btn { flex:1; text-align:center; padding:7px 2px; border-radius:10px; font-size:14px; font-weight:600; color:var(--t3); cursor:pointer; transition: all .25s cubic-bezier(.34,1.4,.64,1); user-select:none; -webkit-user-select:none; position:relative; font-family: 'Outfit', 'PingFang SC', sans-serif; }
-.seg-btn.active { background: rgba(255,119,16,0.22); color: var(--accent2); font-weight:700; box-shadow: 0 2px 8px rgba(255,119,16,0.25), inset 0 1px 0 rgba(255,153,68,0.2); border: 1px solid rgba(255,119,16,0.3); }
-.seg-btn.today-dot::after { content:''; position:absolute; bottom:3px; left:50%; transform:translateX(-50%); width:4px; height:4px; border-radius:50%; background: var(--accent); }
+/* Segment control */
+.seg-wrap {
+  padding: 0 16px 8px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  padding-top: 10px;
+  /* 删除了之前的 background 和 backdrop-filter, 彻底透明 */
+}
+.seg {
+  display:flex;
+  background: rgba(2,0,41,0.6);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius:12px; padding:3px; gap:2px;
+}
+.seg-btn {
+  flex:1; text-align:center; padding:7px 2px; border-radius:10px;
+  font-size:14px; font-weight:600; color:var(--t3); cursor:pointer;
+  transition: all .25s cubic-bezier(.34,1.4,.64,1);
+  user-select:none; -webkit-user-select:none; position:relative;
+  font-family: 'Outfit', 'PingFang SC', sans-serif;
+}
+.seg-btn.active {
+  background: rgba(255,119,16,0.22);
+  color: var(--accent2);
+  font-weight:700;
+  box-shadow: 0 2px 8px rgba(255,119,16,0.25),
+              inset 0 1px 0 rgba(255,153,68,0.2);
+  border: 1px solid rgba(255,119,16,0.3);
+}
+.seg-btn.today-dot::after {
+  content:''; position:absolute; bottom:3px; left:50%;
+  transform:translateX(-50%);
+  width:4px; height:4px; border-radius:50%;
+  background: var(--accent);
+}
 
+/* Day view */
 .day-view { display:none; padding:4px 16px 56px; animation: slideUp .28s cubic-bezier(.22,.8,.32,1); }
 .day-view.active { display:block; }
-@keyframes slideUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
-.sec-title { font-size:11px; font-weight:700; color: var(--accent); letter-spacing:1.5px; text-transform:uppercase; margin:18px 4px 10px; }
-.plist { background: var(--glass); backdrop-filter: blur(var(--glass-blur)) saturate(180%); -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%); border: 1px solid var(--glass-border); border-radius: var(--r); overflow:hidden; box-shadow: inset 0 1px 0 var(--glass-shine), 0 4px 24px rgba(0,0,0,0.3); }
+@keyframes slideUp {
+  from { opacity:0; transform:translateY(12px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+.sec-title {
+  font-size:11px;
+  font-weight:700; color: var(--accent);
+  letter-spacing:1.5px; text-transform:uppercase;
+  margin:18px 4px 10px;
+}
+.plist {
+  background: var(--glass);
+  backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r); overflow:hidden;
+  box-shadow: inset 0 1px 0 var(--glass-shine), 0 4px 24px rgba(0,0,0,0.3);
+}
 .prow { display:flex; align-items:center; padding:13px 16px; gap:14px; position:relative; }
-.prow+.prow::before { content:''; position:absolute; top:0; left:60px; right:0; height:.5px; background: var(--border); }
-.pdot { width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:800; flex-shrink:0; }
+.prow+.prow::before {
+  content:''; position:absolute; top:0; left:60px; right:0;
+  height:.5px; background: var(--border);
+}
+.pdot {
+  width:36px; height:36px; border-radius:10px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:14px; font-weight:800; flex-shrink:0;
+}
 .dm { background: rgba(255,119,16,0.18); color: var(--accent2); }
 .da { background: rgba(255,119,16,0.15); color: var(--accent3); }
 .ds { background: rgba(160,110,221,0.15); color: #c099f0; }
@@ -169,126 +357,252 @@ html, body {
 .psubj.sp { color: #c099f0; }
 .pteacher { font-size:13px; color:var(--t2); margin-top:2px; }
 .ptime { font-size:11px; color:var(--t3); flex-shrink:0; font-weight:500; }
-.break-pill { display:flex; align-items:center; justify-content:center; padding:8px 0 5px; color:var(--t3); font-size:12px; letter-spacing:3px; }
+.break-pill {
+  display:flex; align-items:center; justify-content:center;
+  padding:8px 0 5px; color:var(--t3); font-size:12px; letter-spacing:3px;
+}
 
-.footer { text-align:center; padding:6px 20px 36px; font-size:12px; color:var(--t3); line-height:1.9; }
+/* Footer */
+.footer {
+  text-align:center; padding:6px 20px 36px;
+  font-size:12px; color:var(--t3); line-height:1.9;
+}
 
-/* ===== MODAL & TOAST ... ===== */
-.modal-overlay { display:none; position:fixed; inset:0; background: rgba(0,0,0,.7); z-index:1000; overflow-y:auto; backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); }
+/* ===== MODAL ===== */
+.modal-overlay {
+  display:none; position:fixed; inset:0;
+  background: rgba(0,0,0,.7);
+  z-index:1000; overflow-y:auto;
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+}
 .modal-overlay.open { display:flex; flex-direction:column; animation: fadeIn 0.25s ease; }
-.modal { background: rgba(2,0,41, 0.88); backdrop-filter: blur(24px) saturate(180%); -webkit-backdrop-filter: blur(24px) saturate(180%); border: 1px solid var(--glass-border); border-radius:22px; margin:20px 16px; padding:22px; flex-shrink:0; box-shadow: inset 0 1px 0 var(--glass-shine), 0 20px 60px rgba(0,0,0,0.6); animation: staggerIn 0.35s cubic-bezier(.22,.8,.32,1); }
+.modal {
+  background: rgba(2,0,41, 0.88);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  border-radius:22px; margin:20px 16px; padding:22px; flex-shrink:0;
+  box-shadow: inset 0 1px 0 var(--glass-shine), 0 20px 60px rgba(0,0,0,0.6);
+  animation: staggerIn 0.35s cubic-bezier(.22,.8,.32,1);
+}
 .modal-title { font-size:20px; font-weight:800; margin-bottom:5px; }
 .modal-sub { font-size:13px; color:var(--t2); margin-bottom:20px; }
 .field-label { font-size:13px; color:var(--t2); font-weight:600; margin-bottom:6px; margin-top:14px; }
-.inp { width:100%; background: rgba(10,10,60,0.7); backdrop-filter: blur(8px); border: 1px solid var(--border); border-radius:12px; padding:12px 14px; color:var(--text); font-size:15px; outline:none; transition: border-color 0.2s; }
+.inp {
+  width:100%;
+  background: rgba(10,10,60,0.7);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius:12px; padding:12px 14px;
+  color:var(--text); font-size:15px;
+  font-family: 'Outfit', 'PingFang SC', sans-serif;
+  outline:none;
+  transition: border-color 0.2s;
+}
 .inp:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(255,119,16,0.15); }
-.utab { padding:7px 14px; border-radius:20px; font-size:13px; font-weight:600; background: var(--s2); color:var(--t2); cursor:pointer; border:1px solid transparent; transition: all 0.2s; }
-.utab.active { background: rgba(255,119,16,0.2); color: var(--accent2); border-color: rgba(255,119,16,0.4); }
+.inp::placeholder { color:var(--t3); }
+.upload-section { margin-top:14px; }
 .upload-tabs { display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
-.upload-area { border:1.5px dashed var(--s3); border-radius:14px; padding:26px 16px; text-align:center; cursor:pointer; position:relative; overflow:hidden; background: rgba(2,0,41,0.3); }
-.upload-area:hover,.upload-area.drag { border-color: var(--accent); background: rgba(255,119,16,0.05); }
+.utab {
+  padding:7px 14px; border-radius:20px;
+  font-size:13px; font-weight:600;
+  background: var(--s2); color:var(--t2);
+  cursor:pointer; border:1px solid transparent;
+  font-family: 'Outfit', 'PingFang SC', sans-serif;
+  transition: all 0.2s;
+}
+.utab.active {
+  background: rgba(255,119,16,0.2);
+  color: var(--accent2);
+  border-color: rgba(255,119,16,0.4);
+}
+.upload-area {
+  border:1.5px dashed var(--s3); border-radius:14px;
+  padding:26px 16px; text-align:center; cursor:pointer;
+  transition: border-color .2s, background .2s;
+  position:relative; overflow:hidden;
+  background: rgba(2,0,41,0.3);
+}
+.upload-area:hover,.upload-area.drag {
+  border-color: var(--accent);
+  background: rgba(255,119,16,0.05);
+}
 .upload-area input[type=file] { position:absolute; inset:0; opacity:0; cursor:pointer; }
 .upload-icon { font-size:34px; margin-bottom:10px; }
 .upload-hint { font-size:13px; color:var(--t2); }
 .upload-hint small { font-size:11px; color:var(--t3); display:block; margin-top:4px; }
 .preview-img { width:100%; border-radius:12px; margin-top:12px; max-height:200px; object-fit:contain; display:none; }
-.parse-btn { width:100%; padding:14px; border-radius:14px; border:none; background: linear-gradient(135deg, var(--accent), var(--accent2)); color:#fff; font-size:16px; font-weight:700; cursor:pointer; margin-top:16px; transition: opacity .2s, transform .15s; box-shadow: 0 4px 20px rgba(255,119,16,0.4); }
+.parse-btn {
+  width:100%; padding:14px; border-radius:14px; border:none;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color:#fff; font-size:16px; font-weight:700;
+  font-family: 'Outfit', 'PingFang SC', sans-serif;
+  cursor:pointer; margin-top:16px;
+  transition: opacity .2s, transform .15s;
+  box-shadow: 0 4px 20px rgba(255,119,16,0.4);
+}
 .parse-btn:disabled { opacity:.4; cursor:not-allowed; }
 .parse-btn:active:not(:disabled) { transform: scale(0.97); }
-.status-box { background: var(--s2); backdrop-filter: blur(8px); border: 1px solid var(--border); border-radius:12px; padding:13px 15px; margin-top:12px; font-size:13px; color:var(--t2); line-height:1.7; display:none; max-height:180px; overflow-y:auto; }
+.parse-btn.loading { opacity:.65; }
+.status-box {
+  background: var(--s2);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius:12px;
+  padding:13px 15px; margin-top:12px;
+  font-size:13px; color:var(--t2); line-height:1.7;
+  display:none; max-height:180px; overflow-y:auto;
+}
 .status-box.show { display:block; }
 .status-ok { color: var(--accent3); font-weight:600; }
 .status-err { color:#e05050; font-weight:600; }
 .preview-section { display:none; margin-top:16px; }
 .preview-section.show { display:block; }
 .preview-title { font-size:15px; font-weight:700; margin-bottom:10px; }
-.preview-json { background: var(--s2); border-radius:12px; padding:13px; font-size:11px; color:var(--t2); font-family:monospace; max-height:220px; overflow-y:auto; white-space:pre-wrap; word-break:break-all; border: 1px solid var(--border); }
+.preview-json {
+  background: var(--s2); border-radius:12px;
+  padding:13px; font-size:11px; color:var(--t2);
+  font-family:monospace; max-height:220px; overflow-y:auto;
+  white-space:pre-wrap; word-break:break-all;
+  border: 1px solid var(--border);
+}
 .action-row { display:flex; gap:10px; margin-top:12px; }
-.btn-confirm { flex:1; padding:13px; border-radius:13px; border:none; background: linear-gradient(135deg, #0055ff, #0033aa); color:#fff; font-size:15px; font-weight:700; cursor:pointer; box-shadow: 0 4px 16px rgba(0,85,255,0.4); transition: transform 0.15s; }
+.btn-confirm {
+  flex:1; padding:13px; border-radius:13px; border:none;
+  background: linear-gradient(135deg, #0055ff, #0033aa);
+  color:#fff; font-size:15px; font-weight:700;
+  font-family: 'Outfit', 'PingFang SC', sans-serif; cursor:pointer;
+  box-shadow: 0 4px 16px rgba(0,85,255,0.4);
+  transition: transform 0.15s;
+}
 .btn-confirm:active { transform: scale(0.97); }
-.btn-cancel { padding:13px 20px; border-radius:13px; border:none; background: var(--s2); color:var(--t2); font-size:15px; font-weight:600; cursor:pointer; border: 1px solid var(--border); }
-.close-modal { float:right; background: var(--s2); border: 1px solid var(--border); color:var(--t2); width:32px; height:32px; border-radius:50%; font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition: all 0.2s; }
+.btn-cancel {
+  padding:13px 20px; border-radius:13px; border:none;
+  background: var(--s2); color:var(--t2);
+  font-size:15px; font-weight:600;
+  font-family: 'Outfit', 'PingFang SC', sans-serif; cursor:pointer;
+  border: 1px solid var(--border);
+}
+.close-modal {
+  float:right; background: var(--s2); border: 1px solid var(--border);
+  color:var(--t2); width:32px; height:32px;
+  border-radius:50%; font-size:18px; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  transition: all 0.2s;
+}
 .close-modal:active { opacity: 0.6; }
 .sync-indicator { font-size:11px; color:var(--t3); text-align:center; padding:4px 0 2px; }
 
-#g-toast { position: fixed; top: 62px; left: 50%; transform: translateX(-50%) translateY(-22px); z-index: 9999; pointer-events: none; opacity: 0; transition: opacity 0.28s cubic-bezier(.22,.8,.32,1), transform 0.28s cubic-bezier(.22,.8,.32,1); min-width: 160px; max-width: 80vw; }
-#g-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-#g-toast-inner { display: flex; align-items: center; gap: 10px; padding: 13px 20px; border-radius: 16px; font-size: 14px; font-weight: 700; letter-spacing: 0.3px; background: rgba(2, 0, 41, 0.85); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255, 119, 16, 0.4); color: #f5efe0; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 153, 68, 0.1); white-space: nowrap; }
+/* Global Toast */
+#g-toast {
+  position: fixed; top: 62px; left: 50%;
+  transform: translateX(-50%) translateY(-22px);
+  z-index: 9999; pointer-events: none; opacity: 0;
+  transition: opacity 0.28s cubic-bezier(.22,.8,.32,1),
+              transform 0.28s cubic-bezier(.22,.8,.32,1);
+  min-width: 160px; max-width: 80vw;
+}
+#g-toast.show {
+  opacity: 1; transform: translateX(-50%) translateY(0);
+}
+#g-toast-inner {
+  display: flex; align-items: center; gap: 10px;
+  padding: 13px 20px; border-radius: 16px;
+  font-size: 14px; font-weight: 700; letter-spacing: 0.3px;
+  /* 统一为深蓝毛玻璃 + 爱马仕橙边框 */
+  background: rgba(2, 0, 41, 0.85);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 119, 16, 0.4);
+  color: #f5efe0;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 153, 68, 0.1);
+  white-space: nowrap;
+}
+/* 状态颜色仅改变文字或微调边框，保持整体风格统一 */
 #g-toast-inner.success { color: var(--accent2); }
 #g-toast-inner.error   { border-color: rgba(224,80,80,0.6); color: #fca5a5; }
-
-/* ===================== PAGE: CHESS ===================== */
-#page-chess { overflow-y: auto; background: transparent; padding-bottom: 50px; }
-.chess-wrap { max-width: 400px; margin: 0 auto; padding: 16px; }
-.chess-status-card {
-  background: var(--glass); backdrop-filter: blur(var(--glass-blur)) saturate(180%);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
-  border: 1px solid var(--glass-border); border-radius: 16px;
-  padding: 14px 20px; display: flex; justify-content: space-between;
-  align-items: center; margin-bottom: 20px;
-  box-shadow: inset 0 1px 0 var(--glass-shine), 0 8px 24px rgba(0,0,0,0.3);
+#g-toast-inner.info    { color: var(--text); }
+.place-hint {
+  position:fixed; bottom:110px; left:50%; transform:translateX(-50%);
+  background: rgba(255,119,16,0.92);
+  color:#fff; padding:7px 16px; border-radius:18px;
+  font-size:13px; font-weight:700; z-index:100;
+  pointer-events:none; display:none; white-space:nowrap;
 }
-.c-turn-label { font-size: 13px; color: var(--t2); font-weight: 600; }
-.c-turn { font-size: 18px; font-weight: 800; color: var(--accent2); text-shadow: 0 0 8px rgba(255,119,16,0.4); }
-.c-turn.black { color: #60a8e0; text-shadow: 0 0 8px rgba(96,168,224,0.4); }
+.place-hint.show { display:block; animation: staggerIn 0.25s cubic-bezier(.22,.8,.32,1); }
 
-.chess-board-container {
-  position: relative; width: 340px; height: 380px; margin: 0 auto;
-  background: rgba(2, 0, 41, 0.4); backdrop-filter: blur(8px);
-  border: 1px solid var(--border); border-radius: 12px; padding: 10px;
-  box-shadow: 0 12px 40px rgba(0,0,0,0.5), inset 0 0 20px rgba(255,119,16,0.05);
+/* ===================== PAGE 3: NODES ===================== */
+#page-nodes { overflow-y:auto; background: transparent; }
+
+/* ===== MUSIC PLAYER ===== */
+#mp {
+  position: fixed; right: 18px; bottom: 90px;
+  z-index: 10001;
+  width: 52px; height: 52px; border-radius: 26px;
+  background: rgba(2,0,41,0.55);
+  backdrop-filter: blur(48px) saturate(200%) brightness(1.1);
+  -webkit-backdrop-filter: blur(48px) saturate(200%) brightness(1.1);
+  border: 1px solid rgba(255,119,16,0.45);
+  box-shadow: 0 0 0 0px rgba(255,119,16,0), 0 8px 32px rgba(0,0,0,0.4),
+              inset 0 1px 0 rgba(255,153,68,0.12);
+  overflow: hidden; cursor: pointer; touch-action: none; user-select: none;
+  transition:
+    width      0.52s cubic-bezier(0.34,1.4,0.64,1),
+    height     0.52s cubic-bezier(0.34,1.4,0.64,1),
+    border-radius 0.52s cubic-bezier(0.34,1.4,0.64,1),
+    box-shadow 0.4s ease, border-color 0.3s ease;
 }
-.chess-svg { position: absolute; top: 10px; left: 10px; width: 320px; height: 360px; pointer-events: none; }
-#chess-pieces, #chess-hints { position: absolute; top: 10px; left: 10px; width: 320px; height: 360px; pointer-events: none; }
-
-.c-piece {
-  position: absolute; width: 34px; height: 34px; margin: -17px 0 0 -17px;
-  border-radius: 50%; display: flex; align-items: center; justify-content: center;
-  font-size: 18px; font-weight: 800; cursor: pointer; pointer-events: auto;
-  background: radial-gradient(circle at 30% 30%, #1a1a4a, #020029);
-  box-shadow: 2px 4px 8px rgba(0,0,0,0.6), inset 0 1px 2px rgba(255,255,255,0.15);
-  transition: transform 0.2s cubic-bezier(0.34,1.4,0.64,1), top 0.25s ease, left 0.25s ease;
-  user-select: none; -webkit-user-select: none; font-family: 'PingFang SC', KaiTi, serif; z-index: 2;
-}
-.c-piece.red { color: #ff6600; border: 2px solid var(--accent); }
-.c-piece.blk { color: #00ccff; border: 2px solid #4088c0; }
-.c-piece.selected { transform: scale(1.15); box-shadow: 0 0 15px 3px var(--accent), inset 0 1px 2px rgba(255,255,255,0.3); z-index: 10; }
-.c-piece.blk.selected { box-shadow: 0 0 15px 3px #00aaff, inset 0 1px 2px rgba(255,255,255,0.3); }
-
-.c-hint {
-  position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px;
-  background: rgba(255,119,16,0.85); border-radius: 50%; cursor: pointer; pointer-events: auto;
-  box-shadow: 0 0 8px var(--accent); z-index: 5; transition: transform 0.1s;
-}
-.c-hint.capture {
-  background: transparent; border: 3px solid #e05050; width: 26px; height: 26px;
-  margin: -13px 0 0 -13px; box-shadow: 0 0 10px #e05050, inset 0 0 8px #e05050;
-}
-.c-hint:active { transform: scale(1.4); }
-
-.chess-btns { display: flex; gap: 12px; margin-top: 24px; justify-content: center; }
-.chess-btn { flex: 1; padding: 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--s2); color: var(--text); font-weight: 700; cursor: pointer; font-family: 'Outfit', 'PingFang SC', sans-serif; transition: all 0.2s; }
-.chess-btn:active { transform: scale(0.95); background: var(--s3); }
-.chess-btn.primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); border: none; box-shadow: 0 4px 15px rgba(255,119,16,0.3); }
-
-/* MUSIC PLAYER */
-#mp { position: fixed; right: 18px; bottom: 90px; z-index: 10001; width: 52px; height: 52px; border-radius: 26px; background: rgba(2,0,41,0.55); backdrop-filter: blur(48px) saturate(200%) brightness(1.1); -webkit-backdrop-filter: blur(48px) saturate(200%) brightness(1.1); border: 1px solid rgba(255,119,16,0.45); box-shadow: 0 0 0 0px rgba(255,119,16,0), 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,153,68,0.12); overflow: hidden; cursor: pointer; touch-action: none; user-select: none; transition: width 0.52s cubic-bezier(0.34,1.4,0.64,1), height 0.52s cubic-bezier(0.34,1.4,0.64,1), border-radius 0.52s cubic-bezier(0.34,1.4,0.64,1), box-shadow 0.4s ease, border-color 0.3s ease; }
 #mp:not(.open):active { transform: scale(0.90); transition: transform 0.12s; }
-#mp.open { width: 248px; height: 52px; border-radius: 20px; border-color: rgba(255,119,16,0.4); box-shadow: 0 0 0 2px rgba(255,119,16,0.07), 0 16px 52px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,153,68,0.12); cursor: default; }
-#mp-icon { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; transition: opacity 0.2s 0.05s, transform 0.2s; pointer-events: none; }
+#mp.open {
+  width: 248px; height: 52px; border-radius: 20px;
+  border-color: rgba(255,119,16,0.4);
+  box-shadow: 0 0 0 2px rgba(255,119,16,0.07), 0 16px 52px rgba(0,0,0,0.4),
+              inset 0 1px 0 rgba(255,153,68,0.12);
+  cursor: default;
+}
+#mp-icon {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: opacity 0.2s 0.05s, transform 0.2s;
+  pointer-events: none;
+}
 #mp-icon svg { width: 26px; height: 26px; display: block; }
 #mp.open #mp-icon { opacity: 0; transform: scale(0.6); transition: opacity 0.15s, transform 0.15s; }
 #mp.playing #mp-icon svg { animation: ball-pulse 2s ease-in-out infinite; }
-@keyframes ball-pulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.65; transform:scale(0.82); } }
-#mp-body { position: absolute; inset: 0; opacity: 0; pointer-events: none; transition: opacity 0.18s; display: flex; flex-direction: column; min-width: 248px; }
+@keyframes ball-pulse {
+  0%,100% { opacity:1; transform:scale(1); }
+  50% { opacity:0.65; transform:scale(0.82); }
+}
+#mp-body {
+  position: absolute; inset: 0; opacity: 0; pointer-events: none;
+  transition: opacity 0.18s; display: flex; flex-direction: column; min-width: 248px;
+}
 #mp.open #mp-body { opacity: 1; pointer-events: all; transition: opacity 0.22s 0.2s; }
-#mp-header { display: flex; align-items: center; justify-content: space-between; padding: 11px 13px 6px; cursor: grab; user-select: none; touch-action: none; flex-shrink: 0; }
+#mp-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 13px 6px; cursor: grab; user-select: none; touch-action: none; flex-shrink: 0;
+}
 #mp-header:active { cursor: grabbing; }
-.mp-header-label { font-size: 10px; font-weight: 700; color: var(--accent); letter-spacing: 1.2px; text-transform: uppercase; font-family: 'Outfit', sans-serif; }
-#mp-close { width: 22px; height: 22px; border-radius: 50%; background: rgba(255,255,255,0.08); border: none; color: rgba(255,255,255,0.45); font-size: 11px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: background 0.15s; }
+.mp-header-label {
+  font-size: 10px; font-weight: 700; color: var(--accent);
+  letter-spacing: 1.2px; text-transform: uppercase; font-family: 'Outfit', sans-serif;
+}
+#mp-close {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: rgba(255,255,255,0.08); border: none;
+  color: rgba(255,255,255,0.45); font-size: 11px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; flex-shrink: 0; transition: background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
 #mp-close:active { background: rgba(255,255,255,0.18); }
 .mp-row { display: flex; align-items: center; gap: 10px; padding: 0 13px 8px; flex-shrink: 0; }
-.mp-disc { width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; background: linear-gradient(135deg, #020029, #010015); border: 1px solid rgba(255,119,16,0.25); display: flex; align-items: center; justify-content: center; }
+.mp-disc {
+  width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+  background: linear-gradient(135deg, #020029, #010015);
+  border: 1px solid rgba(255,119,16,0.25);
+  display: flex; align-items: center; justify-content: center;
+}
 .mp-disc svg { width: 18px; height: 18px; }
 .mp-disc.spin { animation: disc-rot 6s linear infinite; }
 .mp-disc.paused { animation-play-state: paused; }
@@ -297,25 +611,55 @@ html, body {
 .mp-name { font-size: 13px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mp-artist { font-size: 10px; color: rgba(255,255,255,0.38); margin-top: 2px; }
 .mp-prog-area { padding: 4px 13px 6px; flex-shrink: 0; }
-.mp-prog-track { height: 2px; border-radius: 1px; background: rgba(255,255,255,0.1); position: relative; cursor: pointer; margin-top: 6px; margin-bottom: 8px; }
+.mp-prog-track {
+  height: 2px; border-radius: 1px;
+  background: rgba(255,255,255,0.1);
+  position: relative; cursor: pointer;
+  margin-top: 6px; margin-bottom: 8px;
+}
 .mp-prog-track::before { content: ''; position: absolute; left: 0; right: 0; top: -8px; bottom: -8px; }
-.mp-prog-bg { height: 100%; border-radius: 1px; background: linear-gradient(90deg, var(--accent), var(--accent2)); width: 0%; pointer-events: none; transition: width 0.4s linear; position: relative; }
-.mp-prog-bg::after { content: ''; position: absolute; right: -4px; top: 50%; transform: translateY(-50%); width: 8px; height: 8px; border-radius: 50%; background: var(--accent2); box-shadow: 0 0 0 1.5px rgba(255,119,16,0.7); transition: transform 0.15s, box-shadow 0.15s; }
+.mp-prog-bg {
+  height: 100%; border-radius: 1px;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  width: 0%; pointer-events: none;
+  transition: width 0.4s linear; position: relative;
+}
+.mp-prog-bg::after {
+  content: ''; position: absolute; right: -4px; top: 50%; transform: translateY(-50%);
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--accent2); box-shadow: 0 0 0 1.5px rgba(255,119,16,0.7);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
 .mp-prog-track.dragging .mp-prog-bg { transition: none; }
 .mp-prog-track.dragging .mp-prog-bg::after { transform: translateY(-50%) scale(1.45); box-shadow: 0 0 0 2.5px rgba(255,119,16,0.9); }
 .mp-times { display: flex; justify-content: space-between; font-size: 9px; color: rgba(255,255,255,0.25); }
 .mp-ctrl { display: flex; align-items: center; justify-content: center; gap: 4px; padding: 0px 6px 10px; flex-shrink: 0; }
-.mpb { width: 36px; height: 36px; border-radius: 50%; background: none; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; color: rgba(255,255,255,0.65); transition: color 0.15s, transform 0.1s; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+.mpb {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: none; border: none;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: rgba(255,255,255,0.65);
+  transition: color 0.15s, transform 0.1s;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
 .mpb:active { transform: scale(0.8); color: #fff; }
 .mpb svg { width: 17px; height: 17px; pointer-events: none; }
-.mpb.play { width: 40px; height: 40px; border: 1.5px solid rgba(255,119,16,0.5); color: var(--accent2); }
+.mpb.play {
+  width: 40px; height: 40px;
+  border: 1.5px solid rgba(255,119,16,0.5); color: var(--accent2);
+}
 .mpb.play svg { width: 18px; height: 18px; }
 .mpb.play:active { background: rgba(255,119,16,0.12); }
 .mp-list-area { border-top: 0px solid rgba(255,255,255,0.07); overflow-y: auto; flex-shrink: 0; display: none; }
 .mp-list-area.show { display: block; border-top-width: 1px; }
 .mp-list-area::-webkit-scrollbar { width: 2px; }
 .mp-list-area::-webkit-scrollbar-thumb { background: rgba(255,119,16,0.25); border-radius: 1px; }
-.mp-li { display: flex; align-items: center; gap: 8px; padding: 8px 13px; cursor: pointer; font-size: 11px; color: rgba(255,255,255,0.5); -webkit-tap-highlight-color: transparent; transition: background 0.1s; }
+.mp-li {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 13px; cursor: pointer;
+  font-size: 11px; color: rgba(255,255,255,0.5);
+  -webkit-tap-highlight-color: transparent; transition: background 0.1s;
+}
 .mp-li:active { background: rgba(255,255,255,0.04); }
 .mp-li.on { color: var(--accent2); }
 .mp-li .ln { width:14px; text-align:center; font-size:10px; flex-shrink:0; color:rgba(255,255,255,0.22); }
@@ -325,10 +669,18 @@ html, body {
 .mp-li:hover .ld { opacity:1; }
 .mp-add { display:none; gap:5px; padding:7px 10px 10px; border-top:1px solid rgba(255,255,255,0.06); flex-shrink:0; }
 .mp-add.show { display:flex; }
-.mp-add input { flex:1; background: rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.1); border-radius:8px; color:#fff; font-size:11px; padding:6px 8px; outline:none; }
+.mp-add input {
+  flex:1; background: rgba(255,255,255,0.07);
+  border:1px solid rgba(255,255,255,0.1); border-radius:8px;
+  color:#fff; font-size:11px; padding:6px 8px; outline:none;
+}
 .mp-add input::placeholder { color:rgba(255,255,255,0.22); }
 .mp-add input:focus { border-color: rgba(255,119,16,0.4); }
-.mp-add button { background: rgba(255,119,16,0.18); border:1px solid rgba(255,119,16,0.35); border-radius:8px; color: var(--accent2); font-size:12px; padding:6px 11px; cursor:pointer; }
+.mp-add button {
+  background: rgba(255,119,16,0.18);
+  border:1px solid rgba(255,119,16,0.35); border-radius:8px;
+  color: var(--accent2); font-size:12px; padding:6px 11px; cursor:pointer;
+}
 </style>
 </head>
 <body>
@@ -352,10 +704,6 @@ html, body {
     <button class="drawer-item" id="nav-nodes" onclick="navTo('nodes')">
       <span class="drawer-item-icon">🔗</span>
       <span class="drawer-item-label">节点分享</span>
-    </button>
-    <button class="drawer-item" id="nav-chess" onclick="navTo('chess')">
-      <span class="drawer-item-icon">♞</span>
-      <span class="drawer-item-label">中国象棋</span>
     </button>
   </nav>
   <div class="drawer-footer">2025-2026 第二学期 · 至6月7日</div>
@@ -459,9 +807,7 @@ html, body {
       </div>
     </div>
   </div>
-</div>
-
-<div class="page" id="page-nodes" style="overflow-y:auto;">
+</div><div class="page" id="page-nodes" style="overflow-y:auto;">
   <div class="safe-top"></div>
   <div class="header" style="border-bottom:1px solid var(--border);">
     <div class="header-left">
@@ -469,7 +815,9 @@ html, body {
       <div class="header-title" style="color:var(--accent2);font-size:18px;font-weight:700;">🔗 节点分享</div>
     </div>
   </div>
+
   <div id="nodes-content" style="padding:16px;max-width:480px;margin:0 auto;">
+
     <div id="nodes-login" style="margin-top:40px;">
       <div style="text-align:center;margin-bottom:28px;">
         <div style="font-size:52px;margin-bottom:14px;">🛡️</div>
@@ -477,29 +825,44 @@ html, body {
         <div style="font-size:13px;color:var(--t2);margin-top:7px;">请输入访问密码</div>
       </div>
       <div style="background:var(--glass);backdrop-filter:blur(var(--glass-blur));border:1px solid var(--glass-border);border-radius:18px;padding:22px;box-shadow:inset 0 1px 0 var(--glass-shine);">
-        <input id="nodes-pwd-input" type="password" placeholder="输入密码..." style="width:100%;padding:13px 16px;background:rgba(2,0,41,0.7);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:16px;outline:none;box-sizing:border-box;font-family:'Outfit','PingFang SC',sans-serif;transition:border-color 0.2s;" onkeydown="if(event.key==='Enter')nodesLogin()" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
-        <button onclick="nodesLogin()" style="width:100%;margin-top:13px;padding:14px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:13px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:'Outfit','PingFang SC',sans-serif;box-shadow:0 4px 20px rgba(255,119,16,0.4);transition:transform 0.15s;" onactive="this.style.transform='scale(0.97)'">进入</button>
+        <input id="nodes-pwd-input" type="password" placeholder="输入密码..."
+          style="width:100%;padding:13px 16px;background:rgba(2,0,41,0.7);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:16px;outline:none;box-sizing:border-box;font-family:'Outfit','PingFang SC',sans-serif;transition:border-color 0.2s;"
+          onkeydown="if(event.key==='Enter')nodesLogin()"
+          onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+        <button onclick="nodesLogin()"
+          style="width:100%;margin-top:13px;padding:14px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:13px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:'Outfit','PingFang SC',sans-serif;box-shadow:0 4px 20px rgba(255,119,16,0.4);transition:transform 0.15s;"
+          onactive="this.style.transform='scale(0.97)'">
+          进入
+        </button>
         <div id="nodes-login-err" style="text-align:center;color:#e05050;font-size:13px;margin-top:10px;display:none;font-weight:600;">密码错误，请重试</div>
         <div style="text-align:center;margin-top:16px;">
           <button onclick="showAdminLogin()" style="background:none;border:none;color:var(--t3);font-size:12px;cursor:pointer;font-family:'Outfit','PingFang SC',sans-serif;">管理员入口</button>
         </div>
       </div>
     </div>
+
     <div id="nodes-admin-login" style="margin-top:40px;display:none;">
       <div style="text-align:center;margin-bottom:28px;">
         <div style="font-size:52px;margin-bottom:14px;">⚙️</div>
         <div style="font-size:20px;font-weight:800;color:var(--text);">管理员登录</div>
       </div>
       <div style="background:var(--glass);backdrop-filter:blur(var(--glass-blur));border:1px solid var(--glass-border);border-radius:18px;padding:22px;">
-        <input id="admin-user-input" type="text" placeholder="用户名..." style="width:100%;padding:13px 16px;background:rgba(2,0,41,0.7);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:16px;outline:none;box-sizing:border-box;margin-bottom:11px;font-family:'Outfit','PingFang SC',sans-serif;">
-        <input id="admin-pwd-input" type="password" placeholder="密码..." style="width:100%;padding:13px 16px;background:rgba(2,0,41,0.7);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:16px;outline:none;box-sizing:border-box;font-family:'Outfit','PingFang SC',sans-serif;" onkeydown="if(event.key==='Enter')adminLogin()">
-        <button onclick="adminLogin()" style="width:100%;margin-top:13px;padding:14px;background:linear-gradient(135deg,#4a148c,#6a1cac);border:none;border-radius:13px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:'Outfit','PingFang SC',sans-serif;">进入管理</button>
+        <input id="admin-user-input" type="text" placeholder="用户名..."
+          style="width:100%;padding:13px 16px;background:rgba(2,0,41,0.7);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:16px;outline:none;box-sizing:border-box;margin-bottom:11px;font-family:'Outfit','PingFang SC',sans-serif;">
+        <input id="admin-pwd-input" type="password" placeholder="密码..."
+          style="width:100%;padding:13px 16px;background:rgba(2,0,41,0.7);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:16px;outline:none;box-sizing:border-box;font-family:'Outfit','PingFang SC',sans-serif;"
+          onkeydown="if(event.key==='Enter')adminLogin()">
+        <button onclick="adminLogin()"
+          style="width:100%;margin-top:13px;padding:14px;background:linear-gradient(135deg,#4a148c,#6a1cac);border:none;border-radius:13px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:'Outfit','PingFang SC',sans-serif;">
+          进入管理
+        </button>
         <div id="admin-login-err" style="text-align:center;color:#e05050;font-size:13px;margin-top:10px;display:none;font-weight:600;">用户名或密码错误</div>
         <div style="text-align:center;margin-top:16px;">
           <button onclick="showUserLogin()" style="background:none;border:none;color:var(--t3);font-size:12px;cursor:pointer;font-family:'Outfit','PingFang SC',sans-serif;">← 返回</button>
         </div>
       </div>
     </div>
+
     <div id="nodes-user-panel" style="display:none;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
         <div style="font-size:15px;font-weight:700;color:var(--accent2);">可用节点</div>
@@ -517,12 +880,19 @@ html, body {
         <button onclick="nodesLogout()" style="background:none;border:none;color:var(--t3);font-size:12px;cursor:pointer;font-family:'Outfit','PingFang SC',sans-serif;">退出</button>
       </div>
     </div>
+
     <div id="nodes-admin-panel" style="display:none;">
       <div style="background:var(--glass);backdrop-filter:blur(var(--glass-blur));border:1px solid var(--glass-border);border-radius:16px;padding:18px;margin-bottom:16px;">
         <div style="font-size:14px;font-weight:700;color:var(--accent2);margin-bottom:13px;">📥 导入订阅链接</div>
-        <input id="admin-sub-url" type="text" placeholder="粘贴订阅链接..." style="width:100%;padding:11px 14px;background:rgba(2,0,41,0.7);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;outline:none;box-sizing:border-box;font-family:'Outfit','PingFang SC',sans-serif;">
-        <button onclick="adminImportSub()" style="width:100%;margin-top:10px;padding:12px;background:linear-gradient(135deg,#1a5f30,#2a8040);border:none;border-radius:11px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:'Outfit','PingFang SC',sans-serif;">解析并导入</button>
+        <input id="admin-sub-url" type="text" placeholder="粘贴订阅链接..."
+          style="width:100%;padding:11px 14px;background:rgba(2,0,41,0.7);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;outline:none;box-sizing:border-box;font-family:'Outfit','PingFang SC',sans-serif;">
+        <button onclick="adminImportSub()"
+          style="width:100%;margin-top:10px;padding:12px;background:linear-gradient(135deg,#1a5f30,#2a8040);border:none;border-radius:11px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:'Outfit','PingFang SC',sans-serif;">
+          解析并导入
+        </button>
+        <div id="admin-import-msg" style="text-align:center;font-size:13px;margin-top:9px;display:none;"></div>
       </div>
+
       <div style="background:var(--glass);backdrop-filter:blur(var(--glass-blur));border:1px solid var(--glass-border);border-radius:16px;padding:18px;margin-bottom:16px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:13px;">
           <div style="font-size:14px;font-weight:700;color:var(--accent2);">📋 当前节点</div>
@@ -532,77 +902,87 @@ html, body {
           </div>
         </div>
         <div id="nodes-admin-list" style="display:flex;flex-direction:column;gap:7px;max-height:300px;overflow-y:auto;"></div>
+        <div id="nodes-admin-empty" style="text-align:center;padding:22px;color:var(--t3);display:none;">暂无节点</div>
       </div>
+
+      <div style="background:var(--glass);backdrop-filter:blur(var(--glass-blur));border:1px solid var(--glass-border);border-radius:16px;padding:18px;margin-bottom:16px;">
+        <div style="font-size:14px;font-weight:700;color:var(--accent2);margin-bottom:13px;">🔑 密码管理</div>
+        <div style="font-size:12px;color:var(--t2);margin-bottom:7px;font-weight:600;">用户访问密码</div>
+        <div style="display:flex;gap:8px;margin-bottom:13px;">
+          <input id="admin-set-userpwd" type="text" placeholder="设置用户密码..."
+            style="flex:1;padding:10px 13px;background:rgba(2,0,41,0.7);border:1px solid var(--border);border-radius:9px;color:var(--text);font-size:13px;outline:none;font-family:'Outfit','PingFang SC',sans-serif;">
+          <button onclick="adminSetUserPwd()" style="padding:10px 15px;background:var(--s2);border:1px solid var(--border);border-radius:9px;color:var(--accent2);font-size:13px;cursor:pointer;font-family:'Outfit','PingFang SC',sans-serif;font-weight:600;">保存</button>
+        </div>
+        <div style="font-size:12px;color:var(--t2);margin-bottom:7px;font-weight:600;">Admin密码</div>
+        <div style="display:flex;gap:8px;">
+          <input id="admin-set-adminpwd" type="text" placeholder="修改Admin密码..."
+            style="flex:1;padding:10px 13px;background:rgba(2,0,41,0.7);border:1px solid var(--border);border-radius:9px;color:var(--text);font-size:13px;outline:none;font-family:'Outfit','PingFang SC',sans-serif;">
+          <button onclick="adminSetAdminPwd()" style="padding:10px 15px;background:rgba(100,40,160,0.2);border:1px solid rgba(160,110,221,0.35);border-radius:9px;color:#ce93d8;font-size:13px;cursor:pointer;font-family:'Outfit','PingFang SC',sans-serif;font-weight:600;">保存</button>
+        </div>
+        <div id="admin-pwd-msg" style="text-align:center;font-size:13px;margin-top:9px;display:none;"></div>
+      </div>
+
       <div style="text-align:right;">
         <button onclick="nodesLogout()" style="background:none;border:none;color:var(--t3);font-size:12px;cursor:pointer;font-family:'Outfit','PingFang SC',sans-serif;">退出管理</button>
       </div>
     </div>
+
   </div>
-</div>
-
-<div class="page" id="page-chess">
-  <div class="safe-top"></div>
-  <div class="header stagger">
-    <div class="header-left">
-      <button onclick="openDrawer()" style="background:none;border:none;color:var(--accent);font-size:22px;padding:4px 8px;cursor:pointer;line-height:1;">☰</button>
-      <div class="header-title" style="color:var(--accent2);font-size:18px;font-weight:700;">♞ 中国象棋</div>
-    </div>
-  </div>
-
-  <div class="chess-wrap stagger">
-    <div class="chess-status-card">
-      <div class="c-turn-label">当前回合</div>
-      <div class="c-turn" id="chess-turn-text">红方 (先手)</div>
-    </div>
-
-    <div class="chess-board-container">
-      <svg class="chess-svg" id="chess-bg" xmlns="http://www.w3.org/2000/svg"></svg>
-      <div id="chess-hints"></div>
-      <div id="chess-pieces"></div>
-    </div>
-
-    <div class="chess-btns">
-      <button class="chess-btn" onclick="chessUndo()">↶ 悔棋</button>
-      <button class="chess-btn primary" onclick="chessRestart()">↻ 重新开始</button>
-    </div>
-  </div>
-</div>
-
-<script>
-// --- BACKGROUND EFFECTS ---
+</div><script>
 (function() {
   const canvas = document.getElementById('bg-canvas');
   const ctx = canvas.getContext('2d');
   let W, H, particles = [], frame = 0;
-  const COLORS = ['rgba(255,119,16,', 'rgba(255,153,68,', 'rgba(2,0,41,', 'rgba(30,40,100,', 'rgba(255,85,0,'];
+  const COLORS = [
+    'rgba(255,119,16,',
+    'rgba(255,153,68,',
+    'rgba(2,0,41,',
+    'rgba(30,40,100,',
+    'rgba(255,85,0,',
+  ];
 
-  function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+  function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
 
   class Particle {
     constructor() { this.reset(true); }
     reset(init) {
-      this.x = Math.random() * W; this.y = init ? Math.random() * H : H + 10;
-      this.r = Math.random() * 2.2 + 0.4; this.speed = Math.random() * 0.5 + 0.1;
-      this.drift = (Math.random() - 0.5) * 0.3; this.opacity = Math.random() * 0.55 + 0.1;
+      this.x = Math.random() * W;
+      this.y = init ? Math.random() * H : H + 10;
+      this.r = Math.random() * 2.2 + 0.4;
+      this.speed = Math.random() * 0.5 + 0.1;
+      this.drift = (Math.random() - 0.5) * 0.3;
+      this.opacity = Math.random() * 0.55 + 0.1;
       this.colorBase = COLORS[Math.floor(Math.random() * COLORS.length)];
-      this.twinkle = Math.random() * Math.PI * 2; this.twinkleSpeed = Math.random() * 0.02 + 0.005;
+      this.twinkle = Math.random() * Math.PI * 2;
+      this.twinkleSpeed = Math.random() * 0.02 + 0.005;
       this.pulse = Math.random() * 0.3 + 0.85;
     }
     update() {
-      this.y -= this.speed; this.x += this.drift; this.twinkle += this.twinkleSpeed;
+      this.y -= this.speed;
+      this.x += this.drift;
+      this.twinkle += this.twinkleSpeed;
       this.pulse = 0.85 + Math.sin(this.twinkle) * 0.15;
       if (this.y < -10) this.reset(false);
-      if (this.x < 0) this.x = W; if (this.x > W) this.x = 0;
+      if (this.x < 0) this.x = W;
+      if (this.x > W) this.x = 0;
     }
     draw() {
       const a = this.opacity * this.pulse;
-      ctx.beginPath(); ctx.arc(this.x, this.y, this.r * this.pulse, 0, Math.PI * 2);
-      ctx.fillStyle = this.colorBase + a + ')'; ctx.fill();
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.r * this.pulse, 0, Math.PI * 2);
+      ctx.fillStyle = this.colorBase + a + ')';
+      ctx.fill();
       if (this.r > 1.5) {
-        ctx.beginPath(); ctx.arc(this.x, this.y, this.r * 2.5, 0, Math.PI * 2);
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.r * 2.5, 0, Math.PI * 2);
         const g = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.r * 2.5);
-        g.addColorStop(0, this.colorBase + (a * 0.4) + ')'); g.addColorStop(1, this.colorBase + '0)');
-        ctx.fillStyle = g; ctx.fill();
+        g.addColorStop(0, this.colorBase + (a * 0.4) + ')');
+        g.addColorStop(1, this.colorBase + '0)');
+        ctx.fillStyle = g;
+        ctx.fill();
       }
     }
   }
@@ -610,602 +990,431 @@ html, body {
   class FlowLine {
     constructor() { this.reset(true); }
     reset(init) {
-      this.x = Math.random() * W; this.y = init ? Math.random() * H : H + 20;
-      this.len = Math.random() * 60 + 20; this.speed = Math.random() * 0.8 + 0.2;
-      this.opacity = Math.random() * 0.12 + 0.03; this.colorBase = COLORS[Math.floor(Math.random() * COLORS.length)];
+      this.x = Math.random() * W;
+      this.y = init ? Math.random() * H : H + 20;
+      this.len = Math.random() * 60 + 20;
+      this.speed = Math.random() * 0.8 + 0.2;
+      this.opacity = Math.random() * 0.12 + 0.03;
+      this.colorBase = COLORS[Math.floor(Math.random() * COLORS.length)];
     }
-    update() { this.y -= this.speed; if (this.y + this.len < 0) this.reset(false); }
+    update() {
+      this.y -= this.speed;
+      if (this.y + this.len < 0) this.reset(false);
+    }
     draw() {
       const grad = ctx.createLinearGradient(this.x, this.y + this.len, this.x, this.y);
-      grad.addColorStop(0, this.colorBase + '0)'); grad.addColorStop(0.5, this.colorBase + this.opacity + ')'); grad.addColorStop(1, this.colorBase + '0)');
-      ctx.strokeStyle = grad; ctx.lineWidth = 0.8; ctx.beginPath();
-      ctx.moveTo(this.x, this.y + this.len); ctx.lineTo(this.x, this.y); ctx.stroke();
+      grad.addColorStop(0, this.colorBase + '0)');
+      grad.addColorStop(0.5, this.colorBase + this.opacity + ')');
+      grad.addColorStop(1, this.colorBase + '0)');
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.moveTo(this.x, this.y + this.len);
+      ctx.lineTo(this.x, this.y);
+      ctx.stroke();
     }
   }
 
   function init() {
-    resize(); particles = [];
+    resize();
+    particles = [];
     const N_PARTS = Math.min(120, Math.floor(W * H / 8000));
     const N_LINES = Math.min(30, Math.floor(W / 60));
     for (let i = 0; i < N_PARTS; i++) particles.push(new Particle());
     for (let i = 0; i < N_LINES; i++) particles.push(new FlowLine());
   }
+
   function loop() {
     ctx.clearRect(0, 0, W, H);
     const grad = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, Math.max(W,H)*0.7);
-    grad.addColorStop(0, 'rgba(2, 0, 41, 0.0)'); grad.addColorStop(1, 'rgba(2, 0, 41, 0.6)');
-    ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
-    particles.forEach(p => { p.update(); p.draw(); }); frame++; requestAnimationFrame(loop);
+    grad.addColorStop(0, 'rgba(2, 0, 41, 0.0)');
+    grad.addColorStop(1, 'rgba(2, 0, 41, 0.6)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+    particles.forEach(p => { p.update(); p.draw(); });
+    frame++;
+    requestAnimationFrame(loop);
   }
+
   window.addEventListener('resize', () => { resize(); });
-  init(); loop();
+  init();
+  loop();
 })();
 </script>
 
 <script>
-// --- CORE LOGIC & SCHEDULE & NODES ---
 let _toastTimer = null;
 function showToast(msg, type = 'info', duration = 2500) {
   const wrap = document.getElementById('g-toast');
   const inner = document.getElementById('g-toast-inner');
-  inner.className = type; inner.textContent = msg;
+  inner.className = type;
+  inner.textContent = msg;
   wrap.classList.add('show');
   if (_toastTimer) clearTimeout(_toastTimer);
   _toastTimer = setTimeout(() => wrap.classList.remove('show'), duration);
 }
 
-let nodesRole = null; let nodesAdminPwd = ''; let nodesAdminUser = ''; let nodesAllNodes = [];
-function showUserLogin() { $('nodes-login').style.display = ''; $('nodes-admin-login').style.display = 'none'; $('nodes-user-panel').style.display = 'none'; $('nodes-admin-panel').style.display = 'none'; }
-function showAdminLogin() { $('nodes-login').style.display = 'none'; $('nodes-admin-login').style.display = ''; }
-function nodesLogout() { nodesRole = null; nodesAdminPwd = ''; nodesAdminUser = ''; if (window.musicSetAdminMode) musicSetAdminMode(false); showUserLogin(); showToast('已退出登录', 'info'); }
+let nodesRole = null;
+let nodesAdminPwd = '';
+let nodesAdminUser = '';
+let nodesAllNodes = [];
+function adminApi(body) {
+  return fetch('/api/nodes', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ adminUser: nodesAdminUser, adminPass: nodesAdminPwd, ...body })
+  });
+}
+
+function showUserLogin() {
+  document.getElementById('nodes-login').style.display = '';
+  document.getElementById('nodes-admin-login').style.display = 'none';
+  document.getElementById('nodes-user-panel').style.display = 'none';
+  document.getElementById('nodes-admin-panel').style.display = 'none';
+}
+function showAdminLogin() {
+  document.getElementById('nodes-login').style.display = 'none';
+  document.getElementById('nodes-admin-login').style.display = '';
+}
+function nodesLogout() {
+  nodesRole = null; nodesAdminPwd = '';
+  nodesAdminUser = '';
+  if (window.musicSetAdminMode) musicSetAdminMode(false);
+  showUserLogin();
+  showToast('已退出登录', 'info');
+}
 
 async function nodesLogin() {
-  const pwd = $('nodes-pwd-input').value.trim();
+  const pwd = document.getElementById('nodes-pwd-input').value.trim();
   if (!pwd) { showToast('⚠️ 请输入密码', 'error'); return; }
+  const btn = document.querySelector('#nodes-login button');
+  btn.textContent = '验证中...'; btn.disabled = true;
   try {
     const r = await fetch('/api/nodes?pwd=' + encodeURIComponent(pwd));
-    if (!r.ok) { showToast('❌ 密码错误，请重试', 'error'); $('nodes-pwd-input').value = ''; $('nodes-pwd-input').focus(); return; }
-    nodesRole = 'user'; nodesAllNodes = await r.json(); renderUserNodes();
-    $('nodes-login').style.display = 'none'; $('nodes-user-panel').style.display = '';
+    if (!r.ok) {
+      showToast('❌ 密码错误，请重试', 'error');
+      document.getElementById('nodes-pwd-input').value = '';
+      document.getElementById('nodes-pwd-input').focus();
+      return;
+    }
+    nodesRole = 'user';
+    nodesAllNodes = await r.json();
+    renderUserNodes();
+    document.getElementById('nodes-login').style.display = 'none';
+    document.getElementById('nodes-user-panel').style.display = '';
     showToast('✅ 登录成功', 'success');
   } catch { showToast('❌ 网络错误，请重试', 'error'); }
+  finally { btn.textContent = '进入'; btn.disabled = false; }
 }
+
 async function adminLogin() {
-  const user = $('admin-user-input').value.trim(), pwd = $('admin-pwd-input').value.trim();
+  const user = document.getElementById('admin-user-input').value.trim();
+  const pwd = document.getElementById('admin-pwd-input').value.trim();
   if (!user || !pwd) { showToast('⚠️ 请输入用户名和密码', 'error'); return; }
+  const btn = document.querySelector('#nodes-admin-login button');
+  btn.textContent = '验证中...';
+  btn.disabled = true;
   try {
-    const r = await fetch('/api/nodes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ adminUser: user, adminPass: pwd, action: 'getNodes' }) });
-    if (r.status === 401) { showToast('❌ 错误', 'error'); return; }
-    const data = await r.json(); nodesRole = 'admin'; nodesAdminUser = user; nodesAdminPwd = pwd;
+    const r = await fetch('/api/nodes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ adminUser: user, adminPass: pwd, action: 'getNodes' })
+    });
+    if (r.status === 401) {
+      showToast('❌ 用户名或密码错误', 'error');
+      document.getElementById('admin-pwd-input').value = '';
+      document.getElementById('admin-pwd-input').focus();
+      return;
+    }
+    const data = await r.json();
+    nodesRole = 'admin'; nodesAdminUser = user; nodesAdminPwd = pwd;
     if (window.musicSetAdminMode) musicSetAdminMode(true);
-    nodesAllNodes = data.nodes || []; renderAdminNodes();
-    $('nodes-admin-login').style.display = 'none'; $('nodes-admin-panel').style.display = '';
+    nodesAllNodes = data.nodes || [];
+    renderAdminNodes();
+    document.getElementById('nodes-admin-login').style.display = 'none';
+    document.getElementById('nodes-admin-panel').style.display = '';
     showToast('✅ 进入管理后台', 'success');
-  } catch { showToast('❌ 网络错误', 'error'); }
+  } catch { showToast('❌ 网络错误，请重试', 'error'); }
+  finally { btn.textContent = '进入管理'; btn.disabled = false; }
 }
+
 function renderUserNodes() {
   const list = document.getElementById('nodes-user-list');
   const empty = document.getElementById('nodes-user-empty');
-  if (!nodesAllNodes || !nodesAllNodes.length) {
-    list.innerHTML = ''; empty.style.display = '';
-    return;
-  }
+  if (!nodesAllNodes.length) { list.innerHTML = ''; empty.style.display = ''; return; }
   empty.style.display = 'none';
   list.innerHTML = nodesAllNodes.map((n, i) => `
-    <div style="background:var(--glass);backdrop-filter:blur(var(--glass-blur));border:1px solid var(--glass-border);border-radius:13px;padding:13px 15px;display:flex;align-items:center;gap:11px;">
-      <input type="checkbox" id="nc${i}" style="width:17px;height:17px;accent-color:var(--accent);flex-shrink:0;cursor:pointer;">
+    <label style="display:flex;align-items:center;gap:10px;background:var(--glass);backdrop-filter:blur(12px);border:1px solid var(--glass-border);border-radius:12px;padding:13px;cursor:pointer;">
+      <input type="checkbox" data-idx="${i}" style="width:18px;height:18px;accent-color:var(--accent);flex-shrink:0;">
       <div style="flex:1;min-width:0;">
-        <div style="font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${n.name||'未命名节点'}</div>
-        <div style="font-size:11px;color:var(--t3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${n.url||''}</div>
+        <div style="font-size:14px;color:var(--text);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${n.name}</div>
+        <div style="font-size:11px;color:var(--t3);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${n.raw.slice(0,40)}...</div>
       </div>
-      <button onclick="event.stopPropagation();navigator.clipboard&&navigator.clipboard.writeText('${(n.url||'').replace(/'/g,"\\'")}').then(()=>showToast('已复制','success')).catch(()=>showToast('复制失败','error'))" style="background:rgba(255,119,16,0.12);border:1px solid rgba(255,119,16,0.25);border-radius:8px;color:var(--accent2);font-size:12px;padding:5px 10px;cursor:pointer;flex-shrink:0;font-family:'Outfit','PingFang SC',sans-serif;font-weight:600;">复制</button>
-    </div>`).join('');
+    </label>
+  `).join('');
 }
+
 function nodesSelectAll() {
-  document.querySelectorAll('#nodes-user-list input[type=checkbox]').forEach(cb => cb.checked = true);
+  document.querySelectorAll('#nodes-user-list input[type=checkbox]').forEach(c => c.checked = true);
 }
-function nodesCopySelected() {
-  const checked = [...document.querySelectorAll('#nodes-user-list input[type=checkbox]')].filter(cb => cb.checked);
-  if (!checked.length) { showToast('请先选择节点', 'error'); return; }
-  const urls = checked.map(cb => {
-    const i = parseInt(cb.id.replace('nc',''));
-    return nodesAllNodes[i]?.url||'';
-  }).filter(Boolean).join('\n');
-  navigator.clipboard && navigator.clipboard.writeText(urls).then(() => showToast(`已复制 ${checked.length} 个节点`, 'success')).catch(() => showToast('复制失败', 'error'));
+
+async function nodesCopySelected() {
+  const selected = [...document.querySelectorAll('#nodes-user-list input[type=checkbox]:checked')]
+    .map(c => nodesAllNodes[+c.dataset.idx].raw);
+  if (!selected.length) { showToast('⚠️ 请先选择节点', 'error'); return; }
+  try {
+    await navigator.clipboard.writeText(selected.join('\n'));
+    showToast(`✅ 已复制 ${selected.length} 个节点`, 'success', 3000);
+  } catch { showToast('❌ 复制失败，请手动复制', 'error'); }
 }
 
 function renderAdminNodes() {
   const list = document.getElementById('nodes-admin-list');
-  if (!nodesAllNodes || !nodesAllNodes.length) {
-    list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--t3);font-size:13px;">暂无节点</div>';
-    return;
-  }
+  const empty = document.getElementById('nodes-admin-empty');
+  if (!nodesAllNodes.length) { list.innerHTML = ''; empty.style.display = ''; return; }
+  empty.style.display = 'none';
   list.innerHTML = nodesAllNodes.map((n, i) => `
-    <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(10,10,60,0.4);border-radius:9px;border:1px solid var(--border);">
-      <input type="checkbox" id="anc${i}" style="width:15px;height:15px;accent-color:var(--accent);flex-shrink:0;cursor:pointer;">
+    <label style="display:flex;align-items:center;gap:8px;background:rgba(2,0,41,0.6);border:1px solid var(--border);border-radius:9px;padding:10px;cursor:pointer;">
+      <input type="checkbox" data-idx="${i}" style="width:16px;height:16px;accent-color:#e05050;flex-shrink:0;">
       <div style="flex:1;min-width:0;">
-        <div style="font-size:12px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${n.name||'未命名'}</div>
-        <div style="font-size:10px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${n.url||''}</div>
+        <div style="font-size:13px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${n.name}</div>
       </div>
-    </div>`).join('');
-}
-async function adminDeleteSelected() {
-  const checked = [...document.querySelectorAll('#nodes-admin-list input[type=checkbox]')].filter(cb => cb.checked);
-  if (!checked.length) { showToast('请先选择节点', 'error'); return; }
-  const idxs = new Set(checked.map(cb => parseInt(cb.id.replace('anc',''))));
-  nodesAllNodes = nodesAllNodes.filter((_, i) => !idxs.has(i));
-  await adminSaveNodes();
-  renderAdminNodes();
-  showToast(`已删除 ${checked.size||idxs.size} 个节点`, 'success');
-}
-async function adminClearAll() {
-  if (!confirm('确定清空全部节点？')) return;
-  nodesAllNodes = [];
-  await adminSaveNodes();
-  renderAdminNodes();
-  showToast('已清空全部节点', 'info');
-}
-async function adminSaveNodes() {
-  try {
-    await fetch('/api/nodes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ adminUser: nodesAdminUser, adminPass: nodesAdminPwd, action: 'setNodes', nodes: nodesAllNodes }) });
-  } catch(e) { showToast('保存失败', 'error'); }
-}
-async function adminImportSub() {
-  const url = document.getElementById('admin-sub-url').value.trim();
-  if (!url) { showToast('请输入订阅链接', 'error'); return; }
-  showToast('解析中...', 'info', 8000);
-  try {
-    const r = await fetch('/api/nodes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ adminUser: nodesAdminUser, adminPass: nodesAdminPwd, action: 'importSub', url }) });
-    const d = await r.json();
-    if (d.ok) {
-      nodesAllNodes = d.nodes || nodesAllNodes;
-      renderAdminNodes();
-      showToast(`✅ 导入成功，共 ${nodesAllNodes.length} 个节点`, 'success');
-      document.getElementById('admin-sub-url').value = '';
-    } else { showToast('❌ 解析失败: ' + (d.error||'未知错误'), 'error'); }
-  } catch(e) { showToast('❌ 网络错误', 'error'); }
+    </label>
+  `).join('');
 }
 
-let currentPage = 'schedule'; let _navLock = false; window.chessInitialized = false;
+async function adminImportSub() {
+  const url = document.getElementById('admin-sub-url').value.trim();
+  if (!url) { showToast('⚠️ 请输入订阅链接', 'error'); return; }
+  showToast('⏳ 解析中...', 'info', 10000);
+  try {
+    const r = await fetch('/api/nodes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ adminUser: nodesAdminUser, adminPass: nodesAdminPwd, action: 'importSub', subUrl: url })
+    });
+    const data = await r.json();
+    if (data.ok) {
+      showToast(`✅ 成功导入 ${data.count} 个节点`, 'success', 3000);
+      nodesAllNodes = [...nodesAllNodes, ...(data.nodes || [])];
+      renderAdminNodes();
+      document.getElementById('admin-sub-url').value = '';
+    } else { showToast('❌ ' + (data.msg || '导入失败'), 'error'); }
+  } catch { showToast('❌ 网络错误', 'error'); }
+}
+
+async function adminDeleteSelected() {
+  const idxs = [...document.querySelectorAll('#nodes-admin-list input[type=checkbox]:checked')]
+    .map(c => +c.dataset.idx);
+  if (!idxs.length) { showToast('⚠️ 请先勾选要删除的节点', 'error'); return; }
+  try {
+    const r = await fetch('/api/nodes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ adminUser: nodesAdminUser, adminPass: nodesAdminPwd, action: 'deleteNodes', indexes: idxs })
+    });
+    if ((await r.json()).ok) {
+      nodesAllNodes = nodesAllNodes.filter((_, i) => !idxs.includes(i));
+      renderAdminNodes();
+      showToast(`✅ 已删除 ${idxs.length} 个节点`, 'success');
+    }
+  } catch { showToast('❌ 删除失败', 'error'); }
+}
+
+async function adminClearAll() {
+  if (!confirm('确认清空所有节点？此操作不可恢复！')) return;
+  try {
+    await fetch('/api/nodes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ adminUser: nodesAdminUser, adminPass: nodesAdminPwd, action: 'clearNodes' })
+    });
+    nodesAllNodes = []; renderAdminNodes();
+    showToast('✅ 已清空所有节点', 'success');
+  } catch { showToast('❌ 操作失败', 'error'); }
+}
+
+async function adminSetUserPwd() {
+  const pwd = document.getElementById('admin-set-userpwd').value.trim();
+  if (!pwd) { showToast('⚠️ 请输入新密码', 'error'); return; }
+  try {
+    const r = await fetch('/api/nodes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ adminUser: nodesAdminUser, adminPass: nodesAdminPwd, action: 'setUserPwd', pwd })
+    });
+    if ((await r.json()).ok) {
+      showToast('✅ 用户密码已更新', 'success');
+      document.getElementById('admin-set-userpwd').value = '';
+    } else { showToast('❌ 更新失败', 'error'); }
+  } catch { showToast('❌ 网络错误', 'error'); }
+}
+
+async function adminSetAdminPwd() {
+  const newPwd = document.getElementById('admin-set-adminpwd').value.trim();
+  if (!newPwd) { showToast('⚠️ 请输入新密码', 'error'); return; }
+  try {
+    const r = await fetch('/api/nodes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ adminUser: nodesAdminUser, adminPass: nodesAdminPwd, action: 'setAdminCred', newUser: nodesAdminUser, newPass: newPwd })
+    });
+    if ((await r.json()).ok) {
+      nodesAdminPwd = newPwd;
+      showToast('✅ Admin密码已更新', 'success');
+      document.getElementById('admin-set-adminpwd').value = '';
+    } else { showToast('❌ 更新失败', 'error'); }
+  } catch { showToast('❌ 网络错误', 'error'); }
+}
+</script>
+
+<script>
+let currentPage = 'schedule';
+let _navLock = false;
 
 function navTo(page) {
   closeDrawer();
   if (page === currentPage || _navLock) return;
-  _navLock = true; setTimeout(() => _navLock = false, 480);
+  _navLock = true;
+  setTimeout(() => _navLock = false, 480);
   const from = document.getElementById('page-' + currentPage);
   const to   = document.getElementById('page-' + page);
-  
-  if (page === 'nodes' || page === 'chess') {
-    from.classList.add('behind'); from.classList.remove('active');
+  if (page === 'nodes') {
+    from.classList.add('behind');
+    from.classList.remove('active');
     to.style.transform = 'translateX(100%)';
     requestAnimationFrame(() => {
       to.classList.add('active');
       requestAnimationFrame(() => { to.style.transform = ''; });
     });
     if (page === 'nodes' && !nodesRole) showUserLogin();
-    if (page === 'chess' && !window.chessInitialized) { initChessBoard(); chessRestart(); window.chessInitialized = true; }
   } else {
     to.classList.remove('behind');
     requestAnimationFrame(() => {
-      to.classList.add('active'); from.classList.remove('active');
+      to.classList.add('active');
+      from.classList.remove('active');
     });
   }
 
   document.getElementById('nav-schedule').classList.toggle('active', page === 'schedule');
   document.getElementById('nav-nodes').classList.toggle('active', page === 'nodes');
-  const nc = document.getElementById('nav-chess');
-  if(nc) nc.classList.toggle('active', page === 'chess');
   currentPage = page;
 }
 
-function openDrawer() { document.getElementById('drawer').classList.add('open'); document.getElementById('drawerOverlay').classList.add('open'); }
-function closeDrawer() { document.getElementById('drawer').classList.remove('open'); document.getElementById('drawerOverlay').classList.remove('open'); }
-function sw(i){ document.querySelectorAll('.seg-btn').forEach((b,j)=>b.classList.toggle('active',j===i)); document.querySelectorAll('.day-view').forEach((d,j)=>d.classList.toggle('active',j===i)); }
+function openDrawer() {
+  document.getElementById('drawer').classList.add('open');
+  document.getElementById('drawerOverlay').classList.add('open');
+}
+function closeDrawer() {
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('drawerOverlay').classList.remove('open');
+}
 
+const DEFAULT_S=[
+  [{s:'化学',t:'孙文军',k:'m'},{s:'生物',t:'白永乾',k:'m'},{s:'数学',t:'严云春',k:'m'},null,{s:'语文',t:'王诗雨',k:'m'},{s:'外语',t:'李姜苇',k:'m'},null,{s:'体育与健康',t:'孙卫理',k:'a'},{s:'物理',t:'陈科仲',k:'a'},{s:'物理',t:'陈科仲',k:'a'},{s:'班会/团组织生活',t:'',k:'x'}],
+  [{s:'数学',t:'严云春',k:'m'},{s:'外语',t:'李姜苇',k:'m'},{s:'外语',t:'李姜苇',k:'m'},null,{s:'化学',t:'孙文军',k:'m'},{s:'化学',t:'孙文军',k:'m'},null,{s:'生物',t:'白永乾',k:'a'},{s:'语文',t:'王诗雨',k:'a'},{s:'语文',t:'王诗雨',k:'a'},{s:'物理',t:'陈科仲',k:'a'}],
+  [{s:'外语',t:'李姜苇',k:'m'},{s:'物理',t:'陈科仲',k:'m'},{s:'生物',t:'白永乾',k:'m'},null,{s:'数学',t:'严云春',k:'m'},{s:'化学',t:'孙文军',k:'m'},null,{s:'语文',t:'王诗雨',k:'a'},{s:'周考/心理健康',t:'',k:'x'},{s:'周考/心理健康',t:'',k:'x'},{s:'周考/心理健康',t:'',k:'x'}],
+  [{s:'物理',t:'陈科仲',k:'m'},{s:'数学',t:'严云春',k:'m'},{s:'数学',t:'严云春',k:'m'},null,{s:'化学',t:'孙文军',k:'m'},{s:'语文',t:'王诗雨',k:'m'},null,{s:'体育与健康',t:'孙卫理',k:'a'},{s:'生物',t:'白永乾',k:'a'},{s:'外语',t:'李姜苇',k:'a'},{s:'外语',t:'李姜苇',k:'a'}],
+  [{s:'生物',t:'白永乾',k:'m'},{s:'生物',t:'白永乾',k:'m'},{s:'外语',t:'李姜苇',k:'m'},null,{s:'语文',t:'王诗雨',k:'m'},{s:'语文',t:'王诗雨',k:'m'},null,{s:'物理',t:'陈科仲',k:'a'},{s:'化学',t:'孙文军',k:'a'},{s:'数学',t:'严云春',k:'a'},{s:'数学',t:'严云春',k:'a'}],
+  [{s:'语文',t:'王诗雨',k:'m'},{s:'数学',t:'严云春',k:'m'},{s:'外语',t:'李姜苇',k:'m'},null,{s:'周考2',t:'',k:'x'},{s:'周考2',t:'',k:'x'},null,{s:'生物',t:'白永乾',k:'a'},{s:'物理',t:'陈科仲',k:'a'},{s:'化学',t:'孙文军',k:'a'},{s:'—',t:'',k:'a'}],
+];
+const DEFAULT_EV={'2026-02-23':['龙安凤','吴斌'],'2026-02-24':['陈科仲','—'],'2026-02-25':['白永乾','—'],'2026-02-26':['孙文军','许官月'],'2026-02-27':['李姜苇','荀晓琳'],'2026-03-02':['王诗雨','王诗雨'],'2026-03-03':['严云春','廖春水'],'2026-03-04':['陈科仲','罩志涛'],'2026-03-05':['白永乾','—'],'2026-03-09':['孙文军','华娉'],'2026-03-10':['李姜苇','温泉'],'2026-03-11':['王诗雨','严云春'],'2026-03-12':['严云春','荀晓琳'],'2026-03-16':['陈科仲','张熙'],'2026-03-17':['白永乾','陈天野'],'2026-03-18':['孙文军','罩志涛'],'2026-03-19':['李姜苇','李姜苇'],'2026-03-20':['王诗雨','王诗雨'],'2026-03-23':['严云春','华娉'],'2026-03-24':['陈科仲','朱江培'],'2026-03-25':['白永乾','张捷'],'2026-03-26':['孙文军','戴斌'],'2026-03-27':['李姜苇','廖春水'],'2026-03-28':['龙安凤','吴斌']};
+const DEFAULT_SJ={'2026-03-02':'选考科目1','2026-03-03':'语文','2026-03-05':'外语','2026-03-09':'物理/历史','2026-03-10':'听力','2026-03-11':'语文','2026-03-13':'数学','2026-03-16':'选考科目1','2026-03-17':'语文','2026-03-19':'外语','2026-03-20':'综合（取消）','2026-03-21':'物理/历史','2026-03-23':'物理/历史','2026-03-24':'听力','2026-03-25':'外语','2026-03-26':'数学','2026-03-27':'选考科目2','2026-03-28':'周考暂停统一加课','2026-03-30':'联考（智定）','2026-04-02':'选考科目2','2026-04-03':'外语'};
+const TM=['7:40~8:20','8:30~9:10','9:20~10:00',null,'10:30~11:15','11:25~12:05',null,'2:00~2:40','2:50~3:30','3:40~4:25','4:35~5:15'];
+const NM=[1,2,3,null,4,5,null,6,7,8,9];
+let S,EV,SJ;
+const ANTHROPIC_KEY='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';
+function loadCredentials(){}
+function saveCredentials(){}
+async function loadFromKV(silent=false){
+  try{
+    if(!silent)document.getElementById('syncIndicator').textContent='正在同步数据…';
+    const res=await fetch('/api/schedule');
+    if(!res.ok)throw new Error('KV fetch failed');
+    const content=await res.json();
+    if(content&&(content.S||content.EV||content.SJ)){
+      S=content.S||DEFAULT_S;EV=content.EV||DEFAULT_EV;SJ=content.SJ||DEFAULT_SJ;
+      document.getElementById('syncIndicator').textContent='✓ 已同步 · '+new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
+    } else {
+      S=DEFAULT_S;EV=DEFAULT_EV;SJ=DEFAULT_SJ;
+      document.getElementById('syncIndicator').textContent='✓ 使用默认数据';
+    }
+  }catch(e){
+    S=DEFAULT_S;EV=DEFAULT_EV;SJ=DEFAULT_SJ;
+    document.getElementById('syncIndicator').textContent='⚠ 使用本地默认数据';
+  }
+  document.getElementById('content').innerHTML=''; build(); updateToday();
+}
+async function refreshData(){await loadFromKV(true);}
+async function saveToKV(newData){
+  const res=await fetch('/api/schedule',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(newData)});
+  if(!res.ok)throw new Error('KV 保存失败');
+  return true;
+}
+let currentTab='sj',currentFile=null,parsedData=null;
+function openAdmin(){loadCredentials();document.getElementById('adminModal').classList.add('open');}
+function closeAdmin(){document.getElementById('adminModal').classList.remove('open');}
+function setTab(t){currentTab=t;document.querySelectorAll('.utab').forEach(b=>b.classList.remove('active'));document.getElementById('tab-'+t).classList.add('active');resetUpload();}
+function resetUpload(){currentFile=null;parsedData=null;document.getElementById('previewImg').style.display='none';document.getElementById('previewImg').src='';document.getElementById('parseBtn').disabled=true;document.getElementById('statusBox').className='status-box';document.getElementById('previewSection').className='preview-section';document.getElementById('fileInput').value='';}
+function cancelPreview(){parsedData=null;document.getElementById('previewSection').className='preview-section';document.getElementById('statusBox').className='status-box';}
+function handleFile(e){const file=e.target.files[0];if(!file)return;currentFile=file;const reader=new FileReader();reader.onload=ev=>{const img=document.getElementById('previewImg');img.src=ev.target.result;img.style.display='block';};reader.readAsDataURL(file);document.getElementById('parseBtn').disabled=false;}
+const ua=document.getElementById('uploadArea');
+ua.addEventListener('dragover',e=>{e.preventDefault();ua.classList.add('drag');});
+ua.addEventListener('dragleave',()=>ua.classList.remove('drag'));
+ua.addEventListener('drop',e=>{e.preventDefault();ua.classList.remove('drag');const file=e.dataTransfer.files[0];if(file){currentFile=file;handleFile({target:{files:[file]}});}});
+function setStatus(msg,type=''){const b=document.getElementById('statusBox');b.className='status-box show';b.innerHTML=`<span class="status-${type}">${msg}</span>`;}
+async function parseImage(){
+  if(!currentFile){setStatus('请先选择图片','err');return;}
+  const btn=document.getElementById('parseBtn');btn.disabled=true;btn.classList.add('loading');btn.textContent='⏳ 识别中…';setStatus('正在上传图片并识别，请稍候…');
+  try{
+    const b64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(currentFile);});
+    const mediaType=currentFile.type||'image/jpeg';
+    const prompts={sj:`这是一张高中三基测试安排表，请识别表格中高三年级（高三年级/高三三年级/高三班）的三基测试安排。\n请以 JSON 格式输出，格式为：{"SJ": {"YYYY-MM-DD": "科目名称", ...}}\n日期格式必须为 YYYY-MM-DD（如 2026-03-02）。\n只输出 JSON，不要任何其他文字。`,ev:`这是贵阳八中2025-2026学年第二学期高三年级晚自习课表，请识别高三(3)班的晚自习安排。\n一段晚自习时间18:30-20:30，二段晚自习时间20:50-22:00。\n请以 JSON 格式输出，格式为：{"EV": {"YYYY-MM-DD": ["一段老师姓名", "二段老师姓名"], ...}}\n如果某天没有晚自习（周末等），不要包含该日期。\n日期格式必须为 YYYY-MM-DD（如 2026-03-02）。\n只输出 JSON，不要任何其他文字。`,sc:`这是贵阳八中高三(3)班课程表，请识别完整课程安排。\n课程表格式：每天11个时间槽（含课间休息）：\n时间槽索引0-10对应：第1节、第2节、第3节、课间操、第4节、第5节、午休、第6节、第7节、第8节、第9节\n每节课有科目和教师。课间操和午休填 null。\n星期一到星期六，共6天。\n请以 JSON 格式输出：{"S": [[{s:"科目",t:"老师",k:"m或a或x"}, null, ...], ...]}\nk值规则：上午课填"m"，下午课填"a"，考试/班会等特殊课填"x"，课间/午休填 null。\n只输出 JSON，不要任何其他文字。`};
+    const response=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':ANTHROPIC_KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-opus-4-5',max_tokens:4096,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:mediaType,data:b64}},{type:'text',text:prompts[currentTab]}]}]})});
+    if(!response.ok){const err=await response.json();throw new Error(err.error?.message||`API错误 ${response.status}`);}
+    const result=await response.json();const text=result.content.map(c=>c.text||'').join('');
+    const jsonMatch=text.match(/\{[\s\S]*\}/);if(!jsonMatch)throw new Error('AI 未返回有效 JSON，请重试');
+    parsedData=JSON.parse(jsonMatch[0]);
+    document.getElementById('previewJson').textContent=JSON.stringify(parsedData,null,2);
+    document.getElementById('previewSection').className='preview-section show';
+    setStatus('✓ 识别成功！请检查下方结果，确认无误后点击保存。','ok');
+  }catch(e){setStatus('❌ 识别失败：'+e.message,'err');}
+  finally{btn.disabled=false;btn.classList.remove('loading');btn.textContent='🔍 识别图片内容';}
+}
+async function confirmSave(){
+  if(!parsedData)return;const btn=document.querySelector('.btn-confirm');btn.disabled=true;btn.textContent='保存中…';
+  try{saveCredentials();const current={S:S||DEFAULT_S,EV:EV||DEFAULT_EV,SJ:SJ||DEFAULT_SJ};if(parsedData.SJ)current.SJ={...current.SJ,...parsedData.SJ};if(parsedData.EV)current.EV={...current.EV,...parsedData.EV};if(parsedData.S)current.S=parsedData.S;
+    await saveToKV(current);S=current.S;EV=current.EV;SJ=current.SJ;
+    document.getElementById('content').innerHTML='';build();updateToday();setStatus('✅ 已保存！','ok');document.getElementById('previewSection').className='preview-section';setTimeout(closeAdmin,1500);
+  }catch(e){setStatus('❌ 保存失败：'+e.message,'err');}
+  finally{btn.disabled=false;btn.textContent='✓ 确认保存';}
+}
+function build(){
+  const c=document.getElementById('content');S.forEach(day=>{
+    const div=document.createElement('div');div.className='day-view';let mp=[],ap=[];
+    day.forEach((p,i)=>{if(!p)return;const n=NM[i];if(n&&n<=5)mp.push({p,i});else if(n&&n>=6)ap.push({p,i});});
+    let h='';
+    if(mp.length){h+='<div class="sec-title">上午</div><div class="plist">';mp.forEach(({p,i})=>{const dc=p.k==='x'?'ds':'dm';const sc=p.k==='x'?'psubj sp':'psubj';h+=`<div class="prow"><div class="pdot ${dc}">${NM[i]}</div><div class="pmain"><div class="${sc}">${p.s||'—'}</div>${p.t?`<div class="pteacher">${p.t}</div>`:''}</div><div class="ptime">${TM[i]||''}</div></div>`;});h+='</div>';}
+    h+='<div class="break-pill">· · ·</div>';
+    if(ap.length){h+='<div class="sec-title">下午</div><div class="plist">';ap.forEach(({p,i})=>{const dc=p.k==='x'?'ds':'da';const sc=p.k==='x'?'psubj sp':'psubj';h+=`<div class="prow"><div class="pdot ${dc}">${NM[i]}</div><div class="pmain"><div class="${sc}">${p.s||'—'}</div>${p.t?`<div class="pteacher">${p.t}</div>`:''}</div><div class="ptime">${TM[i]||''}</div></div>`;});h+='</div>';}
+    div.innerHTML=h;c.appendChild(div);
+  });
+}
+function pad(n){return String(n).padStart(2,'0');}
 function updateToday(){
-  const now=new Date();const m=String(now.getMonth()+1).padStart(2,'0'),d=String(now.getDate()).padStart(2,'0');
+  const now=new Date();const y=now.getFullYear(),m=pad(now.getMonth()+1),d=pad(now.getDate());const k=`${y}-${m}-${d}`;
   const wd=['周日','周一','周二','周三','周四','周五','周六'][now.getDay()];
   document.getElementById('hdrDate').textContent=`${m}月${d}日  ${wd}`;
-  // 自动跳到今天对应列
-  const todayIdx = now.getDay() === 0 ? 5 : now.getDay() - 1; // 周一=0...周六=5
-  if(todayIdx < 6) {
-    sw(todayIdx);
-    document.querySelectorAll('.seg-btn').forEach((b,j)=>{
-      b.classList.toggle('today-dot', j === todayIdx);
-    });
-  }
+  const ev=EV[k];const wknd=now.getDay()===0||now.getDay()===6;
+  document.getElementById('ev1').textContent=ev?ev[0]:(wknd?'无晚自习':'暂无安排');
+  document.getElementById('ev2').textContent=ev?ev[1]:(wknd?'无晚自习':'暂无安排');
+  const sj=SJ[k];document.getElementById('sanjiVal').textContent=sj||'今日无';document.getElementById('sanjiSub').textContent=sj?'三基测试':'';
 }
-updateToday();
-
-// 管理员面板
-let _currentTab = 'sj', _uploadFile = null, _previewData = null;
-function openAdmin() { document.getElementById('adminModal').classList.add('open'); }
-function closeAdmin() { document.getElementById('adminModal').classList.remove('open'); cancelPreview(); }
-function setTab(tab) {
-  _currentTab = tab;
-  document.querySelectorAll('.utab').forEach(b => b.classList.remove('active'));
-  document.getElementById('tab-'+tab).classList.add('active');
-}
-function handleFile(e) {
-  const file = e.target.files[0]; if (!file) return;
-  _uploadFile = file;
-  const img = document.getElementById('previewImg');
-  img.src = URL.createObjectURL(file);
-  img.style.display = 'block';
-  document.getElementById('parseBtn').disabled = false;
-}
-async function parseImage() {
-  if (!_uploadFile) return;
-  const btn = document.getElementById('parseBtn');
-  btn.disabled = true; btn.textContent = '🔍 识别中...';
-  const sb = document.getElementById('statusBox'); sb.className = 'status-box show'; sb.textContent = '正在识别图片，请稍候...';
-  try {
-    const reader = new FileReader();
-    reader.onload = async function(ev) {
-      const base64 = ev.target.result.split(',')[1];
-      const typeMap = { sj: '三基测试表', ev: '晚自习安排表', sc: '课程表' };
-      const promptMap = {
-        sj: '请识别图片中的三基测试表，提取每天的三基内容，返回JSON格式：{"sj":[{"day":"周一","content":"内容"},...]}, 只返回JSON不要其他文字。',
-        ev: '请识别图片中的晚自习安排表，提取每天的一段、二段晚自习教师信息，返回JSON格式：{"ev":[{"day":"周一","t1":"教师1","t2":"教师2"},...]}, 只返回JSON不要其他文字。',
-        sc: '请识别图片中的课程表，提取各天各节课的科目和教师信息，返回JSON格式：{"schedule":{"mon":[{"subj":"科目","teacher":"教师","time":"时间"},...], "tue":[...], "wed":[...], "thu":[...], "fri":[...], "sat":[...]}}, 只返回JSON不要其他文字。'
-      };
-      const resp = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 2000,
-          messages: [{ role: 'user', content: [
-            { type: 'image', source: { type: 'base64', media_type: _uploadFile.type || 'image/jpeg', data: base64 } },
-            { type: 'text', text: promptMap[_currentTab] }
-          ]}]
-        })
-      });
-      const data = await resp.json();
-      const text = data.content?.[0]?.text || '';
-      try {
-        const clean = text.replace(/```json|```/g,'').trim();
-        _previewData = JSON.parse(clean);
-        document.getElementById('previewJson').textContent = JSON.stringify(_previewData, null, 2);
-        document.getElementById('previewSection').classList.add('show');
-        sb.innerHTML = '<span class="status-ok">✅ 识别完成，请确认数据后保存</span>';
-      } catch(e) {
-        sb.innerHTML = `<span class="status-err">❌ 解析失败，原始返回：</span>\n${text}`;
-      }
-    };
-    reader.readAsDataURL(_uploadFile);
-  } catch(e) {
-    document.getElementById('statusBox').innerHTML = `<span class="status-err">❌ 错误: ${e.message}</span>`;
-  } finally {
-    btn.disabled = false; btn.textContent = '🔍 识别图片内容';
-  }
-}
-async function confirmSave() {
-  if (!_previewData) return;
-  try {
-    const r = await fetch('/api/schedule', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: _currentTab, data: _previewData }) });
-    if (r.ok) {
-      showToast('✅ 保存成功', 'success');
-      closeAdmin();
-      fetchScheduleData();
-    } else { showToast('❌ 保存失败', 'error'); }
-  } catch(e) { showToast('❌ 网络错误', 'error'); }
-}
-function cancelPreview() {
-  _previewData = null; _uploadFile = null;
-  document.getElementById('previewSection').classList.remove('show');
-  document.getElementById('statusBox').className = 'status-box';
-  document.getElementById('previewImg').style.display = 'none';
-  document.getElementById('parseBtn').disabled = true;
-  document.getElementById('parseBtn').textContent = '🔍 识别图片内容';
-}
-
-// 课表数据加载
-async function fetchScheduleData() {
-  try {
-    const r = await fetch('/api/schedule');
-    if (!r.ok) return;
-    const d = await r.json();
-    // 三基
-    if (d.sj) {
-      const now = new Date();
-      const dayMap = ['日','一','二','三','四','五','六'];
-      const wd = dayMap[now.getDay()];
-      const item = d.sj.find ? d.sj.find(x => x.day && x.day.includes(wd)) : null;
-      if (item) {
-        document.getElementById('sanjiVal').textContent = item.content || '—';
-        document.getElementById('sanjiSub') && (document.getElementById('sanjiSub').textContent = item.day || '');
-      }
-    }
-    // 晚自习
-    if (d.ev) {
-      const now = new Date();
-      const dayMap = ['日','一','二','三','四','五','六'];
-      const wd = dayMap[now.getDay()];
-      const item = d.ev.find ? d.ev.find(x => x.day && x.day.includes(wd)) : null;
-      if (item) {
-        document.getElementById('ev1').textContent = item.t1 || '—';
-        document.getElementById('ev2').textContent = item.t2 || '—';
-      }
-    }
-    // 课程表
-    if (d.schedule) {
-      renderSchedule(d.schedule);
-    }
-    document.getElementById('syncIndicator').textContent = '数据已同步 ' + new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
-  } catch(e) {
-    document.getElementById('syncIndicator').textContent = '离线模式';
-  }
-}
-
-function renderSchedule(sc) {
-  const dayKeys = ['mon','tue','wed','thu','fri','sat'];
-  const dayNames = ['周一','周二','周三','周四','周五','周六'];
-  const contentEl = document.getElementById('content');
-  const timeSlots = ['08:00','08:50','09:50','10:40','11:30','14:00','14:50','15:50','16:40'];
-  const slotNames = ['第一节','第二节','第三节','第四节','第五节','第六节','第七节','第八节','第九节'];
-  let html = '';
-  dayKeys.forEach((key, di) => {
-    const lessons = sc[key] || [];
-    const isActive = di === (new Date().getDay() === 0 ? 5 : new Date().getDay() - 1);
-    html += `<div class="day-view${isActive?' active':''}" id="dv-${di}">`;
-    if (!lessons.length) {
-      html += `<div style="text-align:center;padding:40px;color:var(--t3)">暂无课程数据</div>`;
-    } else {
-      html += `<div class="sec-title">上午</div><div class="plist">`;
-      lessons.forEach((l, li) => {
-        if (li === 4) html += `</div><div class="break-pill">· · ·</div><div class="sec-title">下午</div><div class="plist">`;
-        const dotCls = li < 2 ? 'dm' : li < 4 ? 'da' : 'ds';
-        html += `<div class="prow"><div class="pdot ${dotCls}">${li+1}</div><div class="pmain"><div class="psubj">${l.subj||'—'}</div><div class="pteacher">${l.teacher||''}</div></div><div class="ptime">${l.time||timeSlots[li]||''}</div></div>`;
-      });
-      html += `</div>`;
-    }
-    html += `</div>`;
-  });
-  contentEl.innerHTML = html;
-  // 重新绑定seg-btn
-  document.querySelectorAll('.seg-btn').forEach((b, i) => {
-    b.onclick = () => sw(i);
-  });
-}
-
-fetchScheduleData();
+function sw(i){document.querySelectorAll('.seg-btn').forEach((b,j)=>b.classList.toggle('active',j===i));document.querySelectorAll('.day-view').forEach((d,j)=>d.classList.toggle('active',j===i));}
+async function scheduleInit(){await loadFromKV();build();updateToday();const td=new Date().getDay();const ti=(td>=1&&td<=6)?td-1:0;sw(ti);document.querySelectorAll('.seg-btn')[ti]?.classList.add('today-dot');setInterval(refreshData,5*60*1000);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')refreshData();});}
+scheduleInit();
 </script>
 
-<script>
-// --- CHESS LOGIC (象棋引擎) ---
-const CHESS_ROWS = 10, CHESS_COLS = 9, CELL = 40;
-let cBoard = [], cTurn = 'r', cSelected = null, cHistory = [], cGameOver = false;
-
-const pieceMap = {
-  'rK':'帅', 'rA':'仕', 'rE':'相', 'rH':'马', 'rR':'车', 'rC':'炮', 'rP':'兵',
-  'bK':'将', 'bA':'士', 'bE':'象', 'bH':'马', 'bR':'车', 'bC':'炮', 'bP':'卒'
-};
-const initLayout = [
-  ['bR','bH','bE','bA','bK','bA','bE','bH','bR'],
-  [null,null,null,null,null,null,null,null,null],
-  [null,'bC',null,null,null,null,null,'bC',null],
-  ['bP',null,'bP',null,'bP',null,'bP',null,'bP'],
-  [null,null,null,null,null,null,null,null,null],
-  [null,null,null,null,null,null,null,null,null],
-  ['rP',null,'rP',null,'rP',null,'rP',null,'rP'],
-  [null,'rC',null,null,null,null,null,'rC',null],
-  [null,null,null,null,null,null,null,null,null],
-  ['rR','rH','rE','rA','rK','rA','rE','rH','rR']
-];
-
-function initChessBoard() {
-  const svg = document.getElementById('chess-bg');
-  let html = `<g stroke="rgba(245,239,224,0.2)" stroke-width="1.5">`;
-  for(let i=0; i<10; i++) html += `<line x1="0" y1="${i*CELL}" x2="${8*CELL}" y2="${i*CELL}"/>`;
-  for(let i=0; i<9; i++) {
-    if(i===0 || i===8) html += `<line x1="${i*CELL}" y1="0" x2="${i*CELL}" y2="${9*CELL}"/>`;
-    else {
-      html += `<line x1="${i*CELL}" y1="0" x2="${i*CELL}" y2="${4*CELL}"/>`;
-      html += `<line x1="${i*CELL}" y1="${5*CELL}" x2="${i*CELL}" y2="${9*CELL}"/>`;
-    }
-  }
-  html += `<line x1="${3*CELL}" y1="0" x2="${5*CELL}" y2="${2*CELL}"/><line x1="${5*CELL}" y1="0" x2="${3*CELL}" y2="${2*CELL}"/>`;
-  html += `<line x1="${3*CELL}" y1="${7*CELL}" x2="${5*CELL}" y2="${9*CELL}"/><line x1="${5*CELL}" y1="${7*CELL}" x2="${3*CELL}" y2="${9*CELL}"/>`;
-  html += `<text x="${2*CELL}" y="${4.5*CELL+6}" fill="rgba(245,239,224,0.3)" font-size="20" font-family="KaiTi" text-anchor="middle">楚 河</text>`;
-  html += `<text x="${6*CELL}" y="${4.5*CELL+6}" fill="rgba(245,239,224,0.3)" font-size="20" font-family="KaiTi" text-anchor="middle">汉 界</text>`;
-  html += `</g>`;
-  svg.innerHTML = html;
-}
-
-function chessRestart() {
-  cBoard = JSON.parse(JSON.stringify(initLayout));
-  cTurn = 'r'; cSelected = null; cHistory = []; cGameOver = false;
-  updateChessUI(); showToast("游戏开始！红方先走", "info");
-}
-
-function updateChessUI() {
-  const pContainer = document.getElementById('chess-pieces');
-  const turnText = document.getElementById('chess-turn-text');
-  pContainer.innerHTML = ''; document.getElementById('chess-hints').innerHTML = '';
-  turnText.textContent = cGameOver ? "游戏结束" : (cTurn === 'r' ? "红方回合" : "黑方回合");
-  turnText.className = "c-turn" + (cTurn === 'b' ? " black" : "");
-
-  for(let r=0; r<CHESS_ROWS; r++) {
-    for(let c=0; c<CHESS_COLS; c++) {
-      const p = cBoard[r][c];
-      if(!p) continue;
-      const isRed = p[0] === 'r';
-      const div = document.createElement('div');
-      div.className = `c-piece ${isRed ? 'red' : 'blk'} ${cSelected && cSelected.r===r && cSelected.c===c ? 'selected' : ''}`;
-      div.style.left = (c * CELL) + 'px'; div.style.top = (r * CELL) + 'px';
-      div.textContent = pieceMap[p];
-      div.onclick = () => handlePieceClick(r, c);
-      pContainer.appendChild(div);
-    }
-  }
-}
-
-function handlePieceClick(r, c) {
-  if(cGameOver) return;
-  const p = cBoard[r][c];
-  if(p && p[0] === cTurn) {
-    cSelected = {r, c}; updateChessUI(); showHints(r, c);
-  } else if (cSelected) { executeMove(cSelected.r, cSelected.c, r, c); }
-}
-
-function showHints(r, c) {
-  const hContainer = document.getElementById('chess-hints');
-  hContainer.innerHTML = '';
-  const moves = getValidMoves(r, c, cBoard);
-  moves.forEach(m => {
-    if(!simulateAndCheck(r, c, m.r, m.c, cTurn)) return;
-    const isCapture = cBoard[m.r][m.c] != null;
-    const div = document.createElement('div');
-    div.className = `c-hint ${isCapture ? 'capture' : ''}`;
-    div.style.left = (m.c * CELL) + 'px'; div.style.top = (m.r * CELL) + 'px';
-    div.onclick = () => executeMove(r, c, m.r, m.c);
-    hContainer.appendChild(div);
-  });
-}
-
-function executeMove(fr, fc, tr, tc) {
-  if(cGameOver) return;
-  const moves = getValidMoves(fr, fc, cBoard);
-  if(!moves.find(m => m.r === tr && m.c === tc)) return; 
-  if(!simulateAndCheck(fr, fc, tr, tc, cTurn)) { showToast("⚠️ 不能送将！", "error"); return; }
-
-  cHistory.push({ from:{r:fr, c:fc}, to:{r:tr, c:tc}, piece: cBoard[fr][fc], captured: cBoard[tr][tc] });
-  const targetPiece = cBoard[tr][tc];
-  cBoard[tr][tc] = cBoard[fr][fc];
-  cBoard[fr][fc] = null;
-  cSelected = null;
-
-  if(targetPiece && targetPiece[1] === 'K') {
-    cGameOver = true; updateChessUI();
-    showToast(`🎉 ${cTurn === 'r' ? '红方' : '黑方'}胜利！`, "success", 5000);
-    return;
-  }
-
-  cTurn = cTurn === 'r' ? 'b' : 'r';
-  updateChessUI();
-  
-  // 检测绝杀或将军
-  let hasMove = false;
-  for(let r=0; r<CHESS_ROWS; r++){
-    for(let c=0; c<CHESS_COLS; c++){
-      if(cBoard[r][c] && cBoard[r][c][0] === cTurn) {
-         let mvs = getValidMoves(r, c, cBoard);
-         if(mvs.some(m => simulateAndCheck(r,c,m.r,m.c,cTurn))) { hasMove = true; break; }
-      }
-    }
-    if(hasMove) break;
-  }
-
-  if(!hasMove) {
-    cGameOver = true;
-    showToast(`🎉 绝杀！${cTurn==='r'?'黑方':'红方'}胜利！`, "success", 5000);
-    updateChessUI();
-  } else if(isCheck(cBoard, cTurn)) {
-    showToast("⚠️ 将军！", "error");
-  }
-}
-
-function chessUndo() {
-  if(cHistory.length === 0) return;
-  const last = cHistory.pop();
-  cBoard[last.from.r][last.from.c] = last.piece;
-  cBoard[last.to.r][last.to.c] = last.captured;
-  cTurn = cTurn === 'r' ? 'b' : 'r';
-  cGameOver = false; cSelected = null;
-  updateChessUI();
-}
-
-function getValidMoves(r, c, b) {
-  const p = b[r][c]; if(!p) return [];
-  const color = p[0], type = p[1], moves = [];
-  const dirs = [[-1,0],[1,0],[0,-1],[0,1]];
-  function add(tr, tc) { if(tr>=0 && tr<CHESS_ROWS && tc>=0 && tc<CHESS_COLS) { if(!b[tr][tc] || b[tr][tc][0] !== color) moves.push({r:tr, c:tc}); } }
-
-  if(type === 'R') {
-    dirs.forEach(d => {
-      for(let step=1; step<10; step++) {
-        let tr = r+d[0]*step, tc = c+d[1]*step;
-        if(tr<0||tr>=CHESS_ROWS||tc<0||tc>=CHESS_COLS) break;
-        if(!b[tr][tc]) add(tr, tc); else { if(b[tr][tc][0] !== color) add(tr, tc); break; }
-      }
-    });
-  } else if(type === 'C') {
-    dirs.forEach(d => {
-      let over = false;
-      for(let step=1; step<10; step++) {
-        let tr = r+d[0]*step, tc = c+d[1]*step;
-        if(tr<0||tr>=CHESS_ROWS||tc<0||tc>=CHESS_COLS) break;
-        if(!b[tr][tc]) { if(!over) add(tr, tc); } else { if(!over) over = true; else { if(b[tr][tc][0] !== color) add(tr, tc); break; } }
-      }
-    });
-  } else if(type === 'H') {
-    const hd = [[-2,-1,-1,0],[-2,1,-1,0],[2,-1,1,0],[2,1,1,0],[-1,-2,0,-1],[1,-2,0,-1],[-1,2,0,1],[1,2,0,1]];
-    hd.forEach(d => { if(!b[r+d[2]] || !b[r+d[2]][c+d[3]]) add(r+d[0], c+d[1]); });
-  } else if(type === 'E') {
-    const ed = [[-2,-2,-1,-1],[-2,2,-1,1],[2,-2,1,-1],[2,2,1,1]];
-    ed.forEach(d => {
-      let tr = r+d[0], tc = c+d[1];
-      if((color==='r' && tr>4) || (color==='b' && tr<5)) { if(tr>=0 && tr<CHESS_ROWS && tc>=0 && tc<CHESS_COLS && !b[r+d[2]][c+d[3]]) add(tr, tc); }
-    });
-  } else if(type === 'A') {
-    const ad = [[-1,-1],[-1,1],[1,-1],[1,1]];
-    ad.forEach(d => {
-      let tr = r+d[0], tc = c+d[1];
-      if(tc>=3 && tc<=5 && ((color==='r' && tr>=7 && tr<=9) || (color==='b' && tr>=0 && tr<=2))) add(tr, tc);
-    });
-  } else if(type === 'K') {
-    dirs.forEach(d => {
-      let tr = r+d[0], tc = c+d[1];
-      if(tc>=3 && tc<=5 && ((color==='r' && tr>=7 && tr<=9) || (color==='b' && tr>=0 && tr<=2))) add(tr, tc);
-    });
-  } else if(type === 'P') {
-    let forward = color === 'r' ? -1 : 1;
-    add(r+forward, c);
-    if((color==='r' && r<5) || (color==='b' && r>4)) { add(r, c-1); add(r, c+1); }
-  }
-  return moves;
-}
-
-function isCheck(b, color) {
-  let kr=-1, kc=-1;
-  for(let i=0; i<CHESS_ROWS; i++) for(let j=0; j<CHESS_COLS; j++) if(b[i][j] === color+'K') { kr=i; kc=j; break; }
-  const enemy = color === 'r' ? 'b' : 'r';
-  for(let i=0; i<CHESS_ROWS; i++) {
-    for(let j=0; j<CHESS_COLS; j++) {
-      if(b[i][j] && b[i][j][0] === enemy) {
-        let moves = getValidMoves(i, j, b);
-        if(moves.find(m => m.r === kr && m.c === kc)) return true;
-      }
-    }
-  }
-  return false;
-}
-
-function isFlyingGeneral(b) {
-  for(let c=3; c<=5; c++) {
-    let lastPiece = null;
-    for(let r=0; r<CHESS_ROWS; r++) {
-      if(b[r][c]) {
-        if(lastPiece === 'bK' && b[r][c] === 'rK') return true;
-        lastPiece = b[r][c];
-      }
-    }
-  }
-  return false;
-}
-
-function simulateAndCheck(r, c, tr, tc, color) {
-  let temp = cBoard[tr][tc];
-  let p = cBoard[r][c];
-  cBoard[tr][tc] = p;
-  cBoard[r][c] = null;
-  let safe = !isCheck(cBoard, color) && !isFlyingGeneral(cBoard);
-  cBoard[r][c] = p;
-  cBoard[tr][tc] = temp;
-  return safe;
-}
-</script>
 
 <div id="mp">
   <div id="mp-icon">
@@ -1240,110 +1449,272 @@ function simulateAndCheck(r, c, tr, tc, color) {
       <div class="mp-times"><span id="mp-cur">0:00</span><span id="mp-dur">0:00</span></div>
     </div>
     <div class="mp-ctrl">
-      <button class="mpb" id="mpb-list"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="15" y2="18"/></svg></button>
-      <button class="mpb" id="mpb-prev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="19,20 9,12 19,4" fill="currentColor" stroke="none"/><line x1="5" y1="4" x2="5" y2="20"/></svg></button>
-      <button class="mpb play" id="mpb-play"><svg id="mpb-play-ico" viewBox="0 0 24 24"><polygon points="6,3 20,12 6,21" fill="rgba(255,119,16,0.9)" stroke="none"/></svg></button>
-      <button class="mpb" id="mpb-next"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="5,4 15,12 5,20" fill="currentColor" stroke="none"/><line x1="19" y1="4" x2="19" y2="20"/></svg></button>
-      <button class="mpb" id="mpb-list2" style="opacity:0;pointer-events:none"><svg viewBox="0 0 24 24"></svg></button>
+      <button class="mpb" id="mpb-list">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="15" y2="18"/></svg>
+      </button>
+      <button class="mpb" id="mpb-prev">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="19,20 9,12 19,4" fill="currentColor" stroke="none"/><line x1="5" y1="4" x2="5" y2="20"/></svg>
+      </button>
+      <button class="mpb play" id="mpb-play">
+        <svg id="mpb-play-ico" viewBox="0 0 24 24">
+          <polygon points="6,3 20,12 6,21" fill="rgba(255,119,16,0.9)" stroke="none"/>
+        </svg>
+      </button>
+      <button class="mpb" id="mpb-next">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="5,4 15,12 5,20" fill="currentColor" stroke="none"/><line x1="19" y1="4" x2="19" y2="20"/></svg>
+      </button>
+      <button class="mpb" id="mpb-list2" style="opacity:0;pointer-events:none">
+        <svg viewBox="0 0 24 24"></svg>
+      </button>
     </div>
     <div class="mp-list-area" id="mp-list-area">
       <div id="mp-list"></div>
-      <div class="mp-add" id="mp-add"><input id="mp-add-inp" placeholder="歌名,歌手,mp3链接"/><button id="mp-add-ok">+</button></div>
+      <div class="mp-add" id="mp-add">
+        <input id="mp-add-inp" placeholder="歌名,歌手,mp3链接"/>
+        <button id="mp-add-ok">+</button>
+      </div>
     </div>
   </div>
 </div>
 
 <script>
-// --- MUSIC PLAYER SYSTEM ---
 (function(){
-  const audio = new Audio(); let PL=[], idx=0, playing=false, open=false, listOpen=false;
-  const $=id=>document.getElementById(id); const mp=$('mp'), disc=$('mp-disc'), nameEl=$('mp-name'), artEl=$('mp-artist');
-  const fillEl=$('mp-fill'), curEl=$('mp-cur'), durEl=$('mp-dur'); const playIco=$('mpb-play-ico'), listArea=$('mp-list-area'), listEl=$('mp-list');
+  const audio = new Audio();
+  let PL=[], idx=0, playing=false, open=false, listOpen=false;
+  const $=id=>document.getElementById(id);
+  const mp=$('mp'), disc=$('mp-disc'), nameEl=$('mp-name'), artEl=$('mp-artist');
+  const fillEl=$('mp-fill'), curEl=$('mp-cur'), durEl=$('mp-dur');
+  const playIco=$('mpb-play-ico'), listArea=$('mp-list-area'), listEl=$('mp-list');
 
   let _collapseLeft = null, _collapseTop = null;
+
   function expand() {
-    open = true; mp.style.transition = 'none'; mp.style.width = '52px'; mp.style.height = '52px'; mp.classList.add('open'); mp.style.overflow = 'hidden';
+    open = true;
+    mp.style.transition = 'none';
+    mp.style.width  = '52px';
+    mp.style.height = '52px';
+    mp.classList.add('open');
+    mp.style.overflow = 'hidden';
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        const W = window.innerWidth, h = $('mp-body').scrollHeight + 2, CARD_W = 248;
-        let left = parseFloat(mp.style.left); const r0 = mp.getBoundingClientRect();
-        if(!mp.style.left || mp.style.right !== 'auto'){ mp.style.right = 'auto'; mp.style.bottom = 'auto'; left = r0.left; mp.style.left = left + 'px'; mp.style.top = r0.top + 'px'; } else { left = parseFloat(mp.style.left); }
-        _collapseLeft = parseFloat(mp.style.left); _collapseTop = parseFloat(mp.style.top);
+        const W = window.innerWidth;
+        const h = $('mp-body').scrollHeight + 2;
+        const CARD_W = 248;
+        let left = parseFloat(mp.style.left);
+        const r0 = mp.getBoundingClientRect();
+        if(!mp.style.left || mp.style.right !== 'auto'){
+          mp.style.right  = 'auto';
+          mp.style.bottom = 'auto';
+          left = r0.left;
+          mp.style.left   = left + 'px';
+          mp.style.top    = r0.top + 'px';
+        } else {
+          left = parseFloat(mp.style.left);
+        }
+        _collapseLeft = parseFloat(mp.style.left);
+        _collapseTop  = parseFloat(mp.style.top);
         if(left + CARD_W > W - 8){ left = W - CARD_W - 8; mp.style.left = left + 'px'; }
-        mp.style.transition = 'width 0.52s cubic-bezier(0.34,1.4,0.64,1), height 0.52s cubic-bezier(0.34,1.4,0.64,1), border-radius 0.52s cubic-bezier(0.34,1.4,0.64,1), left 0.35s cubic-bezier(0.34,1.2,0.64,1), top 0.35s cubic-bezier(0.34,1.2,0.64,1), box-shadow 0.4s ease, border-color 0.3s ease';
-        mp.style.width = CARD_W + 'px'; mp.style.height = h + 'px'; window._mpBaseH = h;
-        const top = parseFloat(mp.style.top) || mp.getBoundingClientRect().top, H = window.innerHeight;
+        mp.style.transition = [
+          'width 0.52s cubic-bezier(0.34,1.4,0.64,1)',
+          'height 0.52s cubic-bezier(0.34,1.4,0.64,1)',
+          'border-radius 0.52s cubic-bezier(0.34,1.4,0.64,1)',
+          'left 0.35s cubic-bezier(0.34,1.2,0.64,1)',
+          'top 0.35s cubic-bezier(0.34,1.2,0.64,1)',
+          'box-shadow 0.4s ease', 'border-color 0.3s ease'
+        ].join(',');
+        mp.style.width  = CARD_W + 'px';
+        mp.style.height = h + 'px';
+        window._mpBaseH = h;
+        const top = parseFloat(mp.style.top) || mp.getBoundingClientRect().top;
+        const H = window.innerHeight;
         if(top + h > H - 8) mp.style.top = Math.max(8, H - h - 8) + 'px';
       });
     });
   }
+
   function collapse() {
-    open = false; listOpen = false; listArea.classList.remove('show'); mp.classList.remove('open');
-    mp.style.transition = 'width 0.46s cubic-bezier(0.34,1.3,0.64,1), height 0.46s cubic-bezier(0.34,1.3,0.64,1), border-radius 0.46s cubic-bezier(0.34,1.3,0.64,1), left 0.35s cubic-bezier(0.34,1.2,0.64,1), top 0.35s cubic-bezier(0.34,1.2,0.64,1), box-shadow 0.35s ease, border-color 0.25s ease';
-    mp.style.width = '52px'; mp.style.height = '52px';
-    if(_collapseLeft !== null) mp.style.left = _collapseLeft + 'px'; if(_collapseTop !== null) mp.style.top = _collapseTop + 'px';
+    open = false; listOpen = false;
+    listArea.classList.remove('show');
+    mp.classList.remove('open');
+    mp.style.transition = [
+      'width 0.46s cubic-bezier(0.34,1.3,0.64,1)',
+      'height 0.46s cubic-bezier(0.34,1.3,0.64,1)',
+      'border-radius 0.46s cubic-bezier(0.34,1.3,0.64,1)',
+      'left 0.35s cubic-bezier(0.34,1.2,0.64,1)',
+      'top 0.35s cubic-bezier(0.34,1.2,0.64,1)',
+      'box-shadow 0.35s ease', 'border-color 0.25s ease'
+    ].join(',');
+    mp.style.width  = '52px';
+    mp.style.height = '52px';
+    if(_collapseLeft !== null) mp.style.left = _collapseLeft + 'px';
+    if(_collapseTop  !== null) mp.style.top  = _collapseTop  + 'px';
   }
 
   let drag=false, moved=false, ox=0, oy=0, sx=0, sy=0, dragEl=null;
+
   function startDrag(e, el) {
-    drag=true; moved=false; dragEl=el; const t=e.touches?e.touches[0]:e; const r=el.getBoundingClientRect();
-    if(!el.style.left || el.style.right!=='auto'){ el.style.right='auto'; el.style.bottom='auto'; el.style.left=r.left+'px'; el.style.top=r.top+'px'; }
-    ox=t.clientX-parseFloat(el.style.left); oy=t.clientY-parseFloat(el.style.top); sx=t.clientX; sy=t.clientY;
+    drag=true; moved=false; dragEl=el;
+    const t=e.touches?e.touches[0]:e;
+    const r=el.getBoundingClientRect();
+    if(!el.style.left || el.style.right!=='auto'){
+      el.style.right='auto'; el.style.bottom='auto';
+      el.style.left=r.left+'px'; el.style.top=r.top+'px';
+    }
+    ox=t.clientX-parseFloat(el.style.left);
+    oy=t.clientY-parseFloat(el.style.top);
+    sx=t.clientX; sy=t.clientY;
   }
+
   mp.addEventListener('touchstart', e=>{ if(open) return; startDrag(e, mp); },{passive:true});
   $('mp-header').addEventListener('touchstart', e=>{ startDrag(e, mp); },{passive:true});
+
   document.addEventListener('touchmove', e=>{
-    if(!drag||!dragEl) return; const t=e.touches[0];
-    if(!moved && Math.hypot(t.clientX-sx,t.clientY-sy)<8) return; moved=true;
-    const W=window.innerWidth, H=window.innerHeight; let x=t.clientX-ox, y=t.clientY-oy;
-    x=Math.max(8,Math.min(x,W-mp.offsetWidth-8)); y=Math.max(8,Math.min(y,H-mp.offsetHeight-8));
+    if(!drag||!dragEl) return;
+    const t=e.touches[0];
+    if(!moved && Math.hypot(t.clientX-sx,t.clientY-sy)<8) return;
+    moved=true;
+    const W=window.innerWidth, H=window.innerHeight;
+    let x=t.clientX-ox, y=t.clientY-oy;
+    x=Math.max(8,Math.min(x,W-mp.offsetWidth-8));
+    y=Math.max(8,Math.min(y,H-mp.offsetHeight-8));
     mp.style.left=x+'px'; mp.style.top=y+'px';
   },{passive:true});
-  document.addEventListener('touchend',()=>{ if(drag && !moved && !open) expand(); drag=false; dragEl=null; });
+  document.addEventListener('touchend',()=>{
+    if(drag && !moved && !open) expand();
+    drag=false; dragEl=null;
+  });
   mp.addEventListener('click', e=>{ if(open) return; if(!moved) expand(); });
-  $('mp-close').addEventListener('click', e=>{e.stopPropagation();collapse();});
+  $('mp-close').addEventListener('click',    e=>{e.stopPropagation();collapse();});
   $('mp-close').addEventListener('touchend', e=>{e.preventDefault();e.stopPropagation();collapse();});
 
   function resetDisc(){ disc.classList.remove('spin','paused'); }
+
   function load(i, autoplay){
-    if(!PL.length) return; idx=((i%PL.length)+PL.length)%PL.length; const t=PL[idx];
-    audio.src=t.url; audio.load(); nameEl.textContent=t.name; artEl.textContent=t.artist||'';
-    fillEl.style.width='0%'; curEl.textContent='0:00'; durEl.textContent='0:00'; resetDisc(); render();
-    if(autoplay) doPlay(); if(open) requestAnimationFrame(()=>{ mp.style.height=$('mp-body').scrollHeight+2+'px'; });
+    if(!PL.length) return;
+    idx=((i%PL.length)+PL.length)%PL.length;
+    const t=PL[idx];
+    audio.src=t.url; audio.load();
+    nameEl.textContent=t.name; artEl.textContent=t.artist||'';
+    fillEl.style.width='0%'; curEl.textContent='0:00'; durEl.textContent='0:00';
+    resetDisc();
+    render();
+    if(autoplay) doPlay();
+    if(open) requestAnimationFrame(()=>{ mp.style.height=$('mp-body').scrollHeight+2+'px'; });
   }
+
   function doPlay(){ audio.play().then(()=>setP(true)).catch(()=>setP(false)); }
   function setP(v){
-    playing=v; playIco.innerHTML = v ? '<rect x="5" y="3" width="4" height="18" fill="rgba(255,119,16,0.9)" stroke="none"/><rect x="15" y="3" width="4" height="18" fill="rgba(255,119,16,0.9)" stroke="none"/>' : '<polygon points="6,3 20,12 6,21" fill="rgba(255,119,16,0.9)" stroke="none"/>';
-    disc.classList.toggle('spin', v); mp.classList.toggle('playing', v);
+    playing=v;
+    playIco.innerHTML = v
+      ? '<rect x="5" y="3" width="4" height="18" fill="rgba(255,119,16,0.9)" stroke="none"/><rect x="15" y="3" width="4" height="18" fill="rgba(255,119,16,0.9)" stroke="none"/>'
+      : '<polygon points="6,3 20,12 6,21" fill="rgba(255,119,16,0.9)" stroke="none"/>';
+    disc.classList.toggle('spin', v);
+    mp.classList.toggle('playing', v);
   }
-  function togglePlay(){ if(!PL.length) return; if(!audio.src){load(0,true);return;} playing ? (audio.pause(),setP(false)) : doPlay(); }
-  function btn(id, fn){ const el=$(id); let tapped=false; el.addEventListener('touchend',e=>{e.preventDefault();e.stopPropagation();tapped=true; fn(); setTimeout(()=>tapped=false,300);}); el.addEventListener('click',e=>{e.stopPropagation();if(!tapped)fn();}); }
+  function togglePlay(){
+    if(!PL.length) return;
+    if(!audio.src){load(0,true);return;}
+    playing ? (audio.pause(),setP(false)) : doPlay();
+  }
 
-  btn('mpb-play', togglePlay); btn('mpb-prev', ()=>load(idx-1,playing)); btn('mpb-next', ()=>load(idx+1,playing));
+  function btn(id, fn){
+    const el=$(id); let tapped=false;
+    el.addEventListener('touchend',e=>{
+      e.preventDefault();e.stopPropagation();
+      tapped=true; fn(); setTimeout(()=>tapped=false,300);
+    });
+    el.addEventListener('click',e=>{e.stopPropagation();if(!tapped)fn();});
+  }
+
+  btn('mpb-play', togglePlay);
+  btn('mpb-prev', ()=>load(idx-1,playing));
+  btn('mpb-next', ()=>load(idx+1,playing));
 
   (function(){
-    const listBtn = $('mpb-list'); let listTapped = false;
-    const SPRING_T = 'width 0.42s cubic-bezier(0.34,1.3,0.64,1), height 0.42s cubic-bezier(0.34,1.3,0.64,1), border-radius 0.42s cubic-bezier(0.34,1.3,0.64,1), box-shadow 0.3s ease, border-color 0.2s ease';
-    function listHeight(){ const n = Math.min(PL.length || 1, 5); const addH = $('mp-add').classList.contains('show') ? 44 : 0; return n * 26 + addH + 8; }
+    const listBtn = $('mpb-list');
+    let listTapped = false;
+    const SPRING_T = [
+      'width 0.42s cubic-bezier(0.34,1.3,0.64,1)',
+      'height 0.42s cubic-bezier(0.34,1.3,0.64,1)',
+      'border-radius 0.42s cubic-bezier(0.34,1.3,0.64,1)',
+      'box-shadow 0.3s ease', 'border-color 0.2s ease'
+    ].join(',');
+
+    const ITEM_H = 26;
+    const MAX_ITEMS = 5;
+    function listHeight(){
+      const n = Math.min(PL.length || 1, MAX_ITEMS);
+      const addH = $('mp-add').classList.contains('show') ? 44 : 0;
+      return n * ITEM_H + addH + 8;
+    }
     function resizeCard(withList){
-      if(!open) return; mp.style.transition = SPRING_T; const bh = window._mpBaseH || 0;
-      if(withList){ const listH = Math.min($('mp-list').scrollHeight + ($('mp-add').classList.contains('show') ? 44 : 0) + 8, 5 * 26 + 8); mp.style.height = (bh + Math.max(listH, listHeight())) + 'px'; } else { mp.style.height = bh + 'px'; }
+      if(!open) return;
+      mp.style.transition = SPRING_T;
+      const bh = window._mpBaseH || 0;
+      if(withList){
+        const listH = Math.min($('mp-list').scrollHeight + ($('mp-add').classList.contains('show') ? 44 : 0) + 8, MAX_ITEMS * ITEM_H + 8);
+        mp.style.height = (bh + Math.max(listH, listHeight())) + 'px';
+      } else {
+        mp.style.height = bh + 'px';
+      }
     }
+
     function toggleList(){
-      if(listOpen){ listOpen = false; listArea.classList.remove('show'); resizeCard(false); }
-      else { listOpen = true; render(); listArea.classList.add('show'); requestAnimationFrame(() => { resizeCard(true); setTimeout(()=>{ const H=window.innerHeight, r=mp.getBoundingClientRect(); if(r.bottom > H - 8){ mp.style.transition = 'top 0.4s cubic-bezier(0.34,1.2,0.64,1), ' + SPRING_T; mp.style.top = Math.max(8, H - mp.offsetHeight - 8) + 'px'; } }, 30); }); }
+      if(listOpen){
+        listOpen = false;
+        listArea.classList.remove('show');
+        resizeCard(false);
+      } else {
+        listOpen = true;
+        render();
+        listArea.classList.add('show');
+        requestAnimationFrame(() => {
+          resizeCard(true);
+          setTimeout(()=>{
+            const H=window.innerHeight, r=mp.getBoundingClientRect();
+            if(r.bottom > H - 8){
+              mp.style.transition = ['top 0.4s cubic-bezier(0.34,1.2,0.64,1)', SPRING_T].join(',');
+              mp.style.top = Math.max(8, H - mp.offsetHeight - 8) + 'px';
+            }
+          }, 30);
+        });
+      }
     }
-    listBtn.addEventListener('touchend', e=>{ e.preventDefault(); e.stopPropagation(); listTapped = true; toggleList(); setTimeout(()=>listTapped=false, 400); });
-    listBtn.addEventListener('click', e=>{ e.stopPropagation(); if(!listTapped) toggleList(); });
-    window._mpResizeCard = resizeCard; window._mpListOpen = () => listOpen;
+    listBtn.addEventListener('touchend', e=>{
+      e.preventDefault(); e.stopPropagation();
+      listTapped = true;
+      toggleList();
+      setTimeout(()=>listTapped=false, 400);
+    });
+    listBtn.addEventListener('click', e=>{
+      e.stopPropagation();
+      if(!listTapped) toggleList();
+    });
+    window._mpResizeCard = resizeCard;
+    window._mpListOpen   = () => listOpen;
   })();
 
   audio.addEventListener('ended',()=>load(idx+1,true));
-  audio.addEventListener('timeupdate',()=>{ if(!audio.duration) return; fillEl.style.width=(audio.currentTime/audio.duration*100)+'%'; curEl.textContent=fmt(audio.currentTime); durEl.textContent=fmt(audio.duration); });
+  audio.addEventListener('timeupdate',()=>{
+    if(!audio.duration) return;
+    fillEl.style.width=(audio.currentTime/audio.duration*100)+'%';
+    curEl.textContent=fmt(audio.currentTime);
+    durEl.textContent=fmt(audio.duration);
+  });
   audio.addEventListener('loadedmetadata',()=>{durEl.textContent=fmt(audio.duration);});
+
   (function(){
-    const bar = $('mp-prog'); let dragging = false;
-    function seek(clientX){ if(!audio.duration) return; const r = bar.getBoundingClientRect(); const pct = Math.max(0, Math.min(1, (clientX - r.left) / r.width)); audio.currentTime = pct * audio.duration; fillEl.style.width = (pct*100) + '%'; curEl.textContent = fmt(audio.currentTime); if(pct < 0.01) resetDisc(); }
+    const bar = $('mp-prog');
+    let dragging = false;
+    function seek(clientX){
+      if(!audio.duration) return;
+      const r = bar.getBoundingClientRect();
+      const pct = Math.max(0, Math.min(1, (clientX - r.left) / r.width));
+      audio.currentTime = pct * audio.duration;
+      fillEl.style.width = (pct*100) + '%';
+      curEl.textContent = fmt(audio.currentTime);
+      if(pct < 0.01) resetDisc();
+    }
     bar.addEventListener('touchstart', e=>{ dragging = true; bar.classList.add('dragging'); seek(e.touches[0].clientX); },{passive:true});
     document.addEventListener('touchmove', e=>{ if(!dragging) return; seek(e.touches[0].clientX); },{passive:true});
     document.addEventListener('touchend', ()=>{ if(!dragging) return; dragging = false; bar.classList.remove('dragging'); });
@@ -1353,17 +1724,62 @@ function simulateAndCheck(r, c, tr, tc, color) {
 
   function render(){
     const admin=!!(window.nodesAdminUser&&window.nodesAdminPwd);
-    listEl.innerHTML=PL.map((t,i)=>`<div class="mp-li${i===idx?' on':''}" onclick="mpPlay(${i})"><span class="ln">${i===idx&&playing?'▶':i+1}</span><span class="lt">${t.name}${t.artist?` <span style="opacity:.35">- ${t.artist}</span>`:''}</span>${admin?`<button class="ld" onclick="event.stopPropagation();mpDel(${i})">✕</button>`:''}</div>`).join('')||'<div style="padding:11px 13px;font-size:11px;color:rgba(245,239,224,0.2)">暂无歌曲</div>';
+    listEl.innerHTML=PL.map((t,i)=>`
+      <div class="mp-li${i===idx?' on':''}" onclick="mpPlay(${i})">
+        <span class="ln">${i===idx&&playing?'▶':i+1}</span>
+        <span class="lt">${t.name}${t.artist?` <span style="opacity:.35">- ${t.artist}</span>`:''}</span>
+        ${admin?`<button class="ld" onclick="event.stopPropagation();mpDel(${i})">✕</button>`:''}
+      </div>`).join('')||'<div style="padding:11px 13px;font-size:11px;color:rgba(245,239,224,0.2)">暂无歌曲</div>';
   }
-  window.mpPlay=i=>load(i,true); window.mpDel=async i=>{ PL.splice(i,1); if(idx>=PL.length)idx=Math.max(0,PL.length-1); PL.length?load(idx,false):(audio.src='',nameEl.textContent='-',setP(false)); render(); if(window._mpResizeCard && window._mpListOpen && window._mpListOpen()) window._mpResizeCard(true); };
+  window.mpPlay=i=>load(i,true);
+  window.mpDel=async i=>{
+    PL.splice(i,1);await save();
+    if(idx>=PL.length)idx=Math.max(0,PL.length-1);
+    PL.length?load(idx,false):(audio.src='',nameEl.textContent='-',setP(false));
+    render();
+    if(window._mpResizeCard && window._mpListOpen && window._mpListOpen())
+      window._mpResizeCard(true);
+  };
 
   async function addTrack(){
-    const raw=$('mp-add-inp').value.trim(); if(!raw) return; let name='',artist='',url='';
-    const pts=raw.split(','); if(pts.length>=3){name=pts[0].trim();artist=pts[1].trim();url=pts[2].trim();} else{url=raw;name=decodeURIComponent(url.split('/').pop().split('?')[0]).replace(/\.[^.]+$/,'')||'未知';}
-    PL.push({name,artist,url}); $('mp-add-inp').value=''; render(); if(PL.length===1)load(0,true);
+    const raw=$('mp-add-inp').value.trim();
+    if(!raw) return;
+    let name='',artist='',url='';
+    const pts=raw.split(',');
+    if(pts.length>=3){name=pts[0].trim();artist=pts[1].trim();url=pts[2].trim();}
+    else{url=raw;name=decodeURIComponent(url.split('/').pop().split('?')[0]).replace(/\.[^.]+$/,'')||'未知';}
+    PL.push({name,artist,url});await save();
+    $('mp-add-inp').value='';render();
+    if(PL.length===1)load(0,true);
   }
-  btn('mp-add-ok',addTrack); $('mp-add-inp').addEventListener('keydown',e=>{if(e.key==='Enter')addTrack();});
+  btn('mp-add-ok',addTrack);
+  $('mp-add-inp').addEventListener('keydown',e=>{if(e.key==='Enter')addTrack();});
+
+  async function fetchPL(){
+    try{
+      const r=await fetch('/api/music');
+      const d=await r.json();
+      if(d.ok&&d.list&&d.list.length){PL=d.list;load(0,false);render();}
+    }catch(e){console.error('[music]',e);}
+  }
+  async function save(){
+    if(!window.nodesAdminUser||!window.nodesAdminPwd) return;
+    try{
+      await fetch('/api/music',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({adminUser:window.nodesAdminUser,adminPass:window.nodesAdminPwd,action:'setList',list:PL})});
+    }catch(e){}
+  }
   window.musicSetAdminMode=v=>{$('mp-add').classList.toggle('show',v);render();};
+
+  let plReady=false, userTouched=false;
+  function tryAutoPlay(){ if(plReady && userTouched && !playing && audio.src) doPlay(); }
+  const _fetchPL = fetchPL;
+  fetchPL = async function(){ await _fetchPL(); plReady = true; tryAutoPlay(); };
+  fetchPL();
+  document.addEventListener('touchstart', function once(){
+    userTouched = true; tryAutoPlay();
+  },{once:true, passive:true});
+
 })();
 </script>
 </body>
