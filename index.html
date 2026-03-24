@@ -282,11 +282,12 @@ html, body {
 
 /* Segment control */
 .seg-wrap {
-  padding:0 16px 8px; position:sticky; top:0; z-index:100;
-  padding-top:10px;
-  background: linear-gradient(to bottom, rgba(2,0,41,0.9) 80%, transparent);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  padding: 0 16px 8px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  padding-top: 10px;
+  /* 删除了之前的 background 和 backdrop-filter, 彻底透明 */
 }
 .seg {
   display:flex;
@@ -493,144 +494,6 @@ html, body {
 .close-modal:active { opacity: 0.6; }
 .sync-indicator { font-size:11px; color:var(--t3); text-align:center; padding:4px 0 2px; }
 
-/* ===================== PAGE 2: BILLIARDS ===================== */
-#page-billiards { display:flex; flex-direction:column; height:100%; }
-.bil-topbar {
-  display:flex; align-items:center; gap:10px;
-  padding: env(safe-area-inset-top,12px) 16px 10px;
-  padding-top: max(env(safe-area-inset-top,0px),12px);
-  background: rgba(2,0,41,0.82);
-  backdrop-filter: blur(16px) saturate(180%);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
-  flex-shrink:0;
-  border-bottom:1px solid var(--border); z-index:10;
-}
-.back-btn {
-  background: var(--s2); border: 1px solid var(--border);
-  color:var(--text); width:36px; height:36px;
-  border-radius:10px; cursor:pointer;
-  display:flex; align-items:center; justify-content:center;
-  font-size:22px; font-weight:300; flex-shrink:0; line-height:1;
-  transition: all 0.2s;
-}
-.back-btn:active { transform: scale(0.9); }
-.bil-topbar-title { font-size:17px; font-weight:700; flex:1; }
-.bil-topbar-sub { font-size:11px; color:var(--t2); }
-.bil-restart-btn {
-  background: var(--s2); border: 1px solid var(--border);
-  color:var(--t2); padding:7px 13px;
-  border-radius:10px; font-family: 'Outfit', 'PingFang SC', sans-serif;
-  font-size:13px; font-weight:600; cursor:pointer;
-  transition: all 0.2s;
-}
-.bil-restart-btn:active { transform: scale(0.95); }
-.scoreboard {
-  display:flex; align-items:stretch;
-  background: rgba(2,0,41,0.65);
-  backdrop-filter: blur(12px);
-  flex-shrink:0; border-bottom:1px solid var(--border);
-}
-.player-panel { flex:1; padding:9px 13px; position:relative; transition:background .3s; }
-.player-panel.active { background: rgba(255,119,16,0.08); }
-.player-panel.p1.active::after {
-  content:''; position:absolute; bottom:0; left:0; right:0;
-  height:2px; background: var(--accent2);
-}
-.player-panel.p2.active::after {
-  content:''; position:absolute; bottom:0; left:0; right:0;
-  height:2px; background: #60a8e0;
-}
-.player-name { font-size:12px; font-weight:700; color:var(--t2); margin-bottom:3px; display:flex; align-items:center; gap:5px; }
-.player-balls { display:flex; flex-wrap:wrap; gap:3px; min-height:16px; }
-.score-sep { width:1px; background: var(--border); flex-shrink:0; }
-.vs-badge { display:flex; align-items:center; justify-content:center; padding:0 10px; color:var(--t3); font-size:11px; font-weight:700; }
-.turn-arrow { font-size:9px; }
-.bil-status {
-  background: rgba(2,0,41,0.7);
-  backdrop-filter: blur(8px);
-  padding:6px 16px; font-size:13px; color:var(--t2);
-  text-align:center; flex-shrink:0; min-height:30px;
-  display:flex; align-items:center; justify-content:center; gap:8px;
-}
-.bil-status .tag {
-  font-size:10px; font-weight:700; padding:2px 7px;
-  border-radius:6px; background: rgba(255,119,16,0.2); color: var(--accent2);
-}
-.table-wrap { flex:1; display:flex; align-items:center; justify-content:center; padding:8px; overflow:hidden; position:relative; }
-canvas#biltable { border-radius:5px; box-shadow:0 0 0 7px #020029, 0 0 0 13px #010015, 0 16px 50px rgba(0,0,0,0.8); cursor:crosshair; touch-action:none; display:block; }
-.controls {
-  flex-shrink:0;
-  background: rgba(2,0,41,0.82);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-top:1px solid var(--border);
-  padding:10px 16px;
-  padding-bottom:max(env(safe-area-inset-bottom,0px),10px);
-  display:flex; align-items:center; gap:12px; position:relative; z-index:50;
-}
-.power-wrap { flex:1; display:flex; align-items:center; gap:8px; }
-.power-label { font-size:11px; color:var(--t2); width:24px; text-align:right; flex-shrink:0; font-weight:600; }
-.power-slider {
-  flex:1; -webkit-appearance:none; appearance:none;
-  height:6px; border-radius:3px;
-  background: var(--s2); outline:none; cursor:pointer;
-}
-.power-slider::-webkit-slider-thumb {
-  -webkit-appearance:none; width:22px; height:22px;
-  border-radius:50%; background: var(--accent2); box-shadow: 0 0 8px rgba(255,119,16,0.5); cursor:pointer;
-}
-.power-val { font-size:11px; color:var(--t2); width:28px; flex-shrink:0; font-weight:600; }
-.shoot-btn {
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  border:none; color:#fff; padding:11px 20px;
-  border-radius:13px; font-size:14px; font-weight:700;
-  font-family: 'Outfit', 'PingFang SC', sans-serif;
-  cursor:pointer; flex-shrink:0;
-  transition: all .15s;
-  box-shadow: 0 4px 16px rgba(255,119,16,0.4);
-}
-.shoot-btn:active { transform:scale(.94); opacity:.85; }
-.shoot-btn:disabled { background: var(--s2); color:var(--t3); cursor:not-allowed; box-shadow:none; }
-.win-overlay {
-  display:none; position:fixed; inset:0;
-  background: rgba(0,0,0,.82); z-index:900;
-  align-items:center; justify-content:center;
-  backdrop-filter:blur(14px);
-}
-.win-overlay.show { display:flex; animation: fadeIn 0.3s ease; }
-.win-card {
-  background: rgba(2,0,41,0.90);
-  backdrop-filter: blur(24px) saturate(180%);
-  border: 1px solid var(--glass-border);
-  border-radius:24px; padding:30px 26px;
-  max-width:310px; width:90%; text-align:center;
-  box-shadow: inset 0 1px 0 var(--glass-shine), 0 24px 80px rgba(0,0,0,0.7);
-  animation: staggerIn 0.4s cubic-bezier(.22,.8,.32,1);
-}
-.win-icon { font-size:60px; margin-bottom:12px; }
-.win-title { font-size:24px; font-weight:800; margin-bottom:7px; }
-.win-sub { font-size:13px; color:var(--t2); margin-bottom:22px; line-height:1.7; }
-.win-btn {
-  width:100%; padding:14px; border-radius:14px; border:none;
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  color:#fff; font-size:15px; font-weight:700;
-  font-family: 'Outfit', 'PingFang SC', sans-serif;
-  cursor:pointer; margin-bottom:9px;
-  box-shadow: 0 4px 18px rgba(255,119,16,0.4);
-  transition: transform 0.15s;
-}
-.win-btn:active { transform: scale(0.97); }
-.win-btn.sec { background: var(--s2); color:var(--t2); box-shadow:none; border: 1px solid var(--border); }
-.foul-toast {
-  position:fixed; top:130px; left:50%; transform:translateX(-50%);
-  background: #e05050; color:#fff;
-  padding:8px 18px; border-radius:20px;
-  font-size:13px; font-weight:700; z-index:950;
-  opacity:0; transition:opacity .2s;
-  pointer-events:none; white-space:nowrap;
-}
-.foul-toast.show { opacity:1; }
-
 /* Global Toast */
 #g-toast {
   position: fixed; top: 62px; left: 50%;
@@ -647,13 +510,18 @@ canvas#biltable { border-radius:5px; box-shadow:0 0 0 7px #020029, 0 0 0 13px #0
   display: flex; align-items: center; gap: 10px;
   padding: 13px 20px; border-radius: 16px;
   font-size: 14px; font-weight: 700; letter-spacing: 0.3px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  /* 统一为深蓝毛玻璃 + 爱马仕橙边框 */
+  background: rgba(2, 0, 41, 0.85);
   backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 119, 16, 0.4);
+  color: #f5efe0;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 153, 68, 0.1);
   white-space: nowrap;
 }
-#g-toast-inner.success { background: rgba(0,51,170,0.95); color: #a8d878; border: 1px solid rgba(0,85,255,0.4); }
-#g-toast-inner.error   { background: rgba(100,16,16,0.95); color: #fca5a5; border: 1px solid rgba(224,80,80,0.4); }
-#g-toast-inner.info    { background: rgba(2,0,41,0.97);  color: #90caf9; border: 1px solid rgba(96,168,224,0.4); }
+/* 状态颜色仅改变文字或微调边框，保持整体风格统一 */
+#g-toast-inner.success { color: var(--accent2); }
+#g-toast-inner.error   { border-color: rgba(224,80,80,0.6); color: #fca5a5; }
+#g-toast-inner.info    { color: var(--text); }
 .place-hint {
   position:fixed; bottom:110px; left:50%; transform:translateX(-50%);
   background: rgba(255,119,16,0.92);
@@ -833,11 +701,6 @@ canvas#biltable { border-radius:5px; box-shadow:0 0 0 7px #020029, 0 0 0 13px #0
       <span class="drawer-item-icon">📚</span>
       <span class="drawer-item-label">课程表</span>
     </button>
-    <button class="drawer-item" id="nav-billiards" onclick="window.location.href='/chess/index.html'">
-      <span class="drawer-item-icon">♟️</span>
-      <span class="drawer-item-label">象棋游戏</span>
-      <span class="drawer-item-badge">NEW</span>
-    </button>
     <button class="drawer-item" id="nav-nodes" onclick="navTo('nodes')">
       <span class="drawer-item-icon">🔗</span>
       <span class="drawer-item-label">节点分享</span>
@@ -944,65 +807,6 @@ canvas#biltable { border-radius:5px; box-shadow:0 0 0 7px #020029, 0 0 0 13px #0
       </div>
     </div>
   </div>
-</div><div class="page" id="page-billiards">
-  <div class="bil-topbar">
-    <button class="back-btn" onclick="navTo('schedule')">‹</button>
-    <div style="flex:1">
-      <div class="bil-topbar-title">🎱 中式八球</div>
-      <div class="bil-topbar-sub">两人对战</div>
-    </div>
-    <button class="bil-restart-btn" onclick="bilConfirmRestart()">重开</button>
-    <button class="ham-btn" onclick="openDrawer()" style="margin-top:0">
-      <span></span><span></span><span></span>
-    </button>
-  </div>
-
-  <div class="scoreboard">
-    <div class="player-panel p1 active" id="bpanel1">
-      <div class="player-name">
-        <span>🟡 玩家一</span>
-        <span class="turn-arrow" id="barrow1">◀</span>
-      </div>
-      <div class="player-balls" id="bballs1"></div>
-    </div>
-    <div class="vs-badge">VS</div>
-    <div class="score-sep"></div>
-    <div class="player-panel p2" id="bpanel2">
-      <div class="player-name">
-        <span>🔵 玩家二</span>
-        <span class="turn-arrow" id="barrow2" style="display:none">▶</span>
-      </div>
-      <div class="player-balls" id="bballs2"></div>
-    </div>
-  </div>
-
-  <div class="bil-status" id="bilStatus"><span>🎱 玩家一开球</span></div>
-
-  <div class="table-wrap">
-    <canvas id="biltable"></canvas>
-  </div>
-
-  <div class="controls">
-    <div class="power-wrap">
-      <span class="power-label">力度</span>
-      <input type="range" class="power-slider" id="bilPower" min="5" max="100" value="40">
-      <span class="power-val" id="bilPowerVal">40%</span>
-    </div>
-    <button class="shoot-btn" id="bilShootBtn" disabled>击球</button>
-  </div>
-
-  <div class="win-overlay" id="winOverlay">
-    <div class="win-card">
-      <div class="win-icon" id="winIcon">🏆</div>
-      <div class="win-title" id="winTitle">玩家一获胜！</div>
-      <div class="win-sub" id="winSub">恭喜完成比赛</div>
-      <button class="win-btn" onclick="bilRestartGame()">🔄 再来一局</button>
-      <button class="win-btn sec" onclick="navTo('schedule')">返回课程表</button>
-    </div>
-  </div>
-
-  <div class="foul-toast" id="foulToast"></div>
-  <div class="place-hint" id="placeHint">点击左半区放置白球</div>
 </div><div class="page" id="page-nodes" style="overflow-y:auto;">
   <div class="safe-top"></div>
   <div class="header" style="border-bottom:1px solid var(--border);">
@@ -1475,7 +1279,7 @@ function navTo(page) {
   setTimeout(() => _navLock = false, 480);
   const from = document.getElementById('page-' + currentPage);
   const to   = document.getElementById('page-' + page);
-  if (page === 'billiards' || page === 'nodes') {
+  if (page === 'nodes') {
     from.classList.add('behind');
     from.classList.remove('active');
     to.style.transform = 'translateX(100%)';
@@ -1483,10 +1287,6 @@ function navTo(page) {
       to.classList.add('active');
       requestAnimationFrame(() => { to.style.transform = ''; });
     });
-    if (page === 'billiards') {
-      if (!bilInitialized) { bilInit(); bilInitialized = true; }
-      else bilResizeCanvas();
-    }
     if (page === 'nodes' && !nodesRole) showUserLogin();
   } else {
     to.classList.remove('behind');
@@ -1497,7 +1297,6 @@ function navTo(page) {
   }
 
   document.getElementById('nav-schedule').classList.toggle('active', page === 'schedule');
-  document.getElementById('nav-billiards') && document.getElementById('nav-billiards').classList.toggle('active', page === 'billiards');
   document.getElementById('nav-nodes').classList.toggle('active', page === 'nodes');
   currentPage = page;
 }
@@ -1616,300 +1415,6 @@ async function scheduleInit(){await loadFromKV();build();updateToday();const td=
 scheduleInit();
 </script>
 
-<script>
-let bilInitialized = false;
-const bilCanvas = document.getElementById('biltable');
-const bilCtx = bilCanvas.getContext('2d');
-const bilPowerSlider = document.getElementById('bilPower');
-const bilPowerVal = document.getElementById('bilPowerVal');
-bilPowerSlider.addEventListener('input', () => { bilPowerVal.textContent = bilPowerSlider.value + '%'; });
-const FRICTION = 0.9875, SPIN_DECAY = 0.93, RESTITUTION = 0.92, RAIL_REST = 0.74, MIN_VEL = 0.09;
-let BW, BH, BR, POCKET_R, POCKETS = [], bilScale;
-let bilBalls = [], bilCurrentPlayer = 0, bilPlayerGroups = [null,null], bilPottedBalls = [[],[]], bilGamePhase = 'placing';
-let bilBreakShot = true, bilShotHitFirst = null, bilPottedThisShot = [], bilCuePottedThisShot = false, bilEightPottedThisShot = false;
-let bilAimAngle = Math.PI, bilIsAiming = false, bilPhysInterval = null;
-let bilPlacingX = 0, bilPlacingY = 0;
-let bilAnimFrame = null;
-
-const BALL_COLORS = {0:'#fff',1:'#e8c832',2:'#e04030',3:'#2266cc',4:'#8833aa',5:'#dd6622',6:'#228844',7:'#cc2244',8:'#111',9:'#e8c832',10:'#e04030',11:'#2266cc',12:'#8833aa',13:'#dd6622',14:'#228844',15:'#cc2244'};
-const STRIPE_BALLS=[9,10,11,12,13,14,15], SOLID_BALLS=[1,2,3,4,5,6,7];
-class Ball{constructor(id,x,y){this.id=id;this.x=x;this.y=y;this.vx=0;this.vy=0;this.spin=0;this.potted=false;}isMoving(){return Math.abs(this.vx)>MIN_VEL||Math.abs(this.vy)>MIN_VEL;}}
-
-function bilResizeCanvas(){
-  const wrap = document.querySelector('#page-billiards .table-wrap');
-  const ww=wrap.clientWidth-16, wh=wrap.clientHeight-16;
-  let tw=ww,th=tw/2;if(th>wh){th=wh;tw=th*2;}
-  bilCanvas.width=Math.floor(tw);bilCanvas.height=Math.floor(th);
-  BW=bilCanvas.width;BH=bilCanvas.height;BR=BH*0.038;POCKET_R=BR*1.55;bilScale=BW/800;
-  const rx=BR*0.7,ry=BR*0.7;
-  POCKETS=[[rx,ry],[BW/2,-BR*0.2],[BW-rx,ry],[rx,BH-ry],[BW/2,BH+BR*0.2],[BW-rx,BH-ry]];
-}
-
-function bilRack(){
-  bilBalls=[];bilBalls.push(new Ball(0,BW*0.25,BH*0.5));
-  const apex={x:BW*0.72,y:BH*0.5};const dx=BR*2.02,dy=BR*2.02;
-  const pattern=[[1],[9,2],[3,8,10],[11,4,5,12],[6,13,14,7,15]];
-  pattern.forEach((row,ri)=>row.forEach((id,ci)=>{const x=apex.x+ri*dx,y=apex.y+(ci-(row.length-1)/2)*dy;bilBalls.push(new Ball(id,x,y));}));
-}
-
-function bilDrawTable(){
-  const g=bilCtx.createLinearGradient(0,0,BW,BH);g.addColorStop(0,'#1a5f30');g.addColorStop(.5,'#1e6835');g.addColorStop(1,'#1a5f30');
-  bilCtx.fillStyle=g;bilCtx.fillRect(0,0,BW,BH);
-  bilCtx.strokeStyle='rgba(255,255,255,0.03)';bilCtx.lineWidth=1;
-  for(let x=0;x<BW;x+=BR*4){bilCtx.beginPath();bilCtx.moveTo(x,0);bilCtx.lineTo(x,BH);bilCtx.stroke();}
-  bilCtx.strokeStyle='rgba(255,255,255,0.07)';bilCtx.lineWidth=1;bilCtx.setLineDash([4,4]);
-  bilCtx.beginPath();bilCtx.moveTo(BW/2,0);bilCtx.lineTo(BW/2,BH);bilCtx.stroke();
-  bilCtx.setLineDash([]);
-  bilCtx.strokeStyle='rgba(255,255,255,0.07)';bilCtx.beginPath();bilCtx.arc(BW/2,BH/2,BR*3,0,Math.PI*2);bilCtx.stroke();
-  bilCtx.strokeStyle='rgba(255,255,255,0.07)';bilCtx.beginPath();bilCtx.moveTo(BW*0.25,0);bilCtx.lineTo(BW*0.25,BH);bilCtx.stroke();
-  bilCtx.beginPath();bilCtx.arc(BW*0.25,BH/2,BR*2.5,-Math.PI/2,Math.PI/2);bilCtx.stroke();
-  const dotColor='rgba(255,255,255,0.22)';
-  [1/4,1/2,3/4].forEach(p=>{bilCtx.fillStyle=dotColor;bilCtx.beginPath();bilCtx.arc(BW*p,BR*.28,2.5,0,Math.PI*2);bilCtx.fill();bilCtx.beginPath();bilCtx.arc(BW*p,BH-BR*.28,2.5,0,Math.PI*2);bilCtx.fill();});
-  [1/4,1/2,3/4].forEach(p=>{bilCtx.beginPath();bilCtx.arc(BR*.28,BH*p,2.5,0,Math.PI*2);bilCtx.fill();bilCtx.beginPath();bilCtx.arc(BW-BR*.28,BH*p,2.5,0,Math.PI*2);bilCtx.fill();});
-}
-
-function bilDrawPockets(){
-  POCKETS.forEach(([px,py])=>{
-    const g=bilCtx.createRadialGradient(px,py,0,px,py,POCKET_R*1.2);g.addColorStop(0,'rgba(0,0,0,0.95)');g.addColorStop(.7,'rgba(0,0,0,0.7)');g.addColorStop(1,'rgba(0,0,0,0)');
-    bilCtx.fillStyle=g;bilCtx.beginPath();bilCtx.arc(px,py,POCKET_R*1.2,0,Math.PI*2);bilCtx.fill();
-    bilCtx.fillStyle='#000';bilCtx.beginPath();bilCtx.arc(px,py,POCKET_R,0,Math.PI*2);bilCtx.fill();
-    bilCtx.strokeStyle='rgba(80,40,5,0.8)';bilCtx.lineWidth=2;bilCtx.beginPath();bilCtx.arc(px,py,POCKET_R,0,Math.PI*2);bilCtx.stroke();
-  });
-}
-
-function bilDrawBall(b){
-  if(b.potted)return;
-  const x=b.x,y=b.y,id=b.id;
-  bilCtx.fillStyle='rgba(0,0,0,0.28)';bilCtx.beginPath();bilCtx.ellipse(x+BR*.25,y+BR*.35,BR*.85,BR*.38,0,0,Math.PI*2);bilCtx.fill();
-  const color=BALL_COLORS[id]||'#fff';
-  if(STRIPE_BALLS.includes(id)){
-    bilCtx.fillStyle='#fff';bilCtx.beginPath();bilCtx.arc(x,y,BR,0,Math.PI*2);bilCtx.fill();
-    bilCtx.save();bilCtx.beginPath();bilCtx.arc(x,y,BR,0,Math.PI*2);bilCtx.clip();
-    bilCtx.fillStyle=color;bilCtx.fillRect(x-BR,y-BR*.42,BR*2,BR*.84);bilCtx.restore();
-  }else{bilCtx.fillStyle=color;bilCtx.beginPath();bilCtx.arc(x,y,BR,0,Math.PI*2);bilCtx.fill();}
-  const shine=bilCtx.createRadialGradient(x-BR*.35,y-BR*.35,0,x,y,BR);shine.addColorStop(0,'rgba(255,255,255,0.55)');shine.addColorStop(.4,'rgba(255,255,255,0.1)');shine.addColorStop(1,'rgba(0,0,0,0.2)');
-  bilCtx.fillStyle=shine;bilCtx.beginPath();bilCtx.arc(x,y,BR,0,Math.PI*2);bilCtx.fill();
-  if(id!==0){
-    if(STRIPE_BALLS.includes(id)||id===8){bilCtx.fillStyle=id===8?'#111':'#fff';bilCtx.beginPath();bilCtx.arc(x,y,BR*.52,0,Math.PI*2);bilCtx.fill();}
-    bilCtx.fillStyle=id===8?'#fff':'#222';bilCtx.font=`bold ${BR*(id>=10?.7:.8)}px -apple-system,sans-serif`;bilCtx.textAlign='center';bilCtx.textBaseline='middle';bilCtx.fillText(id,x,y+.5);
-  }
-  bilCtx.strokeStyle='rgba(0,0,0,0.22)';bilCtx.lineWidth=1;bilCtx.beginPath();bilCtx.arc(x,y,BR,0,Math.PI*2);bilCtx.stroke();
-}
-
-function bilDrawCue(){
-  if(bilGamePhase!=='aiming')return;
-  const cue=bilBalls.find(b=>b.id===0&&!b.potted);if(!cue)return;
-  const power=parseInt(bilPowerSlider.value)/100;
-  const len=BW*.44;
-  const tipX=cue.x-Math.cos(bilAimAngle)*(BR+2),tipY=cue.y-Math.sin(bilAimAngle)*(BR+2);
-  const endX=tipX+Math.cos(bilAimAngle)*len,endY=tipY+Math.sin(bilAimAngle)*len;
-  bilCtx.save();
-  bilCtx.strokeStyle='rgba(255,255,255,0.18)';bilCtx.lineWidth=1;bilCtx.setLineDash([5,5]);
-  bilCtx.beginPath();bilCtx.moveTo(cue.x-Math.cos(bilAimAngle)*BR,cue.y-Math.sin(bilAimAngle)*BR);bilCtx.lineTo(cue.x-Math.cos(bilAimAngle)*BR*14,cue.y-Math.sin(bilAimAngle)*BR*14);bilCtx.stroke();
-  bilCtx.setLineDash([]);bilCtx.restore();
-  const cueGrad=bilCtx.createLinearGradient(tipX,tipY,endX,endY);cueGrad.addColorStop(0,'#e8d4a0');cueGrad.addColorStop(.15,'#c8a060');cueGrad.addColorStop(.5,'#8B5E2A');cueGrad.addColorStop(1,'#5a3a1a');
-  bilCtx.save();bilCtx.strokeStyle=cueGrad;bilCtx.lineWidth=6*bilScale;bilCtx.lineCap='round';bilCtx.beginPath();bilCtx.moveTo(tipX,tipY);bilCtx.lineTo(endX,endY);bilCtx.stroke();
-  bilCtx.fillStyle='#d4a820';bilCtx.beginPath();bilCtx.arc(tipX,tipY,3.5*bilScale,0,Math.PI*2);bilCtx.fill();
-  bilCtx.strokeStyle=`hsl(${120-power*120},80%,50%)`;bilCtx.lineWidth=2.5;bilCtx.globalAlpha=.7;bilCtx.beginPath();bilCtx.arc(cue.x,cue.y,BR+5,bilAimAngle+.2,bilAimAngle+Math.PI*2*power+.2);bilCtx.stroke();
-  bilCtx.restore();
-}
-
-function bilDrawPlacement(){
-  if(bilGamePhase!=='placing'&&bilGamePhase!=='foul_place')return;
-  const valid=bilIsValidPlacement(bilPlacingX,bilPlacingY);
-  bilCtx.save();bilCtx.globalAlpha=.7;
-  bilCtx.fillStyle=valid?'rgba(255,255,255,0.85)':'rgba(255,50,50,0.7)';
-  bilCtx.beginPath();bilCtx.arc(bilPlacingX,bilPlacingY,BR,0,Math.PI*2);bilCtx.fill();
-  bilCtx.strokeStyle=valid?'#fff':'#ff4040';bilCtx.lineWidth=2;bilCtx.stroke();
-  bilCtx.restore();
-}
-
-function bilIsValidPlacement(x,y){
-  if(x-BR<0||x+BR>BW||y-BR<0||y+BR>BH)return false;
-  if(x>BW*.5)return false;
-  for(const b of bilBalls){if(b.potted||b.id===0)continue;const dx=b.x-x,dy=b.y-y;if(Math.sqrt(dx*dx+dy*dy)<BR*2.1)return false;}
-  for(const[px,py]of POCKETS){const dx=px-x,dy=py-y;if(Math.sqrt(dx*dx+dy*dy)<POCKET_R)return false;}
-  return true;
-}
-
-function bilRender(){
-  bilCtx.clearRect(0,0,BW,BH);
-  bilDrawTable();bilDrawPockets();bilDrawCue();
-  bilBalls.forEach(b=>bilDrawBall(b));
-  bilDrawPlacement();
-  bilAnimFrame=requestAnimationFrame(bilRender);
-}
-
-function bilStepPhysics(){
-  const active=bilBalls.filter(b=>!b.potted);
-  active.forEach(b=>{
-    if(!b.isMoving()){b.vx=0;b.vy=0;return;}
-    b.x+=b.vx;b.y+=b.vy;b.vx*=FRICTION;b.vy*=FRICTION;b.spin*=SPIN_DECAY;
-    let hit=false;
-    if(b.x-BR<0){b.x=BR;b.vx=Math.abs(b.vx)*RAIL_REST;hit=true;}
-    if(b.x+BR>BW){b.x=BW-BR;b.vx=-Math.abs(b.vx)*RAIL_REST;hit=true;}
-    if(b.y-BR<0){b.y=BR;b.vy=Math.abs(b.vy)*RAIL_REST;hit=true;}
-    if(b.y+BR>BH){b.y=BH-BR;b.vy=-Math.abs(b.vy)*RAIL_REST;hit=true;}
-    if(hit){b.vx*=.95;b.vy*=.95;}
-  });
-  for(let i=0;i<active.length;i++)for(let j=i+1;j<active.length;j++){
-    const a=active[i],b=active[j];const dx=b.x-a.x,dy=b.y-a.y;const dist=Math.sqrt(dx*dx+dy*dy);const minD=BR*2;
-    if(dist<minD&&dist>0.001){
-      if(a.id===0&&bilShotHitFirst===null)bilShotHitFirst=b.id;
-      if(b.id===0&&bilShotHitFirst===null)bilShotHitFirst=a.id;
-      const nx=dx/dist,ny=dy/dist;const ov=(minD-dist)/2;a.x-=nx*ov;a.y-=ny*ov;b.x+=nx*ov;b.y+=ny*ov;
-      const rvx=b.vx-a.vx,rvy=b.vy-a.vy;const dot=rvx*nx+rvy*ny;
-      if(dot<0){const imp=dot*RESTITUTION;a.vx+=imp*nx;a.vy+=imp*ny;b.vx-=imp*nx;b.vy-=imp*ny;const si=(a.spin-b.spin)*.08;a.spin-=si;b.spin+=si;}
-    }
-  }
-  active.forEach(b=>{POCKETS.forEach(([px,py])=>{const dx=b.x-px,dy=b.y-py;if(Math.sqrt(dx*dx+dy*dy)<POCKET_R*.85){b.potted=true;b.vx=0;b.vy=0;if(b.id===0)bilCuePottedThisShot=true;else if(b.id===8)bilEightPottedThisShot=true;else bilPottedThisShot.push(b.id);}});});
-}
-
-function bilShoot(){
-  const cue=bilBalls.find(b=>b.id===0&&!b.potted);if(!cue||bilGamePhase!=='aiming')return;
-  const power=parseInt(bilPowerSlider.value)/100;const speed=power*28*bilScale;
-  cue.vx=-Math.cos(bilAimAngle)*speed;cue.vy=-Math.sin(bilAimAngle)*speed;cue.spin=speed*.1;
-  bilShotHitFirst=null;bilPottedThisShot=[];bilCuePottedThisShot=false;bilEightPottedThisShot=false;
-  bilGamePhase='shooting';document.getElementById('bilShootBtn').disabled=true;
-  bilPhysInterval=setInterval(()=>{
-    if(bilGamePhase!=='shooting')return;bilStepPhysics();
-    if(bilBalls.filter(b=>!b.potted&&b.isMoving()).length===0){clearInterval(bilPhysInterval);bilPhysInterval=null;bilOnSettled();}
-  },1000/120);
-}
-
-function bilOnSettled(){
-  let foul=false,foulReason='';const cp=bilCurrentPlayer,op=1-cp;
-  if(bilBreakShot){
-    if(bilPottedThisShot.length>0&&!bilCuePottedThisShot){const first=bilPottedThisShot[0];if(SOLID_BALLS.includes(first)){bilPlayerGroups[cp]='solid';bilPlayerGroups[op]='stripe';}else{bilPlayerGroups[cp]='stripe';bilPlayerGroups[op]='solid';}}
-    if(bilCuePottedThisShot){foul=true;foulReason='白球入袋！';}
-    bilBreakShot=false;
-  }else{
-    const myGroup=bilPlayerGroups[cp];
-    const myLeft=bilBalls.filter(b=>!b.potted&&(myGroup==='solid'?SOLID_BALLS.includes(b.id):STRIPE_BALLS.includes(b.id)));
-    if(myGroup!==null&&bilShotHitFirst!==null){const isMyBall=myGroup==='solid'?SOLID_BALLS.includes(bilShotHitFirst):STRIPE_BALLS.includes(bilShotHitFirst);const is8=bilShotHitFirst===8;if(!isMyBall&&!(myLeft.length===0&&is8)){foul=true;foulReason='先触碰了对方的球！';}}
-    if(bilShotHitFirst===null){foul=true;foulReason='白球未触及任何球！';}
-    if(bilCuePottedThisShot){foul=true;foulReason='白球入袋！';}
-  }
-  if(bilEightPottedThisShot){
-    const myGroup=bilPlayerGroups[cp];const myBalls=bilBalls.filter(b=>!b.potted&&(myGroup==='solid'?SOLID_BALLS.includes(b.id):STRIPE_BALLS.includes(b.id)));
-    if(myBalls.length===0&&!foul){bilShowWin(cp,'完美！成功打入8号球！🎉');}
-    else{bilShowWin(op,`玩家${cp===0?'一':'二'}犯规或提前打入8号球！`);}
-    return;
-  }
-  bilPottedThisShot.forEach(bid=>{const isP1=bilPlayerGroups[0]==='solid'?SOLID_BALLS.includes(bid):STRIPE_BALLS.includes(bid);if(bilPlayerGroups[0]!==null)bilPottedBalls[isP1?0:1].push(bid);else bilPottedBalls[cp].push(bid);});
-  bilUpdateScoreboard();
-  if(foul){
-    bilShowFoul(foulReason);bilCurrentPlayer=op;bilGamePhase='foul_place';
-    const cueBall=bilBalls.find(b=>b.id===0);if(cueBall)cueBall.potted=true;
-    bilPlacingX=BW*.2;bilPlacingY=BH*.5;
-    document.getElementById('placeHint').classList.add('show');bilUpdateUI();return;
-  }
-  const myGroup=bilPlayerGroups[cp];const pottedOwn=bilPottedThisShot.filter(bid=>myGroup===null?true:myGroup==='solid'?SOLID_BALLS.includes(bid):STRIPE_BALLS.includes(bid));
-  if(pottedOwn.length===0)bilCurrentPlayer=op;
-  bilGamePhase='aiming';document.getElementById('bilShootBtn').disabled=false;bilUpdateUI();
-}
-
-function bilSetStatus(msg,tag=''){const bar=document.getElementById('bilStatus');bar.innerHTML=tag?`<span class="tag">${tag}</span> ${msg}`:msg;}
-
-function bilUpdateUI(){
-  const names=['玩家一','玩家二'];const cp=bilCurrentPlayer;
-  document.getElementById('bpanel1').classList.toggle('active',cp===0);
-  document.getElementById('bpanel2').classList.toggle('active',cp===1);
-  document.getElementById('barrow1').style.display=cp===0?'':'none';
-  document.getElementById('barrow2').style.display=cp===1?'':'none';
-  const myGroup=bilPlayerGroups[cp];
-  let msg=`${names[cp]}出击`;if(myGroup)msg+=`（${myGroup==='solid'?'全色':'花色'}球）`;
-  if(bilGamePhase==='foul_place')msg=`${names[cp]} 获得自由球（点击左半区放置白球）`;
-  if(bilGamePhase==='placing')msg='玩家一：点击左半区放置白球开球';
-  bilSetStatus(msg);
-}
-
-function bilUpdateScoreboard(){
-  [0,1].forEach(p=>{
-    const el=document.getElementById('bballs'+(p+1));el.innerHTML='';
-    const group=bilPlayerGroups[p];const myBalls=group==='solid'?SOLID_BALLS:group==='stripe'?STRIPE_BALLS:[];
-    myBalls.forEach(bid=>{const potted=bilPottedBalls[p].includes(bid);const dot=document.createElement('div');dot.style.cssText=`width:13px;height:13px;border-radius:50%;background:${BALL_COLORS[bid]};border:1.5px solid ${potted?'transparent':'rgba(255,255,255,0.25)'};opacity:${potted?'1':'0.28'};display:inline-block;flex-shrink:0;`;el.appendChild(dot);});
-    if(group!==null&&myBalls.filter(bid=>!bilBalls.find(b=>b.id===bid)?.potted).length===0){const e=document.createElement('div');e.style.cssText='width:13px;height:13px;border-radius:50%;background:#111;border:2px solid rgba(255,255,255,0.5);display:inline-block;';el.appendChild(e);}
-  });
-}
-
-function bilShowFoul(reason){const t=document.getElementById('foulToast');t.textContent='⚠ 犯规：'+reason;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
-
-function bilShowWin(player,msg){
-  bilGamePhase='over';
-  document.getElementById('winIcon').textContent=player===0?'🏆':'🎊';
-  document.getElementById('winTitle').textContent=`玩家${player===0?'一':'二'}获胜！`;
-  document.getElementById('winSub').textContent=msg;
-  document.getElementById('winOverlay').classList.add('show');
-}
-
-function bilGetPos(e){
-  const rect=bilCanvas.getBoundingClientRect();const t=e.touches?e.touches[0]||e.changedTouches[0]:e;
-  return{x:(t.clientX-rect.left)*(BW/rect.width),y:(t.clientY-rect.top)*(BH/rect.height)};
-}
-
-function bilHandlePlace(pos){
-  if(bilIsValidPlacement(pos.x,pos.y)){
-    let cue=bilBalls.find(b=>b.id===0);if(!cue){cue=new Ball(0,pos.x,pos.y);bilBalls.push(cue);}
-    cue.x=pos.x;cue.y=pos.y;cue.potted=false;cue.vx=0;cue.vy=0;
-    bilGamePhase='aiming';document.getElementById('bilShootBtn').disabled=false;
-    document.getElementById('placeHint').classList.remove('show');bilUpdateUI();
-  }
-}
-
-bilCanvas.addEventListener('click',e=>{
-  const pos=bilGetPos(e);
-  bilPlacingX=pos.x;bilPlacingY=pos.y;
-  if(bilGamePhase==='placing'||bilGamePhase==='foul_place'){bilHandlePlace(pos);}
-});
-bilCanvas.addEventListener('mousedown',e=>{if(bilGamePhase==='aiming'){bilIsAiming=true;const pos=bilGetPos(e);bilAimAngle=Math.atan2(pos.y-bilBalls.find(b=>b.id===0&&!b.potted)?.y||0,pos.x-bilBalls.find(b=>b.id===0&&!b.potted)?.x||0)+Math.PI;}});
-bilCanvas.addEventListener('mousemove',e=>{
-  const pos=bilGetPos(e);
-  if(bilGamePhase==='placing'||bilGamePhase==='foul_place'){bilPlacingX=pos.x;bilPlacingY=pos.y;return;}
-  if(bilIsAiming&&bilGamePhase==='aiming'){const cue=bilBalls.find(b=>b.id===0&&!b.potted);if(cue)bilAimAngle=Math.atan2(pos.y-cue.y,pos.x-cue.x)+Math.PI;}
-});
-bilCanvas.addEventListener('mouseup',()=>{bilIsAiming=false;});
-bilCanvas.addEventListener('touchstart',e=>{
-  e.preventDefault();const pos=bilGetPos(e);bilPlacingX=pos.x;bilPlacingY=pos.y;
-  if(bilGamePhase==='placing'||bilGamePhase==='foul_place')return;
-  if(bilGamePhase==='aiming'){bilIsAiming=true;const cue=bilBalls.find(b=>b.id===0&&!b.potted);if(cue)bilAimAngle=Math.atan2(pos.y-cue.y,pos.x-cue.x)+Math.PI;}
-},{passive:false});
-bilCanvas.addEventListener('touchmove',e=>{
-  e.preventDefault();const pos=bilGetPos(e);bilPlacingX=pos.x;bilPlacingY=pos.y;
-  if(bilIsAiming&&bilGamePhase==='aiming'){const cue=bilBalls.find(b=>b.id===0&&!b.potted);if(cue)bilAimAngle=Math.atan2(pos.y-cue.y,pos.x-cue.x)+Math.PI;}
-},{passive:false});
-bilCanvas.addEventListener('touchend',e=>{
-  e.preventDefault();const pos=bilGetPos(e);bilIsAiming=false;
-  if(bilGamePhase==='placing'||bilGamePhase==='foul_place'){bilHandlePlace(pos);}
-},{passive:false});
-
-document.getElementById('bilShootBtn').addEventListener('click',()=>{if(bilGamePhase==='aiming')bilShoot();});
-
-function bilRestartGame(){
-  document.getElementById('winOverlay').classList.remove('show');
-  bilCurrentPlayer=0;bilPlayerGroups=[null,null];bilPottedBalls=[[],[]];bilBreakShot=true;
-  bilShotHitFirst=null;bilPottedThisShot=[];bilCuePottedThisShot=false;bilEightPottedThisShot=false;
-  bilGamePhase='placing';bilAimAngle=Math.PI;
-  if(bilPhysInterval){clearInterval(bilPhysInterval);bilPhysInterval=null;}
-  bilRack();const cue=bilBalls.find(b=>b.id===0);cue.potted=true;
-  bilPlacingX=BW*.2;bilPlacingY=BH*.5;
-  document.getElementById('bilShootBtn').disabled=true;
-  document.getElementById('placeHint').classList.add('show');
-  document.getElementById('bballs1').innerHTML='';document.getElementById('bballs2').innerHTML='';
-  bilUpdateUI();bilSetStatus('玩家一：点击左半区放置白球开球','开始');
-}
-
-function bilConfirmRestart(){if(confirm('确定重新开始？'))bilRestartGame();}
-
-function bilInit(){
-  bilResizeCanvas();
-  cancelAnimationFrame(bilAnimFrame);
-  bilRender();
-  bilRestartGame();
-}
-
-window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiards')bilResizeCanvas();});
-</script>
 
 <div id="mp">
   <div id="mp-icon">
