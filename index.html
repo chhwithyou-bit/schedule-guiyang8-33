@@ -16,23 +16,22 @@
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 :root {
-  /* 深墨绿 × 金橙琥珀 色系 */
-  --bg: #0a0e08;
-  --accent: #d4870a;       /* 金橙 */
-  --accent2: #f0a832;      /* 亮金 */
-  --accent3: #8fbe44;      /* 苔绿亮色 */
-  --green: #4a7c2f;        /* 深橄榄绿 */
-  --green2: #2e4d1c;
+  /* 深蓝 × 爱马仕橙 色系 */
+  --bg: #020029;
+  --accent: #FF7710;       /* 爱马仕橙 */
+  --accent2: #FF9944;      /* 亮橙 */
+  --accent3: #FFB370;      /* 浅橙 */
+  --green: #0055ff;        
+  --green2: #0033aa;
   --text: #f5efe0;
   --t2: rgba(245,239,224,0.60);
   --t3: rgba(245,239,224,0.32);
   --t4: rgba(245,239,224,0.15);
-
-  /* 毛玻璃卡片 - 中透 */
-  --glass: rgba(14, 22, 10, 0.52);
-  --glass-border: rgba(212, 135, 10, 0.22);
-  --glass-border2: rgba(143, 190, 68, 0.18);
-  --glass-shine: rgba(240, 168, 50, 0.08);
+  /* 毛玻璃卡片 - 中透 (深蓝基底) */
+  --glass: rgba(2, 0, 41, 0.52);
+  --glass-border: rgba(255, 119, 16, 0.22);
+  --glass-border2: rgba(255, 119, 16, 0.18);
+  --glass-shine: rgba(255, 153, 68, 0.08);
   --glass-blur: 18px;
 
   /* 语义色 */
@@ -40,10 +39,10 @@
   --purple: #a06edd;
   --red: #e05050;
   --orange: var(--accent);
-  --s1: rgba(14, 22, 10, 0.70);
-  --s2: rgba(20, 32, 14, 0.65);
-  --s3: rgba(28, 45, 18, 0.70);
-  --border: rgba(212,135,10,0.18);
+  --s1: rgba(2, 0, 41, 0.70);
+  --s2: rgba(10, 10, 60, 0.65);
+  --s3: rgba(20, 20, 80, 0.70);
+  --border: rgba(255, 119, 16, 0.18);
   --r: 16px;
 }
 
@@ -67,49 +66,33 @@ html, body {
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  opacity: 0;
-  transition: opacity 0.8s ease;
+  background-image: url('/bg.jpg'); /* 直接引用 public 目录下的 bg.jpg */
+  opacity: 0.28;
   pointer-events: none;
 }
-#bg-img.loaded { opacity: 0.28; }
 
-/* 背景图设置按钮 */
-#bg-set-btn {
-  position: fixed;
-  bottom: 160px; right: 18px;
-  z-index: 9999;
-  width: 38px; height: 38px;
-  border-radius: 50%;
-  background: var(--glass);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
-  color: var(--t2);
-  font-size: 16px;
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
-}
-#bg-set-btn:active { transform: scale(0.9); opacity: 0.7; }
-
-#bg-upload-input { display: none; }
-
-/* ===== PAGE SYSTEM ===== */
+/* ===== PAGE SYSTEM (修复重叠 Bug) ===== */
 .page {
-  position: fixed; inset: 0;
+  position: fixed;
+  inset: 0;
   transform: translateX(100%);
-  transition: transform .42s cubic-bezier(.22,.8,.32,1);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform .42s cubic-bezier(.22,.8,.32,1), opacity .42s cubic-bezier(.22,.8,.32,1);
   background: transparent;
-  will-change: transform;
+  will-change: transform, opacity;
   z-index: 10;
 }
 .page.active {
   transform: translateX(0);
+  opacity: 1;
+  pointer-events: all;
 }
 .page.behind {
   transform: translateX(-28%);
-  transition: transform .42s cubic-bezier(.22,.8,.32,1);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform .42s cubic-bezier(.22,.8,.32,1), opacity .42s cubic-bezier(.22,.8,.32,1);
 }
 
 /* ===== STAGGER ENTRANCE ===== */
@@ -140,7 +123,7 @@ html, body {
 
 .drawer {
   position:fixed; top:0; left:0; bottom:0; width:270px;
-  background: rgba(10, 18, 7, 0.82);
+  background: rgba(2, 0, 41, 0.82);
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
   z-index:801;
@@ -177,16 +160,15 @@ html, body {
 }
 .drawer-item:active { background: var(--s2); transform: scale(0.97); }
 .drawer-item.active {
-  background: rgba(212,135,10,0.15);
+  background: rgba(255,119,16,0.15);
   color: var(--accent2);
-  border: 1px solid rgba(212,135,10,0.25);
+  border: 1px solid rgba(255,119,16,0.25);
 }
 .drawer-item-icon { font-size:20px; width:26px; text-align:center; flex-shrink:0; }
 .drawer-item-label { flex:1; }
 .drawer-item-badge {
   font-size:10px; font-weight:700;
-  background: var(--accent);
-  color:#fff; padding:2px 7px; border-radius:20px;
+  background: var(--accent); color:#fff; padding:2px 7px; border-radius:20px;
   letter-spacing: 0.5px;
 }
 .drawer-footer {
@@ -213,8 +195,7 @@ html, body {
   background: var(--glass);
   backdrop-filter: blur(var(--glass-blur)) saturate(180%);
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--r);
+  border: 1px solid var(--glass-border); border-radius: var(--r);
   box-shadow:
     inset 0 1px 0 var(--glass-shine),
     0 8px 32px rgba(0,0,0,0.35);
@@ -239,10 +220,9 @@ html, body {
 }
 .hdr-date { font-size:14px; color:var(--t2); margin-top:4px; font-weight:500; }
 .admin-btn {
-  background: rgba(212,135,10,0.15);
+  background: rgba(255,119,16,0.15);
   backdrop-filter: blur(8px);
-  border: 1px solid rgba(212,135,10,0.3);
-  color: var(--accent2);
+  border: 1px solid rgba(255,119,16,0.3); color: var(--accent2);
   font-size:12px; padding:6px 12px;
   border-radius:20px; cursor:pointer; margin-top:8px;
   font-family: 'Outfit', 'PingFang SC', sans-serif;
@@ -268,7 +248,7 @@ html, body {
   font-size:16px; margin-bottom:10px;
 }
 .c-icon.purple { background: rgba(160,110,221,0.2); }
-.c-icon.green  { background: rgba(143,190,68,0.18); }
+.c-icon.green  { background: rgba(255,119,16,0.18); }
 .c-label { font-size:11px; color:var(--t2); margin-bottom:3px; font-weight:600; letter-spacing:0.5px; }
 .c-val { font-size:18px; font-weight:700; line-height:1.2; }
 .c-sub { font-size:11px; color:var(--t2); margin-top:4px; }
@@ -285,7 +265,7 @@ html, body {
 .ev-head { display:flex; align-items:center; gap:9px; margin-bottom:13px; }
 .ev-icon {
   width:30px; height:30px; border-radius:8px;
-  background: rgba(212,135,10,0.2);
+  background: rgba(255,119,16,0.2);
   display:flex; align-items:center; justify-content:center; font-size:15px;
 }
 .ev-title { font-size:15px; font-weight:700; }
@@ -304,13 +284,13 @@ html, body {
 .seg-wrap {
   padding:0 16px 8px; position:sticky; top:0; z-index:100;
   padding-top:10px;
-  background: linear-gradient(to bottom, rgba(10,14,8,0.9) 80%, transparent);
+  background: linear-gradient(to bottom, rgba(2,0,41,0.9) 80%, transparent);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
 .seg {
   display:flex;
-  background: rgba(14,22,10,0.6);
+  background: rgba(2,0,41,0.6);
   backdrop-filter: blur(12px);
   border: 1px solid var(--border);
   border-radius:12px; padding:3px; gap:2px;
@@ -323,12 +303,12 @@ html, body {
   font-family: 'Outfit', 'PingFang SC', sans-serif;
 }
 .seg-btn.active {
-  background: rgba(212,135,10,0.22);
+  background: rgba(255,119,16,0.22);
   color: var(--accent2);
   font-weight:700;
-  box-shadow: 0 2px 8px rgba(212,135,10,0.25),
-              inset 0 1px 0 rgba(240,168,50,0.2);
-  border: 1px solid rgba(212,135,10,0.3);
+  box-shadow: 0 2px 8px rgba(255,119,16,0.25),
+              inset 0 1px 0 rgba(255,153,68,0.2);
+  border: 1px solid rgba(255,119,16,0.3);
 }
 .seg-btn.today-dot::after {
   content:''; position:absolute; bottom:3px; left:50%;
@@ -345,7 +325,8 @@ html, body {
   to   { opacity:1; transform:translateY(0); }
 }
 .sec-title {
-  font-size:11px; font-weight:700; color: var(--accent);
+  font-size:11px;
+  font-weight:700; color: var(--accent);
   letter-spacing:1.5px; text-transform:uppercase;
   margin:18px 4px 10px;
 }
@@ -367,8 +348,8 @@ html, body {
   display:flex; align-items:center; justify-content:center;
   font-size:14px; font-weight:800; flex-shrink:0;
 }
-.dm { background: rgba(212,135,10,0.18); color: var(--accent2); }
-.da { background: rgba(143,190,68,0.15); color: var(--accent3); }
+.dm { background: rgba(255,119,16,0.18); color: var(--accent2); }
+.da { background: rgba(255,119,16,0.15); color: var(--accent3); }
 .ds { background: rgba(160,110,221,0.15); color: #c099f0; }
 .pmain { flex:1; min-width:0; }
 .psubj { font-size:16px; font-weight:700; letter-spacing:-.2px; }
@@ -396,7 +377,7 @@ html, body {
 }
 .modal-overlay.open { display:flex; flex-direction:column; animation: fadeIn 0.25s ease; }
 .modal {
-  background: rgba(12, 20, 8, 0.88);
+  background: rgba(2,0,41, 0.88);
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
   border: 1px solid var(--glass-border);
@@ -409,7 +390,7 @@ html, body {
 .field-label { font-size:13px; color:var(--t2); font-weight:600; margin-bottom:6px; margin-top:14px; }
 .inp {
   width:100%;
-  background: rgba(20,32,14,0.7);
+  background: rgba(10,10,60,0.7);
   backdrop-filter: blur(8px);
   border: 1px solid var(--border);
   border-radius:12px; padding:12px 14px;
@@ -418,7 +399,7 @@ html, body {
   outline:none;
   transition: border-color 0.2s;
 }
-.inp:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(212,135,10,0.15); }
+.inp:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(255,119,16,0.15); }
 .inp::placeholder { color:var(--t3); }
 .upload-section { margin-top:14px; }
 .upload-tabs { display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
@@ -431,20 +412,20 @@ html, body {
   transition: all 0.2s;
 }
 .utab.active {
-  background: rgba(212,135,10,0.2);
+  background: rgba(255,119,16,0.2);
   color: var(--accent2);
-  border-color: rgba(212,135,10,0.4);
+  border-color: rgba(255,119,16,0.4);
 }
 .upload-area {
   border:1.5px dashed var(--s3); border-radius:14px;
   padding:26px 16px; text-align:center; cursor:pointer;
   transition: border-color .2s, background .2s;
   position:relative; overflow:hidden;
-  background: rgba(14,22,10,0.3);
+  background: rgba(2,0,41,0.3);
 }
 .upload-area:hover,.upload-area.drag {
   border-color: var(--accent);
-  background: rgba(212,135,10,0.05);
+  background: rgba(255,119,16,0.05);
 }
 .upload-area input[type=file] { position:absolute; inset:0; opacity:0; cursor:pointer; }
 .upload-icon { font-size:34px; margin-bottom:10px; }
@@ -458,7 +439,7 @@ html, body {
   font-family: 'Outfit', 'PingFang SC', sans-serif;
   cursor:pointer; margin-top:16px;
   transition: opacity .2s, transform .15s;
-  box-shadow: 0 4px 20px rgba(212,135,10,0.4);
+  box-shadow: 0 4px 20px rgba(255,119,16,0.4);
 }
 .parse-btn:disabled { opacity:.4; cursor:not-allowed; }
 .parse-btn:active:not(:disabled) { transform: scale(0.97); }
@@ -467,7 +448,8 @@ html, body {
   background: var(--s2);
   backdrop-filter: blur(8px);
   border: 1px solid var(--border);
-  border-radius:12px; padding:13px 15px; margin-top:12px;
+  border-radius:12px;
+  padding:13px 15px; margin-top:12px;
   font-size:13px; color:var(--t2); line-height:1.7;
   display:none; max-height:180px; overflow-y:auto;
 }
@@ -487,10 +469,10 @@ html, body {
 .action-row { display:flex; gap:10px; margin-top:12px; }
 .btn-confirm {
   flex:1; padding:13px; border-radius:13px; border:none;
-  background: linear-gradient(135deg, #3a7020, #4a9028);
+  background: linear-gradient(135deg, #0055ff, #0033aa);
   color:#fff; font-size:15px; font-weight:700;
   font-family: 'Outfit', 'PingFang SC', sans-serif; cursor:pointer;
-  box-shadow: 0 4px 16px rgba(74,144,40,0.4);
+  box-shadow: 0 4px 16px rgba(0,85,255,0.4);
   transition: transform 0.15s;
 }
 .btn-confirm:active { transform: scale(0.97); }
@@ -517,7 +499,7 @@ html, body {
   display:flex; align-items:center; gap:10px;
   padding: env(safe-area-inset-top,12px) 16px 10px;
   padding-top: max(env(safe-area-inset-top,0px),12px);
-  background: rgba(10,14,8,0.82);
+  background: rgba(2,0,41,0.82);
   backdrop-filter: blur(16px) saturate(180%);
   -webkit-backdrop-filter: blur(16px) saturate(180%);
   flex-shrink:0;
@@ -544,12 +526,12 @@ html, body {
 .bil-restart-btn:active { transform: scale(0.95); }
 .scoreboard {
   display:flex; align-items:stretch;
-  background: rgba(10,14,8,0.65);
+  background: rgba(2,0,41,0.65);
   backdrop-filter: blur(12px);
   flex-shrink:0; border-bottom:1px solid var(--border);
 }
 .player-panel { flex:1; padding:9px 13px; position:relative; transition:background .3s; }
-.player-panel.active { background: rgba(212,135,10,0.08); }
+.player-panel.active { background: rgba(255,119,16,0.08); }
 .player-panel.p1.active::after {
   content:''; position:absolute; bottom:0; left:0; right:0;
   height:2px; background: var(--accent2);
@@ -564,7 +546,7 @@ html, body {
 .vs-badge { display:flex; align-items:center; justify-content:center; padding:0 10px; color:var(--t3); font-size:11px; font-weight:700; }
 .turn-arrow { font-size:9px; }
 .bil-status {
-  background: rgba(10,14,8,0.7);
+  background: rgba(2,0,41,0.7);
   backdrop-filter: blur(8px);
   padding:6px 16px; font-size:13px; color:var(--t2);
   text-align:center; flex-shrink:0; min-height:30px;
@@ -572,13 +554,13 @@ html, body {
 }
 .bil-status .tag {
   font-size:10px; font-weight:700; padding:2px 7px;
-  border-radius:6px; background: rgba(212,135,10,0.2); color: var(--accent2);
+  border-radius:6px; background: rgba(255,119,16,0.2); color: var(--accent2);
 }
 .table-wrap { flex:1; display:flex; align-items:center; justify-content:center; padding:8px; overflow:hidden; position:relative; }
-canvas#biltable { border-radius:5px; box-shadow:0 0 0 7px #3d2008, 0 0 0 13px #2a1505, 0 16px 50px rgba(0,0,0,0.8); cursor:crosshair; touch-action:none; display:block; }
+canvas#biltable { border-radius:5px; box-shadow:0 0 0 7px #020029, 0 0 0 13px #010015, 0 16px 50px rgba(0,0,0,0.8); cursor:crosshair; touch-action:none; display:block; }
 .controls {
   flex-shrink:0;
-  background: rgba(10,14,8,0.82);
+  background: rgba(2,0,41,0.82);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-top:1px solid var(--border);
@@ -595,8 +577,7 @@ canvas#biltable { border-radius:5px; box-shadow:0 0 0 7px #3d2008, 0 0 0 13px #2
 }
 .power-slider::-webkit-slider-thumb {
   -webkit-appearance:none; width:22px; height:22px;
-  border-radius:50%; background: var(--accent2);
-  box-shadow: 0 0 8px rgba(212,135,10,0.5); cursor:pointer;
+  border-radius:50%; background: var(--accent2); box-shadow: 0 0 8px rgba(255,119,16,0.5); cursor:pointer;
 }
 .power-val { font-size:11px; color:var(--t2); width:28px; flex-shrink:0; font-weight:600; }
 .shoot-btn {
@@ -606,7 +587,7 @@ canvas#biltable { border-radius:5px; box-shadow:0 0 0 7px #3d2008, 0 0 0 13px #2
   font-family: 'Outfit', 'PingFang SC', sans-serif;
   cursor:pointer; flex-shrink:0;
   transition: all .15s;
-  box-shadow: 0 4px 16px rgba(212,135,10,0.4);
+  box-shadow: 0 4px 16px rgba(255,119,16,0.4);
 }
 .shoot-btn:active { transform:scale(.94); opacity:.85; }
 .shoot-btn:disabled { background: var(--s2); color:var(--t3); cursor:not-allowed; box-shadow:none; }
@@ -618,7 +599,7 @@ canvas#biltable { border-radius:5px; box-shadow:0 0 0 7px #3d2008, 0 0 0 13px #2
 }
 .win-overlay.show { display:flex; animation: fadeIn 0.3s ease; }
 .win-card {
-  background: rgba(12,20,8,0.90);
+  background: rgba(2,0,41,0.90);
   backdrop-filter: blur(24px) saturate(180%);
   border: 1px solid var(--glass-border);
   border-radius:24px; padding:30px 26px;
@@ -635,7 +616,7 @@ canvas#biltable { border-radius:5px; box-shadow:0 0 0 7px #3d2008, 0 0 0 13px #2
   color:#fff; font-size:15px; font-weight:700;
   font-family: 'Outfit', 'PingFang SC', sans-serif;
   cursor:pointer; margin-bottom:9px;
-  box-shadow: 0 4px 18px rgba(212,135,10,0.4);
+  box-shadow: 0 4px 18px rgba(255,119,16,0.4);
   transition: transform 0.15s;
 }
 .win-btn:active { transform: scale(0.97); }
@@ -667,16 +648,15 @@ canvas#biltable { border-radius:5px; box-shadow:0 0 0 7px #3d2008, 0 0 0 13px #2
   padding: 13px 20px; border-radius: 16px;
   font-size: 14px; font-weight: 700; letter-spacing: 0.3px;
   box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
   white-space: nowrap;
 }
-#g-toast-inner.success { background: rgba(28,68,18,0.95); color: #a8d878; border: 1px solid rgba(143,190,68,0.4); }
+#g-toast-inner.success { background: rgba(0,51,170,0.95); color: #a8d878; border: 1px solid rgba(0,85,255,0.4); }
 #g-toast-inner.error   { background: rgba(100,16,16,0.95); color: #fca5a5; border: 1px solid rgba(224,80,80,0.4); }
-#g-toast-inner.info    { background: rgba(10,20,35,0.97);  color: #90caf9; border: 1px solid rgba(96,168,224,0.4); }
+#g-toast-inner.info    { background: rgba(2,0,41,0.97);  color: #90caf9; border: 1px solid rgba(96,168,224,0.4); }
 .place-hint {
   position:fixed; bottom:110px; left:50%; transform:translateX(-50%);
-  background: rgba(212,135,10,0.92);
+  background: rgba(255,119,16,0.92);
   color:#fff; padding:7px 16px; border-radius:18px;
   font-size:13px; font-weight:700; z-index:100;
   pointer-events:none; display:none; white-space:nowrap;
@@ -684,22 +664,19 @@ canvas#biltable { border-radius:5px; box-shadow:0 0 0 7px #3d2008, 0 0 0 13px #2
 .place-hint.show { display:block; animation: staggerIn 0.25s cubic-bezier(.22,.8,.32,1); }
 
 /* ===================== PAGE 3: NODES ===================== */
-#page-nodes {
-  overflow-y:auto;
-  background: transparent;
-}
+#page-nodes { overflow-y:auto; background: transparent; }
 
 /* ===== MUSIC PLAYER ===== */
 #mp {
   position: fixed; right: 18px; bottom: 90px;
   z-index: 10001;
   width: 52px; height: 52px; border-radius: 26px;
-  background: rgba(12,20,8,0.55);
+  background: rgba(2,0,41,0.55);
   backdrop-filter: blur(48px) saturate(200%) brightness(1.1);
   -webkit-backdrop-filter: blur(48px) saturate(200%) brightness(1.1);
-  border: 1px solid rgba(212,135,10,0.45);
-  box-shadow: 0 0 0 0px rgba(212,135,10,0), 0 8px 32px rgba(0,0,0,0.4),
-              inset 0 1px 0 rgba(240,168,50,0.12);
+  border: 1px solid rgba(255,119,16,0.45);
+  box-shadow: 0 0 0 0px rgba(255,119,16,0), 0 8px 32px rgba(0,0,0,0.4),
+              inset 0 1px 0 rgba(255,153,68,0.12);
   overflow: hidden; cursor: pointer; touch-action: none; user-select: none;
   transition:
     width      0.52s cubic-bezier(0.34,1.4,0.64,1),
@@ -710,9 +687,9 @@ canvas#biltable { border-radius:5px; box-shadow:0 0 0 7px #3d2008, 0 0 0 13px #2
 #mp:not(.open):active { transform: scale(0.90); transition: transform 0.12s; }
 #mp.open {
   width: 248px; height: 52px; border-radius: 20px;
-  border-color: rgba(212,135,10,0.4);
-  box-shadow: 0 0 0 2px rgba(212,135,10,0.07), 0 16px 52px rgba(0,0,0,0.4),
-              inset 0 1px 0 rgba(240,168,50,0.12);
+  border-color: rgba(255,119,16,0.4);
+  box-shadow: 0 0 0 2px rgba(255,119,16,0.07), 0 16px 52px rgba(0,0,0,0.4),
+              inset 0 1px 0 rgba(255,153,68,0.12);
   cursor: default;
 }
 #mp-icon {
@@ -730,20 +707,17 @@ canvas#biltable { border-radius:5px; box-shadow:0 0 0 7px #3d2008, 0 0 0 13px #2
 }
 #mp-body {
   position: absolute; inset: 0; opacity: 0; pointer-events: none;
-  transition: opacity 0.18s;
-  display: flex; flex-direction: column; min-width: 248px;
+  transition: opacity 0.18s; display: flex; flex-direction: column; min-width: 248px;
 }
 #mp.open #mp-body { opacity: 1; pointer-events: all; transition: opacity 0.22s 0.2s; }
 #mp-header {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 11px 13px 6px;
-  cursor: grab; user-select: none; touch-action: none; flex-shrink: 0;
+  padding: 11px 13px 6px; cursor: grab; user-select: none; touch-action: none; flex-shrink: 0;
 }
 #mp-header:active { cursor: grabbing; }
 .mp-header-label {
   font-size: 10px; font-weight: 700; color: var(--accent);
-  letter-spacing: 1.2px; text-transform: uppercase;
-  font-family: 'Outfit', sans-serif;
+  letter-spacing: 1.2px; text-transform: uppercase; font-family: 'Outfit', sans-serif;
 }
 #mp-close {
   width: 22px; height: 22px; border-radius: 50%;
@@ -757,8 +731,8 @@ canvas#biltable { border-radius:5px; box-shadow:0 0 0 7px #3d2008, 0 0 0 13px #2
 .mp-row { display: flex; align-items: center; gap: 10px; padding: 0 13px 8px; flex-shrink: 0; }
 .mp-disc {
   width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
-  background: linear-gradient(135deg, #1e2e10, #0e1808);
-  border: 1px solid rgba(212,135,10,0.25);
+  background: linear-gradient(135deg, #020029, #010015);
+  border: 1px solid rgba(255,119,16,0.25);
   display: flex; align-items: center; justify-content: center;
 }
 .mp-disc svg { width: 18px; height: 18px; }
@@ -785,11 +759,11 @@ canvas#biltable { border-radius:5px; box-shadow:0 0 0 7px #3d2008, 0 0 0 13px #2
 .mp-prog-bg::after {
   content: ''; position: absolute; right: -4px; top: 50%; transform: translateY(-50%);
   width: 8px; height: 8px; border-radius: 50%;
-  background: var(--accent2); box-shadow: 0 0 0 1.5px rgba(212,135,10,0.7);
+  background: var(--accent2); box-shadow: 0 0 0 1.5px rgba(255,119,16,0.7);
   transition: transform 0.15s, box-shadow 0.15s;
 }
 .mp-prog-track.dragging .mp-prog-bg { transition: none; }
-.mp-prog-track.dragging .mp-prog-bg::after { transform: translateY(-50%) scale(1.45); box-shadow: 0 0 0 2.5px rgba(212,135,10,0.9); }
+.mp-prog-track.dragging .mp-prog-bg::after { transform: translateY(-50%) scale(1.45); box-shadow: 0 0 0 2.5px rgba(255,119,16,0.9); }
 .mp-times { display: flex; justify-content: space-between; font-size: 9px; color: rgba(255,255,255,0.25); }
 .mp-ctrl { display: flex; align-items: center; justify-content: center; gap: 4px; padding: 0px 6px 10px; flex-shrink: 0; }
 .mpb {
@@ -804,15 +778,14 @@ canvas#biltable { border-radius:5px; box-shadow:0 0 0 7px #3d2008, 0 0 0 13px #2
 .mpb svg { width: 17px; height: 17px; pointer-events: none; }
 .mpb.play {
   width: 40px; height: 40px;
-  border: 1.5px solid rgba(212,135,10,0.5);
-  color: var(--accent2);
+  border: 1.5px solid rgba(255,119,16,0.5); color: var(--accent2);
 }
 .mpb.play svg { width: 18px; height: 18px; }
-.mpb.play:active { background: rgba(212,135,10,0.12); }
+.mpb.play:active { background: rgba(255,119,16,0.12); }
 .mp-list-area { border-top: 0px solid rgba(255,255,255,0.07); overflow-y: auto; flex-shrink: 0; display: none; }
 .mp-list-area.show { display: block; border-top-width: 1px; }
 .mp-list-area::-webkit-scrollbar { width: 2px; }
-.mp-list-area::-webkit-scrollbar-thumb { background: rgba(212,135,10,0.25); border-radius: 1px; }
+.mp-list-area::-webkit-scrollbar-thumb { background: rgba(255,119,16,0.25); border-radius: 1px; }
 .mp-li {
   display: flex; align-items: center; gap: 8px;
   padding: 8px 13px; cursor: pointer;
@@ -822,7 +795,7 @@ canvas#biltable { border-radius:5px; box-shadow:0 0 0 7px #3d2008, 0 0 0 13px #2
 .mp-li:active { background: rgba(255,255,255,0.04); }
 .mp-li.on { color: var(--accent2); }
 .mp-li .ln { width:14px; text-align:center; font-size:10px; flex-shrink:0; color:rgba(255,255,255,0.22); }
-.mp-li.on .ln { color: rgba(212,135,10,0.7); }
+.mp-li.on .ln { color: rgba(255,119,16,0.7); }
 .mp-li .lt { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .mp-li .ld { opacity:0; background:none; border:none; color:rgba(255,255,255,0.25); cursor:pointer; padding:0 3px; font-size:12px; }
 .mp-li:hover .ld { opacity:1; }
@@ -834,21 +807,18 @@ canvas#biltable { border-radius:5px; box-shadow:0 0 0 7px #3d2008, 0 0 0 13px #2
   color:#fff; font-size:11px; padding:6px 8px; outline:none;
 }
 .mp-add input::placeholder { color:rgba(255,255,255,0.22); }
-.mp-add input:focus { border-color: rgba(212,135,10,0.4); }
+.mp-add input:focus { border-color: rgba(255,119,16,0.4); }
 .mp-add button {
-  background: rgba(212,135,10,0.18);
-  border:1px solid rgba(212,135,10,0.35); border-radius:8px;
+  background: rgba(255,119,16,0.18);
+  border:1px solid rgba(255,119,16,0.35); border-radius:8px;
   color: var(--accent2); font-size:12px; padding:6px 11px; cursor:pointer;
 }
 </style>
 </head>
 <body>
 
-<!-- Background layers -->
 <canvas id="bg-canvas"></canvas>
 <div id="bg-img"></div>
-<input type="file" id="bg-upload-input" accept="image/*">
-<button id="bg-set-btn" title="设置背景图">🖼</button>
 
 <div id="g-toast"><div id="g-toast-inner"></div></div>
 <div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
@@ -876,7 +846,6 @@ canvas#biltable { border-radius:5px; box-shadow:0 0 0 7px #3d2008, 0 0 0 13px #2
   <div class="drawer-footer">2025-2026 第二学期 · 至6月7日</div>
 </div>
 
-<!-- ===== PAGE: SCHEDULE ===== -->
 <div class="page active" id="page-schedule">
   <div class="safe-top"></div>
   <div class="header stagger">
@@ -944,7 +913,6 @@ canvas#biltable { border-radius:5px; box-shadow:0 0 0 7px #3d2008, 0 0 0 13px #2
   <div class="sync-indicator" id="syncIndicator"></div>
   <div class="footer">心理健康教育每月一次 · 日语生上课地点：录播教室2</div>
 
-  <!-- ADMIN MODAL -->
   <div class="modal-overlay" id="adminModal">
     <div class="modal">
       <button class="close-modal" onclick="closeAdmin()">×</button>
@@ -976,10 +944,7 @@ canvas#biltable { border-radius:5px; box-shadow:0 0 0 7px #3d2008, 0 0 0 13px #2
       </div>
     </div>
   </div>
-</div><!-- end page-schedule -->
-
-<!-- ===== PAGE: BILLIARDS ===== -->
-<div class="page" id="page-billiards">
+</div><div class="page" id="page-billiards">
   <div class="bil-topbar">
     <button class="back-btn" onclick="navTo('schedule')">‹</button>
     <div style="flex:1">
@@ -1038,10 +1003,7 @@ canvas#biltable { border-radius:5px; box-shadow:0 0 0 7px #3d2008, 0 0 0 13px #2
 
   <div class="foul-toast" id="foulToast"></div>
   <div class="place-hint" id="placeHint">点击左半区放置白球</div>
-</div><!-- end page-billiards -->
-
-<!-- ===== PAGE: NODES ===== -->
-<div class="page" id="page-nodes" style="overflow-y:auto;">
+</div><div class="page" id="page-nodes" style="overflow-y:auto;">
   <div class="safe-top"></div>
   <div class="header" style="border-bottom:1px solid var(--border);">
     <div class="header-left">
@@ -1052,7 +1014,6 @@ canvas#biltable { border-radius:5px; box-shadow:0 0 0 7px #3d2008, 0 0 0 13px #2
 
   <div id="nodes-content" style="padding:16px;max-width:480px;margin:0 auto;">
 
-    <!-- 未登录状态 -->
     <div id="nodes-login" style="margin-top:40px;">
       <div style="text-align:center;margin-bottom:28px;">
         <div style="font-size:52px;margin-bottom:14px;">🛡️</div>
@@ -1061,11 +1022,11 @@ canvas#biltable { border-radius:5px; box-shadow:0 0 0 7px #3d2008, 0 0 0 13px #2
       </div>
       <div style="background:var(--glass);backdrop-filter:blur(var(--glass-blur));border:1px solid var(--glass-border);border-radius:18px;padding:22px;box-shadow:inset 0 1px 0 var(--glass-shine);">
         <input id="nodes-pwd-input" type="password" placeholder="输入密码..."
-          style="width:100%;padding:13px 16px;background:rgba(14,22,10,0.7);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:16px;outline:none;box-sizing:border-box;font-family:'Outfit','PingFang SC',sans-serif;transition:border-color 0.2s;"
+          style="width:100%;padding:13px 16px;background:rgba(2,0,41,0.7);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:16px;outline:none;box-sizing:border-box;font-family:'Outfit','PingFang SC',sans-serif;transition:border-color 0.2s;"
           onkeydown="if(event.key==='Enter')nodesLogin()"
           onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
         <button onclick="nodesLogin()"
-          style="width:100%;margin-top:13px;padding:14px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:13px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:'Outfit','PingFang SC',sans-serif;box-shadow:0 4px 20px rgba(212,135,10,0.4);transition:transform 0.15s;"
+          style="width:100%;margin-top:13px;padding:14px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:13px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:'Outfit','PingFang SC',sans-serif;box-shadow:0 4px 20px rgba(255,119,16,0.4);transition:transform 0.15s;"
           onactive="this.style.transform='scale(0.97)'">
           进入
         </button>
@@ -1076,7 +1037,6 @@ canvas#biltable { border-radius:5px; box-shadow:0 0 0 7px #3d2008, 0 0 0 13px #2
       </div>
     </div>
 
-    <!-- Admin 登录 -->
     <div id="nodes-admin-login" style="margin-top:40px;display:none;">
       <div style="text-align:center;margin-bottom:28px;">
         <div style="font-size:52px;margin-bottom:14px;">⚙️</div>
@@ -1084,9 +1044,9 @@ canvas#biltable { border-radius:5px; box-shadow:0 0 0 7px #3d2008, 0 0 0 13px #2
       </div>
       <div style="background:var(--glass);backdrop-filter:blur(var(--glass-blur));border:1px solid var(--glass-border);border-radius:18px;padding:22px;">
         <input id="admin-user-input" type="text" placeholder="用户名..."
-          style="width:100%;padding:13px 16px;background:rgba(14,22,10,0.7);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:16px;outline:none;box-sizing:border-box;margin-bottom:11px;font-family:'Outfit','PingFang SC',sans-serif;">
+          style="width:100%;padding:13px 16px;background:rgba(2,0,41,0.7);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:16px;outline:none;box-sizing:border-box;margin-bottom:11px;font-family:'Outfit','PingFang SC',sans-serif;">
         <input id="admin-pwd-input" type="password" placeholder="密码..."
-          style="width:100%;padding:13px 16px;background:rgba(14,22,10,0.7);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:16px;outline:none;box-sizing:border-box;font-family:'Outfit','PingFang SC',sans-serif;"
+          style="width:100%;padding:13px 16px;background:rgba(2,0,41,0.7);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:16px;outline:none;box-sizing:border-box;font-family:'Outfit','PingFang SC',sans-serif;"
           onkeydown="if(event.key==='Enter')adminLogin()">
         <button onclick="adminLogin()"
           style="width:100%;margin-top:13px;padding:14px;background:linear-gradient(135deg,#4a148c,#6a1cac);border:none;border-radius:13px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:'Outfit','PingFang SC',sans-serif;">
@@ -1099,7 +1059,6 @@ canvas#biltable { border-radius:5px; box-shadow:0 0 0 7px #3d2008, 0 0 0 13px #2
       </div>
     </div>
 
-    <!-- 普通用户 - 节点列表 -->
     <div id="nodes-user-panel" style="display:none;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
         <div style="font-size:15px;font-weight:700;color:var(--accent2);">可用节点</div>
@@ -1118,12 +1077,11 @@ canvas#biltable { border-radius:5px; box-shadow:0 0 0 7px #3d2008, 0 0 0 13px #2
       </div>
     </div>
 
-    <!-- Admin 面板 -->
     <div id="nodes-admin-panel" style="display:none;">
       <div style="background:var(--glass);backdrop-filter:blur(var(--glass-blur));border:1px solid var(--glass-border);border-radius:16px;padding:18px;margin-bottom:16px;">
         <div style="font-size:14px;font-weight:700;color:var(--accent2);margin-bottom:13px;">📥 导入订阅链接</div>
         <input id="admin-sub-url" type="text" placeholder="粘贴订阅链接..."
-          style="width:100%;padding:11px 14px;background:rgba(14,22,10,0.7);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;outline:none;box-sizing:border-box;font-family:'Outfit','PingFang SC',sans-serif;">
+          style="width:100%;padding:11px 14px;background:rgba(2,0,41,0.7);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;outline:none;box-sizing:border-box;font-family:'Outfit','PingFang SC',sans-serif;">
         <button onclick="adminImportSub()"
           style="width:100%;margin-top:10px;padding:12px;background:linear-gradient(135deg,#1a5f30,#2a8040);border:none;border-radius:11px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:'Outfit','PingFang SC',sans-serif;">
           解析并导入
@@ -1148,13 +1106,13 @@ canvas#biltable { border-radius:5px; box-shadow:0 0 0 7px #3d2008, 0 0 0 13px #2
         <div style="font-size:12px;color:var(--t2);margin-bottom:7px;font-weight:600;">用户访问密码</div>
         <div style="display:flex;gap:8px;margin-bottom:13px;">
           <input id="admin-set-userpwd" type="text" placeholder="设置用户密码..."
-            style="flex:1;padding:10px 13px;background:rgba(14,22,10,0.7);border:1px solid var(--border);border-radius:9px;color:var(--text);font-size:13px;outline:none;font-family:'Outfit','PingFang SC',sans-serif;">
+            style="flex:1;padding:10px 13px;background:rgba(2,0,41,0.7);border:1px solid var(--border);border-radius:9px;color:var(--text);font-size:13px;outline:none;font-family:'Outfit','PingFang SC',sans-serif;">
           <button onclick="adminSetUserPwd()" style="padding:10px 15px;background:var(--s2);border:1px solid var(--border);border-radius:9px;color:var(--accent2);font-size:13px;cursor:pointer;font-family:'Outfit','PingFang SC',sans-serif;font-weight:600;">保存</button>
         </div>
         <div style="font-size:12px;color:var(--t2);margin-bottom:7px;font-weight:600;">Admin密码</div>
         <div style="display:flex;gap:8px;">
           <input id="admin-set-adminpwd" type="text" placeholder="修改Admin密码..."
-            style="flex:1;padding:10px 13px;background:rgba(14,22,10,0.7);border:1px solid var(--border);border-radius:9px;color:var(--text);font-size:13px;outline:none;font-family:'Outfit','PingFang SC',sans-serif;">
+            style="flex:1;padding:10px 13px;background:rgba(2,0,41,0.7);border:1px solid var(--border);border-radius:9px;color:var(--text);font-size:13px;outline:none;font-family:'Outfit','PingFang SC',sans-serif;">
           <button onclick="adminSetAdminPwd()" style="padding:10px 15px;background:rgba(100,40,160,0.2);border:1px solid rgba(160,110,221,0.35);border-radius:9px;color:#ce93d8;font-size:13px;cursor:pointer;font-family:'Outfit','PingFang SC',sans-serif;font-weight:600;">保存</button>
         </div>
         <div id="admin-pwd-msg" style="text-align:center;font-size:13px;margin-top:9px;display:none;"></div>
@@ -1166,22 +1124,17 @@ canvas#biltable { border-radius:5px; box-shadow:0 0 0 7px #3d2008, 0 0 0 13px #2
     </div>
 
   </div>
-</div><!-- end page-nodes -->
-
-<!-- ===== BACKGROUND PARTICLE SYSTEM ===== -->
-<script>
+</div><script>
 (function() {
   const canvas = document.getElementById('bg-canvas');
   const ctx = canvas.getContext('2d');
   let W, H, particles = [], frame = 0;
-
-  // Color palette: dark olive green × gold amber
   const COLORS = [
-    'rgba(212,135,10,',    // gold
-    'rgba(240,168,50,',    // bright gold
-    'rgba(143,190,68,',    // sage green
-    'rgba(100,160,40,',    // mid green
-    'rgba(74,124,47,',     // deep green
+    'rgba(255,119,16,',
+    'rgba(255,153,68,',
+    'rgba(2,0,41,',
+    'rgba(30,40,100,',
+    'rgba(255,85,0,',
   ];
 
   function resize() {
@@ -1218,7 +1171,6 @@ canvas#biltable { border-radius:5px; box-shadow:0 0 0 7px #3d2008, 0 0 0 13px #2
       ctx.arc(this.x, this.y, this.r * this.pulse, 0, Math.PI * 2);
       ctx.fillStyle = this.colorBase + a + ')';
       ctx.fill();
-      // glow
       if (this.r > 1.5) {
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.r * 2.5, 0, Math.PI * 2);
@@ -1231,7 +1183,6 @@ canvas#biltable { border-radius:5px; box-shadow:0 0 0 7px #3d2008, 0 0 0 13px #2
     }
   }
 
-  // Flowing lines
   class FlowLine {
     constructor() { this.reset(true); }
     reset(init) {
@@ -1271,14 +1222,11 @@ canvas#biltable { border-radius:5px; box-shadow:0 0 0 7px #3d2008, 0 0 0 13px #2
 
   function loop() {
     ctx.clearRect(0, 0, W, H);
-
-    // subtle ambient gradient overlay
     const grad = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, Math.max(W,H)*0.7);
-    grad.addColorStop(0, 'rgba(20, 35, 10, 0.0)');
-    grad.addColorStop(1, 'rgba(5, 8, 3, 0.3)');
+    grad.addColorStop(0, 'rgba(2, 0, 41, 0.0)');
+    grad.addColorStop(1, 'rgba(2, 0, 41, 0.6)');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, H);
-
     particles.forEach(p => { p.update(); p.draw(); });
     frame++;
     requestAnimationFrame(loop);
@@ -1288,38 +1236,9 @@ canvas#biltable { border-radius:5px; box-shadow:0 0 0 7px #3d2008, 0 0 0 13px #2
   init();
   loop();
 })();
-
-// Background image upload
-(function() {
-  const input = document.getElementById('bg-upload-input');
-  const btn   = document.getElementById('bg-set-btn');
-  const imgEl = document.getElementById('bg-img');
-
-  // Load saved BG
-  try {
-    const saved = localStorage.getItem('class_bg');
-    if (saved) { imgEl.style.backgroundImage = 'url(' + saved + ')'; imgEl.classList.add('loaded'); }
-  } catch(e) {}
-
-  btn.addEventListener('click', () => input.click());
-  input.addEventListener('change', e => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => {
-      imgEl.style.backgroundImage = 'url(' + ev.target.result + ')';
-      imgEl.classList.add('loaded');
-      try { localStorage.setItem('class_bg', ev.target.result); } catch(e) {}
-    };
-    reader.readAsDataURL(file);
-  });
-})();
 </script>
 
 <script>
-// ============================================================
-// 全局 Toast
-// ============================================================
 let _toastTimer = null;
 function showToast(msg, type = 'info', duration = 2500) {
   const wrap = document.getElementById('g-toast');
@@ -1331,14 +1250,10 @@ function showToast(msg, type = 'info', duration = 2500) {
   _toastTimer = setTimeout(() => wrap.classList.remove('show'), duration);
 }
 
-// ============================================================
-// NODES PAGE
-// ============================================================
 let nodesRole = null;
 let nodesAdminPwd = '';
 let nodesAdminUser = '';
 let nodesAllNodes = [];
-
 function adminApi(body) {
   return fetch('/api/nodes', {
     method: 'POST',
@@ -1358,7 +1273,8 @@ function showAdminLogin() {
   document.getElementById('nodes-admin-login').style.display = '';
 }
 function nodesLogout() {
-  nodesRole = null; nodesAdminPwd = ''; nodesAdminUser = '';
+  nodesRole = null; nodesAdminPwd = '';
+  nodesAdminUser = '';
   if (window.musicSetAdminMode) musicSetAdminMode(false);
   showUserLogin();
   showToast('已退出登录', 'info');
@@ -1392,7 +1308,8 @@ async function adminLogin() {
   const pwd = document.getElementById('admin-pwd-input').value.trim();
   if (!user || !pwd) { showToast('⚠️ 请输入用户名和密码', 'error'); return; }
   const btn = document.querySelector('#nodes-admin-login button');
-  btn.textContent = '验证中...'; btn.disabled = true;
+  btn.textContent = '验证中...';
+  btn.disabled = true;
   try {
     const r = await fetch('/api/nodes', {
       method: 'POST',
@@ -1453,7 +1370,7 @@ function renderAdminNodes() {
   if (!nodesAllNodes.length) { list.innerHTML = ''; empty.style.display = ''; return; }
   empty.style.display = 'none';
   list.innerHTML = nodesAllNodes.map((n, i) => `
-    <label style="display:flex;align-items:center;gap:8px;background:rgba(14,22,10,0.6);border:1px solid var(--border);border-radius:9px;padding:10px;cursor:pointer;">
+    <label style="display:flex;align-items:center;gap:8px;background:rgba(2,0,41,0.6);border:1px solid var(--border);border-radius:9px;padding:10px;cursor:pointer;">
       <input type="checkbox" data-idx="${i}" style="width:16px;height:16px;accent-color:#e05050;flex-shrink:0;">
       <div style="flex:1;min-width:0;">
         <div style="font-size:13px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${n.name}</div>
@@ -1548,9 +1465,6 @@ async function adminSetAdminPwd() {
 </script>
 
 <script>
-// ============================================================
-// NAVIGATION - Enhanced smooth transitions
-// ============================================================
 let currentPage = 'schedule';
 let _navLock = false;
 
@@ -1559,10 +1473,8 @@ function navTo(page) {
   if (page === currentPage || _navLock) return;
   _navLock = true;
   setTimeout(() => _navLock = false, 480);
-
   const from = document.getElementById('page-' + currentPage);
   const to   = document.getElementById('page-' + page);
-
   if (page === 'billiards' || page === 'nodes') {
     from.classList.add('behind');
     from.classList.remove('active');
@@ -1599,9 +1511,6 @@ function closeDrawer() {
   document.getElementById('drawerOverlay').classList.remove('open');
 }
 
-// ============================================================
-// SCHEDULE CODE
-// ============================================================
 const DEFAULT_S=[
   [{s:'化学',t:'孙文军',k:'m'},{s:'生物',t:'白永乾',k:'m'},{s:'数学',t:'严云春',k:'m'},null,{s:'语文',t:'王诗雨',k:'m'},{s:'外语',t:'李姜苇',k:'m'},null,{s:'体育与健康',t:'孙卫理',k:'a'},{s:'物理',t:'陈科仲',k:'a'},{s:'物理',t:'陈科仲',k:'a'},{s:'班会/团组织生活',t:'',k:'x'}],
   [{s:'数学',t:'严云春',k:'m'},{s:'外语',t:'李姜苇',k:'m'},{s:'外语',t:'李姜苇',k:'m'},null,{s:'化学',t:'孙文军',k:'m'},{s:'化学',t:'孙文军',k:'m'},null,{s:'生物',t:'白永乾',k:'a'},{s:'语文',t:'王诗雨',k:'a'},{s:'语文',t:'王诗雨',k:'a'},{s:'物理',t:'陈科仲',k:'a'}],
@@ -1615,9 +1524,7 @@ const DEFAULT_SJ={'2026-03-02':'选考科目1','2026-03-03':'语文','2026-03-05
 const TM=['7:40~8:20','8:30~9:10','9:20~10:00',null,'10:30~11:15','11:25~12:05',null,'2:00~2:40','2:50~3:30','3:40~4:25','4:35~5:15'];
 const NM=[1,2,3,null,4,5,null,6,7,8,9];
 let S,EV,SJ;
-const GH_TOKEN='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';
 const ANTHROPIC_KEY='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';
-const GIST_ID_KEY='ks_gist';
 function loadCredentials(){}
 function saveCredentials(){}
 async function loadFromKV(silent=false){
@@ -1710,16 +1617,12 @@ scheduleInit();
 </script>
 
 <script>
-// ============================================================
-// BILLIARDS ENGINE (unchanged logic, updated colors)
-// ============================================================
 let bilInitialized = false;
 const bilCanvas = document.getElementById('biltable');
 const bilCtx = bilCanvas.getContext('2d');
 const bilPowerSlider = document.getElementById('bilPower');
 const bilPowerVal = document.getElementById('bilPowerVal');
 bilPowerSlider.addEventListener('input', () => { bilPowerVal.textContent = bilPowerSlider.value + '%'; });
-
 const FRICTION = 0.9875, SPIN_DECAY = 0.93, RESTITUTION = 0.92, RAIL_REST = 0.74, MIN_VEL = 0.09;
 let BW, BH, BR, POCKET_R, POCKETS = [], bilScale;
 let bilBalls = [], bilCurrentPlayer = 0, bilPlayerGroups = [null,null], bilPottedBalls = [[],[]], bilGamePhase = 'placing';
@@ -1730,7 +1633,6 @@ let bilAnimFrame = null;
 
 const BALL_COLORS = {0:'#fff',1:'#e8c832',2:'#e04030',3:'#2266cc',4:'#8833aa',5:'#dd6622',6:'#228844',7:'#cc2244',8:'#111',9:'#e8c832',10:'#e04030',11:'#2266cc',12:'#8833aa',13:'#dd6622',14:'#228844',15:'#cc2244'};
 const STRIPE_BALLS=[9,10,11,12,13,14,15], SOLID_BALLS=[1,2,3,4,5,6,7];
-
 class Ball{constructor(id,x,y){this.id=id;this.x=x;this.y=y;this.vx=0;this.vy=0;this.spin=0;this.potted=false;}isMoving(){return Math.abs(this.vx)>MIN_VEL||Math.abs(this.vy)>MIN_VEL;}}
 
 function bilResizeCanvas(){
@@ -2009,13 +1911,12 @@ function bilInit(){
 window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiards')bilResizeCanvas();});
 </script>
 
-<!-- ══════════════════ 音乐播放器 ══════════════════ -->
 <div id="mp">
   <div id="mp-icon">
     <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M9 18V5l12-2v13" stroke="rgba(212,135,10,0.9)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-      <circle cx="6" cy="18" r="3" stroke="rgba(212,135,10,0.9)" stroke-width="1.8"/>
-      <circle cx="18" cy="16" r="3" stroke="rgba(212,135,10,0.9)" stroke-width="1.8"/>
+      <path d="M9 18V5l12-2v13" stroke="rgba(255,119,16,0.9)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="6" cy="18" r="3" stroke="rgba(255,119,16,0.9)" stroke-width="1.8"/>
+      <circle cx="18" cy="16" r="3" stroke="rgba(255,119,16,0.9)" stroke-width="1.8"/>
     </svg>
   </div>
   <div id="mp-body">
@@ -2026,9 +1927,9 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
     <div class="mp-row">
       <div class="mp-disc" id="mp-disc">
         <svg viewBox="0 0 24 24" fill="none">
-          <path d="M9 18V5l12-2v13" stroke="rgba(212,135,10,0.55)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-          <circle cx="6" cy="18" r="3" stroke="rgba(212,135,10,0.55)" stroke-width="1.8"/>
-          <circle cx="18" cy="16" r="3" stroke="rgba(212,135,10,0.55)" stroke-width="1.8"/>
+          <path d="M9 18V5l12-2v13" stroke="rgba(255,119,16,0.55)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="6" cy="18" r="3" stroke="rgba(255,119,16,0.55)" stroke-width="1.8"/>
+          <circle cx="18" cy="16" r="3" stroke="rgba(255,119,16,0.55)" stroke-width="1.8"/>
         </svg>
       </div>
       <div class="mp-meta">
@@ -2051,7 +1952,7 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
       </button>
       <button class="mpb play" id="mpb-play">
         <svg id="mpb-play-ico" viewBox="0 0 24 24">
-          <polygon points="6,3 20,12 6,21" fill="rgba(212,135,10,0.9)" stroke="none"/>
+          <polygon points="6,3 20,12 6,21" fill="rgba(255,119,16,0.9)" stroke="none"/>
         </svg>
       </button>
       <button class="mpb" id="mpb-next">
@@ -2144,23 +2045,6 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
     if(_collapseTop  !== null) mp.style.top  = _collapseTop  + 'px';
   }
 
-  function clamp() {
-    setTimeout(() => {
-      const W=window.innerWidth, H=window.innerHeight;
-      const r=mp.getBoundingClientRect();
-      let left=r.left, top=r.top;
-      if(r.right  > W-8) left = W - r.width - 8;
-      if(r.bottom > H-8) top  = H - r.height - 8;
-      if(r.left   < 8)   left = 8;
-      if(r.top    < 8)   top  = 8;
-      if(Math.round(left)!==Math.round(r.left) || Math.round(top)!==Math.round(r.top)){
-        mp.style.right='auto'; mp.style.bottom='auto';
-        mp.style.transition = 'left 0.3s ease, top 0.3s ease, ' + mp.style.transition;
-        mp.style.left=left+'px'; mp.style.top=top+'px';
-      }
-    }, 560);
-  }
-
   let drag=false, moved=false, ox=0, oy=0, sx=0, sy=0, dragEl=null;
 
   function startDrag(e, el) {
@@ -2190,12 +2074,10 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
     y=Math.max(8,Math.min(y,H-mp.offsetHeight-8));
     mp.style.left=x+'px'; mp.style.top=y+'px';
   },{passive:true});
-
   document.addEventListener('touchend',()=>{
     if(drag && !moved && !open) expand();
     drag=false; dragEl=null;
   });
-
   mp.addEventListener('click', e=>{ if(open) return; if(!moved) expand(); });
   $('mp-close').addEventListener('click',    e=>{e.stopPropagation();collapse();});
   $('mp-close').addEventListener('touchend', e=>{e.preventDefault();e.stopPropagation();collapse();});
@@ -2219,8 +2101,8 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
   function setP(v){
     playing=v;
     playIco.innerHTML = v
-      ? '<rect x="5" y="3" width="4" height="18" fill="rgba(212,135,10,0.9)" stroke="none"/><rect x="15" y="3" width="4" height="18" fill="rgba(212,135,10,0.9)" stroke="none"/>'
-      : '<polygon points="6,3 20,12 6,21" fill="rgba(212,135,10,0.9)" stroke="none"/>';
+      ? '<rect x="5" y="3" width="4" height="18" fill="rgba(255,119,16,0.9)" stroke="none"/><rect x="15" y="3" width="4" height="18" fill="rgba(255,119,16,0.9)" stroke="none"/>'
+      : '<polygon points="6,3 20,12 6,21" fill="rgba(255,119,16,0.9)" stroke="none"/>';
     disc.classList.toggle('spin', v);
     mp.classList.toggle('playing', v);
   }
@@ -2333,7 +2215,6 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
     document.addEventListener('touchend', ()=>{ if(!dragging) return; dragging = false; bar.classList.remove('dragging'); });
     bar.addEventListener('click', e=>{ seek(e.clientX); });
   })();
-
   function fmt(s){s=Math.floor(s||0);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');}
 
   function render(){
@@ -2356,7 +2237,8 @@ window.addEventListener('resize',()=>{if(bilInitialized&&currentPage==='billiard
   };
 
   async function addTrack(){
-    const raw=$('mp-add-inp').value.trim(); if(!raw) return;
+    const raw=$('mp-add-inp').value.trim();
+    if(!raw) return;
     let name='',artist='',url='';
     const pts=raw.split(',');
     if(pts.length>=3){name=pts[0].trim();artist=pts[1].trim();url=pts[2].trim();}
