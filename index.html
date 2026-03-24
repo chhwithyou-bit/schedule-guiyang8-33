@@ -1758,23 +1758,39 @@ scheduleInit();
   async function fetchPL(){
     try{
       const r=await fetch('/api/music');
-      const d=await r.json();
-      if(d.ok&&d.list&&d.list.length){PL=d.list;load(0,false);render();}
-    }catch(e){console.error('[music]',e);}
+      if(!r.ok){console.error('[music] HTTP错误:',r.status,r.statusText);return;}
+      const raw=await r.text();
+      console.log('[music] R2原始响应:',raw);
+      let d;
+      try{d=JSON.parse(raw);}catch(pe){console.error('[music] JSON解析失败:',pe,raw);return;}
+      // 兼容多种后端返回结构：{ ok, list } / { list } / { tracks } / 数组
+      const list = Array.isArray(d) ? d
+                 : (d.list||d.tracks||d.songs||d.playlist||null);
+      if(list&&list.length){
+        PL=list;
+        load(0,false);
+        render();
+        console.log('[music] 歌单加载成功，共',PL.length,'首');
+      }else{
+        console.warn('[music] 歌单为空或字段不匹配，实际响应:',d);
+      }
+    }catch(e){console.error('[music] fetchPL异常:',e);}
   }
   async function save(){
     if(!window.nodesAdminUser||!window.nodesAdminPwd) return;
     try{
-      await fetch('/api/music',{method:'POST',headers:{'Content-Type':'application/json'},
+      const r=await fetch('/api/music',{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({adminUser:window.nodesAdminUser,adminPass:window.nodesAdminPwd,action:'setList',list:PL})});
-    }catch(e){}
+      if(!r.ok){const t=await r.text();console.error('[music] save失败:',r.status,t);}
+      else{console.log('[music] 歌单已保存到R2');}
+    }catch(e){console.error('[music] save异常:',e);}
   }
   window.musicSetAdminMode=v=>{$('mp-add').classList.toggle('show',v);render();};
 
   let plReady=false, userTouched=false;
   function tryAutoPlay(){ if(plReady && userTouched && !playing && audio.src) doPlay(); }
-  const _fetchPL = fetchPL;
-  fetchPL = async function(){ await _fetchPL(); plReady = true; tryAutoPlay(); };
+  const _origFetchPL = fetchPL;
+  fetchPL = async function(){ await _origFetchPL(); plReady = true; tryAutoPlay(); };
   fetchPL();
   document.addEventListener('touchstart', function once(){
     userTouched = true; tryAutoPlay();
