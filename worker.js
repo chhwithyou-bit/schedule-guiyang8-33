@@ -209,7 +209,7 @@ export default {
             .map(obj => {
               const filename = obj.key.split('/').pop();
               const name = decodeURIComponent(filename.replace(/\.[^.]+$/, ''));
-              return { name, artist: '', url: R2_BASE + '/' + obj.key };
+              return { name, artist: '', url: R2_BASE + '/' + encodeURIComponent(obj.key) };
             });
         } catch (e) {
           // MUSIC_BUCKET 未绑定时静默忽略
