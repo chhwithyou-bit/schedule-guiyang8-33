@@ -683,8 +683,88 @@ async function adminLogin() {
     showToast('✅ 进入管理后台', 'success');
   } catch { showToast('❌ 网络错误', 'error'); }
 }
-function renderUserNodes() { /* 省略渲染细节以免代码过长，如果需要可以补充，当前保留节点核心功能 */ }
-function renderAdminNodes() { /* 省略渲染细节 */ }
+function renderUserNodes() {
+  const list = document.getElementById('nodes-user-list');
+  const empty = document.getElementById('nodes-user-empty');
+  if (!nodesAllNodes || !nodesAllNodes.length) {
+    list.innerHTML = ''; empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+  list.innerHTML = nodesAllNodes.map((n, i) => `
+    <div style="background:var(--glass);backdrop-filter:blur(var(--glass-blur));border:1px solid var(--glass-border);border-radius:13px;padding:13px 15px;display:flex;align-items:center;gap:11px;">
+      <input type="checkbox" id="nc${i}" style="width:17px;height:17px;accent-color:var(--accent);flex-shrink:0;cursor:pointer;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${n.name||'未命名节点'}</div>
+        <div style="font-size:11px;color:var(--t3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${n.url||''}</div>
+      </div>
+      <button onclick="event.stopPropagation();navigator.clipboard&&navigator.clipboard.writeText('${(n.url||'').replace(/'/g,"\\'")}').then(()=>showToast('已复制','success')).catch(()=>showToast('复制失败','error'))" style="background:rgba(255,119,16,0.12);border:1px solid rgba(255,119,16,0.25);border-radius:8px;color:var(--accent2);font-size:12px;padding:5px 10px;cursor:pointer;flex-shrink:0;font-family:'Outfit','PingFang SC',sans-serif;font-weight:600;">复制</button>
+    </div>`).join('');
+}
+function nodesSelectAll() {
+  document.querySelectorAll('#nodes-user-list input[type=checkbox]').forEach(cb => cb.checked = true);
+}
+function nodesCopySelected() {
+  const checked = [...document.querySelectorAll('#nodes-user-list input[type=checkbox]')].filter(cb => cb.checked);
+  if (!checked.length) { showToast('请先选择节点', 'error'); return; }
+  const urls = checked.map(cb => {
+    const i = parseInt(cb.id.replace('nc',''));
+    return nodesAllNodes[i]?.url||'';
+  }).filter(Boolean).join('\n');
+  navigator.clipboard && navigator.clipboard.writeText(urls).then(() => showToast(`已复制 ${checked.length} 个节点`, 'success')).catch(() => showToast('复制失败', 'error'));
+}
+
+function renderAdminNodes() {
+  const list = document.getElementById('nodes-admin-list');
+  if (!nodesAllNodes || !nodesAllNodes.length) {
+    list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--t3);font-size:13px;">暂无节点</div>';
+    return;
+  }
+  list.innerHTML = nodesAllNodes.map((n, i) => `
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(10,10,60,0.4);border-radius:9px;border:1px solid var(--border);">
+      <input type="checkbox" id="anc${i}" style="width:15px;height:15px;accent-color:var(--accent);flex-shrink:0;cursor:pointer;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:12px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${n.name||'未命名'}</div>
+        <div style="font-size:10px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${n.url||''}</div>
+      </div>
+    </div>`).join('');
+}
+async function adminDeleteSelected() {
+  const checked = [...document.querySelectorAll('#nodes-admin-list input[type=checkbox]')].filter(cb => cb.checked);
+  if (!checked.length) { showToast('请先选择节点', 'error'); return; }
+  const idxs = new Set(checked.map(cb => parseInt(cb.id.replace('anc',''))));
+  nodesAllNodes = nodesAllNodes.filter((_, i) => !idxs.has(i));
+  await adminSaveNodes();
+  renderAdminNodes();
+  showToast(`已删除 ${checked.size||idxs.size} 个节点`, 'success');
+}
+async function adminClearAll() {
+  if (!confirm('确定清空全部节点？')) return;
+  nodesAllNodes = [];
+  await adminSaveNodes();
+  renderAdminNodes();
+  showToast('已清空全部节点', 'info');
+}
+async function adminSaveNodes() {
+  try {
+    await fetch('/api/nodes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ adminUser: nodesAdminUser, adminPass: nodesAdminPwd, action: 'setNodes', nodes: nodesAllNodes }) });
+  } catch(e) { showToast('保存失败', 'error'); }
+}
+async function adminImportSub() {
+  const url = document.getElementById('admin-sub-url').value.trim();
+  if (!url) { showToast('请输入订阅链接', 'error'); return; }
+  showToast('解析中...', 'info', 8000);
+  try {
+    const r = await fetch('/api/nodes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ adminUser: nodesAdminUser, adminPass: nodesAdminPwd, action: 'importSub', url }) });
+    const d = await r.json();
+    if (d.ok) {
+      nodesAllNodes = d.nodes || nodesAllNodes;
+      renderAdminNodes();
+      showToast(`✅ 导入成功，共 ${nodesAllNodes.length} 个节点`, 'success');
+      document.getElementById('admin-sub-url').value = '';
+    } else { showToast('❌ 解析失败: ' + (d.error||'未知错误'), 'error'); }
+  } catch(e) { showToast('❌ 网络错误', 'error'); }
+}
 
 let currentPage = 'schedule'; let _navLock = false; window.chessInitialized = false;
 
@@ -722,13 +802,174 @@ function openDrawer() { document.getElementById('drawer').classList.add('open');
 function closeDrawer() { document.getElementById('drawer').classList.remove('open'); document.getElementById('drawerOverlay').classList.remove('open'); }
 function sw(i){ document.querySelectorAll('.seg-btn').forEach((b,j)=>b.classList.toggle('active',j===i)); document.querySelectorAll('.day-view').forEach((d,j)=>d.classList.toggle('active',j===i)); }
 
-/* 课表占位逻辑 */
 function updateToday(){
-  const now=new Date();const y=now.getFullYear(),m=String(now.getMonth()+1).padStart(2,'0'),d=String(now.getDate()).padStart(2,'0');
+  const now=new Date();const m=String(now.getMonth()+1).padStart(2,'0'),d=String(now.getDate()).padStart(2,'0');
   const wd=['周日','周一','周二','周三','周四','周五','周六'][now.getDay()];
   document.getElementById('hdrDate').textContent=`${m}月${d}日  ${wd}`;
+  // 自动跳到今天对应列
+  const todayIdx = now.getDay() === 0 ? 5 : now.getDay() - 1; // 周一=0...周六=5
+  if(todayIdx < 6) {
+    sw(todayIdx);
+    document.querySelectorAll('.seg-btn').forEach((b,j)=>{
+      b.classList.toggle('today-dot', j === todayIdx);
+    });
+  }
 }
 updateToday();
+
+// 管理员面板
+let _currentTab = 'sj', _uploadFile = null, _previewData = null;
+function openAdmin() { document.getElementById('adminModal').classList.add('open'); }
+function closeAdmin() { document.getElementById('adminModal').classList.remove('open'); cancelPreview(); }
+function setTab(tab) {
+  _currentTab = tab;
+  document.querySelectorAll('.utab').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+}
+function handleFile(e) {
+  const file = e.target.files[0]; if (!file) return;
+  _uploadFile = file;
+  const img = document.getElementById('previewImg');
+  img.src = URL.createObjectURL(file);
+  img.style.display = 'block';
+  document.getElementById('parseBtn').disabled = false;
+}
+async function parseImage() {
+  if (!_uploadFile) return;
+  const btn = document.getElementById('parseBtn');
+  btn.disabled = true; btn.textContent = '🔍 识别中...';
+  const sb = document.getElementById('statusBox'); sb.className = 'status-box show'; sb.textContent = '正在识别图片，请稍候...';
+  try {
+    const reader = new FileReader();
+    reader.onload = async function(ev) {
+      const base64 = ev.target.result.split(',')[1];
+      const typeMap = { sj: '三基测试表', ev: '晚自习安排表', sc: '课程表' };
+      const promptMap = {
+        sj: '请识别图片中的三基测试表，提取每天的三基内容，返回JSON格式：{"sj":[{"day":"周一","content":"内容"},...]}, 只返回JSON不要其他文字。',
+        ev: '请识别图片中的晚自习安排表，提取每天的一段、二段晚自习教师信息，返回JSON格式：{"ev":[{"day":"周一","t1":"教师1","t2":"教师2"},...]}, 只返回JSON不要其他文字。',
+        sc: '请识别图片中的课程表，提取各天各节课的科目和教师信息，返回JSON格式：{"schedule":{"mon":[{"subj":"科目","teacher":"教师","time":"时间"},...], "tue":[...], "wed":[...], "thu":[...], "fri":[...], "sat":[...]}}, 只返回JSON不要其他文字。'
+      };
+      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 2000,
+          messages: [{ role: 'user', content: [
+            { type: 'image', source: { type: 'base64', media_type: _uploadFile.type || 'image/jpeg', data: base64 } },
+            { type: 'text', text: promptMap[_currentTab] }
+          ]}]
+        })
+      });
+      const data = await resp.json();
+      const text = data.content?.[0]?.text || '';
+      try {
+        const clean = text.replace(/```json|```/g,'').trim();
+        _previewData = JSON.parse(clean);
+        document.getElementById('previewJson').textContent = JSON.stringify(_previewData, null, 2);
+        document.getElementById('previewSection').classList.add('show');
+        sb.innerHTML = '<span class="status-ok">✅ 识别完成，请确认数据后保存</span>';
+      } catch(e) {
+        sb.innerHTML = `<span class="status-err">❌ 解析失败，原始返回：</span>\n${text}`;
+      }
+    };
+    reader.readAsDataURL(_uploadFile);
+  } catch(e) {
+    document.getElementById('statusBox').innerHTML = `<span class="status-err">❌ 错误: ${e.message}</span>`;
+  } finally {
+    btn.disabled = false; btn.textContent = '🔍 识别图片内容';
+  }
+}
+async function confirmSave() {
+  if (!_previewData) return;
+  try {
+    const r = await fetch('/api/schedule', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: _currentTab, data: _previewData }) });
+    if (r.ok) {
+      showToast('✅ 保存成功', 'success');
+      closeAdmin();
+      fetchScheduleData();
+    } else { showToast('❌ 保存失败', 'error'); }
+  } catch(e) { showToast('❌ 网络错误', 'error'); }
+}
+function cancelPreview() {
+  _previewData = null; _uploadFile = null;
+  document.getElementById('previewSection').classList.remove('show');
+  document.getElementById('statusBox').className = 'status-box';
+  document.getElementById('previewImg').style.display = 'none';
+  document.getElementById('parseBtn').disabled = true;
+  document.getElementById('parseBtn').textContent = '🔍 识别图片内容';
+}
+
+// 课表数据加载
+async function fetchScheduleData() {
+  try {
+    const r = await fetch('/api/schedule');
+    if (!r.ok) return;
+    const d = await r.json();
+    // 三基
+    if (d.sj) {
+      const now = new Date();
+      const dayMap = ['日','一','二','三','四','五','六'];
+      const wd = dayMap[now.getDay()];
+      const item = d.sj.find ? d.sj.find(x => x.day && x.day.includes(wd)) : null;
+      if (item) {
+        document.getElementById('sanjiVal').textContent = item.content || '—';
+        document.getElementById('sanjiSub') && (document.getElementById('sanjiSub').textContent = item.day || '');
+      }
+    }
+    // 晚自习
+    if (d.ev) {
+      const now = new Date();
+      const dayMap = ['日','一','二','三','四','五','六'];
+      const wd = dayMap[now.getDay()];
+      const item = d.ev.find ? d.ev.find(x => x.day && x.day.includes(wd)) : null;
+      if (item) {
+        document.getElementById('ev1').textContent = item.t1 || '—';
+        document.getElementById('ev2').textContent = item.t2 || '—';
+      }
+    }
+    // 课程表
+    if (d.schedule) {
+      renderSchedule(d.schedule);
+    }
+    document.getElementById('syncIndicator').textContent = '数据已同步 ' + new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
+  } catch(e) {
+    document.getElementById('syncIndicator').textContent = '离线模式';
+  }
+}
+
+function renderSchedule(sc) {
+  const dayKeys = ['mon','tue','wed','thu','fri','sat'];
+  const dayNames = ['周一','周二','周三','周四','周五','周六'];
+  const contentEl = document.getElementById('content');
+  const timeSlots = ['08:00','08:50','09:50','10:40','11:30','14:00','14:50','15:50','16:40'];
+  const slotNames = ['第一节','第二节','第三节','第四节','第五节','第六节','第七节','第八节','第九节'];
+  let html = '';
+  dayKeys.forEach((key, di) => {
+    const lessons = sc[key] || [];
+    const isActive = di === (new Date().getDay() === 0 ? 5 : new Date().getDay() - 1);
+    html += `<div class="day-view${isActive?' active':''}" id="dv-${di}">`;
+    if (!lessons.length) {
+      html += `<div style="text-align:center;padding:40px;color:var(--t3)">暂无课程数据</div>`;
+    } else {
+      html += `<div class="sec-title">上午</div><div class="plist">`;
+      lessons.forEach((l, li) => {
+        if (li === 4) html += `</div><div class="break-pill">· · ·</div><div class="sec-title">下午</div><div class="plist">`;
+        const dotCls = li < 2 ? 'dm' : li < 4 ? 'da' : 'ds';
+        html += `<div class="prow"><div class="pdot ${dotCls}">${li+1}</div><div class="pmain"><div class="psubj">${l.subj||'—'}</div><div class="pteacher">${l.teacher||''}</div></div><div class="ptime">${l.time||timeSlots[li]||''}</div></div>`;
+      });
+      html += `</div>`;
+    }
+    html += `</div>`;
+  });
+  contentEl.innerHTML = html;
+  // 重新绑定seg-btn
+  document.querySelectorAll('.seg-btn').forEach((b, i) => {
+    b.onclick = () => sw(i);
+  });
+}
+
+fetchScheduleData();
 </script>
 
 <script>
