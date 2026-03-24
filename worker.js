@@ -194,13 +194,35 @@ export default {
 
     // ── 4. 音乐歌单 API ────────────────────────────────────
     if (url.pathname === '/api/music') {
+      const R2_BASE = 'https://thefallback.cc.cd';
+
       if (request.method === 'GET') {
-        const R2_BASE = 'https://thefallback.cc.cd';
-        let list = JSON.parse(await env.SCHEDULE_KV.get('music_playlist') || '[]');
-        if (!list.length) {
-          list = [{ name: '花海', artist: '周杰伦', url: R2_BASE + '/花海.mp3' }];
+        // 读 KV 手动歌单
+        let kvList = JSON.parse(await env.SCHEDULE_KV.get('music_playlist') || '[]');
+
+        // 扫描 R2 bucket，自动发现所有音频文件
+        let r2List = [];
+        try {
+          const listed = await env.MUSIC_BUCKET.list();
+          r2List = listed.objects
+            .filter(obj => obj.key.match(/\.(mp3|flac|ogg|m4a|wav|aac)$/i))
+            .map(obj => {
+              const filename = obj.key.split('/').pop();
+              const name = decodeURIComponent(filename.replace(/\.[^.]+$/, ''));
+              return { name, artist: '', url: R2_BASE + '/' + obj.key };
+            });
+        } catch (e) {
+          // MUSIC_BUCKET 未绑定时静默忽略
         }
-        return jsonResp({ ok: true, list });
+
+        // 合并：KV 手动歌单优先，R2 自动发现去重补充
+        const kvUrls = new Set(kvList.map(t => t.url));
+        const merged = [
+          ...kvList,
+          ...r2List.filter(t => !kvUrls.has(t.url)),
+        ];
+
+        return jsonResp({ ok: true, list: merged });
       }
       if (request.method === 'POST') {
         let body;

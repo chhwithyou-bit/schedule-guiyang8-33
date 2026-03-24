@@ -13,3 +13,8 @@ fallbacks = []
 
 [assets]
 directory = "./public"
+
+
+[[r2_buckets]]
+binding = "MUSIC_BUCKET"
+bucket_name = "music"
