@@ -244,7 +244,7 @@ export default {
     }
 
     // ── 5. 静态资源 ─────────────────────────────────────────
-    if (url.pathname.startsWith('/chess/') || url.pathname.match(/\.(jpg|jpeg|png|gif|ico|svg|css|wav|mp3|woff|woff2|ttf)$/)) {
+    if (url.pathname.startsWith('/chess/') || url.pathname.match(/\.(js|jpg|jpeg|png|gif|ico|svg|css|wav|mp3|woff|woff2|ttf)$/)) {
       return env.ASSETS.fetch(request);
     }
 
