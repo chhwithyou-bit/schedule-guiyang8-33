@@ -480,11 +480,12 @@ export default {
       // ── 5h. Test Google Drive Connection ──
       if (url.pathname === '/api/community/test-drive' && request.method === 'GET') {
         try {
+          const json = JSON.parse(env.GDRIVE_JSON);
+          const email = json.client_email;
           const token = await getGoogleAuthToken(env);
-          if (!token) throw new Error('无法获取 Access Token');
-
-          // 尝试获取文件夹元数据
-          const resp = await fetch(`https://www.googleapis.com/drive/v3/files/${env.GDRIVE_FOLDER_ID}?fields=id,name`, {
+          
+          // 尝试获取文件夹元数据 (支持所有驱动器类型)
+          const resp = await fetch(`https://www.googleapis.com/drive/v3/files/${env.GDRIVE_FOLDER_ID}?fields=id,name&supportsAllDrives=true`, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
 
@@ -494,21 +495,19 @@ export default {
               ok: true, 
               msg: '✅ 连接成功！', 
               folderName: data.name,
-              folderId: data.id 
+              usingEmail: email
             });
           } else {
             return jsonResp({ 
               ok: false, 
-              msg: '❌ 文件夹访问失败', 
-              error: data.error 
+              msg: '❌ 文件夹无法找到', 
+              error: data.error,
+              pleaseShareTo: email,
+              yourFolderId: env.GDRIVE_FOLDER_ID
             }, resp.status);
           }
         } catch (e) {
-          return jsonResp({ 
-            ok: false, 
-            msg: '❌ 认证过程出错', 
-            error: e.message 
-          }, 500);
+          return jsonResp({ ok: false, msg: '❌ 报错啦', error: e.message }, 500);
         }
       }
 
