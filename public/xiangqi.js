@@ -30,9 +30,6 @@ function initXiangqi() {
 }
 
 function drawGrid(boardEl) {
-  const cellW = 100 / (BOARD_W - 1);
-  const cellH = 100 / (BOARD_H - 1);
-
   // Horizontal lines
   for (let i = 0; i < BOARD_H; i++) {
     const line = document.createElement('div');
@@ -101,40 +98,76 @@ function updateStatus() {
   if(!st) return;
   if(gameOver) {
     st.textContent = turn === 'red' ? '黑方胜！' : '红方胜！';
-    st.style.color = turn === 'red' ? '#1a1a1a' : '#d32f2f';
+    st.style.color = turn === 'red' ? 'var(--text)' : 'var(--accent)';
   } else {
     st.textContent = turn === 'red' ? '红方走' : '黑方走';
-    st.style.color = turn === 'red' ? '#d32f2f' : '#1a1a1a';
+    st.style.color = turn === 'red' ? 'var(--accent)' : 'var(--text)';
   }
 }
 
 function renderPieces() {
   const boardEl = document.getElementById('xiangqi-board');
-  boardEl.querySelectorAll('.xq-piece, .xq-indicator').forEach(el => el.remove());
 
-  pieces.forEach(p => {
-    const el = document.createElement('div');
-    el.className = `xq-piece xq-${p.team} ${selectedPiece && selectedPiece.id === p.id ? 'selected' : ''}`;
-    el.style.left = (5 + p.x * 11.25) + '%';
-    el.style.top = (5 + p.y * 10) + '%';
-    el.onclick = (e) => { e.stopPropagation(); handlePieceClick(p); };
-    
-    const inner = document.createElement('div');
-    inner.className = 'xq-piece-inner';
-    inner.textContent = p.type;
-    el.appendChild(inner);
-    boardEl.appendChild(el);
+  // Clean up captured pieces from DOM
+  const currentPieceIds = pieces.map(p => 'xq-piece-' + p.id);
+  boardEl.querySelectorAll('.xq-piece').forEach(el => {
+    if (!currentPieceIds.includes(el.id)) {
+      // Small fade out effect before removal could go here, but simple remove is fine
+      el.remove();
+    }
   });
 
+  // Create or update pieces
+  pieces.forEach(p => {
+    let el = document.getElementById('xq-piece-' + p.id);
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'xq-piece-' + p.id;
+      el.className = `xq-piece xq-${p.team}`;
+      el.onclick = (e) => { e.stopPropagation(); handlePieceClick(p); };
+      
+      const inner = document.createElement('div');
+      inner.className = 'xq-piece-inner';
+      inner.textContent = p.type;
+      el.appendChild(inner);
+      
+      // Initialize position without transition to avoid flying from 0,0
+      el.style.left = (5 + p.x * 11.25) + '%';
+      el.style.top = (5 + p.y * 10) + '%';
+      
+      boardEl.appendChild(el);
+      
+      // Force reflow so transition works for subsequent updates
+      void el.offsetWidth;
+    } else {
+      // Update position (will animate due to CSS transition)
+      el.style.left = (5 + p.x * 11.25) + '%';
+      el.style.top = (5 + p.y * 10) + '%';
+    }
+
+    if (selectedPiece && selectedPiece.id === p.id) {
+      el.classList.add('selected');
+    } else {
+      el.classList.remove('selected');
+    }
+  });
+
+  // Re-render indicators (these don't need to animate)
+  boardEl.querySelectorAll('.xq-indicator').forEach(el => el.remove());
   if (selectedPiece && !gameOver) {
     const validMoves = getValidMoves(selectedPiece);
     validMoves.forEach(m => {
-      const isCapture = pieces.find(p => p.x === m.x && p.y === m.y);
+      const targetPiece = pieces.find(p => p.x === m.x && p.y === m.y);
       const ind = document.createElement('div');
       ind.className = 'xq-indicator';
       ind.style.left = (5 + m.x * 11.25) + '%';
       ind.style.top = (5 + m.y * 10) + '%';
-      if(isCapture) ind.style.backgroundColor = 'rgba(211, 47, 47, 0.7)';
+      
+      if(targetPiece) {
+        ind.style.backgroundColor = 'var(--red)';
+        ind.style.boxShadow = '0 0 8px var(--red)';
+      }
+      
       ind.onclick = (e) => { e.stopPropagation(); movePiece(m.x, m.y); };
       boardEl.appendChild(ind);
     });
