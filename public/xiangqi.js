@@ -1,6 +1,7 @@
 const BOARD_W = 9;
 const BOARD_H = 10;
 let pieces = [];
+let moveHistory = [];
 let turn = 'red';
 let selectedPiece = null;
 let gameOver = false;
@@ -22,9 +23,17 @@ function initXiangqi() {
 
   pieces = JSON.parse(JSON.stringify(initialSetup));
   pieces.forEach((p, i) => p.id = i);
+  moveHistory = [];
   turn = 'red';
   selectedPiece = null;
   gameOver = false;
+  
+  const undoBtn = document.getElementById('xiangqi-undo-btn');
+  if (undoBtn) {
+    undoBtn.style.opacity = '0.5';
+    undoBtn.style.pointerEvents = 'none';
+  }
+
   updateStatus();
   renderPieces();
 }
@@ -164,8 +173,7 @@ function renderPieces() {
       ind.style.top = (5 + m.y * 10) + '%';
       
       if(targetPiece) {
-        ind.style.backgroundColor = 'var(--red)';
-        ind.style.boxShadow = '0 0 8px var(--red)';
+        ind.classList.add('capture');
       }
       
       ind.onclick = (e) => { e.stopPropagation(); movePiece(m.x, m.y); };
@@ -203,6 +211,19 @@ function handleCellClick(x, y) {
 }
 
 function movePiece(x, y) {
+  // Save state for undo
+  moveHistory.push({
+    pieces: JSON.parse(JSON.stringify(pieces)),
+    turn: turn,
+    gameOver: gameOver
+  });
+  
+  const undoBtn = document.getElementById('xiangqi-undo-btn');
+  if (undoBtn) {
+    undoBtn.style.opacity = '1';
+    undoBtn.style.pointerEvents = 'all';
+  }
+
   const targetIdx = pieces.findIndex(p => p.x === x && p.y === y);
   if (targetIdx !== -1) {
     const t = pieces[targetIdx];
@@ -213,6 +234,26 @@ function movePiece(x, y) {
   selectedPiece.y = y;
   selectedPiece = null;
   turn = turn === 'red' ? 'black' : 'red';
+  updateStatus();
+  renderPieces();
+}
+
+function undoXiangqiMove() {
+  if (moveHistory.length === 0) return;
+  const lastState = moveHistory.pop();
+  pieces = lastState.pieces;
+  turn = lastState.turn;
+  gameOver = lastState.gameOver;
+  selectedPiece = null;
+  
+  if (moveHistory.length === 0) {
+    const undoBtn = document.getElementById('xiangqi-undo-btn');
+    if (undoBtn) {
+      undoBtn.style.opacity = '0.5';
+      undoBtn.style.pointerEvents = 'none';
+    }
+  }
+  
   updateStatus();
   renderPieces();
 }
