@@ -124,16 +124,22 @@ async function uploadToDrive(env, fileBuffer, fileName, mimeType) {
   };
 
   const form = new FormData();
+  // 关键：某些环境下 Blob 需要明确指定类型
   form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
   form.append('file', new Blob([fileBuffer], { type: mimeType }));
 
-  const resp = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+  // 增加 supportsAllDrives=true 兼容团队盘
+  const resp = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${token}` },
     body: form
   });
 
-  return await resp.json();
+  const data = await resp.json();
+  if (!resp.ok) {
+    throw new Error(`Google Drive API 错误: ${data.error ? data.error.message : JSON.stringify(data)}`);
+  }
+  return data;
 }
 
 async function getFromDrive(env, fileId) {
