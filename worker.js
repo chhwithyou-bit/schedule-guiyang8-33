@@ -459,35 +459,43 @@ export default {
       // ── 5g. Serve Media (R2 Cache -> GDrive Fallback) ──
       if (url.pathname.startsWith('/api/community/media/') && request.method === 'GET') {
         const fileId = url.pathname.split('/').pop();
+        if (!fileId) return new Response('Missing fileId', { status: 400 });
         
-        // 1. 尝试从 R2 获取
-        const cacheObj = await env.COMMUNITY_R2.get(fileId);
-        if (cacheObj) {
-          const headers = new Headers();
-          cacheObj.writeHttpMetadata(headers);
-          headers.set('X-Cache', 'HIT-R2');
-          return new Response(cacheObj.body, { headers });
-        }
-
-        // 2. R2 没命中，从 Google Drive 获取
         try {
+          // 1. 尝试从 R2 获取
+          if (env.COMMUNITY_R2) {
+            const cacheObj = await env.COMMUNITY_R2.get(fileId);
+            if (cacheObj) {
+              const headers = new Headers();
+              cacheObj.writeHttpMetadata(headers);
+              headers.set('X-Cache', 'HIT-R2');
+              return new Response(cacheObj.body, { headers });
+            }
+          }
+
+          // 2. R2 没命中，从 Google Drive 获取
           const driveResp = await getFromDrive(env, fileId);
-          if (!driveResp.ok) return new Response('File not found in GDrive', { status: 404 });
+          if (!driveResp.ok) {
+            const errText = await driveResp.text();
+            return new Response(`Drive Error: ${errText}`, { status: driveResp.status });
+          }
 
           const buffer = await driveResp.arrayBuffer();
           const contentType = driveResp.headers.get('content-type') || 'image/jpeg';
 
-          // 3. 异步写入 R2 缓存，下次就快了
-          await env.COMMUNITY_R2.put(fileId, buffer, {
-            httpMetadata: { contentType }
-          });
+          // 3. 异步写入 R2 缓存 (如果绑定了)
+          if (env.COMMUNITY_R2) {
+            await env.COMMUNITY_R2.put(fileId, buffer, {
+              httpMetadata: { contentType }
+            });
+          }
 
           const headers = new Headers();
           headers.set('Content-Type', contentType);
           headers.set('X-Cache', 'MISS-GDrive');
           return new Response(buffer, { headers });
         } catch (e) {
-          return new Response('Error fetching from GDrive', { status: 500 });
+          return new Response(`Media Serve Error: ${e.message}`, { status: 500 });
         }
       }
 
