@@ -682,7 +682,11 @@ html, body {
   color: var(--accent2); font-size:12px; padding:6px 11px; cursor:pointer;
 }
 </style>
+
+<link rel="stylesheet" href="xiangqi.css">
+<script src="xiangqi.js" defer></script>
 </head>
+
 <body>
 
 <canvas id="bg-canvas"></canvas>
@@ -704,6 +708,10 @@ html, body {
     <button class="drawer-item" id="nav-nodes" onclick="navTo('nodes')">
       <span class="drawer-item-icon">🔗</span>
       <span class="drawer-item-label">节点分享</span>
+    </button>
+    <button class="drawer-item" id="nav-xiangqi" onclick="navTo('xiangqi')">
+      <span class="drawer-item-icon">♟️</span>
+      <span class="drawer-item-label">中国象棋</span>
     </button>
   </nav>
   <div class="drawer-footer">2025-2026 第二学期 · 至6月7日</div>
@@ -776,7 +784,28 @@ html, body {
   <div class="sync-indicator" id="syncIndicator"></div>
   <div class="footer">心理健康教育每月一次 · 日语生上课地点：录播教室2</div>
 
-  <div class="modal-overlay" id="adminModal">
+  
+<div class="page" id="page-xiangqi" style="overflow-y:auto;">
+  <div class="safe-top"></div>
+  <div class="header stagger">
+    <div class="header-left">
+      <div class="hdr-school">贵阳八中</div>
+      <div class="hdr-title">中国象棋 (双人对战)</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:flex-start">
+      <button class="ham-btn" onclick="openDrawer()">
+        <span></span><span></span><span></span>
+      </button>
+      <button class="admin-btn" onclick="initXiangqi()">🔄 重开</button>
+    </div>
+  </div>
+  <div id="xiangqi-container">
+    <div id="xiangqi-status">红方走</div>
+    <div id="xiangqi-board"></div>
+  </div>
+</div>
+<div class="modal-overlay" id="adminModal">
+
     <div class="modal">
       <button class="close-modal" onclick="closeAdmin()">×</button>
       <div class="modal-title">📋 更新课表数据</div>
@@ -1298,6 +1327,8 @@ function navTo(page) {
 
   document.getElementById('nav-schedule').classList.toggle('active', page === 'schedule');
   document.getElementById('nav-nodes').classList.toggle('active', page === 'nodes');
+  const navXiangqi = document.getElementById('nav-xiangqi');
+  if (navXiangqi) navXiangqi.classList.toggle('active', page === 'xiangqi');
   currentPage = page;
 }
 
