@@ -104,12 +104,15 @@ async function getGoogleAuthToken(env) {
   });
 
   const text = await resp.text();
+  if (!resp.ok) {
+    throw new Error(`谷歌拒绝了认证请求 (HTTP ${resp.status})。返回内容: ${text.slice(0, 100)}`);
+  }
+
   try {
     const data = JSON.parse(text);
-    if (data.error) throw new Error(`Google Auth Error: ${data.error_description || data.error}`);
     return data.access_token;
   } catch (e) {
-    throw new Error(`无法从谷歌获取 Token。返回内容前50位: ${text.slice(0, 50)}...`);
+    throw new Error(`解析 Token 失败。返回内容不是 JSON: ${text.slice(0, 100)}`);
   }
 }
 
