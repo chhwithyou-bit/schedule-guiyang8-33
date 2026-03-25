@@ -73,7 +73,7 @@ async function getGoogleAuthToken(env) {
   const now = Math.floor(Date.now() / 1000);
   const claim = {
     iss: json.client_email,
-    scope: 'https://www.googleapis.com/auth/drive.file',
+    scope: 'https://www.googleapis.com/auth/drive',
     aud: 'https://oauth2.googleapis.com/token',
     exp: now + 3600,
     iat: now
