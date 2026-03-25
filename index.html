@@ -1507,7 +1507,13 @@ async function submitCommPost() {
         body: await currentCommFile.arrayBuffer()
       });
       const dUpload = await rUpload.json();
-      if (dUpload.ok) media.push({ url: dUpload.url });
+      if (dUpload.ok) {
+        media.push({ url: dUpload.url });
+      } else {
+        showToast(dUpload.msg || '图片上传失败', 'error');
+        btn.disabled = false; btn.textContent = '发布';
+        return; // 如果图片上传失败，不发布评论，方便调试
+      }
     }
     
     const r = await fetch('/api/community/posts', {

@@ -439,10 +439,17 @@ export default {
 
         try {
           // 1. 上传到 Google Drive
-          const driveData = await uploadToDrive(env, buffer, fileName, contentType);
+          let driveData;
+          try {
+            driveData = await uploadToDrive(env, buffer, fileName, contentType);
+          } catch (driveErr) {
+            throw new Error(`Google Drive 上传阶段失败: ${driveErr.message}`);
+          }
+          
           const fileId = driveData.id;
-
-          if (!fileId) throw new Error('GDrive 上传失败: ' + JSON.stringify(driveData));
+          if (!fileId) {
+            throw new Error(`Google Drive 返回数据中缺失 ID: ${JSON.stringify(driveData)}`);
+          }
 
           // 2. 尝试写入 R2 缓存 (非阻塞，失败不报错)
           if (env.COMMUNITY_R2) {
@@ -453,12 +460,13 @@ export default {
               });
             } catch (r2Error) {
               console.error('R2 Cache Write Failed:', r2Error.message);
+              // R2 失败不抛出错误，继续返回成功，因为 GDrive 已经存好了
             }
           }
 
           return jsonResp({ ok: true, fileId: fileId, url: `/api/community/media/${fileId}` });
         } catch (e) {
-          return jsonResp({ ok: false, msg: e.message }, 500);
+          return jsonResp({ ok: false, msg: `上传失败详情: ${e.message}` }, 500);
         }
       }
 
