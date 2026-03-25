@@ -239,8 +239,8 @@ export default {
     }
 
     // ── 5. 象棋页面跳转 ────────────────────────────────────
-    if (url.pathname === '/chess' || url.pathname === '/chess/') {
-      return Response.redirect(url.origin + '/chess/index.html', 302);
+    if (url.pathname === '/chess' || url.pathname === '/chess/' || url.pathname === '/chess/index.html') {
+      return Response.redirect(url.origin + '/?page=xiangqi', 302);
     }
 
     // ── 5. 静态资源 ─────────────────────────────────────────

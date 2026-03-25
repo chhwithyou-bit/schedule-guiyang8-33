@@ -5,7 +5,6 @@ let moveHistory = [];
 let turn = 'red';
 let selectedPiece = null;
 let gameOver = false;
-  inCheck = false;
 let inCheck = false;
 
 const initialSetup = [
@@ -20,6 +19,20 @@ const initialSetup = [
 function initXiangqi() {
   const boardEl = document.getElementById('xiangqi-board');
   if(!boardEl) return;
+  
+  // Aspect ratio fallback for older browsers
+  const fixHeight = () => {
+    const boardEl = document.getElementById('xiangqi-board');
+    if (!boardEl) return;
+    let w = boardEl.clientWidth;
+    if (w === 0) w = Math.min(window.innerWidth - 40, 400);
+    if (w > 0) boardEl.style.height = (w * 10 / 9) + 'px';
+  };
+  fixHeight();
+  window.addEventListener('resize', fixHeight);
+  // Expose globally so navTo can trigger it
+  window.fixXiangqiHeight = fixHeight;
+
   boardEl.innerHTML = '';
   drawGrid(boardEl);
 

@@ -1073,6 +1073,13 @@ html, body {
   window.addEventListener('resize', () => { resize(); });
   init();
   loop();
+
+  // Handle ?page= param for direct linking
+  const urlParams = new URLSearchParams(window.location.search);
+  const targetPage = urlParams.get('page');
+  if(targetPage) {
+    setTimeout(() => navTo(targetPage), 100);
+  }
 })();
 </script>
 
@@ -1328,6 +1335,19 @@ function navTo(page) {
       to.classList.add('active');
       from.classList.remove('active');
     });
+  }
+
+  if (page === 'xiangqi' && window.fixXiangqiHeight) {
+    // Wait for display change to take effect before fixing height
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        window.fixXiangqiHeight();
+      });
+    });
+    // Double check after CSS transition completes
+    setTimeout(() => {
+      window.fixXiangqiHeight();
+    }, 450);
   }
 
   document.getElementById('nav-schedule').classList.toggle('active', page === 'schedule');
