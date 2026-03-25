@@ -496,30 +496,30 @@ export default {
         const debug = {
           gdriveJsonType: typeof env.GDRIVE_JSON,
           gdriveJsonStart: String(env.GDRIVE_JSON).slice(0, 15),
-          folderId: env.GDRIVE_FOLDER_ID
+          folderIdValue: env.GDRIVE_FOLDER_ID || "MISSING_EMPTY",
+          allVars: Object.keys(env)
         };
 
         try {
+          if (!env.GDRIVE_FOLDER_ID) {
+            return jsonResp({ ok: false, msg: '❌ 变量 GDRIVE_FOLDER_ID 没设置！请去 Cloudflare 后台添加这个变量。', debug }, 400);
+          }
           if (!env.GDRIVE_JSON || env.GDRIVE_JSON === 'undefined') {
-            return jsonResp({ ok: false, msg: '❌ GDRIVE_JSON 变量是空的', debug }, 400);
+            return jsonResp({ ok: false, msg: '❌ 变量 GDRIVE_JSON 没设置！', debug }, 400);
           }
 
           let json;
           try {
             json = JSON.parse(env.GDRIVE_JSON);
           } catch (e) {
-            return jsonResp({ 
-              ok: false, 
-              msg: '❌ GDRIVE_JSON 解析失败 (它不是有效的 JSON)', 
-              error: e.message,
-              debug 
-            }, 400);
+            return jsonResp({ ok: false, msg: '❌ GDRIVE_JSON 格式不对', debug }, 400);
           }
 
           const email = json.client_email;
           const token = await getGoogleAuthToken(env);
           
-          const resp = await fetch(`https://www.googleapis.com/drive/v3/files/${env.GDRIVE_FOLDER_ID}?fields=id,name&supportsAllDrives=true`, {
+          const testUrl = `https://www.googleapis.com/drive/v3/files/${env.GDRIVE_FOLDER_ID}?fields=id,name&supportsAllDrives=true`;
+          const resp = await fetch(testUrl, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
 
@@ -530,8 +530,9 @@ export default {
           } catch (e) {
             return jsonResp({ 
               ok: false, 
-              msg: '❌ Google API 返回了非 JSON 内容 (HTML)', 
-              rawResponse: textDrive.slice(0, 200),
+              msg: '❌ 访问文件夹返回了网页 (404)，说明文件夹 ID 可能是错的', 
+              attemptedUrl: testUrl.split('?')[0],
+              rawResponse: textDrive.slice(0, 100),
               debug 
             }, resp.status);
           }
@@ -539,7 +540,7 @@ export default {
           if (resp.ok) {
             return jsonResp({ ok: true, msg: '✅ 连接成功！', folderName: data.name, usingEmail: email });
           } else {
-            return jsonResp({ ok: false, msg: '❌ 文件夹无法找到', error: data.error, debug }, resp.status);
+            return jsonResp({ ok: false, msg: '❌ 访问被拒绝', error: data.error, debug }, resp.status);
           }
         } catch (e) {
           return jsonResp({ ok: false, msg: '❌ 运行出错', error: e.message, debug }, 500);
