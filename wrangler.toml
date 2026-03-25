@@ -29,4 +29,5 @@ database_name = "community_db"
 database_id = "6d9636b4-a7a9-4451-a701-7f48df456c6e"
 
 [vars]
-# Google Drive variables are managed via Cloudflare Dashboard for security
+# Google Drive Folder ID
+GDRIVE_FOLDER_ID = "1JLM76eGeMI7AJB3PXiuPAQzEnt9AJhtg"
