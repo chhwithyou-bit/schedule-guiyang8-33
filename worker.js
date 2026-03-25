@@ -444,11 +444,17 @@ export default {
 
           if (!fileId) throw new Error('GDrive 上传失败: ' + JSON.stringify(driveData));
 
-          // 2. 写入 R2 缓存
-          await env.COMMUNITY_R2.put(fileId, buffer, {
-            httpMetadata: { contentType },
-            customMetadata: { 'source': 'gdrive', 'original_name': fileName }
-          });
+          // 2. 尝试写入 R2 缓存 (非阻塞，失败不报错)
+          if (env.COMMUNITY_R2) {
+            try {
+              await env.COMMUNITY_R2.put(fileId, buffer, {
+                httpMetadata: { contentType },
+                customMetadata: { 'source': 'gdrive', 'original_name': fileName }
+              });
+            } catch (r2Error) {
+              console.error('R2 Cache Write Failed:', r2Error.message);
+            }
+          }
 
           return jsonResp({ ok: true, fileId: fileId, url: `/api/community/media/${fileId}` });
         } catch (e) {
@@ -464,16 +470,20 @@ export default {
         try {
           // 1. 尝试从 R2 获取
           if (env.COMMUNITY_R2) {
-            const cacheObj = await env.COMMUNITY_R2.get(fileId);
-            if (cacheObj) {
-              const headers = new Headers();
-              cacheObj.writeHttpMetadata(headers);
-              headers.set('X-Cache', 'HIT-R2');
-              return new Response(cacheObj.body, { headers });
+            try {
+              const cacheObj = await env.COMMUNITY_R2.get(fileId);
+              if (cacheObj) {
+                const headers = new Headers();
+                cacheObj.writeHttpMetadata(headers);
+                headers.set('X-Cache', 'HIT-R2');
+                return new Response(cacheObj.body, { headers });
+              }
+            } catch (r2ReadError) {
+              console.error('R2 Cache Read Failed:', r2ReadError.message);
             }
           }
 
-          // 2. R2 没命中，从 Google Drive 获取
+          // 2. R2 没命中或失败，从 Google Drive 获取
           const driveResp = await getFromDrive(env, fileId);
           if (!driveResp.ok) {
             const errText = await driveResp.text();
@@ -483,11 +493,13 @@ export default {
           const buffer = await driveResp.arrayBuffer();
           const contentType = driveResp.headers.get('content-type') || 'image/jpeg';
 
-          // 3. 异步写入 R2 缓存 (如果绑定了)
+          // 3. 异步尝试写入 R2 缓存 (非阻塞)
           if (env.COMMUNITY_R2) {
-            await env.COMMUNITY_R2.put(fileId, buffer, {
-              httpMetadata: { contentType }
-            });
+            try {
+              await env.COMMUNITY_R2.put(fileId, buffer, {
+                httpMetadata: { contentType }
+              });
+            } catch (e) {}
           }
 
           const headers = new Headers();
@@ -502,10 +514,12 @@ export default {
       // ── 5h. Test Google Drive Connection ──
       if (url.pathname === '/api/community/test-drive' && request.method === 'GET') {
         const debug = {
+          hasGdriveJson: !!env.GDRIVE_JSON,
           gdriveJsonType: typeof env.GDRIVE_JSON,
-          gdriveJsonStart: String(env.GDRIVE_JSON).slice(0, 15),
+          gdriveJsonLength: env.GDRIVE_JSON ? env.GDRIVE_JSON.length : 0,
           folderIdValue: env.GDRIVE_FOLDER_ID || "MISSING_EMPTY",
-          allVars: Object.keys(env)
+          hasR2: !!env.COMMUNITY_R2,
+          hasDB: !!env.COMMUNITY_DB
         };
 
         try {
@@ -513,18 +527,25 @@ export default {
             return jsonResp({ ok: false, msg: '❌ 变量 GDRIVE_FOLDER_ID 没设置！请去 Cloudflare 后台添加这个变量。', debug }, 400);
           }
           if (!env.GDRIVE_JSON || env.GDRIVE_JSON === 'undefined') {
-            return jsonResp({ ok: false, msg: '❌ 变量 GDRIVE_JSON 没设置！', debug }, 400);
+            return jsonResp({ ok: false, msg: '❌ 变量 GDRIVE_JSON 没设置！请在 Cloudflare Settings -> Variables -> Secrets 中添加它。', debug }, 400);
           }
 
           let json;
           try {
             json = JSON.parse(env.GDRIVE_JSON);
           } catch (e) {
-            return jsonResp({ ok: false, msg: '❌ GDRIVE_JSON 格式不对', debug }, 400);
+            return jsonResp({ ok: false, msg: '❌ GDRIVE_JSON 格式不对，无法解析为 JSON。', debug, error: e.message }, 400);
           }
 
           const email = json.client_email;
-          const token = await getGoogleAuthToken(env);
+          if (!email) return jsonResp({ ok: false, msg: '❌ GDRIVE_JSON 中缺失 client_email', debug }, 400);
+
+          let token;
+          try {
+            token = await getGoogleAuthToken(env);
+          } catch (e) {
+            return jsonResp({ ok: false, msg: '❌ 生成 Google Auth Token 失败，可能是私钥格式错误', debug, error: e.message }, 500);
+          }
           
           const testUrl = `https://www.googleapis.com/drive/v3/files/${env.GDRIVE_FOLDER_ID}?fields=id,name&supportsAllDrives=true`;
           const resp = await fetch(testUrl, {
@@ -538,17 +559,29 @@ export default {
           } catch (e) {
             return jsonResp({ 
               ok: false, 
-              msg: '❌ 访问文件夹返回了网页 (404)，说明文件夹 ID 可能是错的', 
+              msg: '❌ 访问文件夹返回了非 JSON 内容', 
               attemptedUrl: testUrl.split('?')[0],
-              rawResponse: textDrive.slice(0, 100),
+              rawResponse: textDrive.slice(0, 200),
               debug 
             }, resp.status);
           }
 
           if (resp.ok) {
-            return jsonResp({ ok: true, msg: '✅ 连接成功！', folderName: data.name, usingEmail: email });
+            return jsonResp({ 
+              ok: true, 
+              msg: '✅ Google Drive 连接成功！', 
+              folderName: data.name, 
+              serviceAccountEmail: email,
+              tip: `请确保已在谷歌网盘中将文件夹共享给了: ${email}`
+            });
           } else {
-            return jsonResp({ ok: false, msg: '❌ 访问被拒绝', error: data.error, debug }, resp.status);
+            return jsonResp({ 
+              ok: false, 
+              msg: '❌ 谷歌 API 返回错误', 
+              error: data.error, 
+              serviceAccountEmail: email,
+              debug 
+            }, resp.status);
           }
         } catch (e) {
           return jsonResp({ ok: false, msg: '❌ 运行出错', error: e.message, debug }, 500);
