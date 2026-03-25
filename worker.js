@@ -464,7 +464,9 @@ export default {
             }
           }
 
-          return jsonResp({ ok: true, fileId: fileId, url: `/api/community/media/${fileId}` });
+          // 使用自定义域名
+          const r2Url = `https://media.thefallback.cc.cd/${fileId}`;
+          return jsonResp({ ok: true, fileId: fileId, url: r2Url });
         } catch (e) {
           return jsonResp({ ok: false, msg: `上传失败详情: ${e.message}` }, 500);
         }
