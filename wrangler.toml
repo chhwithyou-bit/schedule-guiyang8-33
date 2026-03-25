@@ -29,6 +29,4 @@ database_name = "community_db"
 database_id = "6d9636b4-a7a9-4451-a701-7f48df456c6e"
 
 [vars]
-# Google Drive Folder ID
-# 注意：GDRIVE_JSON 应该存为 Secret，而不是公开在 vars 里
-GDRIVE_FOLDER_ID = "请在 GitHub Secrets 中设置，或者在这里填入文件夹 ID"
+# Google Drive variables are managed via Cloudflare Dashboard for security
