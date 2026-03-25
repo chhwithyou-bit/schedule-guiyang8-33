@@ -523,7 +523,19 @@ export default {
             headers: { 'Authorization': `Bearer ${token}` }
           });
 
-          const data = await resp.json();
+          const textDrive = await resp.text();
+          let data;
+          try {
+            data = JSON.parse(textDrive);
+          } catch (e) {
+            return jsonResp({ 
+              ok: false, 
+              msg: '❌ Google API 返回了非 JSON 内容 (HTML)', 
+              rawResponse: textDrive.slice(0, 200),
+              debug 
+            }, resp.status);
+          }
+
           if (resp.ok) {
             return jsonResp({ ok: true, msg: '✅ 连接成功！', folderName: data.name, usingEmail: email });
           } else {
