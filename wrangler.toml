@@ -18,3 +18,12 @@ directory = "./public"
 [[r2_buckets]]
 binding = "MUSIC_BUCKET"
 bucket_name = "music"
+
+[[r2_buckets]]
+binding = "COMMUNITY_R2"
+bucket_name = "community-media" # 等待创建
+
+[[d1_databases]]
+binding = "COMMUNITY_DB"
+database_name = "community_db"
+database_id = "在这里填入你创建的D1数据库的ID" # 请替换为真实的 database_id

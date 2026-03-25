@@ -61,6 +61,75 @@ function parseNodes(rawText) {
     });
 }
 
+// ── Google Drive API Helpers ────────────────────────────────
+async function getGoogleAuthToken(env) {
+  const json = JSON.parse(env.GDRIVE_JSON);
+  const now = Math.floor(Date.now() / 1000);
+  const claim = {
+    iss: json.client_email,
+    scope: 'https://www.googleapis.com/auth/drive.file',
+    aud: 'https://oauth2.googleapis.com/token',
+    exp: now + 3600,
+    iat: now
+  };
+
+  const header = { alg: 'RS256', typ: 'JWT' };
+  const encodedHeader = btoa(JSON.stringify(header)).replace(/=/g, '');
+  const encodedClaim = btoa(JSON.stringify(claim)).replace(/=/g, '');
+  const signBase = `${encodedHeader}.${encodedClaim}`;
+
+  // Import the private key
+  const pem = json.private_key.replace(/\\n/g, '\n');
+  const binaryKey = Uint8Array.from(atob(pem.split('-----')[2].replace(/\s/g, '')), c => c.charCodeAt(0));
+  const cryptoKey = await crypto.subtle.importKey(
+    'pkcs8', binaryKey,
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false, ['sign']
+  );
+
+  const signature = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', cryptoKey, new TextEncoder().encode(signBase));
+  const encodedSignature = btoa(String.fromCharCode(...new Uint8Array(signature))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+
+  const jwt = `${signBase}.${encodedSignature}`;
+
+  const resp = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`
+  });
+
+  const data = await resp.json();
+  return data.access_token;
+}
+
+async function uploadToDrive(env, fileBuffer, fileName, mimeType) {
+  const token = await getGoogleAuthToken(env);
+  const metadata = {
+    name: fileName,
+    parents: [env.GDRIVE_FOLDER_ID]
+  };
+
+  const form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+  form.append('file', new Blob([fileBuffer], { type: mimeType }));
+
+  const resp = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}` },
+    body: form
+  });
+
+  return await resp.json();
+}
+
+async function getFromDrive(env, fileId) {
+  const token = await getGoogleAuthToken(env);
+  const resp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  return resp;
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -238,7 +307,215 @@ export default {
       }
     }
 
-    // ── 5. 象棋页面跳转 ────────────────────────────────────
+    // ── 5. Community (Twitter-like) API ───────────────────────
+    if (url.pathname.startsWith('/api/community/')) {
+      // Helper for current user from Authorization header (simple version)
+      // Header format: "Bearer <username>:<password_hash>" or just a simple token
+      const getAuth = async () => {
+        const auth = request.headers.get('Authorization') || '';
+        if (!auth.startsWith('Bearer ')) return null;
+        const [username, passHash] = auth.slice(7).split(':');
+        if (!username || !passHash) return null;
+        const user = await env.COMMUNITY_DB.prepare("SELECT * FROM users WHERE username = ? AND password_hash = ?").bind(username, passHash).first();
+        return user;
+      };
+
+      // ── 5a. Auth: Register/Login ──
+      if (url.pathname === '/api/community/auth' && request.method === 'POST') {
+        const { action, username, password } = await request.json();
+        if (!username || !password) return jsonResp({ ok: false, msg: '参数不全' }, 400);
+
+        // Simple hash (for prototype)
+        const passHash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(password))))
+          .map(b => b.toString(16).padStart(2, '0')).join('');
+
+        if (action === 'register') {
+          try {
+            const id = crypto.randomUUID();
+            await env.COMMUNITY_DB.prepare("INSERT INTO users (id, username, password_hash) VALUES (?, ?, ?)")
+              .bind(id, username, passHash).run();
+            return jsonResp({ ok: true, user: { id, username, passHash } });
+          } catch (e) {
+            return jsonResp({ ok: false, msg: '注册失败（可能用户已存在）' }, 400);
+          }
+        }
+        if (action === 'login') {
+          const user = await env.COMMUNITY_DB.prepare("SELECT * FROM users WHERE username = ? AND password_hash = ?")
+            .bind(username, passHash).first();
+          if (!user) return jsonResp({ ok: false, msg: '用户或密码错误' }, 401);
+          return jsonResp({ ok: true, user: { id: user.id, username: user.username, passHash: user.password_hash } });
+        }
+      }
+
+      // ── 5b. Posts: Fetch ──
+      if (url.pathname === '/api/community/posts' && request.method === 'GET') {
+        const posts = await env.COMMUNITY_DB.prepare(`
+          SELECT p.*, u.username, u.avatar_url,
+          (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) as like_count,
+          (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) as comment_count
+          FROM posts p
+          JOIN users u ON p.user_id = u.id
+          ORDER BY p.created_at DESC LIMIT 100
+        `).all();
+        return jsonResp({ ok: true, posts: posts.results });
+      }
+
+      // ── 5c. Posts: Create ──
+      if (url.pathname === '/api/community/posts' && request.method === 'POST') {
+        const user = await getAuth();
+        if (!user) return jsonResp({ ok: false, msg: '未授权' }, 401);
+
+        const { content, media } = await request.json();
+        const id = crypto.randomUUID();
+        await env.COMMUNITY_DB.prepare("INSERT INTO posts (id, user_id, content, media_json) VALUES (?, ?, ?, ?)")
+          .bind(id, user.id, content || '', JSON.stringify(media || [])).run();
+        return jsonResp({ ok: true, post_id: id });
+      }
+
+      // ── 5d. Comments: Fetch/Create ──
+      if (url.pathname === '/api/community/comments') {
+        if (request.method === 'GET') {
+          const postId = url.searchParams.get('post_id');
+          if (!postId) return jsonResp({ ok: false, msg: 'Missing post_id' }, 400);
+          const comments = await env.COMMUNITY_DB.prepare(`
+            SELECT c.*, u.username, u.avatar_url
+            FROM comments c
+            JOIN users u ON c.user_id = u.id
+            WHERE c.post_id = ?
+            ORDER BY c.created_at ASC
+          `).bind(postId).all();
+          return jsonResp({ ok: true, comments: comments.results });
+        }
+        if (request.method === 'POST') {
+          const user = await getAuth();
+          if (!user) return jsonResp({ ok: false, msg: '未授权' }, 401);
+          const { post_id, content, parent_id } = await request.json();
+          const id = crypto.randomUUID();
+          await env.COMMUNITY_DB.prepare("INSERT INTO comments (id, post_id, user_id, parent_id, content) VALUES (?, ?, ?, ?, ?)")
+            .bind(id, post_id, user.id, parent_id || null, content).run();
+          return jsonResp({ ok: true, comment_id: id });
+        }
+      }
+
+      // ── 5e. Likes: Toggle ──
+      if (url.pathname === '/api/community/like' && request.method === 'POST') {
+        const user = await getAuth();
+        if (!user) return jsonResp({ ok: false, msg: '未授权' }, 401);
+        const { post_id } = await request.json();
+        // Simple toggle: try insert, if exists delete
+        try {
+          await env.COMMUNITY_DB.prepare("INSERT INTO likes (post_id, user_id) VALUES (?, ?)")
+            .bind(post_id, user.id).run();
+          return jsonResp({ ok: true, liked: true });
+        } catch (e) {
+          await env.COMMUNITY_DB.prepare("DELETE FROM likes WHERE post_id = ? AND user_id = ?")
+            .bind(post_id, user.id).run();
+          return jsonResp({ ok: true, liked: false });
+        }
+      }
+
+      // ── 5f. Upload (GDrive as main, R2 as cache) ──
+      if (url.pathname === '/api/community/upload' && request.method === 'POST') {
+        const user = await getAuth();
+        if (!user) return jsonResp({ ok: false, msg: '未授权' }, 401);
+
+        const contentType = request.headers.get('content-type') || 'image/jpeg';
+        const buffer = await request.arrayBuffer();
+        const fileName = `comm_${crypto.randomUUID()}`;
+
+        try {
+          // 1. 上传到 Google Drive
+          const driveData = await uploadToDrive(env, buffer, fileName, contentType);
+          const fileId = driveData.id;
+
+          if (!fileId) throw new Error('GDrive 上传失败: ' + JSON.stringify(driveData));
+
+          // 2. 写入 R2 缓存
+          await env.COMMUNITY_R2.put(fileId, buffer, {
+            httpMetadata: { contentType },
+            customMetadata: { 'source': 'gdrive', 'original_name': fileName }
+          });
+
+          return jsonResp({ ok: true, fileId: fileId, url: `/api/community/media/${fileId}` });
+        } catch (e) {
+          return jsonResp({ ok: false, msg: e.message }, 500);
+        }
+      }
+
+      // ── 5g. Serve Media (R2 Cache -> GDrive Fallback) ──
+      if (url.pathname.startsWith('/api/community/media/') && request.method === 'GET') {
+        const fileId = url.pathname.split('/').pop();
+        
+        // 1. 尝试从 R2 获取
+        const cacheObj = await env.COMMUNITY_R2.get(fileId);
+        if (cacheObj) {
+          const headers = new Headers();
+          cacheObj.writeHttpMetadata(headers);
+          headers.set('X-Cache', 'HIT-R2');
+          return new Response(cacheObj.body, { headers });
+        }
+
+        // 2. R2 没命中，从 Google Drive 获取
+        try {
+          const driveResp = await getFromDrive(env, fileId);
+          if (!driveResp.ok) return new Response('File not found in GDrive', { status: 404 });
+
+          const buffer = await driveResp.arrayBuffer();
+          const contentType = driveResp.headers.get('content-type') || 'image/jpeg';
+
+          // 3. 异步写入 R2 缓存，下次就快了
+          await env.COMMUNITY_R2.put(fileId, buffer, {
+            httpMetadata: { contentType }
+          });
+
+          const headers = new Headers();
+          headers.set('Content-Type', contentType);
+          headers.set('X-Cache', 'MISS-GDrive');
+          return new Response(buffer, { headers });
+        } catch (e) {
+          return new Response('Error fetching from GDrive', { status: 500 });
+        }
+      }
+
+      // ── 5h. Test Google Drive Connection ──
+      if (url.pathname === '/api/community/test-drive' && request.method === 'GET') {
+        try {
+          const token = await getGoogleAuthToken(env);
+          if (!token) throw new Error('无法获取 Access Token');
+
+          // 尝试获取文件夹元数据
+          const resp = await fetch(`https://www.googleapis.com/drive/v3/files/${env.GDRIVE_FOLDER_ID}?fields=id,name`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+
+          const data = await resp.json();
+          if (resp.ok) {
+            return jsonResp({ 
+              ok: true, 
+              msg: '✅ 连接成功！', 
+              folderName: data.name,
+              folderId: data.id 
+            });
+          } else {
+            return jsonResp({ 
+              ok: false, 
+              msg: '❌ 文件夹访问失败', 
+              error: data.error 
+            }, resp.status);
+          }
+        } catch (e) {
+          return jsonResp({ 
+            ok: false, 
+            msg: '❌ 认证过程出错', 
+            error: e.message 
+          }, 500);
+        }
+      }
+
+      return jsonResp({ ok: false, msg: 'Community Endpoint Not Found' }, 404);
+    }
+
+    // ── 6. 象棋页面跳转 ────────────────────────────────────
     if (url.pathname === '/chess' || url.pathname === '/chess/' || url.pathname === '/chess/index.html') {
       return Response.redirect(url.origin + '/?page=xiangqi', 302);
     }

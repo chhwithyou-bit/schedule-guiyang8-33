@@ -1,34 +1,29 @@
--- schema.sql
--- 用户表
 CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     username TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
-    role TEXT DEFAULT 'user', -- 'user' 或 'admin'
+    role TEXT DEFAULT 'user',
     avatar_url TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- 帖子表
 CREATE TABLE IF NOT EXISTS posts (
     id TEXT PRIMARY KEY,
     user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
     content TEXT,
-    media_json TEXT, -- 存储 JSON 格式的媒体信息（如 [{"type":"image", "drive_id":"xxx", "url":"xxx"}]）
+    media_json TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- 评论表
 CREATE TABLE IF NOT EXISTS comments (
     id TEXT PRIMARY KEY,
     post_id TEXT REFERENCES posts(id) ON DELETE CASCADE,
     user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
-    parent_id TEXT REFERENCES comments(id) ON DELETE CASCADE, -- 用于楼中楼回复
+    parent_id TEXT REFERENCES comments(id) ON DELETE CASCADE,
     content TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- 点赞表
 CREATE TABLE IF NOT EXISTS likes (
     post_id TEXT REFERENCES posts(id) ON DELETE CASCADE,
     user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
