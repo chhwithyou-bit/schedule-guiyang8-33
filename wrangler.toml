@@ -26,4 +26,9 @@ bucket_name = "community-media" # 等待创建
 [[d1_databases]]
 binding = "COMMUNITY_DB"
 database_name = "community_db"
-database_id = "在这里填入你创建的D1数据库的ID" # 请替换为真实的 database_id
+database_id = "6d9636b4-a7a9-4451-a701-7f48df456c6e"
+
+[vars]
+# Google Drive Folder ID
+# 注意：GDRIVE_JSON 应该存为 Secret，而不是公开在 vars 里
+GDRIVE_FOLDER_ID = "请在 GitHub Secrets 中设置，或者在这里填入文件夹 ID"
