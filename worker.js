@@ -63,7 +63,13 @@ function parseNodes(rawText) {
 
 // ── Google Drive API Helpers ────────────────────────────────
 async function getGoogleAuthToken(env) {
-  const json = JSON.parse(env.GDRIVE_JSON);
+  let json;
+  try {
+    json = JSON.parse(env.GDRIVE_JSON);
+  } catch (e) {
+    throw new Error('GDRIVE_JSON 格式错误，请确保在 Cloudflare 设置的是完整的 JSON 文本');
+  }
+
   const now = Math.floor(Date.now() / 1000);
   const claim = {
     iss: json.client_email,
@@ -78,7 +84,6 @@ async function getGoogleAuthToken(env) {
   const encodedClaim = btoa(JSON.stringify(claim)).replace(/=/g, '');
   const signBase = `${encodedHeader}.${encodedClaim}`;
 
-  // Import the private key
   const pem = json.private_key.replace(/\\n/g, '\n');
   const binaryKey = Uint8Array.from(atob(pem.split('-----')[2].replace(/\s/g, '')), c => c.charCodeAt(0));
   const cryptoKey = await crypto.subtle.importKey(
@@ -98,8 +103,14 @@ async function getGoogleAuthToken(env) {
     body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`
   });
 
-  const data = await resp.json();
-  return data.access_token;
+  const text = await resp.text();
+  try {
+    const data = JSON.parse(text);
+    if (data.error) throw new Error(`Google Auth Error: ${data.error_description || data.error}`);
+    return data.access_token;
+  } catch (e) {
+    throw new Error(`无法从谷歌获取 Token。返回内容前50位: ${text.slice(0, 50)}...`);
+  }
 }
 
 async function uploadToDrive(env, fileBuffer, fileName, mimeType) {
