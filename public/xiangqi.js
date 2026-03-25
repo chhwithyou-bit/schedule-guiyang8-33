@@ -5,6 +5,8 @@ let moveHistory = [];
 let turn = 'red';
 let selectedPiece = null;
 let gameOver = false;
+  inCheck = false;
+let inCheck = false;
 
 const initialSetup = [
   { type: '車', team: 'black', x: 0, y: 0 }, { type: '馬', team: 'black', x: 1, y: 0 }, { type: '象', team: 'black', x: 2, y: 0 }, { type: '士', team: 'black', x: 3, y: 0 }, { type: '將', team: 'black', x: 4, y: 0 }, { type: '士', team: 'black', x: 5, y: 0 }, { type: '象', team: 'black', x: 6, y: 0 }, { type: '馬', team: 'black', x: 7, y: 0 }, { type: '車', team: 'black', x: 8, y: 0 },
@@ -27,6 +29,7 @@ function initXiangqi() {
   turn = 'red';
   selectedPiece = null;
   gameOver = false;
+  inCheck = false;
   
   const undoBtn = document.getElementById('xiangqi-undo-btn');
   if (undoBtn) {
@@ -109,7 +112,7 @@ function updateStatus() {
     st.textContent = turn === 'red' ? '黑方胜！' : '红方胜！';
     st.style.color = turn === 'red' ? 'var(--text)' : 'var(--accent)';
   } else {
-    st.textContent = turn === 'red' ? '红方走' : '黑方走';
+    st.textContent = (turn === 'red' ? '红方走' : '黑方走') + (inCheck ? ' (将军！)' : '');
     st.style.color = turn === 'red' ? 'var(--accent)' : 'var(--text)';
   }
 }
@@ -215,6 +218,7 @@ function movePiece(x, y) {
   moveHistory.push({
     pieces: JSON.parse(JSON.stringify(pieces)),
     turn: turn,
+    inCheck: inCheck,
     gameOver: gameOver
   });
   
@@ -234,6 +238,25 @@ function movePiece(x, y) {
   selectedPiece.y = y;
   selectedPiece = null;
   turn = turn === 'red' ? 'black' : 'red';
+  inCheck = isCheck(turn);
+  
+  // Optional: check for checkmate
+  if (inCheck) {
+    // If no pieces of 'turn' have valid moves, it's checkmate
+    let hasMoves = false;
+    for (const p of pieces) {
+      if (p.team === turn) {
+        if (getValidMoves(p).length > 0) {
+          hasMoves = true;
+          break;
+        }
+      }
+    }
+    if (!hasMoves) {
+      gameOver = true;
+    }
+  }
+  
   updateStatus();
   renderPieces();
 }
@@ -244,6 +267,7 @@ function undoXiangqiMove() {
   pieces = lastState.pieces;
   turn = lastState.turn;
   gameOver = lastState.gameOver;
+  inCheck = lastState.inCheck || false;
   selectedPiece = null;
   
   if (moveHistory.length === 0) {
@@ -258,7 +282,52 @@ function undoXiangqiMove() {
   renderPieces();
 }
 
+function isCheck(teamToCheck) {
+  const general = pieces.find(p => p.team === teamToCheck && (p.type === '將' || p.type === '帥'));
+  if (!general) return false;
+  
+  for (let i = 0; i < pieces.length; i++) {
+    if (pieces[i].team !== teamToCheck) {
+      const moves = getRawValidMoves(pieces[i]);
+      if (moves.some(m => m.x === general.x && m.y === general.y)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 function getValidMoves(piece) {
+  const rawMoves = getRawValidMoves(piece);
+  const validMoves = [];
+  
+  for (const m of rawMoves) {
+    const targetIdx = pieces.findIndex(p => p.x === m.x && p.y === m.y);
+    const originalX = piece.x;
+    const originalY = piece.y;
+    let capturedPiece = null;
+    
+    if (targetIdx !== -1) {
+      capturedPiece = pieces[targetIdx];
+      pieces.splice(targetIdx, 1);
+    }
+    piece.x = m.x;
+    piece.y = m.y;
+    
+    if (!isCheck(piece.team)) {
+      validMoves.push(m);
+    }
+    
+    piece.x = originalX;
+    piece.y = originalY;
+    if (capturedPiece) {
+      pieces.splice(targetIdx, 0, capturedPiece);
+    }
+  }
+  return validMoves;
+}
+
+function getRawValidMoves(piece) {
   let moves = [];
   const { x, y, type, team } = piece;
 
