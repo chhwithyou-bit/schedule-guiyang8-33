@@ -228,7 +228,11 @@ export default {
             const id = crypto.randomUUID();
             const role = username.toLowerCase() === 'admin' ? 'admin' : 'user';
             try {
-              await env.COMMUNITY_DB.prepare("INSERT INTO users (id, username, password_hash, role) VALUES (?, ?, ?, ?)").bind(id, username, passHash, role).run();
+              // Note: Removed 'role' from the INSERT to prevent crashes if the schema wasn't fully migrated.
+              await env.COMMUNITY_DB.prepare("INSERT INTO users (id, username, password_hash) VALUES (?, ?, ?)").bind(id, username, passHash).run();
+              if (role === 'admin') {
+                try { await env.COMMUNITY_DB.prepare("UPDATE users SET role = 'admin' WHERE id = ?").bind(id).run(); } catch(e){}
+              }
               return jsonResp({ ok: true, user: { id, username, passHash, role, level: 1, xp: 0 } });
             } catch (err) {
               const msg = err && err.message ? String(err.message) : String(err);
@@ -242,7 +246,11 @@ export default {
             const user = await env.COMMUNITY_DB.prepare("SELECT * FROM users WHERE username = ? AND password_hash = ?").bind(username, passHash).first();
             if (!user) return jsonResp({ ok: false, msg: '用户名或密码错误' }, 401);
             if (user.is_banned) return jsonResp({ ok: false, msg: '账号已被封禁' }, 403);
-            return jsonResp({ ok: true, user: { id: user.id, username, passHash, role: user.role, level: user.level, xp: user.xp, signature: user.signature, avatar_url: user.avatar_url, background_url: user.background_url } });
+            let role = user.role || 'user';
+            if (user.username.toLowerCase() === 'admin') role = 'admin'; // fallback
+            let level = user.level || 1;
+            let xp = user.xp || 0;
+            return jsonResp({ ok: true, user: { id: user.id, username, passHash, role, level, xp, signature: user.signature, avatar_url: user.avatar_url, background_url: user.background_url } });
           }
         } catch (e) {
           return jsonResp({ ok: false, msg: '服务端错误: ' + e.message }, 500);
@@ -262,7 +270,11 @@ export default {
               FROM posts p JOIN users u ON p.user_id = u.id 
             `;
             const params = [];
-            if (query) {
+            const postId = url.searchParams.get('id');
+            if (postId) {
+              sql += " WHERE p.id = ? ";
+              params.push(postId);
+            } else if (query) {
               sql += " WHERE p.content LIKE ? OR p.content LIKE ? OR u.id LIKE ? ";
               params.push(`%${query}%`, `%#${query}%`, `%${query}%`);
             } else if (userId) {
@@ -274,7 +286,22 @@ export default {
             }
             sql += " ORDER BY p.created_at DESC LIMIT 100 ";
             const { results } = await env.COMMUNITY_DB.prepare(sql).bind(...params).all();
-            return jsonResp({ ok: true, posts: results || [] });
+            
+            const posts = results || [];
+            if (posts.length > 0) {
+              const ids = posts.map(p => p.id);
+              const placeholders = ids.map(() => '?').join(',');
+              // Fetch latest 3 comments for each post (sqlite doesn't have row_number easily, so we just fetch all and group in JS, limit 500 total comments to prevent memory bloat)
+              const commQuery = "SELECT c.id, c.post_id, c.content, u.username FROM comments c JOIN users u ON c.user_id = u.id WHERE c.post_id IN (" + placeholders + ") ORDER BY c.created_at ASC LIMIT 500";
+              const commResults = await env.COMMUNITY_DB.prepare(commQuery).bind(...ids).all();
+              const comms = commResults.results || [];
+              
+              posts.forEach(p => {
+                p.inline_comments = comms.filter(c => c.post_id === p.id).slice(-3); // Get last 3 comments
+              });
+            }
+
+            return jsonResp({ ok: true, posts });
           } catch (e) { return jsonResp({ ok: false, msg: e.message }, 500); }
         }
         if (request.method === 'POST') {

@@ -718,7 +718,7 @@ html, body {
 .hashtag { color: var(--accent2); cursor: pointer; font-weight: 600; text-decoration: none; }
 .hashtag:hover { text-decoration: underline; }
 
-.notify-bell { position: relative; cursor: pointer; padding: 8px; border-radius: 50%; transition: background 0.2s; }
+.notify-bell { position: relative; cursor: pointer; padding: 8px; border-radius: 50%; transition: background 0.2s; display: flex; align-items: center; justify-content: center; }
 .notify-bell:hover { background: var(--s2); }
 .notify-dot { position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; background: #ff4d4d; border-radius: 50%; border: 2px solid var(--bg); display: none; }
 .notify-dot.show { display: block; }
@@ -1418,6 +1418,19 @@ async function adminSetAdminPwd() {
   <div id="profile-posts-container" style="padding:16px; max-width:600px; margin:0 auto; display:flex; flex-direction:column; gap:16px;"></div>
 </div>
 
+
+<div class="page" id="page-post" style="overflow-y:auto; background: var(--bg);">
+  <div class="safe-top"></div>
+  <div class="header stagger" style="position: sticky; top: 0; z-index: 100; background: rgba(2,0,41,0.7); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); height: 64px; display:flex; align-items:center; padding: 0 16px;">
+    <button onclick="navTo('community')" style="background:none;border:none;color:var(--text);font-size:22px;cursor:pointer;line-height:1;display:flex;align-items:center;">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+    </button>
+    <div style="font-size:18px; font-weight:700; margin-left:16px;">推文详情</div>
+  </div>
+  <div id="single-post-container" style="padding:16px; max-width:600px; margin:0 auto; display:flex; flex-direction:column; gap:16px;"></div>
+  <div id="single-post-comments" style="padding:16px; max-width:600px; margin:0 auto; display:flex; flex-direction:column; gap:12px;"></div>
+</div>
+
 <div class="page active" id="page-community" style="overflow-y:auto; background: var(--bg);">
   <div class="safe-top"></div>
   <div class="header stagger" style="position: sticky; top: 0; z-index: 100; background: rgba(2,0,41,0.7); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); height: 64px; display:flex; align-items:center; padding: 0 16px;">
@@ -1474,6 +1487,7 @@ async function adminSetAdminPwd() {
         <!-- Comments rendered here -->
       </div>
       <div style="padding: 16px; border-top: 1px solid var(--border); background: rgba(2,0,41,0.3); display: flex; gap: 10px;">
+        <div onclick="toggleEmojiPicker(event, 'comm-comment-inp')" style="display:flex; align-items:center; justify-content:center; font-size:24px; cursor:pointer; padding:0 4px;">😀</div>
         <input id="comm-comment-inp" class="search-inp" style="background: var(--s2); padding: 10px 14px; border-radius: 10px; flex:1; min-width: 0;" placeholder="写下你的评论...">
         <button onclick="submitComment()" style="background: var(--accent); color: white; border: none; padding: 0 20px; border-radius: 10px; font-weight: 700; flex-shrink: 0; cursor: pointer;">发送</button>
       </div>
@@ -1544,7 +1558,10 @@ async function adminSetAdminPwd() {
   <div class="modal" style="max-width:500px; margin: auto;">
     <button class="close-modal" onclick="closeCommPostModal()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
     <div class="modal-title">发布动态</div>
-    <textarea id="comm-post-content" class="inp" style="height:120px; resize:none; margin-top:16px;" placeholder="分享你的新鲜事..."></textarea>
+    <div style="position:relative;">
+      <textarea id="comm-post-content" class="inp" style="height:120px; resize:none; margin-top:16px;" placeholder="分享你的新鲜事..."></textarea>
+      <div onclick="toggleEmojiPicker(event, 'comm-post-content')" style="position:absolute; bottom:12px; right:12px; font-size:20px; cursor:pointer; opacity:0.7;">😀</div>
+    </div>
     
     <div class="field-label">图片 (可选)</div>
     <div class="upload-area" id="comm-upload-area" style="padding:16px;">
@@ -1584,8 +1601,17 @@ function updateCommUI() {
   if (commUser) {
     authBtn.style.display = 'none';
     userInfo.style.display = 'flex';
-    avatar.textContent = commUser.username ? commUser.username[0].toUpperCase() : '?';
-    if (commUser.avatar_url) avatar.style.backgroundImage = `url(${commUser.avatar_url})`;
+    if (commUser.avatar_url) {
+      avatar.style.backgroundImage = `url(${commUser.avatar_url})`;
+      avatar.style.backgroundSize = 'cover';
+      avatar.style.backgroundPosition = 'center';
+      avatar.style.color = 'transparent';
+      avatar.textContent = '';
+    } else {
+      avatar.style.backgroundImage = 'none';
+      avatar.style.color = 'var(--accent)';
+      avatar.textContent = commUser.username ? commUser.username[0].toUpperCase() : '?';
+    }
     if (fab) { fab.style.display = (currentPage === 'community') ? 'flex' : 'none'; fab.style.opacity = '1'; }
     
   } else {
@@ -1764,9 +1790,17 @@ function renderPostCard(p) {
         </div>
         ${(isOwner || isAdmin) ? `<div onclick="deletePost('${p.id}')" style="cursor:pointer; opacity:0.3; font-size:14px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></div>` : ''}
       </div>
-      <div style="font-size:16px; line-height:1.5; white-space:pre-wrap; color:var(--text);">${formatContent(p.content)}</div>
+      <div onclick="navToPost('${p.id}')" style="font-size:16px; line-height:1.5; white-space:pre-wrap; color:var(--text); cursor:pointer;">${formatContent(p.content)}</div>
       ${media.length ? `<img data-src="${media[0].url}" onclick="openImgViewer('${media[0].url}')" class="lazy-img" style="width:100%; border-radius:12px; margin-top:4px; border:1px solid var(--border); cursor:pointer;">` : ''}
       
+      
+      ${p.inline_comments && p.inline_comments.length > 0 ? 
+        `<div style="background:var(--s2); border-radius:12px; padding:10px 12px; margin-top:12px; font-size:13px;">
+          ${p.inline_comments.map(c => `<div style="margin-bottom:6px;"><span style="font-weight:700; color:var(--accent); cursor:pointer;" onclick="navToProfile('${c.username}')">${c.username}: </span><span style="color:var(--text); word-break: break-all;">${c.content}</span></div>`).join('')}
+          ${p.comment_count > p.inline_comments.length ? `<div onclick="openComments('${p.id}')" style="color:var(--t3); cursor:pointer; margin-top:4px;">查看全部 ${p.comment_count} 条评论...</div>` : ''}
+        </div>` 
+      : ''}
+
       <div style="display:flex; justify-content: space-between; align-items:center; margin-top:12px; border-top:1px solid var(--border); padding-top:12px; color:var(--t3); font-size:13px; font-weight:600;">
         <div style="display:flex; align-items:center; justify-content:space-between; flex:1; max-width: 200px; padding-right:20px;">
           <div onclick="toggleLike('${p.id}', this)" style="display:flex; align-items:center; gap:6px; cursor:pointer; transition:color 0.2s;">
@@ -2016,6 +2050,43 @@ async function loadNotifies() {
         </div>
       `;
     }).join('');
+  } catch(e) {}
+}
+
+
+async function navToPost(id) {
+  history.pushState({page: 'post', postId: id}, '', `/post/${id}`);
+  navTo('post', false);
+  document.getElementById('single-post-container').innerHTML = '<div style="text-align:center; padding:40px; color:var(--t3);">加载中...</div>';
+  document.getElementById('single-post-comments').innerHTML = '';
+  try {
+    const r = await fetch(`/api/community/posts?id=${id}`);
+    const d = await r.json();
+    if (d.ok && d.posts.length > 0) {
+      document.getElementById('single-post-container').innerHTML = renderPostCard(d.posts[0]);
+      
+      const rc = await fetch(`/api/community/comments?postId=${id}`);
+      const dc = await rc.json();
+      if (dc.ok) {
+        document.getElementById('single-post-comments').innerHTML = '<div style="font-size:16px; font-weight:700; border-bottom:1px solid var(--border); padding-bottom:8px; margin-bottom:8px;">评论</div>' + dc.comments.map(c => `
+          <div style="display:flex; gap:12px; border-bottom:1px solid rgba(255,255,255,0.05); padding-bottom:12px;">
+            <div onclick="navToProfile('${c.username}')" style="width:32px; height:32px; border-radius:16px; background:var(--s3); display:flex; align-items:center; justify-content:center; font-weight:700; color:var(--accent); cursor:pointer; flex-shrink:0;">
+              ${c.avatar_url ? \`<img src="${c.avatar_url}" style="width:100%;height:100%;border-radius:16px;object-fit:cover;">\` : c.username[0].toUpperCase()}
+            </div>
+            <div style="flex:1;">
+              <div style="display:flex; align-items:center;">
+                <span onclick="navToProfile('${c.username}')" style="font-size:14px; font-weight:700; cursor:pointer;">${c.username}</span>
+                <span class="badge lvl" style="font-size:10px;">LV.${c.level || 1}</span>
+                <span style="font-size:11px; color:var(--t3); margin-left:auto;">${new Date(c.created_at).toLocaleString('zh-CN', {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'})}</span>
+              </div>
+              <div style="font-size:14px; color:var(--text); margin-top:4px;">${c.content}</div>
+            </div>
+          </div>
+        `).join('');
+      }
+    } else {
+      document.getElementById('single-post-container').innerHTML = '<div style="text-align:center; padding:40px; color:var(--t3);">帖子不存在或已删除</div>';
+    }
   } catch(e) {}
 }
 
@@ -2312,6 +2383,40 @@ async function submitCommPost() {
   finally { btn.disabled = false; btn.textContent = '发布'; }
 }
 
+
+let currentEmojiInput = null;
+function toggleEmojiPicker(e, inputId) {
+  e.stopPropagation();
+  const picker = document.getElementById('emojiPicker');
+  if (picker.style.display === 'grid' && currentEmojiInput === document.getElementById(inputId)) {
+    picker.style.display = 'none';
+    return;
+  }
+  currentEmojiInput = document.getElementById(inputId);
+  picker.style.display = 'grid';
+  
+  const rect = e.currentTarget.getBoundingClientRect();
+  let top = rect.top - 210; 
+  if (top < 0) top = rect.bottom + 10; 
+  let left = rect.left;
+  if (left + 280 > window.innerWidth) left = window.innerWidth - 290;
+  
+  picker.style.top = top + 'px';
+  picker.style.left = left + 'px';
+}
+function insertEmoji(e) {
+  if (currentEmojiInput) {
+    currentEmojiInput.value += e;
+    currentEmojiInput.focus();
+  }
+}
+document.addEventListener('click', (e) => {
+  const picker = document.getElementById('emojiPicker');
+  if (picker && !picker.contains(e.target) && picker.style.display === 'grid' && !e.target.closest('[onclick^="toggleEmoji"]')) {
+    picker.style.display = 'none';
+  }
+});
+
 // Init Community
 updateCommUI();
 </script>
@@ -2509,7 +2614,7 @@ async function scheduleInit(){
   
   // Handle Routing Initialization
   const path = window.location.pathname.slice(1);
-  const validPages = ['community', 'schedule', 'nodes', 'xiangqi', 'admin', 'profile'];
+  const validPages = ['community', 'schedule', 'nodes', 'xiangqi', 'admin', 'profile', 'post'];
   if (path && validPages.includes(path)) {
     if (path !== 'community') {
       navTo(path, false);
@@ -2928,5 +3033,11 @@ scheduleInit();
 
 })();
 </script>
+
+  <!-- Emoji Picker -->
+  <div id="emojiPicker" style="display:none; position:absolute; z-index:100000; background:var(--bg); border:1px solid var(--border); border-radius:12px; padding:10px; width:280px; box-shadow:0 8px 24px rgba(0,0,0,0.5); grid-template-columns:repeat(5, 1fr); gap:8px; max-height:200px; overflow-y:auto;">
+    <div onclick="insertEmoji('😀')" style="font-size:24px; text-align:center; cursor:pointer; padding:4px; border-radius:8px;" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">😀</div><div onclick="insertEmoji('😂')" style="font-size:24px; text-align:center; cursor:pointer; padding:4px; border-radius:8px;" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">😂</div><div onclick="insertEmoji('🥰')" style="font-size:24px; text-align:center; cursor:pointer; padding:4px; border-radius:8px;" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">🥰</div><div onclick="insertEmoji('😎')" style="font-size:24px; text-align:center; cursor:pointer; padding:4px; border-radius:8px;" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">😎</div><div onclick="insertEmoji('😭')" style="font-size:24px; text-align:center; cursor:pointer; padding:4px; border-radius:8px;" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">😭</div><div onclick="insertEmoji('🥺')" style="font-size:24px; text-align:center; cursor:pointer; padding:4px; border-radius:8px;" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">🥺</div><div onclick="insertEmoji('😡')" style="font-size:24px; text-align:center; cursor:pointer; padding:4px; border-radius:8px;" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">😡</div><div onclick="insertEmoji('👍')" style="font-size:24px; text-align:center; cursor:pointer; padding:4px; border-radius:8px;" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">👍</div><div onclick="insertEmoji('🙏')" style="font-size:24px; text-align:center; cursor:pointer; padding:4px; border-radius:8px;" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">🙏</div><div onclick="insertEmoji('🎉')" style="font-size:24px; text-align:center; cursor:pointer; padding:4px; border-radius:8px;" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">🎉</div><div onclick="insertEmoji('🔥')" style="font-size:24px; text-align:center; cursor:pointer; padding:4px; border-radius:8px;" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">🔥</div><div onclick="insertEmoji('❤️')" style="font-size:24px; text-align:center; cursor:pointer; padding:4px; border-radius:8px;" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">❤️</div><div onclick="insertEmoji('✨')" style="font-size:24px; text-align:center; cursor:pointer; padding:4px; border-radius:8px;" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">✨</div><div onclick="insertEmoji('👀')" style="font-size:24px; text-align:center; cursor:pointer; padding:4px; border-radius:8px;" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">👀</div><div onclick="insertEmoji('💯')" style="font-size:24px; text-align:center; cursor:pointer; padding:4px; border-radius:8px;" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">💯</div><div onclick="insertEmoji('🤔')" style="font-size:24px; text-align:center; cursor:pointer; padding:4px; border-radius:8px;" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">🤔</div><div onclick="insertEmoji('🤮')" style="font-size:24px; text-align:center; cursor:pointer; padding:4px; border-radius:8px;" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">🤮</div><div onclick="insertEmoji('🤡')" style="font-size:24px; text-align:center; cursor:pointer; padding:4px; border-radius:8px;" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">🤡</div><div onclick="insertEmoji('💀')" style="font-size:24px; text-align:center; cursor:pointer; padding:4px; border-radius:8px;" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">💀</div><div onclick="insertEmoji('👽')" style="font-size:24px; text-align:center; cursor:pointer; padding:4px; border-radius:8px;" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">👽</div>
+  </div>
+
 </body>
 </html>
