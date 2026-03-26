@@ -394,10 +394,18 @@ export default {
         return jsonResp({ ok: true, reports: reports.results || [], users: users.results || [] });
       }
 
+      
       if (url.pathname === '/api/community/admin/action' && request.method === 'POST') {
         const user = await getAuth();
         if (!user || user.role !== 'admin') return jsonResp({ ok: false }, 403);
-        const { action, target_type, target_id, report_id } = await request.json();
+        const { action, target_type, target_id, report_id, new_password } = await request.json();
+        
+        if (action === 'reset_password' && target_type === 'user') {
+           const passHash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(new_password)))).map(b => b.toString(16).padStart(2, '0')).join('');
+           await env.COMMUNITY_DB.prepare("UPDATE users SET password_hash = ? WHERE id = ?").bind(passHash, target_id).run();
+           return jsonResp({ ok: true });
+        }
+
         if (action === 'delete_item') {
           if (target_type === 'post') await env.COMMUNITY_DB.prepare("DELETE FROM posts WHERE id = ?").bind(target_id).run();
           if (target_type === 'comment') await env.COMMUNITY_DB.prepare("DELETE FROM comments WHERE id = ?").bind(target_id).run();
