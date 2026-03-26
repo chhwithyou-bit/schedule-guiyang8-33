@@ -219,8 +219,8 @@ export default {
             // 谷歌配额报错不中断流程，因为 R2 已经存好了
           }
 
-          const r2Url = `https://media.thefallback.cc.cd/${fileId}`;
-          return jsonResp({ ok: true, fileId, url: r2Url });
+          // 先用相对路径代理，这样 Worker 能处理 GDrive 的 Fallback
+          return jsonResp({ ok: true, fileId, url: `/api/community/media/${fileId}` });
         } catch (e) { return jsonResp({ ok: false, msg: e.message }, 500); }
       }
 
