@@ -683,6 +683,12 @@ html, body {
 }
 /* ===== COMMUNITY ENHANCEMENTS ===== */
 .comm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; width: 100%; max-width: 1200px; margin: 0 auto; }
+#comm-post-fab { position: fixed; bottom: 30px; right: 20px; width: 60px; height: 60px; border-radius: 30px; background: var(--accent); border: none; color: white; font-size: 30px; box-shadow: 0 8px 24px rgba(255,119,16,0.4); z-index: 1000; display: none; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent; }
+
+/* Improved Comment Modal */
+#commCommentModal .modal { max-width: 500px; width: 92%; height: 70vh; margin: auto; display: flex; flex-direction: column; border-radius: 24px 24px 0 0; position: fixed; bottom: 0; left: 4%; right: 4%; }
+@media (min-width: 600px) { #commCommentModal .modal { border-radius: 24px; position: relative; height: 80vh; width: 500px; } }
+
 .badge { display: inline-flex; align-items: center; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 800; text-transform: uppercase; margin-left: 6px; }
 .badge.lvl { background: var(--accent); color: white; }
 .badge.admin { background: #e05050; color: white; }
@@ -1444,11 +1450,33 @@ async function adminSetAdminPwd() {
     </div>
   </div>
 
-  <button id="comm-post-fab" onclick="openCommPostModal()"
-    style="position:fixed; bottom:110px; right:25px; width:64px; height:64px; border-radius:32px; background:var(--accent); border:none; color:white; font-size:32px; box-shadow:0 12px 32px rgba(255,119,16,0.5); z-index:9999; display:none; align-items:center; justify-content:center; -webkit-tap-highlight-color:transparent;">+</button>
+  <button id="comm-post-fab" onclick="openCommPostModal()">+</button>
   </div>
 
-  <!-- Community Auth Modal --><div class="modal-overlay" id="commAuthModal">
+  <!-- Edit Profile Modal -->
+  <div class="modal-overlay" id="commEditProfileModal">
+    <div class="modal" style="max-width:340px; margin: auto;">
+      <button class="close-modal" onclick="closeEditProfile()">✕</button>
+      <div class="modal-title">编辑个人资料</div>
+      <div class="modal-sub">修改主页显示的公开信息</div>
+
+      <div class="field-label">个性签名</div>
+      <input id="edit-profile-sig" class="inp" placeholder="一句话介绍自己...">
+
+      <div class="field-label">头像 URL (可选)</div>
+      <input id="edit-profile-avatar" class="inp" placeholder="https://...">
+
+      <div class="field-label">背景图 URL (可选)</div>
+      <input id="edit-profile-banner" class="inp" placeholder="https://...">
+
+      <div class="action-row" style="margin-top:24px;">
+        <button class="btn-confirm" onclick="submitEditProfile()" style="flex:1;">保存修改</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Community Auth Modal -->
+<div class="modal-overlay" id="commAuthModal">
   <div class="modal" style="max-width:340px; margin: auto;">
     <button class="close-modal" onclick="closeCommAuth()">✕</button>
     <div class="modal-title">社区通行证</div>
@@ -1682,10 +1710,59 @@ function renderPostCard(p) {
         <div onclick="openRepost('${p.id}')" style="display:flex; align-items:center; gap:6px; cursor:pointer;">
           <span style="font-size:16px;">🔁</span> ${p.repost_count || 0}
         </div>
+        <div onclick="nativeShare('${p.username}', '${p.id}')" style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+          <span style="font-size:16px;">↗️</span> 分享
+        </div>
         <div onclick="reportContent('post', '${p.id}')" style="margin-left:auto; opacity:0.3; cursor:pointer;">🚩</div>
       </div>
     </div>
   `;
+}
+
+function nativeShare(author, id) {
+  const url = `${window.location.origin}/community?id=${id}`;
+  if (navigator.share) {
+    navigator.share({ title: `${author}的社区动态`, text: `来看看${author}发布的动态`, url })
+      .catch(() => copyToClipboard(url));
+  } else { copyToClipboard(url); }
+}
+
+function copyToClipboard(text) {
+  navigator.clipboard.writeText(text).then(() => showToast('链接已复制到剪贴板', 'success'));
+}
+
+function openEditProfile() {
+  if (!commUser) return openCommAuth();
+  document.getElementById('edit-profile-sig').value = commUser.signature || '';
+  document.getElementById('edit-profile-avatar').value = commUser.avatar_url || '';
+  document.getElementById('edit-profile-banner').value = commUser.background_url || '';
+  document.getElementById('commEditProfileModal').classList.add('open');
+}
+function closeEditProfile() { document.getElementById('commEditProfileModal').classList.remove('open'); }
+
+async function submitEditProfile() {
+  const sig = document.getElementById('edit-profile-sig').value.trim();
+  const avatar = document.getElementById('edit-profile-avatar').value.trim();
+  const banner = document.getElementById('edit-profile-banner').value.trim();
+  
+  try {
+    const r = await fetch('/api/community/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${commUser.username}:${commUser.passHash}` },
+      body: JSON.stringify({ signature: sig, avatar_url: avatar, background_url: banner })
+    });
+    if ((await r.json()).ok) {
+      showToast('资料已更新', 'success');
+      commUser.signature = sig; commUser.avatar_url = avatar; commUser.background_url = banner;
+      localStorage.setItem('commUser', JSON.stringify(commUser));
+      updateCommUI();
+      closeEditProfile();
+      // If we are on our own profile, reload
+      if (document.getElementById('comm-profile').style.display === 'block') {
+         loadCommPosts('', commUser.id);
+      }
+    }
+  } catch(e) { showToast('更新失败', 'error'); }
 }
 
 async function reportContent(type, id) {
@@ -1777,19 +1854,24 @@ function navToProfile(name, id) {
 
 function renderProfileHeader(val, isName) {
   const container = document.getElementById('comm-profile');
+  const isMe = commUser && (val === commUser.id || val === commUser.username);
+  const user = isMe ? commUser : { username: val, signature: '这个人很懒，什么都没留下。', background_url: 'https://thefallback.cc.cd/bg.jpg' };
+  
   container.innerHTML = `
     <div class="profile-card">
-      <div class="profile-banner" style="background-image: url('https://thefallback.cc.cd/bg.jpg')"></div>
+      <div class="profile-banner" style="background-image: url('${user.background_url || 'https://thefallback.cc.cd/bg.jpg'}')"></div>
       <div class="profile-info">
-        <div class="profile-avatar">${val[0].toUpperCase()}</div>
+        <div class="profile-avatar" style="${user.avatar_url ? `background-image:url(${user.avatar_url}); background-size:cover; color:transparent;` : ''}">
+          ${user.avatar_url ? '' : (user.username ? user.username[0].toUpperCase() : '?')}
+        </div>
         <div class="profile-meta">
-          <div class="profile-name">${val}</div>
-          <div class="profile-sig">这个人很懒，什么都没留下。</div>
+          <div class="profile-name">${user.username || '未知用户'}</div>
+          <div class="profile-sig">${user.signature || '暂无签名'}</div>
         </div>
         <div class="profile-stats">
           <div class="stat-item"><span class="stat-val">0</span><span class="stat-lbl">关注</span></div>
           <div class="stat-item"><span class="stat-val">0</span><span class="stat-lbl">粉丝</span></div>
-          ${(commUser && (val === commUser.id || val === commUser.username)) ? '<button onclick="showToast(\'编辑资料暂未开放\', \'info\')" style="margin-left:auto; background:var(--s2); border:1px solid var(--border); color:var(--text); padding:4px 12px; border-radius:16px; font-size:12px; cursor:pointer;">编辑资料</button>' : `<button onclick="toggleFollow('${val}')" style="margin-left:auto; background:var(--accent); color:white; border:none; padding:6px 16px; border-radius:16px; font-size:12px; font-weight:700; cursor:pointer;">关注</button>`}
+          ${isMe ? '<button onclick="openEditProfile()" style="margin-left:auto; background:var(--s2); border:1px solid var(--border); color:var(--text); padding:4px 12px; border-radius:16px; font-size:12px; cursor:pointer;">编辑资料</button>' : `<button onclick="toggleFollow('${val}')" style="margin-left:auto; background:var(--accent); color:white; border:none; padding:6px 16px; border-radius:16px; font-size:12px; font-weight:700; cursor:pointer;">关注</button>`}
         </div>
       </div>
     </div>
