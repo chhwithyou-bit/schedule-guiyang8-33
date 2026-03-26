@@ -251,8 +251,8 @@ export default {
             `;
             const params = [];
             if (query) {
-              sql += " WHERE p.content LIKE ? OR p.content LIKE ? ";
-              params.push(`%${query}%`, `%#${query}%`);
+              sql += " WHERE p.content LIKE ? OR p.content LIKE ? OR u.id LIKE ? ";
+              params.push(`%${query}%`, `%#${query}%`, `%${query}%`);
             } else if (userId) {
               sql += " WHERE p.user_id = ? ";
               params.push(userId);
