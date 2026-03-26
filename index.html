@@ -685,8 +685,8 @@ html, body {
 #comm-post-fab { position: fixed; bottom: max(30px, env(safe-area-inset-bottom)); right: 20px; width: 60px; height: 60px; border-radius: 30px; background: var(--accent); border: none; color: white; font-size: 32px; box-shadow: 0 8px 24px rgba(255,119,16,0.4); z-index: 99999; display: none; align-items: center; justify-content: center; transition: transform 0.2s; }
 #comm-post-fab:active { transform: scale(0.9); }
 
-#commCommentModal { align-items: flex-end; justify-content: center; padding: 0; }
-#commCommentModal .modal { width: 100%; max-width: 600px; height: 85vh; border-radius: 20px 20px 0 0; margin: 0; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); border: 1px solid var(--border); border-bottom: none; animation: slideUpModal 0.3s cubic-bezier(.22,.8,.32,1); }
+#commCommentModal { align-items: center; justify-content: center; padding: 16px; }
+#commCommentModal .modal { width: 100%; max-width: 600px; height: 80vh; border-radius: 24px; margin: 0; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); border: 1px solid var(--border); animation: staggerIn 0.35s; }
 @keyframes slideUpModal { from { transform: translateY(100%); } to { transform: translateY(0); } }
 @media (min-width: 600px) { #commCommentModal { align-items: center; } #commCommentModal .modal { border-radius: 24px; height: 80vh; margin: 20px auto; border-bottom: 1px solid var(--border); animation: staggerIn 0.35s; } }
 
@@ -756,23 +756,23 @@ html, body {
   </div>
   <nav class="drawer-nav">
     <button class="drawer-item" id="nav-schedule" onclick="navTo('schedule')">
-      <span class="drawer-item-icon">📚</span>
+      <span class="drawer-item-icon">${icons['📚']}</span>
       <span class="drawer-item-label">课程表</span>
     </button>
     <button class="drawer-item" id="nav-nodes" onclick="navTo('nodes')">
-      <span class="drawer-item-icon">🔗</span>
+      <span class="drawer-item-icon">${icons['🔗']}</span>
       <span class="drawer-item-label">节点分享</span>
     </button>
     <button class="drawer-item" id="nav-xiangqi" onclick="navTo('xiangqi')">
-      <span class="drawer-item-icon">♟️</span>
+      <span class="drawer-item-icon">${icons['♟️']}</span>
       <span class="drawer-item-label">中国象棋</span>
     </button>
     <button class="drawer-item active" id="nav-community" onclick="navTo('community')">
-      <span class="drawer-item-icon">💬</span>
+      <span class="drawer-item-icon">${icons['💬']}</span>
       <span class="drawer-item-label">社区</span>
     </button>
     <button class="drawer-item" id="nav-admin" onclick="navTo('admin')" style="display:none;">
-      <span class="drawer-item-icon">⚙️</span>
+      <span class="drawer-item-icon">${icons['⚙️']}</span>
       <span class="drawer-item-label">管理后台</span>
     </button>
   </nav>
@@ -797,13 +797,13 @@ html, body {
 
   <div class="cards stagger">
     <div class="card">
-      <div class="c-icon purple">📝</div>
+      <div class="c-icon purple">${iconSchedule}</div>
       <div class="c-label">今日三基</div>
       <div class="c-val" id="sanjiVal">—</div>
       <div class="c-sub" id="sanjiSub"></div>
     </div>
     <div class="card">
-      <div class="c-icon green">📅</div>
+      <div class="c-icon green">${iconCalendar}</div>
       <div class="c-label">学期时间</div>
       <div class="c-val" style="font-size:14px">至6月7日</div>
       <div class="c-sub">2025-2026第二学期</div>
@@ -813,7 +813,7 @@ html, body {
   <div class="ev-wrap">
     <div class="ev-card">
       <div class="ev-head">
-        <div class="ev-icon">🌙</div>
+        <div class="ev-icon">${iconMoon}</div>
         <div class="ev-title">今晚晚自习</div>
       </div>
       <div class="ev-slots">
@@ -861,7 +861,7 @@ html, body {
         </div>
         <div class="upload-area" id="uploadArea">
           <input type="file" accept="image/*" id="fileInput" onchange="handleFile(event)">
-          <div class="upload-icon">📷</div>
+          <div class="upload-icon">${icons['📷']}</div>
           <div class="upload-hint">点击或拖拽上传图片<small>支持 JPG / PNG / HEIC</small></div>
         </div>
         <img class="preview-img" id="previewImg">
@@ -916,7 +916,7 @@ html, body {
 
     <div id="nodes-login" style="margin-top:40px;">
       <div style="text-align:center;margin-bottom:28px;">
-        <div style="font-size:52px;margin-bottom:14px;">🛡️</div>
+        <div style="font-size:52px;margin-bottom:14px;">${iconShield}</div>
         <div style="font-size:20px;font-weight:800;color:var(--text);letter-spacing:0.5px;">访问节点库</div>
         <div style="font-size:13px;color:var(--t2);margin-top:7px;">请输入访问密码</div>
       </div>
@@ -939,7 +939,7 @@ html, body {
 
     <div id="nodes-admin-login" style="margin-top:40px;display:none;">
       <div style="text-align:center;margin-bottom:28px;">
-        <div style="font-size:52px;margin-bottom:14px;">⚙️</div>
+        <div style="font-size:52px;margin-bottom:14px;">${icons['⚙️']}</div>
         <div style="font-size:20px;font-weight:800;color:var(--text);">管理员登录</div>
       </div>
       <div style="background:var(--glass);backdrop-filter:blur(var(--glass-blur));border:1px solid var(--glass-border);border-radius:18px;padding:22px;">
@@ -1399,19 +1399,31 @@ async function adminSetAdminPwd() {
 </div>
 
 <!-- ===== PAGE 4: COMMUNITY (Twitter-like) ===== -->
+<div class="page" id="page-profile" style="overflow-y:auto; background: var(--bg);">
+  <div class="safe-top"></div>
+  <div class="header stagger" style="position: sticky; top: 0; z-index: 100; background: rgba(2,0,41,0.7); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); height: 64px; display:flex; align-items:center; padding: 0 16px;">
+    <button onclick="navTo('community')" style="background:none;border:none;color:var(--text);font-size:22px;cursor:pointer;line-height:1;display:flex;align-items:center;">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+    </button>
+    <div style="font-size:18px; font-weight:700; margin-left:16px;">个人主页</div>
+  </div>
+  <div id="profile-card-container" style="padding:16px; max-width:600px; margin:0 auto;"></div>
+  <div id="profile-posts-container" style="padding:16px; max-width:600px; margin:0 auto; display:flex; flex-direction:column; gap:16px;"></div>
+</div>
+
 <div class="page active" id="page-community" style="overflow-y:auto; background: var(--bg);">
   <div class="safe-top"></div>
   <div class="header stagger" style="position: sticky; top: 0; z-index: 100; background: rgba(2,0,41,0.7); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); height: 64px;">
     <div class="header-left" style="flex:1;">
       <button onclick="openDrawer()" style="background:none;border:none;color:var(--accent);font-size:22px;padding:4px 8px;cursor:pointer;line-height:1;">☰</button>
       <div class="search-wrap" id="comm-search-wrap">
-        <span style="opacity:0.5">🔍</span>
+        <span style="opacity:0.5">${icons['🔍']}</span>
         <input id="comm-search" class="search-inp" placeholder="搜索内容或 #话题" onkeyup="if(event.key==='Enter')loadCommPosts(this.value)">
       </div>
     </div>
     <div style="display:flex; align-items:center; gap:12px;">
       <div class="notify-bell" onclick="openNotifies()">
-        <span style="font-size:20px;">🔔</span>
+        <span style="font-size:20px;">${icons['🔔']}</span>
         <div class="notify-dot" id="comm-notify-dot"></div>
       </div>
       <div id="comm-auth-btn" onclick="openCommAuth()" class="admin-btn">登录 / 注册</div>
@@ -1435,7 +1447,7 @@ async function adminSetAdminPwd() {
     <div class="modal" style="max-width:400px; margin: 20px auto; padding: 0; overflow: hidden;">
       <div style="padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: rgba(2,0,41,0.5);">
         <div style="font-weight: 800; font-size: 18px;">通知</div>
-        <button class="close-modal" onclick="closeNotifies()" style="position:static;">✕</button>
+        <button class="close-modal" onclick="closeNotifies()" style="position:static;">${iconCancel}</button>
       </div>
       <div id="comm-notifies-list" style="max-height: 400px; overflow-y: auto; padding: 10px;">
         <!-- Notifies rendered here -->
@@ -1448,7 +1460,7 @@ async function adminSetAdminPwd() {
     <div class="modal" style="max-width:500px; margin: 20px auto; padding: 0; overflow: hidden; display: flex; flex-direction: column; max-height: 85vh;">
       <div style="padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: rgba(2,0,41,0.5);">
         <div style="font-weight: 800; font-size: 18px;">评论</div>
-        <button class="close-modal" onclick="closeComments()" style="position:static;">✕</button>
+        <button class="close-modal" onclick="closeComments()" style="position:static;">${iconCancel}</button>
       </div>
       <div id="comm-comments-list" style="flex:1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
         <!-- Comments rendered here -->
@@ -1460,13 +1472,16 @@ async function adminSetAdminPwd() {
     </div>
   </div>
 
-  <button id="comm-post-fab" onclick="openCommPostModal()">+</button>
   </div>
+
+  <button id="comm-post-fab" onclick="openCommPostModal()">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+  </button>
 
   <!-- Edit Profile Modal -->
   <div class="modal-overlay" id="commEditProfileModal">
     <div class="modal" style="max-width:360px; margin: auto; max-height: 90vh; overflow-y: auto;">
-      <button class="close-modal" onclick="closeEditProfile()">✕</button>
+      <button class="close-modal" onclick="closeEditProfile()">${iconCancel}</button>
       <div class="modal-title">编辑个人资料</div>
 
       <div class="field-label">个性签名</div>
@@ -1493,13 +1508,13 @@ async function adminSetAdminPwd() {
   </div>
 
   <div id="imgViewer">
-    <span class="close-viewer" onclick="closeImgViewer()">✕</span>
+    <span class="close-viewer" onclick="closeImgViewer()">${iconCancel}</span>
     <img id="imgViewerImg">
   </div>
   <!-- Community Auth Modal -->
 <div class="modal-overlay" id="commAuthModal">
   <div class="modal" style="max-width:340px; margin: auto;">
-    <button class="close-modal" onclick="closeCommAuth()">✕</button>
+    <button class="close-modal" onclick="closeCommAuth()">${iconCancel}</button>
     <div class="modal-title">社区通行证</div>
     <div class="modal-sub">加入高三(3)班专属社区</div>
     
@@ -1517,7 +1532,7 @@ async function adminSetAdminPwd() {
       <div style="text-align:center; font-size:12px; color:var(--t3); margin-bottom:12px;">使用第三方账号快速登录</div>
       <div style="display:flex; justify-content:center; gap:20px;">
         <div onclick="showToast('QQ登录接入中...', 'info')" style="width:40px; height:40px; border-radius:20px; background:#f0f7ff; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:20px;">🐧</div>
-        <div onclick="showToast('微信登录接入中...', 'info')" style="width:40px; height:40px; border-radius:20px; background:#f0fff4; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:20px;">💬</div>
+        <div onclick="showToast('微信登录接入中...', 'info')" style="width:40px; height:40px; border-radius:20px; background:#f0fff4; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:20px;">${icons['💬']}</div>
       </div>
     </div>
   </div>
@@ -1526,7 +1541,7 @@ async function adminSetAdminPwd() {
 <!-- Community Post Modal -->
 <div class="modal-overlay" id="commPostModal">
   <div class="modal" style="max-width:500px; margin: 20px auto;">
-    <button class="close-modal" onclick="closeCommPostModal()">✕</button>
+    <button class="close-modal" onclick="closeCommPostModal()">${iconCancel}</button>
     <div class="modal-title">发布动态</div>
     <textarea id="comm-post-content" class="inp" style="height:120px; resize:none; margin-top:16px;" placeholder="分享你的新鲜事..."></textarea>
     
@@ -1564,7 +1579,7 @@ function updateCommUI() {
     userInfo.style.display = 'flex';
     avatar.textContent = commUser.username ? commUser.username[0].toUpperCase() : '?';
     if (commUser.avatar_url) avatar.style.backgroundImage = `url(${commUser.avatar_url})`;
-    fab.style.display = 'flex';
+    fab.style.display = (currentPage === 'community') ? 'flex' : 'none';
     if (commUser.role === 'admin' && adminNav) adminNav.style.display = 'flex';
   } else {
     authBtn.style.display = 'block';
@@ -1663,15 +1678,13 @@ function parseVideo(url) {
   return null;
 }
 
-async function loadCommPosts(query = '', userId = '', username = '') {
-  const container = document.getElementById('comm-posts');
-  const profileSection = document.getElementById('comm-profile');
-  
-  if (userId || username) {
-    profileSection.style.display = 'block';
+async function loadCommPosts(query = '', userId = '', username = '', isProfile = false) {
+  const container = isProfile ? document.getElementById('profile-posts-container') : document.getElementById('comm-posts');
+  if (isProfile) {
+    document.getElementById('profile-card-container').style.display = 'block';
     renderProfileHeader(userId || username, !!username);
   } else {
-    profileSection.style.display = 'none';
+    document.getElementById('comm-profile').style.display = 'none';
   }
 
   try {
@@ -1716,25 +1729,25 @@ function renderPostCard(p) {
           </div>
           <div style="font-size:11px; color:var(--t3);">${date}</div>
         </div>
-        ${(isOwner || isAdmin) ? `<div onclick="deletePost('${p.id}')" style="cursor:pointer; opacity:0.3; font-size:14px;">✕</div>` : ''}
+        ${(isOwner || isAdmin) ? `<div onclick="deletePost('${p.id}')" style="cursor:pointer; opacity:0.3; font-size:14px;">${iconCancel}</div>` : ''}
       </div>
       <div style="font-size:16px; line-height:1.5; white-space:pre-wrap; color:var(--text);">${formatContent(p.content)}</div>
       ${media.length ? `<img data-src="${media[0].url}" onclick="openImgViewer('${media[0].url}')" class="lazy-img" style="width:100%; border-radius:12px; margin-top:4px; border:1px solid var(--border); cursor:pointer;">` : ''}
       
       <div style="display:flex; gap:20px; margin-top:10px; border-top:1px solid var(--border); padding-top:10px; color:var(--t3); font-size:13px;">
-        <div onclick="toggleLike('${p.id}')" style="display:flex; align-items:center; gap:6px; cursor:pointer; transition:color 0.2s;">
-          <span style="font-size:16px;">❤️</span> ${p.like_count || 0}
+        <div onclick="toggleLike('${p.id}', this)" style="display:flex; align-items:center; gap:6px; cursor:pointer; transition:color 0.2s;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg> ${p.like_count || 0}
         </div>
         <div onclick="openComments('${p.id}')" style="display:flex; align-items:center; gap:6px; cursor:pointer;">
-          <span style="font-size:16px;">💬</span> ${p.comment_count || 0}
+          <span style="font-size:16px;">${icons['💬']}</span> ${p.comment_count || 0}
         </div>
         <div onclick="openRepost('${p.id}')" style="display:flex; align-items:center; gap:6px; cursor:pointer;">
-          <span style="font-size:16px;">🔁</span> ${p.repost_count || 0}
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg> ${p.repost_count || 0}
         </div>
         <div onclick="nativeShare('${p.username}', '${p.id}')" style="display:flex; align-items:center; gap:6px; cursor:pointer;">
-          <span style="font-size:16px;">↗️</span> 分享
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg> 分享
         </div>
-        <div onclick="reportContent('post', '${p.id}')" style="margin-left:auto; opacity:0.3; cursor:pointer;">🚩</div>
+        <div onclick="reportContent('post', '${p.id}')" style="margin-left:auto; opacity:0.3; cursor:pointer;">${iconFlag}</div>
       </div>
     </div>
   `;
@@ -1888,17 +1901,33 @@ async function deletePost(id) {
   } catch(e) { showToast('删除失败', 'error'); }
 }
 
-async function toggleLike(postId) {
+async function toggleLike(postId, el) {
   if (!commUser) return openCommAuth();
+  
+  const svg = el ? el.querySelector('svg') : null;
+  const isLiked = svg && svg.getAttribute('fill') !== 'none';
+  let currentCount = parseInt(el ? el.innerText : '0') || 0;
+  
+  if (el && svg) {
+    svg.setAttribute('fill', isLiked ? 'none' : 'currentColor');
+    svg.style.color = isLiked ? '' : 'var(--accent)';
+    el.innerHTML = svg.outerHTML + ' ' + (isLiked ? Math.max(0, currentCount - 1) : currentCount + 1);
+  }
+
   try {
     const r = await fetch('/api/community/like', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${commUser.username}:${commUser.passHash}` },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${commUser.username}:${commUser.passHash}`
+      },
       body: JSON.stringify({ post_id: postId })
     });
     const d = await r.json();
-    if (d.ok) loadCommPosts();
-  } catch(e) {}
+    if (!d.ok && el) loadCommPosts(); 
+  } catch(e) { 
+    if (el) loadCommPosts();
+  }
 }
 
 async function loadNotifies() {
@@ -1932,12 +1961,13 @@ async function loadNotifies() {
 }
 
 function navToProfile(name, id) {
-  history.pushState({page: 'community', username: name, userId: id}, '', `/profile/${name}`);
-  loadCommPosts('', id, id ? '' : name);
+  history.pushState({page: 'profile', username: name, userId: id}, '', `/profile/${name}`);
+  navTo('profile', false);
+  loadCommPosts('', id, id ? '' : name, true);
 }
 
 function renderProfileHeader(val, isName) {
-  const container = document.getElementById('comm-profile');
+  const container = document.getElementById('profile-card-container') || document.getElementById('comm-profile');
   const isMe = commUser && (val === commUser.id || val === commUser.username);
   const user = isMe ? commUser : { username: val, signature: '这个人很懒，什么都没留下。', background_url: 'https://thefallback.cc.cd/bg.jpg' };
   
@@ -2257,6 +2287,8 @@ function navTo(page, push = true) {
   });
   
   currentPage = page;
+  const fab = document.getElementById('comm-post-fab');
+  if (fab) fab.style.display = (page === 'community' && commUser) ? 'flex' : 'none';
 }
 
 window.addEventListener('popstate', e => {
@@ -2381,7 +2413,7 @@ async function scheduleInit(){
   
   // Handle Routing Initialization
   const path = window.location.pathname.slice(1);
-  const validPages = ['community', 'schedule', 'nodes', 'xiangqi', 'admin'];
+  const validPages = ['community', 'schedule', 'nodes', 'xiangqi', 'admin', 'profile'];
   if (path && validPages.includes(path)) {
     if (path !== 'community') {
       navTo(path, false);
@@ -2415,7 +2447,7 @@ scheduleInit();
   <div id="mp-body">
     <div id="mp-header">
       <span class="mp-header-label">Now Playing</span>
-      <button id="mp-close">✕</button>
+      <button id="mp-close">${iconCancel}</button>
     </div>
     <div class="mp-row">
       <div class="mp-disc" id="mp-disc">
@@ -2716,7 +2748,7 @@ scheduleInit();
       <div class="mp-li${i===idx?' on':''}" onclick="mpPlay(${i})">
         <span class="ln">${i===idx&&playing?'▶':i+1}</span>
         <span class="lt">${t.name}${t.artist?` <span style="opacity:.35">- ${t.artist}</span>`:''}</span>
-        ${admin?`<button class="ld" onclick="event.stopPropagation();mpDel(${i})">✕</button>`:''}
+        ${admin?`<button class="ld" onclick="event.stopPropagation();mpDel(${i})">${iconCancel}</button>`:''}
       </div>`).join('')||'<div style="padding:11px 13px;font-size:11px;color:rgba(245,239,224,0.2)">暂无歌曲</div>';
   }
   window.mpPlay=i=>load(i,true);
