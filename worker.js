@@ -203,24 +203,27 @@ export default {
         if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
         const buffer = await request.arrayBuffer();
         const contentType = request.headers.get('content-type') || 'image/jpeg';
-        const fileId = crypto.randomUUID(); // 手动生成 ID
-        
+
         try {
-          // 1. 优先存入 R2 (这是你的主力，有自定义域名)
-          if (env.COMMUNITY_R2) {
-            await env.COMMUNITY_R2.put(fileId, buffer, { httpMetadata: { contentType } });
-          }
-
-          // 2. 尝试存入 Google Drive (作为备份)
+          // 1. 尝试上传到 Google Drive (获取主 ID)
+          let fileId;
+          let fromDrive = true;
           try {
-            await uploadToDrive(env, buffer, `img_${fileId}`, contentType);
+            const driveData = await uploadToDrive(env, buffer, `img_${Date.now()}`, contentType);
+            fileId = driveData.id;
           } catch (driveErr) {
-            console.error("Drive Backup Failed:", driveErr.message);
-            // 谷歌配额报错不中断流程，因为 R2 已经存好了
+            // 如果 Drive 还是报错（比如你还没设置团队盘），为了不让发布失败，临时用 R2 ID
+            console.error("Drive Primary Failed:", driveErr.message);
+            fileId = "r2cache_" + crypto.randomUUID();
+            fromDrive = false;
           }
 
-          // 先用相对路径代理，这样 Worker 能处理 GDrive 的 Fallback
-          return jsonResp({ ok: true, fileId, url: `/api/community/media/${fileId}` });
+          // 2. 存入 R2 缓存 (使用相同的 ID)
+          if (env.COMMUNITY_R2) {
+            try { await env.COMMUNITY_R2.put(fileId, buffer, { httpMetadata: { contentType } }); } catch (e) {}
+          }
+
+          return jsonResp({ ok: true, fileId, url: `/api/community/media/${fileId}`, fromDrive });
         } catch (e) { return jsonResp({ ok: false, msg: e.message }, 500); }
       }
 
