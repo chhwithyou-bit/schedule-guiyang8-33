@@ -1585,8 +1585,8 @@ function updateCommUI() {
     userInfo.style.display = 'flex';
     avatar.textContent = commUser.username ? commUser.username[0].toUpperCase() : '?';
     if (commUser.avatar_url) avatar.style.backgroundImage = `url(${commUser.avatar_url})`;
-    if (fab) { fab.style.display = (currentPage === 'community') ? 'flex' : 'none'; }
-    if (commUser.role === 'admin' && adminNav) { adminNav.style.display = 'flex'; }
+    if (fab) { fab.style.display = (currentPage === 'community') ? 'flex' : 'none'; fab.style.opacity = '1'; }
+    if (commUser.role === 'admin' && adminNav) { adminNav.style.display = 'flex'; } else if (adminNav) { adminNav.style.display = 'none'; }
   } else {
     authBtn.style.display = 'block';
     userInfo.style.display = 'none';
@@ -2305,7 +2305,7 @@ function navTo(page, push = true) {
     if (page === 'community') {
       fab.style.display = 'flex';
       if (!commUser) {
-        fab.style.opacity = '0.5';
+        fab.style.opacity = '1'; // 不要半透明，直接显示，点击时引导登录即可
       } else {
         fab.style.opacity = '1';
       }
