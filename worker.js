@@ -82,6 +82,7 @@ async function getFromDrive(env, fileId) {
   });
 }
 
+// FINAL DEPLOY V4.2
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
