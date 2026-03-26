@@ -37,16 +37,18 @@ function parseNodes(rawText) {
 }
 
 // ── Google Drive API Helpers (OAuth2 User Flow) ────────────────
-async function getGoogleAuthToken(env) {
-  // 1. 尝试从 KV 获取缓存的 Token
-  const cached = await env.SCHEDULE_KV.get('gdrive_token_cache', { type: 'json' });
-  if (cached && Date.now() < cached.expiresAt) {
-    return cached.token;
+async function getGoogleAuthToken(env, forceRefresh = false) {
+  // 1. 尝试从 KV 获取缓存的 Token (除非强制刷新)
+  if (!forceRefresh) {
+    const cached = await env.SCHEDULE_KV.get('gdrive_token_cache', { type: 'json' });
+    if (cached && Date.now() < cached.expiresAt) {
+      return cached.token;
+    }
   }
 
   const { GDRIVE_CLIENT_ID, GDRIVE_CLIENT_SECRET, GDRIVE_REFRESH_TOKEN } = env;
   if (!GDRIVE_CLIENT_ID || !GDRIVE_CLIENT_SECRET || !GDRIVE_REFRESH_TOKEN) {
-    throw new Error('缺失 OAuth2 凭据 (Client ID, Secret, 或 Refresh Token)');
+    throw new Error('缺失 OAuth2 凭据 (Client ID, Secret, 或 Refresh Token)。请在 Cloudflare 后台设置环境变量。');
   }
 
   const resp = await fetch('https://oauth2.googleapis.com/token', {
@@ -61,12 +63,17 @@ async function getGoogleAuthToken(env) {
   });
 
   const data = await resp.json();
-  if (!resp.ok) throw new Error(`OAuth2 Failed: ${data.error_description || data.error}`);
+  if (!resp.ok) {
+    if (data.error === 'invalid_grant') {
+      throw new Error('Google Refresh Token 已过期或被撤销，请重新获取 Refresh Token。');
+    }
+    throw new Error(`OAuth2 刷新失败: ${data.error_description || data.error}`);
+  }
   
   const accessToken = data.access_token;
-  const expiresAt = Date.now() + (data.expires_in || 3600) * 1000 - 60000; // 提前1分钟过期
+  const expiresAt = Date.now() + (data.expires_in || 3600) * 1000 - 60000;
 
-  // 2. 将新 Token 存入 KV 持久化
+  // 2. 将新 Token 存入 KV
   await env.SCHEDULE_KV.put('gdrive_token_cache', JSON.stringify({
     token: accessToken,
     expiresAt
@@ -75,27 +82,48 @@ async function getGoogleAuthToken(env) {
   return accessToken;
 }
 
-async function uploadToDrive(env, fileBuffer, fileName, mimeType) {
-  const token = await getGoogleAuthToken(env);
+async function uploadToDrive(env, fileBuffer, fileName, mimeType, retry = true) {
+  let token = await getGoogleAuthToken(env);
   const metadata = { name: fileName, parents: [env.GDRIVE_FOLDER_ID] };
   const form = new FormData();
   form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
   form.append('file', new Blob([fileBuffer], { type: mimeType }));
-  const resp = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true', {
+  
+  let resp = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${token}` },
     body: form
   });
+
+  // 如果返回 401 且允许重试，强制刷新 Token 再试一次
+  if (resp.status === 401 && retry) {
+    console.warn("Access Token 疑似失效，正在强制刷新...");
+    token = await getGoogleAuthToken(env, true);
+    resp = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: form
+    });
+  }
+
   const data = await resp.json();
   if (!resp.ok) throw new Error(data.error ? data.error.message : 'Upload Failed');
   return data;
 }
 
-async function getFromDrive(env, fileId) {
-  const token = await getGoogleAuthToken(env);
-  return await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&supportsAllDrives=true`, {
+async function getFromDrive(env, fileId, retry = true) {
+  let token = await getGoogleAuthToken(env);
+  let resp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&supportsAllDrives=true`, {
     headers: { 'Authorization': `Bearer ${token}` }
   });
+
+  if (resp.status === 401 && retry) {
+    token = await getGoogleAuthToken(env, true);
+    resp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&supportsAllDrives=true`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+  }
+  return resp;
 }
 
 // FINAL DEPLOY V4.3 - Optimized Storage & Auth
