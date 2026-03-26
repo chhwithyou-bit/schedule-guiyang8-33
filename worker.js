@@ -202,14 +202,25 @@ export default {
         const user = await getAuth();
         if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
         const buffer = await request.arrayBuffer();
+        const contentType = request.headers.get('content-type') || 'image/jpeg';
+        const fileId = crypto.randomUUID(); // 手动生成 ID
+        
         try {
-          const driveData = await uploadToDrive(env, buffer, `img_${Date.now()}`, request.headers.get('content-type'));
-          const fileId = driveData.id;
-          if (!fileId) throw new Error('No ID from Drive');
+          // 1. 优先存入 R2 (这是你的主力，有自定义域名)
           if (env.COMMUNITY_R2) {
-            try { await env.COMMUNITY_R2.put(fileId, buffer, { httpMetadata: { contentType: request.headers.get('content-type') } }); } catch (e) {}
+            await env.COMMUNITY_R2.put(fileId, buffer, { httpMetadata: { contentType } });
           }
-          return jsonResp({ ok: true, fileId, url: `https://media.thefallback.cc.cd/${fileId}` });
+
+          // 2. 尝试存入 Google Drive (作为备份)
+          try {
+            await uploadToDrive(env, buffer, `img_${fileId}`, contentType);
+          } catch (driveErr) {
+            console.error("Drive Backup Failed:", driveErr.message);
+            // 谷歌配额报错不中断流程，因为 R2 已经存好了
+          }
+
+          const r2Url = `https://media.thefallback.cc.cd/${fileId}`;
+          return jsonResp({ ok: true, fileId, url: r2Url });
         } catch (e) { return jsonResp({ ok: false, msg: e.message }, 500); }
       }
 
