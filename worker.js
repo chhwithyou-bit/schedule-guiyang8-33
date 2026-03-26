@@ -562,7 +562,7 @@ export default {
           } else {
             writeTest = `❌ 写入失败: ${uploadData.error ? uploadData.error.message : '未知'}`;
           }
-          return jsonResp({ ok: true, msg: '诊断完成', folderName: data.name, writeTest });
+          return jsonResp({ ok: true, msg: '[V2] 诊断完成', folderName: data.name, writeTest });
         } catch (e) {
           return jsonResp({ ok: false, msg: '诊断报错', error: e.message }, 500);
         }
