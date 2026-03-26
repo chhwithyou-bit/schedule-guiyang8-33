@@ -132,7 +132,7 @@ export default {
     const url = new URL(request.url);
     if (request.method === 'OPTIONS') return corsResp();
 
-    if (url.pathname === '/api/data') {
+    if (url.pathname === '/api/data' || url.pathname === '/api/schedule') {
       if (request.method === 'GET') return new Response(await env.SCHEDULE_KV.get('schedule_data') || '{"S":null}', { headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } });
       if (request.method === 'POST') { await env.SCHEDULE_KV.put('schedule_data', await request.text()); return jsonResp({ ok: true }); }
     }
