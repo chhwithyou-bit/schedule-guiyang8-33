@@ -157,6 +157,27 @@ export default {
       }
     }
 
+    if (url.pathname === '/api/music') {
+      if (request.method === 'GET') {
+        try {
+          const playlist = await env.MUSIC_BUCKET.get('playlist.json');
+          if (!playlist) return jsonResp([]);
+          return new Response(playlist.body, { headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } });
+        } catch (e) { return jsonResp({ ok: false, msg: e.message }, 500); }
+      }
+      if (request.method === 'POST') {
+        try {
+          const body = await request.json();
+          if (!(await verifyAdmin(env, body.adminUser, body.adminPass))) return jsonResp({ ok: false, msg: '认证失败' }, 401);
+          if (body.action === 'setList') {
+            await env.MUSIC_BUCKET.put('playlist.json', JSON.stringify(body.list));
+            return jsonResp({ ok: true });
+          }
+          return jsonResp({ ok: false, msg: '未知操作' }, 400);
+        } catch (e) { return jsonResp({ ok: false, msg: e.message }, 500); }
+      }
+    }
+
     if (url.pathname.startsWith('/api/community/')) {
       const getAuth = async () => {
         const auth = request.headers.get('Authorization') || '';

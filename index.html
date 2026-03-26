@@ -2051,11 +2051,19 @@ scheduleInit();
   async function fetchPL(){
     try{
       const r=await fetch('/api/music');
-      if(!r.ok){console.error('[music] HTTP错误:',r.status,r.statusText);return;}
+      if(!r.ok){
+        console.error('[music] HTTP错误:',r.status,r.statusText);
+        nameEl.textContent = '加载失败';
+        return;
+      }
       const raw=await r.text();
       console.log('[music] R2原始响应:',raw);
       let d;
-      try{d=JSON.parse(raw);}catch(pe){console.error('[music] JSON解析失败:',pe,raw);return;}
+      try{d=JSON.parse(raw);}catch(pe){
+        console.error('[music] JSON解析失败:',pe,raw);
+        nameEl.textContent = '配置错误';
+        return;
+      }
       // 兼容多种后端返回结构：{ ok, list } / { list } / { tracks } / 数组
       const list = Array.isArray(d) ? d
                  : (d.list||d.tracks||d.songs||d.playlist||null);
@@ -2065,9 +2073,15 @@ scheduleInit();
         render();
         console.log('[music] 歌单加载成功，共',PL.length,'首');
       }else{
+        PL=[];
+        render();
+        nameEl.textContent='暂无歌曲';
         console.warn('[music] 歌单为空或字段不匹配，实际响应:',d);
       }
-    }catch(e){console.error('[music] fetchPL异常:',e);}
+    }catch(e){
+      console.error('[music] fetchPL异常:',e);
+      nameEl.textContent = '网络错误';
+    }
   }
   async function save(){
     if(!window.nodesAdminUser||!window.nodesAdminPwd) return;
