@@ -179,14 +179,21 @@ export default {
 
       if (url.pathname === '/api/community/posts') {
         if (request.method === 'GET') {
-          const posts = await env.COMMUNITY_DB.prepare("SELECT p.*, u.username FROM posts p JOIN users u ON p.user_id = u.id ORDER BY p.created_at DESC LIMIT 100").all();
-          return jsonResp({ ok: true, posts: posts.results });
+          try {
+            const { results } = await env.COMMUNITY_DB.prepare(`
+              SELECT p.id, p.content, p.media_json, p.created_at, u.username, u.avatar_url,
+              (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) as like_count
+              FROM posts p JOIN users u ON p.user_id = u.id
+              ORDER BY p.created_at DESC LIMIT 100
+            `).all();
+            return jsonResp({ ok: true, posts: results || [] });
+          } catch (e) { return jsonResp({ ok: false, msg: e.message }, 500); }
         }
         if (request.method === 'POST') {
           const user = await getAuth();
-          if (!user) return jsonResp({ ok: false }, 401);
+          if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
           const { content, media } = await request.json();
-          await env.COMMUNITY_DB.prepare("INSERT INTO posts (id, user_id, content, media_json) VALUES (?, ?, ?, ?)").bind(crypto.randomUUID(), user.id, content, JSON.stringify(media)).run();
+          await env.COMMUNITY_DB.prepare("INSERT INTO posts (id, user_id, content, media_json) VALUES (?, ?, ?, ?)").bind(crypto.randomUUID(), user.id, content || '', JSON.stringify(media || [])).run();
           return jsonResp({ ok: true });
         }
       }
