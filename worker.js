@@ -243,7 +243,7 @@ export default {
             const userId = url.searchParams.get('userId');
             const username = url.searchParams.get('username');
             let sql = `
-              SELECT p.*, u.username, u.avatar_url, u.level,
+              SELECT p.*, u.username, u.avatar_url, COALESCE(u.level, 1) as level, COALESCE(u.role, 'user') as role,
               (SELECT COUNT(*) FROM likes WHERE post_id = p.id) as like_count,
               (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comment_count,
               (SELECT COUNT(*) FROM posts WHERE repost_id = p.id) as repost_count
@@ -347,7 +347,7 @@ export default {
         if (request.method === 'GET') {
           const postId = url.searchParams.get('postId');
           const { results } = await env.COMMUNITY_DB.prepare(`
-            SELECT c.*, u.username, u.avatar_url, u.level FROM comments c 
+            SELECT c.*, u.username, u.avatar_url, COALESCE(u.level, 1) as level FROM comments c 
             JOIN users u ON c.user_id = u.id 
             WHERE c.post_id = ? ORDER BY c.created_at ASC
           `).bind(postId).all();
