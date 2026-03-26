@@ -193,11 +193,17 @@ export default {
 
       if (url.pathname === '/api/community/upload' && request.method === 'POST') {
         const user = await getAuth();
-        if (!user) return jsonResp({ ok: false }, 401);
+        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
         const buffer = await request.arrayBuffer();
-        const fileId = (await uploadToDrive(env, buffer, `img_${Date.now()}`, request.headers.get('content-type'))).id;
-        if (env.COMMUNITY_R2) await env.COMMUNITY_R2.put(fileId, buffer);
-        return jsonResp({ ok: true, url: `https://media.thefallback.cc.cd/${fileId}` });
+        try {
+          const driveData = await uploadToDrive(env, buffer, `img_${Date.now()}`, request.headers.get('content-type'));
+          const fileId = driveData.id;
+          if (!fileId) throw new Error('No ID from Drive');
+          if (env.COMMUNITY_R2) {
+            try { await env.COMMUNITY_R2.put(fileId, buffer, { httpMetadata: { contentType: request.headers.get('content-type') } }); } catch (e) {}
+          }
+          return jsonResp({ ok: true, fileId, url: `https://media.thefallback.cc.cd/${fileId}` });
+        } catch (e) { return jsonResp({ ok: false, msg: e.message }, 500); }
       }
 
       if (url.pathname.startsWith('/api/community/media/')) {

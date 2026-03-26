@@ -1533,7 +1533,9 @@ async function submitCommPost() {
       currentCommFile = null;
       loadCommPosts();
     }
-  } catch(e) { showToast('发布失败', 'error'); }
+  } catch(e) { 
+    showToast('发布异常: ' + e.message, 'error'); 
+  }
   finally { btn.disabled = false; btn.textContent = '发布'; }
 }
 
