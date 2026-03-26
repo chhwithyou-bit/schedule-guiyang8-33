@@ -681,6 +681,44 @@ html, body {
   border:1px solid rgba(255,119,16,0.35); border-radius:8px;
   color: var(--accent2); font-size:12px; padding:6px 11px; cursor:pointer;
 }
+/* ===== COMMUNITY ENHANCEMENTS ===== */
+.comm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; width: 100%; max-width: 1200px; margin: 0 auto; }
+.badge { display: inline-flex; align-items: center; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 800; text-transform: uppercase; margin-left: 6px; }
+.badge.lvl { background: var(--accent); color: white; }
+.badge.admin { background: #e05050; color: white; }
+
+.profile-card { background: var(--glass); backdrop-filter: blur(var(--glass-blur)); border: 1px solid var(--glass-border); border-radius: 20px; overflow: hidden; margin-bottom: 20px; }
+.profile-banner { height: 160px; background-size: cover; background-position: center; background-color: var(--s3); }
+.profile-info { padding: 0 20px 20px; position: relative; margin-top: -40px; }
+.profile-avatar { width: 80px; height: 80px; border-radius: 40px; border: 4px solid var(--bg); background: var(--s2); display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 800; color: var(--accent); }
+.profile-meta { margin-top: 12px; }
+.profile-name { font-size: 20px; font-weight: 800; color: var(--text); }
+.profile-sig { font-size: 14px; color: var(--t2); margin-top: 4px; line-height: 1.4; }
+.profile-stats { display: flex; gap: 20px; margin-top: 16px; border-top: 1px solid var(--border); padding-top: 16px; }
+.stat-item { display: flex; flex-direction: column; gap: 2px; }
+.stat-val { font-size: 16px; font-weight: 700; color: var(--text); }
+.stat-lbl { font-size: 11px; color: var(--t3); }
+
+.hashtag { color: var(--accent2); cursor: pointer; font-weight: 600; text-decoration: none; }
+.hashtag:hover { text-decoration: underline; }
+
+.notify-bell { position: relative; cursor: pointer; padding: 8px; border-radius: 50%; transition: background 0.2s; }
+.notify-bell:hover { background: var(--s2); }
+.notify-dot { position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; background: #ff4d4d; border-radius: 50%; border: 2px solid var(--bg); display: none; }
+.notify-dot.show { display: block; }
+
+.repost-card { border-left: 3px solid var(--accent); padding-left: 12px; margin-top: 8px; opacity: 0.9; }
+
+.search-wrap { display: flex; align-items: center; background: var(--s2); border-radius: 12px; padding: 6px 12px; gap: 8px; flex: 1; max-width: 300px; }
+.search-inp { background: none; border: none; color: var(--text); outline: none; font-size: 14px; width: 100%; }
+
+.waterfall-item { break-inside: avoid; margin-bottom: 16px; }
+.waterfall-container { column-count: 1; column-gap: 16px; }
+@media (min-width: 600px) { .waterfall-container { column-count: 2; } }
+@media (min-width: 900px) { .waterfall-container { column-count: 3; } }
+
+.lazy-img { opacity: 0; transition: opacity 0.4s; background: var(--s3); }
+.lazy-img.loaded { opacity: 1; }
 </style>
 
 <link rel="stylesheet" href="xiangqi.css">
@@ -701,7 +739,7 @@ html, body {
     <div class="drawer-title">高三（3）班</div>
   </div>
   <nav class="drawer-nav">
-    <button class="drawer-item active" id="nav-schedule" onclick="navTo('schedule')">
+    <button class="drawer-item" id="nav-schedule" onclick="navTo('schedule')">
       <span class="drawer-item-icon">📚</span>
       <span class="drawer-item-label">课程表</span>
     </button>
@@ -713,15 +751,19 @@ html, body {
       <span class="drawer-item-icon">♟️</span>
       <span class="drawer-item-label">中国象棋</span>
     </button>
-    <button class="drawer-item" id="nav-community" onclick="navTo('community')">
+    <button class="drawer-item active" id="nav-community" onclick="navTo('community')">
       <span class="drawer-item-icon">💬</span>
       <span class="drawer-item-label">社区</span>
+    </button>
+    <button class="drawer-item" id="nav-admin" onclick="navTo('admin')" style="display:none;">
+      <span class="drawer-item-icon">⚙️</span>
+      <span class="drawer-item-label">管理后台</span>
     </button>
   </nav>
   <div class="drawer-footer">2025-2026 第二学期 · 至6月7日</div>
 </div>
 
-<div class="page active" id="page-schedule">
+<div class="page" id="page-schedule">
   <div class="safe-top"></div>
   <div class="header stagger">
     <div class="header-left">
@@ -1313,24 +1355,93 @@ async function adminSetAdminPwd() {
 }
 </script>
 
-<!-- ===== PAGE 4: COMMUNITY (Twitter-like) ===== -->
-<div class="page" id="page-community" style="overflow-y:auto; background: var(--bg);">
+<!-- ===== PAGE 5: ADMIN DASHBOARD ===== -->
+<div class="page" id="page-admin" style="overflow-y:auto; background: var(--bg);">
   <div class="safe-top"></div>
-  <div class="header stagger" style="position: sticky; top: 0; z-index: 100; background: rgba(2,0,41,0.7); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border);">
+  <div class="header stagger">
     <div class="header-left">
       <button onclick="openDrawer()" style="background:none;border:none;color:var(--accent);font-size:22px;padding:4px 8px;cursor:pointer;line-height:1;">☰</button>
-      <div class="hdr-title" style="font-size:24px;">社区</div>
+      <div class="hdr-title" style="font-size:24px;">管理后台</div>
     </div>
-    <div id="comm-auth-btn" onclick="openCommAuth()" class="admin-btn">登录 / 注册</div>
-    <div id="comm-user-info" style="display:none; align-items:center; gap:8px;">
-      <span id="comm-username" style="font-size:14px; font-weight:600; color:var(--accent2);"></span>
-      <button onclick="commLogout()" class="admin-btn" style="padding:4px 10px; font-size:10px; border-color:rgba(224,80,80,0.3); color:#e05050;">退出</button>
+  </div>
+
+  <div style="padding:16px; max-width:800px; margin:0 auto;">
+    <div class="glass-card" style="padding:20px; margin-bottom:20px;">
+      <div style="font-size:18px; font-weight:800; margin-bottom:16px; display:flex; align-items:center; gap:8px;">🚩 待处理举报</div>
+      <div id="admin-reports-list" style="display:flex; flex-direction:column; gap:12px;">
+        <div style="text-align:center; padding:20px; color:var(--t3);">加载中...</div>
+      </div>
     </div>
+
+    <div class="glass-card" style="padding:20px;">
+      <div style="font-size:18px; font-weight:800; margin-bottom:16px; display:flex; align-items:center; gap:8px;">👥 用户管理</div>
+      <div id="admin-users-list" style="display:flex; flex-direction:column; gap:12px;">
+        <!-- User list rendered here -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PAGE 4: COMMUNITY (Twitter-like) ===== -->
+<div class="page active" id="page-community" style="overflow-y:auto; background: var(--bg);">
+  <div class="safe-top"></div>
+  <div class="header stagger" style="position: sticky; top: 0; z-index: 100; background: rgba(2,0,41,0.7); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); height: 64px;">
+    <div class="header-left" style="flex:1;">
+      <button onclick="openDrawer()" style="background:none;border:none;color:var(--accent);font-size:22px;padding:4px 8px;cursor:pointer;line-height:1;">☰</button>
+      <div class="search-wrap" id="comm-search-wrap">
+        <span style="opacity:0.5">🔍</span>
+        <input id="comm-search" class="search-inp" placeholder="搜索内容或 #话题" onkeyup="if(event.key==='Enter')loadCommPosts(this.value)">
+      </div>
+    </div>
+    <div style="display:flex; align-items:center; gap:12px;">
+      <div class="notify-bell" onclick="openNotifies()">
+        <span style="font-size:20px;">🔔</span>
+        <div class="notify-dot" id="comm-notify-dot"></div>
+      </div>
+      <div id="comm-auth-btn" onclick="openCommAuth()" class="admin-btn">登录 / 注册</div>
+      <div id="comm-user-info" style="display:none; align-items:center; gap:8px;">
+        <div id="comm-user-avatar" onclick="navToProfile(commUser.username)" style="width:32px; height:32px; border-radius:16px; background:var(--s3); display:flex; align-items:center; justify-content:center; cursor:pointer; font-weight:700; color:var(--accent); font-size:14px; border: 1px solid var(--border);"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="comm-profile" style="display:none; padding:16px; max-width:600px; margin:0 auto;">
+    <!-- Profile Card rendered here -->
   </div>
 
   <div id="comm-posts" class="stagger" style="padding:16px; max-width:600px; margin:0 auto; display:flex; flex-direction:column; gap:16px;">
     <!-- Posts will be rendered here -->
     <div style="text-align:center; padding:40px; color:var(--t3);">加载中...</div>
+  </div>
+
+  <!-- Notification Modal -->
+  <div class="modal-overlay" id="commNotifyModal">
+    <div class="modal" style="max-width:400px; margin: 20px auto; padding: 0; overflow: hidden;">
+      <div style="padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: rgba(2,0,41,0.5);">
+        <div style="font-weight: 800; font-size: 18px;">通知</div>
+        <button class="close-modal" onclick="closeNotifies()" style="position:static;">✕</button>
+      </div>
+      <div id="comm-notifies-list" style="max-height: 400px; overflow-y: auto; padding: 10px;">
+        <!-- Notifies rendered here -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Comment Modal -->
+  <div class="modal-overlay" id="commCommentModal">
+    <div class="modal" style="max-width:500px; margin: 20px auto; padding: 0; overflow: hidden; display: flex; flex-direction: column; max-height: 85vh;">
+      <div style="padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: rgba(2,0,41,0.5);">
+        <div style="font-weight: 800; font-size: 18px;">评论</div>
+        <button class="close-modal" onclick="closeComments()" style="position:static;">✕</button>
+      </div>
+      <div id="comm-comments-list" style="flex:1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+        <!-- Comments rendered here -->
+      </div>
+      <div style="padding: 16px; border-top: 1px solid var(--border); background: rgba(2,0,41,0.3); display: flex; gap: 10px;">
+        <input id="comm-comment-inp" class="search-inp" style="background: var(--s2); padding: 10px 14px; border-radius: 10px;" placeholder="写下你的评论...">
+        <button onclick="submitComment()" style="background: var(--accent); color: white; border: none; padding: 0 16px; border-radius: 10px; font-weight: 700;">发送</button>
+      </div>
+    </div>
   </div>
 
   <button id="comm-post-fab" onclick="openCommPostModal()"
@@ -1351,6 +1462,14 @@ async function adminSetAdminPwd() {
     <div class="action-row" style="margin-top:24px;">
       <button class="btn-cancel" onclick="commAuth('login')" style="flex:1;">登录</button>
       <button class="btn-confirm" onclick="commAuth('register')" style="flex:1;">注册</button>
+    </div>
+    
+    <div style="margin-top:24px; border-top:1px solid var(--border); padding-top:20px;">
+      <div style="text-align:center; font-size:12px; color:var(--t3); margin-bottom:12px;">使用第三方账号快速登录</div>
+      <div style="display:flex; justify-content:center; gap:20px;">
+        <div onclick="showToast('QQ登录接入中...', 'info')" style="width:40px; height:40px; border-radius:20px; background:#f0f7ff; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:20px;">🐧</div>
+        <div onclick="showToast('微信登录接入中...', 'info')" style="width:40px; height:40px; border-radius:20px; background:#f0fff4; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:20px;">💬</div>
+      </div>
     </div>
   </div>
 </div>
@@ -1381,22 +1500,312 @@ function openCommAuth() { document.getElementById('commAuthModal').classList.add
 function closeCommAuth() { document.getElementById('commAuthModal').classList.remove('open'); }
 function openCommPostModal() { document.getElementById('commPostModal').classList.add('open'); }
 function closeCommPostModal() { document.getElementById('commPostModal').classList.remove('open'); }
+function openNotifies() { document.getElementById('commNotifyModal').classList.add('open'); loadNotifies(); }
+function closeNotifies() { document.getElementById('commNotifyModal').classList.remove('open'); }
 
 function updateCommUI() {
   const authBtn = document.getElementById('comm-auth-btn');
   const userInfo = document.getElementById('comm-user-info');
   const fab = document.getElementById('comm-post-fab');
+  const avatar = document.getElementById('comm-user-avatar');
+  const adminNav = document.getElementById('nav-admin');
   
   if (commUser) {
     authBtn.style.display = 'none';
     userInfo.style.display = 'flex';
-    document.getElementById('comm-username').textContent = commUser.username;
+    avatar.textContent = commUser.username ? commUser.username[0].toUpperCase() : '?';
+    if (commUser.avatar_url) avatar.style.backgroundImage = `url(${commUser.avatar_url})`;
     fab.style.display = 'flex';
+    if (commUser.role === 'admin' && adminNav) adminNav.style.display = 'flex';
   } else {
     authBtn.style.display = 'block';
     userInfo.style.display = 'none';
     fab.style.display = 'none';
+    if (adminNav) adminNav.style.display = 'none';
   }
+}
+
+async function loadAdminData() {
+  if (!commUser || commUser.role !== 'admin') return;
+  const reportList = document.getElementById('admin-reports-list');
+  const userList = document.getElementById('admin-users-list');
+  
+  try {
+    const r = await fetch('/api/community/admin/data', {
+      headers: { 'Authorization': `Bearer ${commUser.username}:${commUser.passHash}` }
+    });
+    const d = await r.json();
+    if (!d.ok) return;
+    
+    reportList.innerHTML = d.reports.map(r => `
+      <div class="glass-card" style="padding:12px; font-size:13px; background:rgba(224,80,80,0.05);">
+        <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+          <span style="font-weight:700; color:#e05050;">${r.target_type.toUpperCase()} 举报</span>
+          <span style="color:var(--t3);">${new Date(r.created_at).toLocaleString()}</span>
+        </div>
+        <div style="margin-bottom:8px; color:var(--text);">原因: ${r.reason}</div>
+        <div style="display:flex; gap:10px;">
+          <button onclick="handleReport('${r.id}', 'resolved')" style="padding:4px 10px; border-radius:6px; border:none; background:#2a8040; color:white; font-size:11px; cursor:pointer;">标记已处理</button>
+          <button onclick="deleteReportedItem('${r.target_type}', '${r.target_id}', '${r.id}')" style="padding:4px 10px; border-radius:6px; border:none; background:#e05050; color:white; font-size:11px; cursor:pointer;">删除内容</button>
+        </div>
+      </div>
+    `).join('') || '<div style="text-align:center; padding:20px; color:var(--t3);">暂无待处理举报</div>';
+    
+    userList.innerHTML = d.users.map(u => `
+      <div class="glass-card" style="padding:12px; display:flex; align-items:center; gap:12px; font-size:13px;">
+        <div style="width:32px; height:32px; border-radius:16px; background:var(--s3); display:flex; align-items:center; justify-content:center; font-weight:700;">
+          ${u.avatar_url ? `<img src="${u.avatar_url}" style="width:100%;height:100%;border-radius:16px;">` : u.username[0].toUpperCase()}
+        </div>
+        <div style="flex:1;">
+          <div style="font-weight:700;">${u.username} <span class="badge lvl">LV.${u.level}</span></div>
+          <div style="font-size:11px; color:var(--t3);">XP: ${u.xp} | ${u.is_banned ? '<span style="color:#e05050;">已封禁</span>' : '正常'}</div>
+        </div>
+        ${!u.is_banned && u.role !== 'admin' ? `<button onclick="adminAction('ban_user', 'user', '${u.id}')" style="background:none; border:1px solid #e05050; color:#fca5a5; padding:4px 8px; border-radius:6px; font-size:11px; cursor:pointer;">封禁</button>` : ''}
+      </div>
+    `).join('');
+  } catch(e) {}
+}
+
+async function adminAction(action, type, id, reportId = null) {
+  if (!confirm('确定执行此操作吗？')) return;
+  try {
+    const r = await fetch('/api/community/admin/action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${commUser.username}:${commUser.passHash}` },
+      body: JSON.stringify({ action, target_type: type, target_id: id, report_id: reportId })
+    });
+    if ((await r.json()).ok) { showToast('操作成功', 'success'); loadAdminData(); }
+  } catch(e) { showToast('操作失败', 'error'); }
+}
+
+function handleReport(id, status) { adminAction('resolve_report', 'report', id); }
+function deleteReportedItem(type, id, reportId) { adminAction('delete_item', type, id, reportId); }
+
+function openCommAuth() { 
+  document.getElementById('commAuthModal').classList.add('open'); 
+}
+function closeCommAuth() { document.getElementById('commAuthModal').classList.remove('open'); }
+
+// ... (other functions)
+
+function formatContent(content) {
+  if (!content) return '';
+  // Escaping simple HTML
+  let div = document.createElement('div');
+  div.textContent = content;
+  let html = div.innerHTML;
+  // Hashtags
+  html = html.replace(/#([\w\u4e00-\u9fa5]+)/g, '<span class="hashtag" onclick="event.stopPropagation(); loadCommPosts(\'$1\')">#$1</span>');
+  // URLs
+  html = html.replace(/(https?:\/\/[^\s]+)/g, (url) => {
+    const videoThumb = parseVideo(url);
+    if (videoThumb) return `<a href="${url}" target="_blank" class="hashtag">${url}</a><img src="${videoThumb}" style="width:100%; border-radius:12px; margin-top:8px; display:block;">`;
+    return `<a href="${url}" target="_blank" class="hashtag">${url}</a>`;
+  });
+  return html;
+}
+
+function parseVideo(url) {
+  if (url.includes('youtube.com') || url.includes('youtu.be')) {
+    const id = url.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/);
+    return id ? `https://img.youtube.com/vi/${id[1]}/mqdefault.jpg` : null;
+  }
+  if (url.includes('bilibili.com')) return 'https://static.hdslb.com/images/favicon.ico'; // Placeholder for Bili
+  return null;
+}
+
+async function loadCommPosts(query = '', userId = '', username = '') {
+  const container = document.getElementById('comm-posts');
+  const profileSection = document.getElementById('comm-profile');
+  
+  if (userId || username) {
+    profileSection.style.display = 'block';
+    renderProfileHeader(userId || username, !!username);
+  } else {
+    profileSection.style.display = 'none';
+  }
+
+  try {
+    let url = '/api/community/posts?';
+    if (query) url += `q=${encodeURIComponent(query)}&`;
+    if (userId) url += `userId=${userId}&`;
+    if (username) url += `username=${encodeURIComponent(username)}&`;
+    
+    const r = await fetch(url);
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.msg);
+    
+    if (d.posts.length === 0) {
+      container.innerHTML = `<div style="text-align:center;padding:80px;color:var(--t3);">没有找到内容</div>`;
+      return;
+    }
+    
+    container.innerHTML = `<div class="waterfall-container">${d.posts.map(p => renderPostCard(p)).join('')}</div>`;
+    observeLazyImages();
+  } catch(e) {
+    container.innerHTML = `<div style="text-align:center;padding:40px;color:var(--red);">加载失败: ${e.message}</div>`;
+  }
+}
+
+function renderPostCard(p) {
+  const media = JSON.parse(p.media_json || '[]');
+  const date = new Date(p.created_at).toLocaleString('zh-CN', {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
+  const isAdmin = commUser && commUser.role === 'admin';
+  const isOwner = commUser && commUser.id === p.user_id;
+  
+  return `
+    <div class="glass-card waterfall-item" style="padding:16px; display:flex; flex-direction:column; gap:10px;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div onclick="navToProfile('${p.username}', '${p.user_id}')" style="width:36px; height:36px; border-radius:18px; background:var(--s3); display:flex; align-items:center; justify-content:center; font-weight:700; color:var(--accent); cursor:pointer; overflow:hidden;">
+          ${p.avatar_url ? `<img src="${p.avatar_url}" style="width:100%;height:100%;object-fit:cover;">` : p.username[0].toUpperCase()}
+        </div>
+        <div style="flex:1;">
+          <div style="display:flex; align-items:center;">
+            <span onclick="navToProfile('${p.username}', '${p.user_id}')" style="font-size:15px; font-weight:700; cursor:pointer;">${p.username}</span>
+            <span class="badge lvl">LV.${p.level || 1}</span>
+            ${p.role === 'admin' ? '<span class="badge admin">STAFF</span>' : ''}
+          </div>
+          <div style="font-size:11px; color:var(--t3);">${date}</div>
+        </div>
+        ${(isOwner || isAdmin) ? `<div onclick="deletePost('${p.id}')" style="cursor:pointer; opacity:0.3; font-size:14px;">✕</div>` : ''}
+      </div>
+      <div style="font-size:16px; line-height:1.5; white-space:pre-wrap; color:var(--text);">${formatContent(p.content)}</div>
+      ${media.length ? `<img data-src="${media[0].url}" class="lazy-img" style="width:100%; border-radius:12px; margin-top:4px; border:1px solid var(--border);">` : ''}
+      
+      <div style="display:flex; gap:20px; margin-top:10px; border-top:1px solid var(--border); padding-top:10px; color:var(--t3); font-size:13px;">
+        <div onclick="toggleLike('${p.id}')" style="display:flex; align-items:center; gap:6px; cursor:pointer; transition:color 0.2s;">
+          <span style="font-size:16px;">❤️</span> ${p.like_count || 0}
+        </div>
+        <div onclick="openComments('${p.id}')" style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+          <span style="font-size:16px;">💬</span> ${p.comment_count || 0}
+        </div>
+        <div onclick="openRepost('${p.id}')" style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+          <span style="font-size:16px;">🔁</span> ${p.repost_count || 0}
+        </div>
+        <div onclick="reportContent('post', '${p.id}')" style="margin-left:auto; opacity:0.3; cursor:pointer;">🚩</div>
+      </div>
+    </div>
+  `;
+}
+
+async function reportContent(type, id) {
+  const reason = prompt('请输入举报原因:');
+  if (!reason) return;
+  if (!commUser) return openCommAuth();
+  try {
+    const r = await fetch('/api/community/report', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${commUser.username}:${commUser.passHash}` },
+      body: JSON.stringify({ target_type: type, target_id: id, reason })
+    });
+    if ((await r.json()).ok) showToast('举报已提交，我们会尽快处理', 'success');
+  } catch(e) { showToast('提交失败', 'error'); }
+}
+
+function observeLazyImages() {
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(en => {
+      if (en.isIntersecting) {
+        const img = en.target;
+        img.src = img.dataset.src;
+        img.onload = () => img.classList.add('loaded');
+        obs.unobserve(img);
+      }
+    });
+  });
+  document.querySelectorAll('.lazy-img').forEach(i => obs.observe(i));
+}
+
+async function deletePost(id) {
+  if (!confirm('确定要删除这条内容吗？')) return;
+  try {
+    const r = await fetch(`/api/community/posts?id=${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${commUser.username}:${commUser.passHash}` }
+    });
+    if ((await r.json()).ok) loadCommPosts();
+  } catch(e) { showToast('删除失败', 'error'); }
+}
+
+async function toggleLike(postId) {
+  if (!commUser) return openCommAuth();
+  try {
+    const r = await fetch('/api/community/like', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${commUser.username}:${commUser.passHash}` },
+      body: JSON.stringify({ post_id: postId })
+    });
+    const d = await r.json();
+    if (d.ok) loadCommPosts();
+  } catch(e) {}
+}
+
+async function loadNotifies() {
+  if (!commUser) return;
+  const list = document.getElementById('comm-notifies-list');
+  try {
+    const r = await fetch('/api/community/notifications', {
+      headers: { 'Authorization': `Bearer ${commUser.username}:${commUser.passHash}` }
+    });
+    const d = await r.json();
+    if (!d.ok) return;
+    if (d.notifications.length === 0) {
+      list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--t3);">暂无通知</div>';
+      return;
+    }
+    list.innerHTML = d.notifications.map(n => {
+      const texts = { 'like': '点赞了你的帖子', 'follow': '关注了你', 'repost': '转发了你的帖子', 'comment': '评论了你的帖子' };
+      return `
+        <div style="display:flex; align-items:center; gap:12px; padding:12px; border-bottom:1px solid var(--border);">
+          <div style="width:32px; height:32px; border-radius:16px; background:var(--s3); display:flex; align-items:center; justify-content:center; font-weight:700;">
+            ${n.avatar_url ? `<img src="${n.avatar_url}" style="width:100%;height:100%;border-radius:16px;">` : n.username[0].toUpperCase()}
+          </div>
+          <div style="flex:1; font-size:13px;">
+            <b>${n.username}</b> ${texts[n.type] || '互动了'}
+            <div style="font-size:11px; color:var(--t3); margin-top:2px;">${new Date(n.created_at).toLocaleString()}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch(e) {}
+}
+
+function navToProfile(name, id) {
+  history.pushState({page: 'community', username: name, userId: id}, '', `/profile/${name}`);
+  loadCommPosts('', id, id ? '' : name);
+}
+
+function renderProfileHeader(val, isName) {
+  const container = document.getElementById('comm-profile');
+  container.innerHTML = `
+    <div class="profile-card">
+      <div class="profile-banner" style="background-image: url('https://thefallback.cc.cd/bg.jpg')"></div>
+      <div class="profile-info">
+        <div class="profile-avatar">${val[0].toUpperCase()}</div>
+        <div class="profile-meta">
+          <div class="profile-name">${val}</div>
+          <div class="profile-sig">这个人很懒，什么都没留下。</div>
+        </div>
+        <div class="profile-stats">
+          <div class="stat-item"><span class="stat-val">0</span><span class="stat-lbl">关注</span></div>
+          <div class="stat-item"><span class="stat-val">0</span><span class="stat-lbl">粉丝</span></div>
+          ${(commUser && (val === commUser.id || val === commUser.username)) ? '<button onclick="showToast(\'编辑资料暂未开放\', \'info\')" style="margin-left:auto; background:var(--s2); border:1px solid var(--border); color:var(--text); padding:4px 12px; border-radius:16px; font-size:12px; cursor:pointer;">编辑资料</button>' : `<button onclick="toggleFollow('${val}')" style="margin-left:auto; background:var(--accent); color:white; border:none; padding:6px 16px; border-radius:16px; font-size:12px; font-weight:700; cursor:pointer;">关注</button>`}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function toggleFollow(id) {
+  if (!commUser) return openCommAuth();
+  try {
+    const r = await fetch('/api/community/follow', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${commUser.username}:${commUser.passHash}` },
+      body: JSON.stringify({ following_id: id })
+    });
+    if ((await r.json()).ok) showToast('操作成功', 'success');
+  } catch(e) {}
 }
 
 async function commAuth(action) {
@@ -1431,45 +1840,122 @@ function commLogout() {
   showToast('已退出登录', 'info');
 }
 
-async function loadCommPosts() {
-  const container = document.getElementById('comm-posts');
+async function submitCommPost() {
+  if (!commUser) return openCommAuth();
+  const content = document.getElementById('comm-post-content').value.trim();
+  if (!content && !currentCommFile) return showToast('请输入内容或上传图片', 'error');
+  
+  const btn = document.getElementById('comm-submit-btn');
+  btn.disabled = true; btn.textContent = '发布中...';
+  
   try {
-    const r = await fetch('/api/community/posts');
-    const d = await r.json();
-    if (!d.ok) return container.innerHTML = `<div style="text-align:center;padding:40px;color:var(--red);">${d.msg}</div>`;
-    
-    if (d.posts.length === 0) {
-      container.innerHTML = `<div style="text-align:center;padding:80px;color:var(--t3);">还没有动态，来发第一条吧！</div>`;
-      return;
+    let media = [];
+    if (currentCommFile) {
+      const rUpload = await fetch('/api/community/upload', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${commUser.username}:${commUser.passHash}`, 'Content-Type': currentCommFile.type },
+        body: await currentCommFile.arrayBuffer()
+      });
+      const dUpload = await rUpload.json();
+      if (dUpload.ok) media.push({ url: dUpload.url });
     }
     
-    container.innerHTML = d.posts.map(p => {
-      const media = JSON.parse(p.media_json || '[]');
-      const date = new Date(p.created_at).toLocaleString('zh-CN', {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
-      return `
-        <div class="glass-card" style="padding:16px; display:flex; flex-direction:column; gap:10px;">
-          <div style="display:flex; align-items:center; gap:10px;">
-            <div style="width:36px; height:36px; border-radius:18px; background:var(--s3); display:flex; align-items:center; justify-content:center; font-weight:700; color:var(--accent);">
-              ${p.username ? p.username[0].toUpperCase() : '?'}
-            </div>
-            <div style="flex:1;">
-              <div style="font-size:15px; font-weight:700;">${p.username}</div>
-              <div style="font-size:11px; color:var(--t3);">${date}</div>
-            </div>
-          </div>
-          <div style="font-size:16px; line-height:1.5; white-space:pre-wrap; color:var(--text);">${p.content}</div>
-          ${media.length ? `<img src="${media[0].url}" style="width:100%; border-radius:12px; margin-top:4px; border:1px solid var(--border);">` : ''}
-          <div style="display:flex; gap:20px; margin-top:10px; border-top:1px solid var(--border); padding-top:10px;">
-            <div onclick="toggleLike('${p.id}')" style="display:flex; align-items:center; gap:6px; color:var(--t2); font-size:13px; cursor:pointer;">
-              <span>❤️</span> ${p.like_count || 0}
-            </div>
-          </div>
+    const r = await fetch('/api/community/posts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${commUser.username}:${commUser.passHash}` },
+      body: JSON.stringify({ content, media })
+    });
+    
+    if ((await r.json()).ok) {
+      showToast('发布成功', 'success');
+      closeCommPostModal();
+      document.getElementById('comm-post-content').value = '';
+      document.getElementById('comm-preview-img').style.display = 'none';
+      currentCommFile = null;
+      loadCommPosts();
+    }
+  } catch(e) { showToast('发布异常: ' + e.message, 'error'); }
+  finally { btn.disabled = false; btn.textContent = '发布'; }
+}
+
+function openRepost(id) {
+  const content = prompt('转发语 (可选):');
+  if (content === null) return;
+  doRepost(id, content);
+}
+
+async function doRepost(postId, content) {
+  if (!commUser) return openCommAuth();
+  try {
+    const r = await fetch('/api/community/posts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${commUser.username}:${commUser.passHash}` },
+      body: JSON.stringify({ content, repost_id: postId })
+    });
+    if ((await r.json()).ok) {
+      showToast('转发成功', 'success');
+      loadCommPosts();
+    }
+  } catch(e) { showToast('转发失败', 'error'); }
+}
+
+let activeCommentPostId = null;
+function openComments(postId) {
+  activeCommentPostId = postId;
+  document.getElementById('commCommentModal').classList.add('open');
+  loadComments(postId);
+}
+function closeComments() {
+  document.getElementById('commCommentModal').classList.remove('open');
+  activeCommentPostId = null;
+}
+
+async function loadComments(postId) {
+  const list = document.getElementById('comm-comments-list');
+  list.innerHTML = '<div style="text-align:center; padding:20px; color:var(--t3);">加载中...</div>';
+  try {
+    const r = await fetch(`/api/community/comments?postId=${postId}`);
+    const d = await r.json();
+    if (!d.ok) return;
+    if (d.comments.length === 0) {
+      list.innerHTML = '<div style="text-align:center; padding:40px; color:var(--t3);">暂无评论，来发第一条吧！</div>';
+      return;
+    }
+    list.innerHTML = d.comments.map(c => `
+      <div style="display:flex; gap:10px;">
+        <div style="width:32px; height:32px; border-radius:16px; background:var(--s3); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:12px; flex-shrink:0;">
+          ${c.avatar_url ? `<img src="${c.avatar_url}" style="width:100%;height:100%;border-radius:16px;">` : c.username[0].toUpperCase()}
         </div>
-      `;
-    }).join('');
-  } catch(e) {
-    container.innerHTML = `<div style="text-align:center;padding:40px;color:var(--red);">加载失败，请重试</div>`;
-  }
+        <div style="flex:1;">
+          <div style="font-size:13px; font-weight:700; display:flex; align-items:center; gap:6px;">
+            ${c.username} <span class="badge lvl">LV.${c.level}</span>
+            <span style="font-weight:400; color:var(--t3); font-size:11px;">${new Date(c.created_at).toLocaleString()}</span>
+          </div>
+          <div style="font-size:14px; color:var(--text); margin-top:4px;">${c.content}</div>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {}
+}
+
+async function submitComment() {
+  if (!commUser) return openCommAuth();
+  const inp = document.getElementById('comm-comment-inp');
+  const content = inp.value.trim();
+  if (!content || !activeCommentPostId) return;
+  
+  try {
+    const r = await fetch('/api/community/comments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${commUser.username}:${commUser.passHash}` },
+      body: JSON.stringify({ post_id: activeCommentPostId, content })
+    });
+    if ((await r.json()).ok) {
+      inp.value = '';
+      loadComments(activeCommentPostId);
+      loadCommPosts(); // Refresh post count
+    }
+  } catch(e) {}
 }
 
 let currentCommFile = null;
@@ -1558,22 +2044,29 @@ updateCommUI();
 </script>
 
 <script>
-let currentPage = 'schedule';
+let currentPage = 'community';
 let _navLock = false;
 
-function navTo(page) {
+function navTo(page, push = true) {
   closeDrawer();
   if (page === currentPage || _navLock) return;
   _navLock = true;
   setTimeout(() => _navLock = false, 480);
   const from = document.getElementById('page-' + currentPage);
-  const to   = document.getElementById('page-' + page);
+  const to   = document.getElementById('page-' + (page || 'community'));
   
+  if (!to) return;
+
   // 切换逻辑
   from.classList.remove('active');
   to.classList.add('active');
 
+  if (push) {
+    history.pushState({page}, '', page === 'community' ? '/' : '/' + page);
+  }
+
   if (page === 'community') loadCommPosts();
+  if (page === 'admin') loadAdminData();
 
   if (page === 'xiangqi' && window.fixXiangqiHeight) {
     requestAnimationFrame(() => {
@@ -1584,15 +2077,26 @@ function navTo(page) {
     setTimeout(() => { window.fixXiangqiHeight(); }, 450);
   }
 
-  document.getElementById('nav-schedule').classList.toggle('active', page === 'schedule');
-  document.getElementById('nav-nodes').classList.toggle('active', page === 'nodes');
-  const navXiangqi = document.getElementById('nav-xiangqi');
-  if (navXiangqi) navXiangqi.classList.toggle('active', page === 'xiangqi');
-  const navComm = document.getElementById('nav-community');
-  if (navComm) navComm.classList.toggle('active', page === 'community');
+  const navIds = {
+    'schedule': 'nav-schedule',
+    'nodes': 'nav-nodes',
+    'xiangqi': 'nav-xiangqi',
+    'community': 'nav-community',
+    'admin': 'nav-admin'
+  };
+
+  Object.keys(navIds).forEach(k => {
+    const el = document.getElementById(navIds[k]);
+    if (el) el.classList.toggle('active', k === page);
+  });
   
   currentPage = page;
 }
+
+window.addEventListener('popstate', e => {
+  const p = (e.state && e.state.page) || 'community';
+  navTo(p, false);
+});
 
 function openDrawer() {
   document.getElementById('drawer').classList.add('open');
@@ -1704,7 +2208,32 @@ function updateToday(){
   const sj=SJ[k];document.getElementById('sanjiVal').textContent=sj||'今日无';document.getElementById('sanjiSub').textContent=sj?'三基测试':'';
 }
 function sw(i){document.querySelectorAll('.seg-btn').forEach((b,j)=>b.classList.toggle('active',j===i));document.querySelectorAll('.day-view').forEach((d,j)=>d.classList.toggle('active',j===i));}
-async function scheduleInit(){await loadFromKV();build();updateToday();const td=new Date().getDay();const ti=(td>=1&&td<=6)?td-1:0;sw(ti);document.querySelectorAll('.seg-btn')[ti]?.classList.add('today-dot');setInterval(refreshData,5*60*1000);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')refreshData();});}
+async function scheduleInit(){
+  await loadFromKV();build();updateToday();
+  const td=new Date().getDay();const ti=(td>=1&&td<=6)?td-1:0;sw(ti);
+  document.querySelectorAll('.seg-btn')[ti]?.classList.add('today-dot');
+  
+  // Handle Routing Initialization
+  const path = window.location.pathname.slice(1);
+  const validPages = ['community', 'schedule', 'nodes', 'xiangqi', 'admin'];
+  if (path && validPages.includes(path)) {
+    if (path !== 'community') {
+      navTo(path, false);
+    } else {
+      loadCommPosts();
+    }
+  } else if (window.location.pathname.startsWith('/profile/')) {
+    const name = window.location.pathname.split('/').pop();
+    navTo('community', false);
+    loadCommPosts('', '', name);
+  } else {
+    // Default or unknown path
+    loadCommPosts();
+  }
+
+  setInterval(refreshData,5*60*1000);
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')refreshData();});
+}
 scheduleInit();
 </script>
 

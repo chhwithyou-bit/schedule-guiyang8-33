@@ -205,30 +205,199 @@ export default {
         const auth = request.headers.get('Authorization') || '';
         if (!auth.startsWith('Bearer ')) return null;
         const [u, p] = auth.slice(7).split(':');
-        return await env.COMMUNITY_DB.prepare("SELECT * FROM users WHERE username = ? AND password_hash = ?").bind(u, p).first();
+        const user = await env.COMMUNITY_DB.prepare("SELECT * FROM users WHERE username = ? AND password_hash = ?").bind(u, p).first();
+        if (user && user.is_banned) return null;
+        return user;
+      };
+
+      const awardXP = async (userId, amount) => {
+        await env.COMMUNITY_DB.prepare("UPDATE users SET xp = xp + ?, level = CAST(((xp + ?) / 100) + 1 AS INTEGER) WHERE id = ?").bind(amount, amount, userId).run();
+      };
+
+      const addNotify = async (userId, type, fromUserId, targetId) => {
+        if (userId === fromUserId) return;
+        await env.COMMUNITY_DB.prepare("INSERT INTO notifications (id, user_id, type, from_user_id, target_id) VALUES (?, ?, ?, ?, ?)")
+          .bind(crypto.randomUUID(), userId, type, fromUserId, targetId).run();
       };
 
       if (url.pathname === '/api/community/auth' && request.method === 'POST') {
         const { action, username, password } = await request.json();
         const passHash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(password)))).map(b => b.toString(16).padStart(2, '0')).join('');
-        if (action === 'register') { await env.COMMUNITY_DB.prepare("INSERT INTO users (id, username, password_hash) VALUES (?, ?, ?)").bind(crypto.randomUUID(), username, passHash).run(); return jsonResp({ ok: true, user: { username, passHash } }); }
-        if (action === 'login') { const user = await env.COMMUNITY_DB.prepare("SELECT * FROM users WHERE username = ? AND password_hash = ?").bind(username, passHash).first(); if (!user) return jsonResp({ ok: false }, 401); return jsonResp({ ok: true, user: { username, passHash } }); }
+        if (action === 'register') { 
+          const id = crypto.randomUUID();
+          await env.COMMUNITY_DB.prepare("INSERT INTO users (id, username, password_hash) VALUES (?, ?, ?)").bind(id, username, passHash).run(); 
+          return jsonResp({ ok: true, user: { id, username, passHash, role: 'user', level: 1, xp: 0 } }); 
+        }
+        if (action === 'login') { 
+          const user = await env.COMMUNITY_DB.prepare("SELECT * FROM users WHERE username = ? AND password_hash = ?").bind(username, passHash).first(); 
+          if (!user) return jsonResp({ ok: false, msg: '用户名或密码错误' }, 401); 
+          if (user.is_banned) return jsonResp({ ok: false, msg: '账号已被封禁' }, 403);
+          return jsonResp({ ok: true, user: { id: user.id, username, passHash, role: user.role, level: user.level, xp: user.xp, signature: user.signature, avatar_url: user.avatar_url, background_url: user.background_url } }); 
+        }
       }
 
       if (url.pathname === '/api/community/posts') {
         if (request.method === 'GET') {
           try {
-            const { results } = await env.COMMUNITY_DB.prepare("SELECT p.id, p.content, p.media_json, p.created_at, u.username FROM posts p JOIN users u ON p.user_id = u.id ORDER BY p.created_at DESC LIMIT 100").all();
+            const query = url.searchParams.get('q');
+            const userId = url.searchParams.get('userId');
+            const username = url.searchParams.get('username');
+            let sql = `
+              SELECT p.*, u.username, u.avatar_url, u.level,
+              (SELECT COUNT(*) FROM likes WHERE post_id = p.id) as like_count,
+              (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comment_count,
+              (SELECT COUNT(*) FROM posts WHERE repost_id = p.id) as repost_count
+              FROM posts p JOIN users u ON p.user_id = u.id 
+            `;
+            const params = [];
+            if (query) {
+              sql += " WHERE p.content LIKE ? OR p.content LIKE ? ";
+              params.push(`%${query}%`, `%#${query}%`);
+            } else if (userId) {
+              sql += " WHERE p.user_id = ? ";
+              params.push(userId);
+            } else if (username) {
+              sql += " WHERE u.username = ? ";
+              params.push(username);
+            }
+            sql += " ORDER BY p.created_at DESC LIMIT 100 ";
+            const { results } = await env.COMMUNITY_DB.prepare(sql).bind(...params).all();
             return jsonResp({ ok: true, posts: results || [] });
           } catch (e) { return jsonResp({ ok: false, msg: e.message }, 500); }
         }
         if (request.method === 'POST') {
           const user = await getAuth();
           if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
-          const { content, media } = await request.json();
-          await env.COMMUNITY_DB.prepare("INSERT INTO posts (id, user_id, content, media_json) VALUES (?, ?, ?, ?)").bind(crypto.randomUUID(), user.id, content || '', JSON.stringify(media || [])).run();
+          const { content, media, repost_id } = await request.json();
+          const postId = crypto.randomUUID();
+          await env.COMMUNITY_DB.prepare("INSERT INTO posts (id, user_id, content, media_json, type, repost_id) VALUES (?, ?, ?, ?, ?, ?)")
+            .bind(postId, user.id, content || '', JSON.stringify(media || []), repost_id ? 'repost' : 'post', repost_id || null).run();
+          
+          await awardXP(user.id, 5);
+          if (repost_id) {
+            const original = await env.COMMUNITY_DB.prepare("SELECT user_id FROM posts WHERE id = ?").bind(repost_id).first();
+            if (original) await addNotify(original.user_id, 'repost', user.id, postId);
+          }
           return jsonResp({ ok: true });
         }
+        if (request.method === 'DELETE') {
+          const user = await getAuth();
+          if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+          const postId = url.searchParams.get('id');
+          const post = await env.COMMUNITY_DB.prepare("SELECT user_id FROM posts WHERE id = ?").bind(postId).first();
+          if (!post) return jsonResp({ ok: false, msg: 'Not found' }, 404);
+          if (post.user_id !== user.id && user.role !== 'admin') return jsonResp({ ok: false, msg: 'Forbidden' }, 403);
+          await env.COMMUNITY_DB.prepare("DELETE FROM posts WHERE id = ?").bind(postId).run();
+          return jsonResp({ ok: true });
+        }
+      }
+
+      if (url.pathname === '/api/community/like' && request.method === 'POST') {
+        const user = await getAuth();
+        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+        const { post_id } = await request.json();
+        const post = await env.COMMUNITY_DB.prepare("SELECT user_id FROM posts WHERE id = ?").bind(post_id).first();
+        if (!post) return jsonResp({ ok: false }, 404);
+        try {
+          await env.COMMUNITY_DB.prepare("INSERT INTO likes (post_id, user_id) VALUES (?, ?)").bind(post_id, user.id).run();
+          await awardXP(user.id, 1);
+          await addNotify(post.user_id, 'like', user.id, post_id);
+          return jsonResp({ ok: true, action: 'liked' });
+        } catch (e) {
+          await env.COMMUNITY_DB.prepare("DELETE FROM likes WHERE post_id = ? AND user_id = ?").bind(post_id, user.id).run();
+          return jsonResp({ ok: true, action: 'unliked' });
+        }
+      }
+
+      if (url.pathname === '/api/community/follow' && request.method === 'POST') {
+        const user = await getAuth();
+        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+        const { following_id } = await request.json();
+        try {
+          await env.COMMUNITY_DB.prepare("INSERT INTO follows (follower_id, following_id) VALUES (?, ?)").bind(user.id, following_id).run();
+          await addNotify(following_id, 'follow', user.id, null);
+          return jsonResp({ ok: true, action: 'followed' });
+        } catch (e) {
+          await env.COMMUNITY_DB.prepare("DELETE FROM follows WHERE follower_id = ? AND following_id = ?").bind(user.id, following_id).run();
+          return jsonResp({ ok: true, action: 'unfollowed' });
+        }
+      }
+
+      if (url.pathname === '/api/community/notifications' && request.method === 'GET') {
+        const user = await getAuth();
+        if (!user) return jsonResp({ ok: false }, 401);
+        const { results } = await env.COMMUNITY_DB.prepare(`
+          SELECT n.*, u.username, u.avatar_url FROM notifications n 
+          JOIN users u ON n.from_user_id = u.id 
+          WHERE n.user_id = ? ORDER BY n.created_at DESC LIMIT 50
+        `).bind(user.id).all();
+        return jsonResp({ ok: true, notifications: results || [] });
+      }
+
+      if (url.pathname === '/api/community/profile' && request.method === 'POST') {
+        const user = await getAuth();
+        if (!user) return jsonResp({ ok: false }, 401);
+        const { signature, background_url, avatar_url } = await request.json();
+        await env.COMMUNITY_DB.prepare("UPDATE users SET signature = ?, background_url = ?, avatar_url = ? WHERE id = ?")
+          .bind(signature || user.signature, background_url || user.background_url, avatar_url || user.avatar_url, user.id).run();
+        return jsonResp({ ok: true });
+      }
+
+      if (url.pathname === '/api/community/comments') {
+        if (request.method === 'GET') {
+          const postId = url.searchParams.get('postId');
+          const { results } = await env.COMMUNITY_DB.prepare(`
+            SELECT c.*, u.username, u.avatar_url, u.level FROM comments c 
+            JOIN users u ON c.user_id = u.id 
+            WHERE c.post_id = ? ORDER BY c.created_at ASC
+          `).bind(postId).all();
+          return jsonResp({ ok: true, comments: results || [] });
+        }
+        if (request.method === 'POST') {
+          const user = await getAuth();
+          if (!user) return jsonResp({ ok: false }, 401);
+          const { post_id, content, parent_id } = await request.json();
+          const commentId = crypto.randomUUID();
+          await env.COMMUNITY_DB.prepare("INSERT INTO comments (id, post_id, user_id, parent_id, content) VALUES (?, ?, ?, ?, ?)")
+            .bind(commentId, post_id, user.id, parent_id || null, content).run();
+          await awardXP(user.id, 2);
+          const post = await env.COMMUNITY_DB.prepare("SELECT user_id FROM posts WHERE id = ?").bind(post_id).first();
+          if (post) await addNotify(post.user_id, 'comment', user.id, post_id);
+          return jsonResp({ ok: true });
+        }
+      }
+
+      if (url.pathname === '/api/community/report' && request.method === 'POST') {
+        const user = await getAuth();
+        if (!user) return jsonResp({ ok: false }, 401);
+        const { target_type, target_id, reason } = await request.json();
+        await env.COMMUNITY_DB.prepare("INSERT INTO reports (id, user_id, target_type, target_id, reason) VALUES (?, ?, ?, ?, ?)")
+          .bind(crypto.randomUUID(), user.id, target_type, target_id, reason).run();
+        return jsonResp({ ok: true });
+      }
+
+      if (url.pathname === '/api/community/admin/data' && request.method === 'GET') {
+        const user = await getAuth();
+        if (!user || user.role !== 'admin') return jsonResp({ ok: false }, 403);
+        const reports = await env.COMMUNITY_DB.prepare("SELECT * FROM reports WHERE status = 'pending' ORDER BY created_at DESC").all();
+        const users = await env.COMMUNITY_DB.prepare("SELECT id, username, role, level, xp, is_banned, created_at FROM users ORDER BY created_at DESC").all();
+        return jsonResp({ ok: true, reports: reports.results || [], users: users.results || [] });
+      }
+
+      if (url.pathname === '/api/community/admin/action' && request.method === 'POST') {
+        const user = await getAuth();
+        if (!user || user.role !== 'admin') return jsonResp({ ok: false }, 403);
+        const { action, target_type, target_id, report_id } = await request.json();
+        if (action === 'delete_item') {
+          if (target_type === 'post') await env.COMMUNITY_DB.prepare("DELETE FROM posts WHERE id = ?").bind(target_id).run();
+          if (target_type === 'comment') await env.COMMUNITY_DB.prepare("DELETE FROM comments WHERE id = ?").bind(target_id).run();
+          if (report_id) await env.COMMUNITY_DB.prepare("UPDATE reports SET status = 'resolved' WHERE id = ?").bind(report_id).run();
+        } else if (action === 'resolve_report') {
+          await env.COMMUNITY_DB.prepare("UPDATE reports SET status = 'resolved' WHERE id = ?").bind(target_id).run();
+        } else if (action === 'ban_user') {
+          await env.COMMUNITY_DB.prepare("UPDATE users SET is_banned = 1 WHERE id = ?").bind(target_id).run();
+        }
+        return jsonResp({ ok: true });
       }
 
       if (url.pathname === '/api/community/upload' && request.method === 'POST') {
