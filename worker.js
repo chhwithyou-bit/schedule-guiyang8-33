@@ -38,6 +38,12 @@ function parseNodes(rawText) {
 
 // ── Google Drive API Helpers (OAuth2 User Flow) ────────────────
 async function getGoogleAuthToken(env) {
+  // 1. 尝试从 KV 获取缓存的 Token
+  const cached = await env.SCHEDULE_KV.get('gdrive_token_cache', { type: 'json' });
+  if (cached && Date.now() < cached.expiresAt) {
+    return cached.token;
+  }
+
   const { GDRIVE_CLIENT_ID, GDRIVE_CLIENT_SECRET, GDRIVE_REFRESH_TOKEN } = env;
   if (!GDRIVE_CLIENT_ID || !GDRIVE_CLIENT_SECRET || !GDRIVE_REFRESH_TOKEN) {
     throw new Error('缺失 OAuth2 凭据 (Client ID, Secret, 或 Refresh Token)');
@@ -56,7 +62,17 @@ async function getGoogleAuthToken(env) {
 
   const data = await resp.json();
   if (!resp.ok) throw new Error(`OAuth2 Failed: ${data.error_description || data.error}`);
-  return data.access_token;
+  
+  const accessToken = data.access_token;
+  const expiresAt = Date.now() + (data.expires_in || 3600) * 1000 - 60000; // 提前1分钟过期
+
+  // 2. 将新 Token 存入 KV 持久化
+  await env.SCHEDULE_KV.put('gdrive_token_cache', JSON.stringify({
+    token: accessToken,
+    expiresAt
+  }), { expirationTtl: Math.floor((data.expires_in || 3600) - 60) });
+
+  return accessToken;
 }
 
 async function uploadToDrive(env, fileBuffer, fileName, mimeType) {
@@ -82,9 +98,9 @@ async function getFromDrive(env, fileId) {
   });
 }
 
-// FINAL DEPLOY V4.2
+// FINAL DEPLOY V4.3 - Optimized Storage & Auth
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (request.method === 'OPTIONS') return corsResp();
 
@@ -150,32 +166,69 @@ export default {
         const buffer = await request.arrayBuffer();
         const contentType = request.headers.get('content-type') || 'image/jpeg';
         try {
-          let fileId, fromDrive = true;
-          try {
-            const driveData = await uploadToDrive(env, buffer, `img_${Date.now()}`, contentType);
-            fileId = driveData.id;
-          } catch (driveErr) {
-            console.error("Drive Failed:", driveErr.message);
-            fileId = "r2cache_" + crypto.randomUUID();
-            fromDrive = false;
+          // 核心逻辑：确保 Drive 成功即发布成功
+          const driveData = await uploadToDrive(env, buffer, `img_${Date.now()}`, contentType);
+          const fileId = driveData.id;
+
+          // R2 异步后台缓存
+          if (env.COMMUNITY_R2) {
+            ctx.waitUntil(
+              env.COMMUNITY_R2.put(fileId, buffer, { 
+                httpMetadata: { contentType },
+                customMetadata: { source: 'gdrive', uploadedAt: new Date().toISOString() }
+              }).catch(e => console.error("R2 Background Cache Error:", e))
+            );
           }
-          if (env.COMMUNITY_R2) { try { await env.COMMUNITY_R2.put(fileId, buffer, { httpMetadata: { contentType } }); } catch (e) {} }
-          return jsonResp({ ok: true, fileId, url: `/api/community/media/${fileId}`, fromDrive });
-        } catch (e) { return jsonResp({ ok: false, msg: e.message }, 500); }
+
+          return jsonResp({ ok: true, fileId, url: `/api/community/media/${fileId}`, fromDrive: true });
+        } catch (e) { 
+          return jsonResp({ ok: false, msg: "Drive 发布失败: " + e.message }, 500); 
+        }
       }
 
       if (url.pathname.startsWith('/api/community/media/')) {
         const fileId = url.pathname.split('/').pop();
+        
+        // 1. 优先读取 R2 缓存
         if (env.COMMUNITY_R2) {
-          const cache = await env.COMMUNITY_R2.get(fileId);
-          if (cache) return new Response(cache.body, { headers: { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'image/jpeg', 'X-Cache': 'HIT-R2' } });
+          try {
+            const cache = await env.COMMUNITY_R2.get(fileId);
+            if (cache) {
+              return new Response(cache.body, { 
+                headers: { 
+                  'Access-Control-Allow-Origin': '*', 
+                  'Content-Type': cache.httpMetadata.contentType || 'image/jpeg',
+                  'X-Cache': 'HIT-R2',
+                  'Cache-Control': 'public, max-age=31536000'
+                } 
+              });
+            }
+          } catch (e) {}
         }
+
+        // 2. 缓存未命中，从 Drive 读取
         try {
           const drive = await getFromDrive(env, fileId);
-          if (!drive.ok) throw new Error();
+          if (!drive.ok) throw new Error("Drive file not found");
+          const contentType = drive.headers.get('content-type') || 'image/jpeg';
           const buf = await drive.arrayBuffer();
-          if (env.COMMUNITY_R2) { try { await env.COMMUNITY_R2.put(fileId, buf, { httpMetadata: { contentType: 'image/jpeg' } }); } catch (e) {} }
-          return new Response(buf, { headers: { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'image/jpeg', 'X-Cache': 'MISS-GDrive' } });
+
+          // 3. 异步回填 R2 缓存
+          if (env.COMMUNITY_R2) {
+            ctx.waitUntil(
+              env.COMMUNITY_R2.put(fileId, buf, { httpMetadata: { contentType } })
+                .catch(e => console.error("R2 Backfill Error:", e))
+            );
+          }
+
+          return new Response(buf, { 
+            headers: { 
+              'Access-Control-Allow-Origin': '*', 
+              'Content-Type': contentType, 
+              'X-Cache': 'MISS-GDrive',
+              'Cache-Control': 'public, max-age=31536000'
+            } 
+          });
         } catch (e) { return new Response('Media Not Found', { status: 404 }); }
       }
 
