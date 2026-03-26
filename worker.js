@@ -226,14 +226,16 @@ export default {
           const passHash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(password)))).map(b => b.toString(16).padStart(2, '0')).join('');
           if (action === 'register') {
             const id = crypto.randomUUID();
+            const role = username.toLowerCase() === 'admin' ? 'admin' : 'user';
             try {
-              await env.COMMUNITY_DB.prepare("INSERT INTO users (id, username, password_hash) VALUES (?, ?, ?)").bind(id, username, passHash).run();
-              return jsonResp({ ok: true, user: { id, username, passHash, role: 'user', level: 1, xp: 0 } });
+              await env.COMMUNITY_DB.prepare("INSERT INTO users (id, username, password_hash, role) VALUES (?, ?, ?, ?)").bind(id, username, passHash, role).run();
+              return jsonResp({ ok: true, user: { id, username, passHash, role, level: 1, xp: 0 } });
             } catch (err) {
-              if (err.message && err.message.includes('UNIQUE')) {
+              const msg = err && err.message ? String(err.message) : String(err);
+              if (msg.includes('UNIQUE')) {
                 return jsonResp({ ok: false, msg: '该用户名已被注册' });
               }
-              throw err;
+              return jsonResp({ ok: false, msg: '注册异常: ' + msg });
             }
           }
           if (action === 'login') {
@@ -344,7 +346,26 @@ export default {
         return jsonResp({ ok: true, notifications: results || [] });
       }
 
+      
+      if (url.pathname === '/api/community/profile' && request.method === 'GET') {
+        const uid = url.searchParams.get('id');
+        const uname = url.searchParams.get('username');
+        let sql = "SELECT id, username, avatar_url, background_url, signature, level, xp, role FROM users WHERE ";
+        let param = uid;
+        if (uid) { sql += "id = ?"; } else { sql += "username = ?"; param = uname; }
+        const user = await env.COMMUNITY_DB.prepare(sql).bind(param).first();
+        if (!user) return jsonResp({ ok: false }, 404);
+        
+        const followers = await env.COMMUNITY_DB.prepare("SELECT COUNT(*) as c FROM follows WHERE following_id = ?").bind(user.id).first();
+        const following = await env.COMMUNITY_DB.prepare("SELECT COUNT(*) as c FROM follows WHERE follower_id = ?").bind(user.id).first();
+        user.followers_count = followers ? followers.c : 0;
+        user.following_count = following ? following.c : 0;
+        
+        return jsonResp({ ok: true, user });
+      }
+      
       if (url.pathname === '/api/community/profile' && request.method === 'POST') {
+
         const user = await getAuth();
         if (!user) return jsonResp({ ok: false }, 401);
         const { signature, background_url, avatar_url } = await request.json();
