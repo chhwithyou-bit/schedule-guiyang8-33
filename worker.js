@@ -221,21 +221,31 @@ export default {
       };
 
       if (url.pathname === '/api/community/auth' && request.method === 'POST') {
-        const { action, username, password } = await request.json();
-        const passHash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(password)))).map(b => b.toString(16).padStart(2, '0')).join('');
-        if (action === 'register') { 
-          const id = crypto.randomUUID();
-          await env.COMMUNITY_DB.prepare("INSERT INTO users (id, username, password_hash) VALUES (?, ?, ?)").bind(id, username, passHash).run(); 
-          return jsonResp({ ok: true, user: { id, username, passHash, role: 'user', level: 1, xp: 0 } }); 
-        }
-        if (action === 'login') { 
-          const user = await env.COMMUNITY_DB.prepare("SELECT * FROM users WHERE username = ? AND password_hash = ?").bind(username, passHash).first(); 
-          if (!user) return jsonResp({ ok: false, msg: '用户名或密码错误' }, 401); 
-          if (user.is_banned) return jsonResp({ ok: false, msg: '账号已被封禁' }, 403);
-          return jsonResp({ ok: true, user: { id: user.id, username, passHash, role: user.role, level: user.level, xp: user.xp, signature: user.signature, avatar_url: user.avatar_url, background_url: user.background_url } }); 
+        try {
+          const { action, username, password } = await request.json();
+          const passHash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(password)))).map(b => b.toString(16).padStart(2, '0')).join('');
+          if (action === 'register') {
+            const id = crypto.randomUUID();
+            try {
+              await env.COMMUNITY_DB.prepare("INSERT INTO users (id, username, password_hash) VALUES (?, ?, ?)").bind(id, username, passHash).run();
+              return jsonResp({ ok: true, user: { id, username, passHash, role: 'user', level: 1, xp: 0 } });
+            } catch (err) {
+              if (err.message && err.message.includes('UNIQUE')) {
+                return jsonResp({ ok: false, msg: '该用户名已被注册' });
+              }
+              throw err;
+            }
+          }
+          if (action === 'login') {
+            const user = await env.COMMUNITY_DB.prepare("SELECT * FROM users WHERE username = ? AND password_hash = ?").bind(username, passHash).first();
+            if (!user) return jsonResp({ ok: false, msg: '用户名或密码错误' }, 401);
+            if (user.is_banned) return jsonResp({ ok: false, msg: '账号已被封禁' }, 403);
+            return jsonResp({ ok: true, user: { id: user.id, username, passHash, role: user.role, level: user.level, xp: user.xp, signature: user.signature, avatar_url: user.avatar_url, background_url: user.background_url } });
+          }
+        } catch (e) {
+          return jsonResp({ ok: false, msg: '服务端错误: ' + e.message }, 500);
         }
       }
-
       if (url.pathname === '/api/community/posts') {
         if (request.method === 'GET') {
           try {
