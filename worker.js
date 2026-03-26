@@ -160,9 +160,31 @@ export default {
     if (url.pathname === '/api/music') {
       if (request.method === 'GET') {
         try {
-          const playlist = await env.MUSIC_BUCKET.get('playlist.json');
-          if (!playlist) return jsonResp([]);
-          return new Response(playlist.body, { headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } });
+          // 1. 优先尝试获取手动配置的歌单
+          const playlistObj = await env.MUSIC_BUCKET.get('playlist.json');
+          let list = [];
+          if (playlistObj) {
+            list = await playlistObj.json();
+          }
+
+          // 2. 如果手动配置为空，则自动扫描存储桶中的所有 MP3 文件
+          if (!list || list.length === 0) {
+            const listed = await env.MUSIC_BUCKET.list();
+            list = listed.objects
+              .filter(obj => obj.key.toLowerCase().endsWith('.mp3'))
+              .map(obj => {
+                // 将文件名去掉 .mp3 后缀作为歌名
+                const name = obj.key.replace(/\.[^/.]+$/, "");
+                return {
+                  name: decodeURIComponent(name),
+                  artist: 'R2 Drive',
+                  // 使用您的自定义域名拼接链接
+                  url: `https://thefallback.cc.cd/${obj.key}`
+                };
+              });
+          }
+          
+          return jsonResp(list);
         } catch (e) { return jsonResp({ ok: false, msg: e.message }, 500); }
       }
       if (request.method === 'POST') {
