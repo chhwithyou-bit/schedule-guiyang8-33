@@ -137,7 +137,16 @@ async function uploadToDrive(env, fileBuffer, fileName, mimeType) {
 
   const data = await resp.json();
   if (!resp.ok) {
-    throw new Error(`Google Drive API 错误: ${data.error ? data.error.message : JSON.stringify(data)}`);
+    // 提取最核心的错误消息，避免 JSON 太长
+    let errMsg = "未知错误";
+    if (data.error && data.error.message) {
+      errMsg = data.error.message;
+    } else if (data.message) {
+      errMsg = data.message;
+    } else {
+      errMsg = JSON.stringify(data).slice(0, 50);
+    }
+    throw new Error(errMsg.slice(0, 100)); 
   }
   return data;
 }
@@ -474,7 +483,8 @@ export default {
           const r2Url = `https://media.thefallback.cc.cd/${fileId}`;
           return jsonResp({ ok: true, fileId: fileId, url: r2Url });
         } catch (e) {
-          return jsonResp({ ok: false, msg: `上传失败详情: ${e.message}` }, 500);
+          // 去掉多余前缀，让消息更精炼
+          return jsonResp({ ok: false, msg: `错误: ${e.message}` }, 500);
         }
       }
 
