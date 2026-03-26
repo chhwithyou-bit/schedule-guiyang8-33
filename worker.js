@@ -539,75 +539,55 @@ export default {
 
       // ── 5h. Test Google Drive Connection ──
       if (url.pathname === '/api/community/test-drive' && request.method === 'GET') {
-        const debug = {
-          hasGdriveJson: !!env.GDRIVE_JSON,
-          gdriveJsonType: typeof env.GDRIVE_JSON,
-          gdriveJsonLength: env.GDRIVE_JSON ? env.GDRIVE_JSON.length : 0,
-          folderIdValue: env.GDRIVE_FOLDER_ID || "MISSING_EMPTY",
-          hasR2: !!env.COMMUNITY_R2,
-          hasDB: !!env.COMMUNITY_DB
-        };
-
+        const debug = { hasGdriveJson: !!env.GDRIVE_JSON, folderId: env.GDRIVE_FOLDER_ID || "MISSING" };
         try {
-          if (!env.GDRIVE_FOLDER_ID) {
-            return jsonResp({ ok: false, msg: '❌ 变量 GDRIVE_FOLDER_ID 没设置！请去 Cloudflare 后台添加这个变量。', debug }, 400);
-          }
-          if (!env.GDRIVE_JSON || env.GDRIVE_JSON === 'undefined') {
-            return jsonResp({ ok: false, msg: '❌ 变量 GDRIVE_JSON 没设置！请在 Cloudflare Settings -> Variables -> Secrets 中添加它。', debug }, 400);
-          }
-
-          let json;
-          try {
-            json = JSON.parse(env.GDRIVE_JSON);
-          } catch (e) {
-            return jsonResp({ ok: false, msg: '❌ GDRIVE_JSON 格式不对，无法解析为 JSON。', debug, error: e.message }, 400);
-          }
-
-          const email = json.client_email;
-          if (!email) return jsonResp({ ok: false, msg: '❌ GDRIVE_JSON 中缺失 client_email', debug }, 400);
-
-          let token;
-          try {
-            token = await getGoogleAuthToken(env);
-          } catch (e) {
-            return jsonResp({ ok: false, msg: '❌ 生成 Google Auth Token 失败，可能是私钥格式错误', debug, error: e.message }, 500);
-          }
-          
+          const token = await getGoogleAuthToken(env);
           const testUrl = `https://www.googleapis.com/drive/v3/files/${env.GDRIVE_FOLDER_ID}?fields=id,name&supportsAllDrives=true`;
-          const resp = await fetch(testUrl, {
-            headers: { 'Authorization': `Bearer ${token}` }
+          const resp = await fetch(testUrl, { headers: { 'Authorization': `Bearer ${token}` } });
+          const data = await resp.json();
+          if (!resp.ok) return jsonResp({ ok: false, msg: '读测试失败', error: data }, resp.status);
+
+          let writeTest = "正在测试...";
+          const uploadResp = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: 'write_test.txt', parents: [env.GDRIVE_FOLDER_ID] })
           });
-
-          const textDrive = await resp.text();
-          let data;
-          try {
-            data = JSON.parse(textDrive);
-          } catch (e) {
-            return jsonResp({ 
-              ok: false, 
-              msg: '❌ 访问文件夹返回了非 JSON 内容', 
-              attemptedUrl: testUrl.split('?')[0],
-              rawResponse: textDrive.slice(0, 200),
-              debug 
-            }, resp.status);
-          }
-
-          if (resp.ok) {
-            return jsonResp({ 
-              ok: true, 
-              msg: '✅ Google Drive 连接成功！', 
-              folderName: data.name, 
-              serviceAccountEmail: email,
-              tip: `请确保已在谷歌网盘中将文件夹共享给了: ${email}`
+          const uploadData = await uploadResp.json();
+          if (uploadResp.ok) {
+            writeTest = "✅ 写入正常";
+            await fetch(`https://www.googleapis.com/drive/v3/files/${uploadData.id}?supportsAllDrives=true`, {
+              method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` }
             });
           } else {
-            return jsonResp({ 
-              ok: false, 
-              msg: '❌ 谷歌 API 返回错误', 
-              error: data.error, 
-              serviceAccountEmail: email,
-              debug 
-            }, resp.status);
+            writeTest = `❌ 写入失败: ${uploadData.error ? uploadData.error.message : '未知'}`;
+          }
+          return jsonResp({ ok: true, msg: '诊断完成', folderName: data.name, writeTest });
+        } catch (e) {
+          return jsonResp({ ok: false, msg: '诊断报错', error: e.message }, 500);
+        }
+      }
+
+      return jsonResp({ ok: false, msg: 'Community Endpoint Not Found' }, 404);
+    }
+
+    // ── 6. 象棋页面跳转 ────────────────────────────────────
+    if (url.pathname === '/chess' || url.pathname === '/chess/' || url.pathname === '/chess/index.html') {
+      return Response.redirect(url.origin + '/?page=xiangqi', 302);
+    }
+
+    // ── 5. 静态资源 ─────────────────────────────────────────
+    if (url.pathname.startsWith('/chess/') || url.pathname.match(/\.(js|jpg|jpeg|png|gif|ico|svg|css|wav|mp3|woff|woff2|ttf)$/)) {
+      return env.ASSETS.fetch(request);
+    }
+
+    // ── 6. 主页面 ───────────────────────────────────────────
+    return new Response(htmlContent, {
+      headers: { 'Content-Type': 'text/html;charset=UTF-8' },
+    });
+  },
+};
+           }, resp.status);
           }
         } catch (e) {
           return jsonResp({ ok: false, msg: '❌ 运行出错', error: e.message, debug }, 500);
