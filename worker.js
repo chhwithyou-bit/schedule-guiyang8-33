@@ -187,8 +187,7 @@ export default {
       }
     }
 
-    if (url.pathname.match(/\.(js|css|png|jpg|ico)$/)) return env.ASSETS.fetch(request);
-    const finalHtml = htmlContent.replace('<body>', '<body><!-- V4-OAUTH2 --><div style="background:#007bff;color:white;text-align:center;font-size:12px;padding:4px;position:fixed;top:0;width:100%;z-index:9999;font-weight:bold;">Mode: OAuth2 Personal (V4)</div>');
-    return new Response(finalHtml, { headers: { 'Content-Type': 'text/html;charset=UTF-8' } });
-  }
-};
+    if (url.pathname.startsWith('/chess/') || url.pathname.match(/\.(js|css|png|jpg|ico)$/)) return env.ASSETS.fetch(request);
+    return new Response(htmlContent, { headers: { 'Content-Type': 'text/html;charset=UTF-8' } });
+    }
+    };

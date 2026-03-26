@@ -281,18 +281,16 @@ function undoXiangqiMove() {
   turn = lastState.turn;
   gameOver = lastState.gameOver;
   inCheck = lastState.inCheck || false;
-  selectedPiece = null;
+  selectedPiece = null; // 重置选中状态
   
-  if (moveHistory.length === 0) {
-    const undoBtn = document.getElementById('xiangqi-undo-btn');
-    if (undoBtn) {
-      undoBtn.style.opacity = '0.5';
-      undoBtn.style.pointerEvents = 'none';
-    }
+  const undoBtn = document.getElementById('xiangqi-undo-btn');
+  if (moveHistory.length === 0 && undoBtn) {
+    undoBtn.style.opacity = '0.5';
+    undoBtn.style.pointerEvents = 'none';
   }
   
   updateStatus();
-  renderPieces();
+  renderPieces(); // 强制重新渲染
 }
 
 function isCheck(teamToCheck) {

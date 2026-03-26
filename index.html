@@ -1333,12 +1333,11 @@ async function adminSetAdminPwd() {
     <div style="text-align:center; padding:40px; color:var(--t3);">加载中...</div>
   </div>
 
-  <button id="comm-post-fab" onclick="openCommPostModal()" 
-    style="position:fixed; bottom:30px; right:20px; width:56px; height:56px; border-radius:28px; background:var(--accent); border:none; color:white; font-size:24px; box-shadow:0 8px 24px rgba(255,119,16,0.4); z-index:200; display:none; align-items:center; justify-content:center;">+</button>
-</div>
+  <button id="comm-post-fab" onclick="openCommPostModal()"
+    style="position:fixed; bottom:110px; right:25px; width:64px; height:64px; border-radius:32px; background:var(--accent); border:none; color:white; font-size:32px; box-shadow:0 12px 32px rgba(255,119,16,0.5); z-index:9999; display:none; align-items:center; justify-content:center; -webkit-tap-highlight-color:transparent;">+</button>
+  </div>
 
-<!-- Community Auth Modal -->
-<div class="modal-overlay" id="commAuthModal">
+  <!-- Community Auth Modal --><div class="modal-overlay" id="commAuthModal">
   <div class="modal" style="max-width:340px; margin: auto;">
     <button class="close-modal" onclick="closeCommAuth()">✕</button>
     <div class="modal-title">社区通行证</div>
