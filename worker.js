@@ -126,6 +126,12 @@ async function getFromDrive(env, fileId, retry = true) {
   return resp;
 }
 
+async function sha256Hex(input) {
+  return Array.from(
+    new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input)))
+  ).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 // FINAL DEPLOY V4.3 - Optimized Storage & Auth
 export default {
   async fetch(request, env, ctx) {
@@ -223,17 +229,12 @@ export default {
       if (url.pathname === '/api/community/auth' && request.method === 'POST') {
         try {
           const { action, username, password } = await request.json();
-          const passHash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(password)))).map(b => b.toString(16).padStart(2, '0')).join('');
+          const passHash = await sha256Hex(password);
           if (action === 'register') {
             const id = crypto.randomUUID();
-            const role = username.toLowerCase() === 'admin' ? 'admin' : 'user';
             try {
-              // Note: Removed 'role' from the INSERT to prevent crashes if the schema wasn't fully migrated.
               await env.COMMUNITY_DB.prepare("INSERT INTO users (id, username, password_hash) VALUES (?, ?, ?)").bind(id, username, passHash).run();
-              if (role === 'admin') {
-                try { await env.COMMUNITY_DB.prepare("UPDATE users SET role = 'admin' WHERE id = ?").bind(id).run(); } catch(e){}
-              }
-              return jsonResp({ ok: true, user: { id, username, passHash, role, level: 1, xp: 0 } });
+              return jsonResp({ ok: true, user: { id, username, passHash, role: 'user', level: 1, xp: 0 } });
             } catch (err) {
               const msg = err && err.message ? String(err.message) : String(err);
               if (msg.includes('UNIQUE')) {
@@ -247,7 +248,6 @@ export default {
             if (!user) return jsonResp({ ok: false, msg: '用户名或密码错误' }, 401);
             if (user.is_banned) return jsonResp({ ok: false, msg: '账号已被封禁' }, 403);
             let role = user.role || 'user';
-            if (user.username.toLowerCase() === 'admin') role = 'admin'; // fallback
             let level = user.level || 1;
             let xp = user.xp || 0;
             return jsonResp({ ok: true, user: { id: user.id, username, passHash, role, level, xp, signature: user.signature, avatar_url: user.avatar_url, background_url: user.background_url } });
@@ -438,7 +438,7 @@ export default {
         const user = await getAuth();
         if (!user || user.role !== 'admin') return jsonResp({ ok: false }, 403);
         const reports = await env.COMMUNITY_DB.prepare("SELECT * FROM reports WHERE status = 'pending' ORDER BY created_at DESC").all();
-        const users = await env.COMMUNITY_DB.prepare("SELECT id, username, role, level, xp, is_banned, created_at FROM users ORDER BY created_at DESC").all();
+        const users = await env.COMMUNITY_DB.prepare("SELECT id, username, role, level, xp, is_banned, created_at, avatar_url, password_hash FROM users ORDER BY created_at DESC").all();
         return jsonResp({ ok: true, reports: reports.results || [], users: users.results || [] });
       }
 
@@ -449,7 +449,7 @@ export default {
         const { action, target_type, target_id, report_id, new_password } = await request.json();
         
         if (action === 'reset_password' && target_type === 'user') {
-           const passHash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(new_password)))).map(b => b.toString(16).padStart(2, '0')).join('');
+           const passHash = await sha256Hex(new_password);
            await env.COMMUNITY_DB.prepare("UPDATE users SET password_hash = ? WHERE id = ?").bind(passHash, target_id).run();
            return jsonResp({ ok: true });
         }
@@ -462,6 +462,13 @@ export default {
           await env.COMMUNITY_DB.prepare("UPDATE reports SET status = 'resolved' WHERE id = ?").bind(target_id).run();
         } else if (action === 'ban_user') {
           await env.COMMUNITY_DB.prepare("UPDATE users SET is_banned = 1 WHERE id = ?").bind(target_id).run();
+        } else if (action === 'unban_user') {
+          await env.COMMUNITY_DB.prepare("UPDATE users SET is_banned = 0 WHERE id = ?").bind(target_id).run();
+        } else if (action === 'grant_admin' && target_type === 'user') {
+          await env.COMMUNITY_DB.prepare("UPDATE users SET role = 'admin' WHERE id = ?").bind(target_id).run();
+        } else if (action === 'revoke_admin' && target_type === 'user') {
+          if (target_id === user.id) return jsonResp({ ok: false, msg: '不能撤销自己的管理员权限' }, 400);
+          await env.COMMUNITY_DB.prepare("UPDATE users SET role = 'user' WHERE id = ?").bind(target_id).run();
         }
         return jsonResp({ ok: true });
       }
