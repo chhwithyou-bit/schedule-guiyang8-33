@@ -152,12 +152,39 @@ function cleanPreviewTitle(title, host) {
   if (host.includes('bilibili.com') || host === 'b23.tv') {
     return raw.replace(/[-_ ]*哔哩哔哩.*$/i, '').replace(/[-_ ]*bilibili.*$/i, '').trim();
   }
+  if (host.includes('xiaohongshu.com')) {
+    return raw.replace(/[-_ ]*小红书.*$/i, '').trim();
+  }
+  if (host.includes('douyin.com')) {
+    return raw.replace(/[-_ ]*抖音.*$/i, '').trim();
+  }
+  if (host.includes('weibo.com')) {
+    return raw.replace(/[-_ ]*微博.*$/i, '').trim();
+  }
+  if (host.includes('youtube.com') || host === 'youtu.be') {
+    return raw.replace(/[-_ ]*youtube.*$/i, '').trim();
+  }
   return raw;
 }
 
-function isAllowedPreviewHost(hostname) {
-  const host = String(hostname || '').toLowerCase();
-  return ['b23.tv', 'bilibili.com', 'www.bilibili.com', 'm.bilibili.com', 'youtube.com', 'www.youtube.com', 'youtu.be'].includes(host);
+function isPrivatePreviewHost(hostname) {
+  const host = String(hostname || '').toLowerCase().replace(/^\[|\]$/g, '');
+  if (!host) return true;
+  if (host === 'localhost' || host === '0.0.0.0' || host === '::1') return true;
+  if (host.endsWith('.local') || host.endsWith('.internal') || host.endsWith('.home') || host.endsWith('.lan')) return true;
+  if (/^127\./.test(host) || /^10\./.test(host) || /^192\.168\./.test(host) || /^169\.254\./.test(host)) return true;
+  if (/^172\.(1[6-9]|2\d|3[0-1])\./.test(host)) return true;
+  if (/^(fc|fd|fe80):/i.test(host)) return true;
+  return false;
+}
+
+function absolutizePreviewUrl(value, baseUrl) {
+  if (!value) return '';
+  try {
+    return new URL(value, baseUrl).toString();
+  } catch (e) {
+    return value;
+  }
 }
 
 // FINAL DEPLOY V4.3 - Optimized Storage & Auth
@@ -299,7 +326,7 @@ export default {
           if (!rawUrl) return jsonResp({ ok: false, msg: '缺少链接' }, 400);
           const target = new URL(rawUrl);
           if (!['http:', 'https:'].includes(target.protocol)) return jsonResp({ ok: false, msg: '链接协议不支持' }, 400);
-          if (!isAllowedPreviewHost(target.hostname)) return jsonResp({ ok: false, msg: '暂不支持该链接预览' }, 400);
+          if (isPrivatePreviewHost(target.hostname)) return jsonResp({ ok: false, msg: '该链接不允许预览' }, 400);
 
           const resp = await fetch(target.toString(), {
             redirect: 'follow',
@@ -312,12 +339,17 @@ export default {
 
           const finalUrl = resp.url || target.toString();
           const final = new URL(finalUrl);
+          if (isPrivatePreviewHost(final.hostname)) return jsonResp({ ok: false, msg: '该链接不允许预览' }, 400);
           const html = await resp.text();
           const title = cleanPreviewTitle(
             extractMetaTag(html, 'og:title') || extractMetaTag(html, 'twitter:title', 'name') || extractTitle(html),
             final.hostname
           );
-          const image = extractMetaTag(html, 'og:image') || extractMetaTag(html, 'twitter:image', 'name');
+          const image = absolutizePreviewUrl(
+            extractMetaTag(html, 'og:image') || extractMetaTag(html, 'twitter:image', 'name'),
+            finalUrl
+          );
+          const description = extractMetaTag(html, 'og:description') || extractMetaTag(html, 'description', 'name') || extractMetaTag(html, 'twitter:description', 'name');
           if (!title) return jsonResp({ ok: false, msg: '未解析到标题' }, 404);
 
           return jsonResp({
@@ -326,6 +358,7 @@ export default {
               url: finalUrl,
               title,
               image,
+              description: String(description || '').trim(),
               host: final.hostname.replace(/^www\./, '')
             }
           });
