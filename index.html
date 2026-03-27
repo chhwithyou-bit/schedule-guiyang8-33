@@ -4227,12 +4227,9 @@ scheduleInit();
 
         const isLeft = (left + 26) < W / 2;
         
-        // 质感自我推送：向内蹬开
-        let targetLeft = isLeft ? Math.max(22, left + 14) : Math.max(8, left - (CARD_W - 52) - 14);
+        // 紧贴边缘逻辑：如果是左侧，死贴在 -2px；如果是右侧，死贴在右边
+        let targetLeft = isLeft ? -2 : (W - CARD_W + 2);
         
-        if (targetLeft + CARD_W > W - 8) targetLeft = W - CARD_W - 8;
-        if (targetLeft < 8) targetLeft = 8;
-
         // 设置极具质感的慢速动画曲线
         const SPRING_T = '0.68s cubic-bezier(0.23, 1, 0.32, 1)';
         mp.style.transition = [
@@ -4355,21 +4352,14 @@ scheduleInit();
     const W = window.innerWidth;
     const r = mp.getBoundingClientRect();
     const centerX = r.left + r.width / 2;
-    let targetX = 12;
     const isLeft = centerX < W / 2;
-    if (!isLeft) targetX = W - r.width - 12;
+    // 零间距吸附：稍微伸出 2px 藏住边框
+    let targetX = isLeft ? -2 : (W - r.width + 2);
 
-    mp.style.transition = 'all 0.45s cubic-bezier(0.18, 0.89, 0.32, 1.28)';
+    mp.style.transition = 'all 0.5s cubic-bezier(0.23, 1, 0.32, 1)';
     mp.style.left = targetX + 'px';
     _collapseLeft = targetX;
     _collapseTop = parseFloat(mp.style.top);
-
-    // 同步更新背景推开方向
-    const page = document.querySelector('.page.active');
-    if (page && open) {
-      page.classList.remove('pushed-right', 'pushed-left');
-      page.classList.add(isLeft ? 'pushed-right' : 'pushed-left');
-    }
   }
 
   document.addEventListener('touchend',()=>{
