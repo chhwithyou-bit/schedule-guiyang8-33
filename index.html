@@ -2263,6 +2263,8 @@ let adminUsersCache = [];
 let profileRemovals = { avatar: false, banner: false };
 let currentAnnouncement = null;
 let announcementPollTimer = null;
+let communityRoleSyncTimer = null;
+let communityRoleSyncPromise = null;
 
 function isAdminRole(role) {
   return role === 'admin' || role === 'owner';
@@ -2341,6 +2343,71 @@ function updateCommUI() {
     fab.style.display = 'none';
     if (adminNav) adminNav.style.display = 'none';
   }
+}
+
+async function syncCurrentCommunityUser(options = {}) {
+  const { silent = true, force = false, source = '' } = options;
+  if (!commUser?.id) return null;
+  if (communityRoleSyncPromise && !force) return communityRoleSyncPromise;
+  const authHeader = getCommAuthHeader(false);
+  if (!authHeader) return null;
+
+  communityRoleSyncPromise = (async () => {
+    try {
+      const r = await trackedFetch(`/api/community/profile?id=${encodeURIComponent(commUser.id)}`, {
+        headers: { 'Authorization': authHeader }
+      });
+      const d = await r.json();
+      if (!d.ok || !d.user) return null;
+
+      const nextUser = normalizeCommunityUserRole({ ...commUser, ...d.user });
+      const roleChanged = nextUser.role !== commUser.role;
+      const avatarChanged = nextUser.avatar_url !== commUser.avatar_url;
+      const backgroundChanged = nextUser.background_url !== commUser.background_url;
+      const signatureChanged = nextUser.signature !== commUser.signature;
+
+      commUser = nextUser;
+      localStorage.setItem('commUser', JSON.stringify(commUser));
+      updateCommUI();
+
+      if (roleChanged) {
+        if (!silent) showToast('账号身份已同步更新', 'info');
+        if (currentPage === 'admin' && !isAdminRole(commUser.role)) {
+          navTo('community', false);
+        } else if (currentPage === 'admin') {
+          loadAdminData();
+        }
+        if (currentPage === 'community' || currentPage === 'post') {
+          loadCommPosts();
+        }
+      } else if ((avatarChanged || backgroundChanged || signatureChanged) && currentPage === 'profile') {
+        const profileUserId = history.state?.userId || '';
+        const profileUsername = history.state?.username || '';
+        const isMyProfile = !profileUserId || profileUserId === commUser.id || profileUsername === commUser.username;
+        if (isMyProfile) {
+          renderProfileHeader(commUser.id, false, commUser.id);
+        }
+      }
+
+      return { user: commUser, roleChanged, source };
+    } catch (e) {
+      if (!silent) showToast('身份同步失败', 'error');
+      return null;
+    } finally {
+      communityRoleSyncPromise = null;
+    }
+  })();
+
+  return communityRoleSyncPromise;
+}
+
+function startCommunityRoleSync() {
+  if (communityRoleSyncTimer) return;
+  communityRoleSyncTimer = setInterval(() => {
+    if (document.visibilityState === 'visible' && commUser?.id) {
+      syncCurrentCommunityUser({ silent: true, source: 'poll' });
+    }
+  }, 30000);
 }
 
 function renderAdminUsers() {
@@ -2446,6 +2513,7 @@ function startAnnouncementPolling() {
 }
 
 async function loadAdminData() {
+  await syncCurrentCommunityUser({ silent: true, source: 'load-admin' });
   if (!commUser || !isAdminRole(commUser.role)) return;
   const reportList = document.getElementById('admin-reports-list');
   
@@ -2491,7 +2559,11 @@ async function adminAction(action, type, id, reportId = null) {
       body: JSON.stringify({ action, target_type: type, target_id: id, report_id: reportId })
     });
     const d = await r.json();
-    if (d.ok) { showToast('操作成功', 'success'); loadAdminData(); }
+    if (d.ok) {
+      showToast('操作成功', 'success');
+      await syncCurrentCommunityUser({ silent: false, force: true, source: 'admin-action' });
+      loadAdminData();
+    }
     else { showToast(d.msg || '操作失败', 'error'); }
   } catch(e) { showToast('操作失败', 'error'); }
 }
@@ -3299,6 +3371,7 @@ async function commAuth(action) {
       updateCommUI();
       closeCommAuth();
       showToast(action === 'login' ? '欢迎回来' : '注册成功', 'success');
+      syncCurrentCommunityUser({ silent: true, force: true, source: 'login' });
       loadCommPosts();
     } else {
       showToast(d.msg, 'error');
@@ -3537,6 +3610,13 @@ document.addEventListener('click', (e) => {
 updateCommUI();
 maybeShowAnnouncement();
 startAnnouncementPolling();
+startCommunityRoleSync();
+if (commUser?.id) syncCurrentCommunityUser({ silent: true, force: true, source: 'boot' });
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && commUser?.id) {
+    syncCurrentCommunityUser({ silent: true, force: true, source: 'visibility' });
+  }
+});
 </script>
 
 <script>
@@ -3552,7 +3632,7 @@ function redirectToCommunityAfterLogout() {
   loadCommPosts();
 }
 
-function navTo(page, push = true) {
+async function navTo(page, push = true) {
   closeDrawer();
   if (page === currentPage || _navLock) return;
   _navLock = true;
@@ -3563,6 +3643,7 @@ function navTo(page, push = true) {
   if (!to) return;
   
   if (page === 'admin') {
+    if (commUser?.id) await syncCurrentCommunityUser({ silent: true, force: true, source: 'nav-admin' });
     if (!commUser || !isAdminRole(commUser.role)) {
       showToast('需要管理员权限', 'error');
       navTo('community', false);
