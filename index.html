@@ -1306,6 +1306,7 @@ function nodesLogout() {
   nodesAdminUser = '';
   if (window.musicSetAdminMode) musicSetAdminMode(false);
   showUserLogin();
+  redirectToCommunityAfterLogout();
   showToast('已退出登录', 'info');
 }
 
@@ -2487,6 +2488,7 @@ function commLogout() {
   commUser = null;
   localStorage.removeItem('commUser');
   updateCommUI();
+  redirectToCommunityAfterLogout();
   showToast('已退出登录', 'info');
 }
 
@@ -2727,6 +2729,15 @@ startAnnouncementPolling();
 <script>
 let currentPage = 'community';
 let _navLock = false;
+
+function redirectToCommunityAfterLogout() {
+  history.replaceState({ page: 'community' }, '', '/');
+  if (currentPage !== 'community') {
+    navTo('community', false);
+    return;
+  }
+  loadCommPosts();
+}
 
 function navTo(page, push = true) {
   closeDrawer();
