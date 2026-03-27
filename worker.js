@@ -387,8 +387,9 @@ function getBilibiliCanonicalUrl(bvid) {
   return `https://www.bilibili.com/video/${encodeURIComponent(bvid)}`;
 }
 
-function getBilibiliEmbedUrl(bvid) {
-  return `https://player.bilibili.com/player.html?bvid=${encodeURIComponent(bvid)}&page=1&as_wide=1&high_quality=1&danmaku=0`;
+function isYouTubeHost(hostname) {
+  const host = String(hostname || '').toLowerCase();
+  return host === 'youtu.be' || host === 'youtube.com' || host === 'www.youtube.com' || host === 'm.youtube.com';
 }
 
 function normalizeBilibiliImageUrl(value) {
@@ -436,10 +437,8 @@ async function fetchBilibiliPreview(targetUrl) {
       url: getBilibiliCanonicalUrl(bvid),
       title: `Bilibili 视频 ${bvid}`,
       image: '',
-      description: '官方播放器预览',
-      host: 'bilibili.com',
-      embedUrl: getBilibiliEmbedUrl(bvid),
-      embedType: 'iframe'
+      description: 'Bilibili 视频链接',
+      host: 'bilibili.com'
     };
   }
 
@@ -453,9 +452,59 @@ async function fetchBilibiliPreview(targetUrl) {
     title: cleanPreviewTitle(data.title, host),
     image: normalizeBilibiliImageUrl(data.pic),
     description: description && description !== '-' ? description : (ownerName ? `UP主：${ownerName}` : ''),
-    host,
-    embedUrl: getBilibiliEmbedUrl(bvid),
-    embedType: 'iframe'
+    host
+  };
+}
+
+function extractYouTubeVideoId(targetUrl) {
+  try {
+    const url = new URL(targetUrl);
+    if (url.hostname === 'youtu.be') {
+      return url.pathname.replace(/^\/+/, '').split('/')[0];
+    }
+    if (url.pathname === '/watch') {
+      return url.searchParams.get('v') || '';
+    }
+    const parts = url.pathname.split('/').filter(Boolean);
+    if (parts[0] === 'shorts' || parts[0] === 'embed' || parts[0] === 'live') {
+      return parts[1] || '';
+    }
+  } catch {}
+  return '';
+}
+
+function getYouTubeCanonicalUrl(videoId, fallbackUrl = '') {
+  if (videoId) return `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`;
+  return String(fallbackUrl || '');
+}
+
+function normalizeYouTubeImageUrl(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (raw.startsWith('//')) return `https:${raw}`;
+  return raw;
+}
+
+async function fetchYouTubePreview(targetUrl) {
+  const canonicalUrl = getYouTubeCanonicalUrl(extractYouTubeVideoId(targetUrl), targetUrl);
+  const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(targetUrl)}&format=json`;
+  const resp = await fetchWithTimeout(oembedUrl, {
+    headers: {
+      'user-agent': 'Mozilla/5.0 (compatible; 8communityBot/1.0; +https://thefallback.cc.cd)',
+      'accept': 'application/json'
+    }
+  });
+  if (!resp.ok) return null;
+
+  const data = await resp.json();
+  if (!data?.title) return null;
+
+  return {
+    url: canonicalUrl,
+    title: cleanPreviewTitle(data.title, 'youtube.com'),
+    image: normalizeYouTubeImageUrl(data.thumbnail_url),
+    description: data.author_name ? `频道：${String(data.author_name).trim()}` : '',
+    host: 'youtube.com'
   };
 }
 
@@ -620,6 +669,12 @@ export default {
           const target = new URL(rawUrl);
           if (!['http:', 'https:'].includes(target.protocol)) return jsonResp({ ok: false, msg: '链接协议不支持' }, 400);
           if (isPrivatePreviewHost(target.hostname)) return jsonResp({ ok: false, msg: '该链接不允许预览' }, 400);
+          if (isYouTubeHost(target.hostname)) {
+            const youtubePreview = await fetchYouTubePreview(target.toString());
+            if (youtubePreview) {
+              return jsonResp({ ok: true, preview: youtubePreview });
+            }
+          }
           if (/(^|\.)bilibili\.com$/i.test(target.hostname) || target.hostname === 'b23.tv') {
             const bilibiliPreview = await fetchBilibiliPreview(target.toString());
             if (bilibiliPreview) {
