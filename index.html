@@ -527,6 +527,27 @@ html, body {
 .sync-indicator { font-size:11px; color:var(--t3); text-align:center; padding:4px 0 2px; }
 
 /* Global Toast */
+#app-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  z-index: 12000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s ease;
+}
+#app-progress.visible { opacity: 1; }
+#app-progress-bar {
+  width: 100%;
+  height: 100%;
+  transform-origin: left center;
+  transform: scaleX(0);
+  background: linear-gradient(90deg, var(--accent), var(--accent2), #ffd39b);
+  box-shadow: 0 0 18px rgba(255, 119, 16, 0.45);
+  transition: transform 0.28s cubic-bezier(.22,.8,.32,1);
+}
 #g-toast {
   position: fixed; top: 62px; left: 50%;
   transform: translateX(-50%) translateY(-22px);
@@ -817,9 +838,71 @@ html, body {
 .waterfall-container { column-count: 1; column-gap: 16px; }
 @media (min-width: 600px) { .waterfall-container { column-count: 2; } }
 @media (min-width: 900px) { .waterfall-container { column-count: 3; } }
+.stream-card,
+.comment-card,
+.profile-card {
+  animation: staggerIn 0.38s cubic-bezier(.22,.8,.32,1) both;
+}
 
 .lazy-img { opacity: 0; transition: opacity 0.4s; background: var(--s3); }
 .lazy-img.loaded { opacity: 1; }
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: rgba(255,255,255,0.06);
+}
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
+  animation: shimmer 1.25s ease-in-out infinite;
+}
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
+.skeleton-line { height: 12px; border-radius: 999px; }
+.skeleton-line.lg { height: 18px; }
+.skeleton-circle { border-radius: 999px; }
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--t3);
+}
+.empty-state.error { color: #fca5a5; }
+.engage-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: color 0.2s, transform 0.16s ease, opacity 0.16s ease;
+  color: inherit;
+}
+.engage-btn:active { transform: scale(0.96); }
+.engage-btn.liked { color: #f87171; }
+.engage-btn.busy { opacity: 0.65; pointer-events: none; }
+.profile-action-btn {
+  margin-left: auto;
+  border: none;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 6px 16px;
+  transition: transform 0.16s ease, opacity 0.16s ease, background 0.2s ease, color 0.2s ease;
+}
+.profile-action-btn:active { transform: scale(0.97); }
+.profile-action-btn.following {
+  background: rgba(255,255,255,0.06);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.profile-action-btn.primary {
+  background: var(--accent);
+  color: white;
+}
 
 @keyframes popHeart { 0% { transform: scale(1); } 50% { transform: scale(1.3); } 100% { transform: scale(1); } }
 @keyframes flyParticle { 0% { transform: translate(0, 0) scale(1); opacity: 1; } 100% { transform: translate(var(--dx), var(--dy)) scale(0); opacity: 0; } }
@@ -836,6 +919,7 @@ html, body {
 <canvas id="bg-canvas"></canvas>
 <div id="bg-img"></div>
 
+<div id="app-progress"><div id="app-progress-bar"></div></div>
 <div id="g-toast"><div id="g-toast-inner"></div></div>
 <div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
 <div class="drawer" id="drawer">
@@ -1277,6 +1361,165 @@ async function readFileAsArrayBuffer(file) {
     reader.onerror = () => reject(new Error('文件读取失败'));
     reader.readAsArrayBuffer(file);
   });
+}
+
+const appProgressState = { active: 0, value: 0, timer: null };
+
+function setAppProgress(value) {
+  const bar = document.getElementById('app-progress-bar');
+  if (!bar) return;
+  appProgressState.value = Math.max(0, Math.min(1, value));
+  bar.style.transform = `scaleX(${appProgressState.value})`;
+}
+
+function startAppProgress() {
+  const wrap = document.getElementById('app-progress');
+  if (!wrap) return;
+  appProgressState.active += 1;
+  if (appProgressState.timer) clearInterval(appProgressState.timer);
+  wrap.classList.add('visible');
+  if (appProgressState.value < 0.12) setAppProgress(0.12);
+  appProgressState.timer = setInterval(() => {
+    if (appProgressState.value >= 0.82) return;
+    setAppProgress(appProgressState.value + (1 - appProgressState.value) * 0.08);
+  }, 140);
+}
+
+function finishAppProgress() {
+  const wrap = document.getElementById('app-progress');
+  if (!wrap) return;
+  appProgressState.active = Math.max(0, appProgressState.active - 1);
+  if (appProgressState.active > 0) return;
+  if (appProgressState.timer) {
+    clearInterval(appProgressState.timer);
+    appProgressState.timer = null;
+  }
+  setAppProgress(1);
+  setTimeout(() => {
+    wrap.classList.remove('visible');
+    setAppProgress(0);
+  }, 180);
+}
+
+async function trackedFetch(input, init) {
+  startAppProgress();
+  try {
+    return await fetch(input, init);
+  } finally {
+    finishAppProgress();
+  }
+}
+
+function renderEmptyState(message, type = '') {
+  return `<div class="empty-state${type ? ' ' + type : ''}">${message}</div>`;
+}
+
+function renderPostSkeletons(count = 6) {
+  const cards = Array.from({ length: count }, () => `
+    <div class="glass-card waterfall-item" style="padding:16px; display:flex; flex-direction:column; gap:12px;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div class="skeleton skeleton-circle" style="width:38px; height:38px;"></div>
+        <div style="flex:1; display:flex; flex-direction:column; gap:8px;">
+          <div class="skeleton skeleton-line" style="width:120px;"></div>
+          <div class="skeleton skeleton-line" style="width:80px; opacity:0.55;"></div>
+        </div>
+      </div>
+      <div class="skeleton skeleton-line lg" style="width:88%;"></div>
+      <div class="skeleton skeleton-line" style="width:100%;"></div>
+      <div class="skeleton skeleton-line" style="width:68%;"></div>
+      <div class="skeleton" style="width:100%; height:190px; border-radius:14px;"></div>
+      <div style="display:flex; gap:14px; padding-top:8px;">
+        <div class="skeleton skeleton-line" style="width:54px;"></div>
+        <div class="skeleton skeleton-line" style="width:54px;"></div>
+        <div class="skeleton skeleton-line" style="width:54px;"></div>
+      </div>
+    </div>
+  `).join('');
+  return `<div class="waterfall-container">${cards}</div>`;
+}
+
+function renderCommentSkeletons(count = 4) {
+  return Array.from({ length: count }, () => `
+    <div class="comment-card" style="display:flex; gap:10px;">
+      <div class="skeleton skeleton-circle" style="width:32px; height:32px; flex-shrink:0;"></div>
+      <div style="flex:1; display:flex; flex-direction:column; gap:8px;">
+        <div class="skeleton skeleton-line" style="width:110px;"></div>
+        <div class="skeleton skeleton-line" style="width:100%;"></div>
+        <div class="skeleton skeleton-line" style="width:72%;"></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderProfileSkeleton(label = '加载中...') {
+  return `
+    <div class="profile-card">
+      <div class="skeleton" style="height:160px;"></div>
+      <div class="profile-info">
+        <div class="skeleton skeleton-circle" style="width:80px; height:80px;"></div>
+        <div class="profile-meta" style="display:flex; flex-direction:column; gap:10px;">
+          <div class="skeleton skeleton-line lg" style="width:150px;"></div>
+          <div class="skeleton skeleton-line" style="width:220px;"></div>
+        </div>
+        <div class="profile-progress">
+          <div class="skeleton skeleton-line" style="width:100%;"></div>
+        </div>
+        <div class="profile-stats">
+          <div class="stat-item"><span class="skeleton skeleton-line" style="width:40px;"></span></div>
+          <div class="stat-item"><span class="skeleton skeleton-line" style="width:40px;"></span></div>
+          <div class="stat-item"><span class="skeleton skeleton-line" style="width:64px;"></span></div>
+          <div class="profile-action-btn following" style="cursor:default;">${label}</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function getCommAuthHeader(strict = true) {
+  if (!commUser?.username || !commUser?.passHash) {
+    if (strict) {
+      commUser = null;
+      localStorage.removeItem('commUser');
+      updateCommUI();
+      openCommAuth();
+      showToast('登录状态已失效，请重新登录', 'error');
+    }
+    return null;
+  }
+  return `Bearer ${commUser.username}:${commUser.passHash}`;
+}
+
+function patchMetricNodes(postId, action, updater) {
+  document.querySelectorAll(`[data-post-id="${postId}"][data-action="${action}"] span`).forEach(node => {
+    const current = parseInt(node.textContent || '0', 10) || 0;
+    node.textContent = String(typeof updater === 'function' ? updater(current) : updater);
+  });
+}
+
+function syncLikeButtons(postId, liked) {
+  document.querySelectorAll(`[data-post-id="${postId}"][data-action="like"]`).forEach(btn => {
+    btn.dataset.liked = liked ? '1' : '0';
+    btn.classList.toggle('liked', liked);
+    const svg = btn.querySelector('svg');
+    if (svg) {
+      svg.setAttribute('fill', liked ? '#e05050' : 'none');
+      svg.style.color = liked ? '#e05050' : '';
+    }
+  });
+}
+
+function patchFollowUi(isFollowing) {
+  const btn = document.getElementById('profile-follow-btn');
+  if (!btn) return;
+  btn.dataset.following = isFollowing ? '1' : '0';
+  btn.textContent = isFollowing ? '已关注' : '关注';
+  btn.classList.toggle('following', isFollowing);
+  btn.classList.toggle('primary', !isFollowing);
+  const followers = document.getElementById('profile-followers-count');
+  if (followers) {
+    const current = parseInt(followers.textContent || '0', 10) || 0;
+    followers.textContent = String(Math.max(0, current + (isFollowing ? 1 : -1)));
+  }
 }
 
 let nodesRole = null;
@@ -2011,10 +2254,11 @@ async function loadCommPosts(query = '', userId = '', username = '', isProfile =
   const container = isProfile ? document.getElementById('profile-posts-container') : document.getElementById('comm-posts');
   if (isProfile) {
     document.getElementById('profile-card-container').style.display = 'block';
-    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--t3);">加载中...</div>';
+    container.innerHTML = renderPostSkeletons(4);
     renderProfileHeader(userId || username, !!username, userId);
   } else {
     document.getElementById('comm-profile').style.display = 'none';
+    container.innerHTML = renderPostSkeletons(6);
   }
 
   try {
@@ -2023,19 +2267,22 @@ async function loadCommPosts(query = '', userId = '', username = '', isProfile =
     if (userId) url += `userId=${userId}&`;
     if (username) url += `username=${encodeURIComponent(username)}&`;
     
-    const r = await fetch(url);
+    const authHeader = getCommAuthHeader(false);
+    const r = await trackedFetch(url, {
+      headers: authHeader ? { 'Authorization': authHeader } : {}
+    });
     const d = await r.json();
     if (!d.ok) throw new Error(d.msg);
     
     if (d.posts.length === 0) {
-      container.innerHTML = `<div style="text-align:center;padding:80px;color:var(--t3);">没有找到内容</div>`;
+      container.innerHTML = renderEmptyState('没有找到内容');
       return;
     }
     
     container.innerHTML = `<div class="waterfall-container">${d.posts.map(p => renderPostCard(p)).join('')}</div>`;
     observeLazyImages();
   } catch(e) {
-    container.innerHTML = `<div style="text-align:center;padding:40px;color:var(--red);">${getUiErrorMessage(e, '加载失败，请刷新后重试')}</div>`;
+    container.innerHTML = renderEmptyState(getUiErrorMessage(e, '加载失败，请刷新后重试'), 'error');
   }
 }
 
@@ -2044,9 +2291,10 @@ function renderPostCard(p) {
   const date = new Date(p.created_at).toLocaleString('zh-CN', {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
   const isAdmin = commUser && commUser.role === 'admin';
   const isOwner = commUser && commUser.id === p.user_id;
+  const liked = !!p.viewer_liked;
   
   return `
-    <div class="glass-card waterfall-item" style="padding:16px; display:flex; flex-direction:column; gap:10px;">
+    <div class="glass-card waterfall-item stream-card" data-post-card="${p.id}" style="padding:16px; display:flex; flex-direction:column; gap:10px;">
       <div style="display:flex; align-items:center; gap:10px;">
         <div onclick="navToProfile('${p.username}', '${p.user_id}')" style="width:36px; height:36px; border-radius:18px; background:var(--s3); display:flex; align-items:center; justify-content:center; font-weight:700; color:var(--accent); cursor:pointer; overflow:hidden;">
           ${p.avatar_url ? `<img src="${p.avatar_url}" style="width:100%;height:100%;object-fit:cover;">` : p.username[0].toUpperCase()}
@@ -2074,15 +2322,15 @@ function renderPostCard(p) {
 
       <div style="display:flex; justify-content: space-between; align-items:center; margin-top:12px; border-top:1px solid var(--border); padding-top:12px; color:var(--t3); font-size:13px; font-weight:600;">
         <div style="display:flex; align-items:center; justify-content:space-between; flex:1; max-width: 200px; padding-right:20px;">
-          <div onclick="toggleLike('${p.id}', this)" style="display:flex; align-items:center; gap:6px; cursor:pointer; transition:color 0.2s;">
-            <svg width="18" height="18" style="display:block;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+          <div class="engage-btn${liked ? ' liked' : ''}" data-post-id="${p.id}" data-action="like" data-liked="${liked ? '1' : '0'}" onclick="toggleLike('${p.id}', this)">
+            <svg width="18" height="18" style="display:block;${liked ? 'color:#e05050;' : ''}" viewBox="0 0 24 24" fill="${liked ? '#e05050' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
             <span>${p.like_count || 0}</span>
           </div>
-          <div onclick="openComments('${p.id}')" style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+          <div class="engage-btn" data-post-id="${p.id}" data-action="comment" onclick="openComments('${p.id}')">
             <svg width="18" height="18" style="display:block;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
             <span>${p.comment_count || 0}</span>
           </div>
-          <div onclick="openRepost('${p.id}')" style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+          <div class="engage-btn" onclick="openRepost('${p.id}')">
             <svg width="18" height="18" style="display:block;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg>
             <span>${p.repost_count || 0}</span>
           </div>
@@ -2175,7 +2423,7 @@ async function submitEditProfile() {
     let bannerUrl = profileRemovals.banner ? '' : (commUser.background_url || '');
 
     if (profileFiles.avatar) {
-      const r = await fetch('/api/community/upload', {
+      const r = await trackedFetch('/api/community/upload', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${commUser.username}:${commUser.passHash}`, 'Content-Type': profileFiles.avatar.type },
         body: await readFileAsArrayBuffer(profileFiles.avatar)
@@ -2185,7 +2433,7 @@ async function submitEditProfile() {
     }
 
     if (profileFiles.banner) {
-      const r = await fetch('/api/community/upload', {
+      const r = await trackedFetch('/api/community/upload', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${commUser.username}:${commUser.passHash}`, 'Content-Type': profileFiles.banner.type },
         body: await readFileAsArrayBuffer(profileFiles.banner)
@@ -2194,7 +2442,7 @@ async function submitEditProfile() {
       if (d.ok) bannerUrl = d.url;
     }
 
-    const r = await fetch('/api/community/profile', {
+    const r = await trackedFetch('/api/community/profile', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${commUser.username}:${commUser.passHash}` },
       body: JSON.stringify({ signature: sig, avatar_url: avatarUrl, background_url: bannerUrl })
@@ -2224,7 +2472,7 @@ async function reportContent(type, id) {
   if (!reason) return;
   if (!commUser) return openCommAuth();
   try {
-    const r = await fetch('/api/community/report', {
+    const r = await trackedFetch('/api/community/report', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${commUser.username}:${commUser.passHash}` },
       body: JSON.stringify({ target_type: type, target_id: id, reason })
@@ -2250,7 +2498,7 @@ function observeLazyImages() {
 async function deletePost(id) {
   if (!confirm('确定要删除这条内容吗？')) return;
   try {
-    const r = await fetch(`/api/community/posts?id=${id}`, {
+    const r = await trackedFetch(`/api/community/posts?id=${id}`, {
       method: 'DELETE',
       headers: { 'Authorization': `Bearer ${commUser.username}:${commUser.passHash}` }
     });
@@ -2260,63 +2508,70 @@ async function deletePost(id) {
 
 async function toggleLike(postId, el) {
   if (!commUser) return openCommAuth();
+  const authHeader = getCommAuthHeader();
+  if (!authHeader) return;
   
-  const svg = el ? el.querySelector('svg') : null;
-  const isLiked = svg && svg.getAttribute('fill') !== 'none';
-  let span = el ? el.querySelector('span') : null;
-  let currentCount = parseInt(span ? span.innerText : '0') || 0;
-  
-  if (el && svg) {
-    svg.setAttribute('fill', isLiked ? 'none' : '#e05050');
-    svg.style.color = isLiked ? '' : '#e05050';
-    if (!isLiked) {
-      if (navigator.vibrate) navigator.vibrate(50);
-      el.classList.add('heart-active');
-      setTimeout(() => el.classList.remove('heart-active'), 400);
-      
-      const rect = el.getBoundingClientRect();
-      for(let i=0; i<6; i++){
-        const p = document.createElement('div');
-        p.className = 'like-particle';
-        p.style.left = (rect.left + rect.width/2) + 'px';
-        p.style.top = (rect.top + rect.height/2) + 'px';
-        p.style.setProperty('--dx', (Math.random()*60-30)+'px');
-        p.style.setProperty('--dy', (Math.random()*-60-20)+'px');
-        p.style.animation = 'flyParticle 0.6s ease-out forwards';
-        document.body.appendChild(p);
-        setTimeout(() => p.remove(), 600);
-      }
+  const isLiked = (el?.dataset.liked || '0') === '1';
+  const nextLiked = !isLiked;
+  if (el) el.classList.add('busy');
+
+  syncLikeButtons(postId, nextLiked);
+  patchMetricNodes(postId, 'like', current => Math.max(0, current + (nextLiked ? 1 : -1)));
+
+  if (el && nextLiked) {
+    if (navigator.vibrate) navigator.vibrate(50);
+    el.classList.add('heart-active');
+    setTimeout(() => el.classList.remove('heart-active'), 400);
+
+    const rect = el.getBoundingClientRect();
+    for(let i=0; i<6; i++){
+      const p = document.createElement('div');
+      p.className = 'like-particle';
+      p.style.left = (rect.left + rect.width/2) + 'px';
+      p.style.top = (rect.top + rect.height/2) + 'px';
+      p.style.setProperty('--dx', (Math.random()*60-30)+'px');
+      p.style.setProperty('--dy', (Math.random()*-60-20)+'px');
+      p.style.animation = 'flyParticle 0.6s ease-out forwards';
+      document.body.appendChild(p);
+      setTimeout(() => p.remove(), 600);
     }
-    if (span) span.innerText = isLiked ? Math.max(0, currentCount - 1) : currentCount + 1;
   }
 
   try {
-    const r = await fetch('/api/community/like', {
+    const r = await trackedFetch('/api/community/like', {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${commUser.username}:${commUser.passHash}`
+        'Authorization': authHeader
       },
       body: JSON.stringify({ post_id: postId })
     });
     const d = await r.json();
-    if (!d.ok && el) loadCommPosts(); 
+    if (!d.ok) throw new Error(d.msg || '点赞失败');
+    const serverLiked = d.action === 'liked';
+    syncLikeButtons(postId, serverLiked);
+    patchMetricNodes(postId, 'like', current => current + (serverLiked === nextLiked ? 0 : (serverLiked ? 1 : -1)));
   } catch(e) { 
-    if (el) loadCommPosts();
+    syncLikeButtons(postId, isLiked);
+    patchMetricNodes(postId, 'like', current => Math.max(0, current + (isLiked ? 1 : -1)));
+    showToast(getUiErrorMessage(e, '点赞失败，请稍后重试'), 'error');
+  } finally {
+    if (el) el.classList.remove('busy');
   }
 }
 
 async function loadNotifies() {
   if (!commUser) return;
   const list = document.getElementById('comm-notifies-list');
+  list.innerHTML = renderCommentSkeletons(3);
   try {
-    const r = await fetch('/api/community/notifications', {
+    const r = await trackedFetch('/api/community/notifications', {
       headers: { 'Authorization': `Bearer ${commUser.username}:${commUser.passHash}` }
     });
     const d = await r.json();
     if (!d.ok) return;
     if (d.notifications.length === 0) {
-      list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--t3);">暂无通知</div>';
+      list.innerHTML = renderEmptyState('暂无通知');
       return;
     }
     list.innerHTML = d.notifications.map(n => {
@@ -2333,7 +2588,9 @@ async function loadNotifies() {
         </div>
       `;
     }).join('');
-  } catch(e) {}
+  } catch(e) {
+    list.innerHTML = renderEmptyState(getUiErrorMessage(e, '通知加载失败'), 'error');
+  }
 }
 
 
@@ -2344,19 +2601,22 @@ async function navToPost(id) {
 
 async function loadPostById(id) {
   navTo('post', false);
-  document.getElementById('single-post-container').innerHTML = '<div style="text-align:center; padding:40px; color:var(--t3);">加载中...</div>';
-  document.getElementById('single-post-comments').innerHTML = '';
+  document.getElementById('single-post-container').innerHTML = renderPostSkeletons(1);
+  document.getElementById('single-post-comments').innerHTML = renderCommentSkeletons(4);
   try {
-    const r = await fetch(`/api/community/posts?id=${id}`);
+    const authHeader = getCommAuthHeader(false);
+    const headers = authHeader ? { 'Authorization': authHeader } : {};
+    const [r, rc] = await Promise.all([
+      trackedFetch(`/api/community/posts?id=${id}`, { headers }),
+      trackedFetch(`/api/community/comments?postId=${id}`)
+    ]);
     const d = await r.json();
     if (d.ok && d.posts.length > 0) {
       document.getElementById('single-post-container').innerHTML = renderPostCard(d.posts[0]);
-      
-      const rc = await fetch(`/api/community/comments?postId=${id}`);
       const dc = await rc.json();
       if (dc.ok) {
         document.getElementById('single-post-comments').innerHTML = '<div style="font-size:16px; font-weight:700; border-bottom:1px solid var(--border); padding-bottom:8px; margin-bottom:8px;">评论</div>' + dc.comments.map(c => `
-          <div style="display:flex; gap:12px; border-bottom:1px solid rgba(255,255,255,0.05); padding-bottom:12px;">
+          <div class="comment-card" style="display:flex; gap:12px; border-bottom:1px solid rgba(255,255,255,0.05); padding-bottom:12px;">
             <div onclick="navToProfile('${c.username}')" style="width:32px; height:32px; border-radius:16px; background:var(--s3); display:flex; align-items:center; justify-content:center; font-weight:700; color:var(--accent); cursor:pointer; flex-shrink:0;">
               ${c.avatar_url ? `<img src="${c.avatar_url}" style="width:100%;height:100%;border-radius:16px;object-fit:cover;">` : c.username[0].toUpperCase()}
             </div>
@@ -2372,9 +2632,13 @@ async function loadPostById(id) {
         `).join('');
       }
     } else {
-      document.getElementById('single-post-container').innerHTML = '<div style="text-align:center; padding:40px; color:var(--t3);">帖子不存在或已删除</div>';
+      document.getElementById('single-post-container').innerHTML = renderEmptyState('帖子不存在或已删除');
+      document.getElementById('single-post-comments').innerHTML = '';
     }
-  } catch(e) {}
+  } catch(e) {
+    document.getElementById('single-post-container').innerHTML = renderEmptyState(getUiErrorMessage(e, '帖子加载失败'), 'error');
+    document.getElementById('single-post-comments').innerHTML = '';
+  }
 }
 
 function navToProfile(name, id) {
@@ -2394,9 +2658,8 @@ async function renderProfileHeader(val, isName, uid) {
   const isMe = commUser && (val === commUser.id || val === commUser.username);
   const finalUid = isMe ? commUser.id : (uid || val);
   const finalName = isMe ? commUser.username : (isName ? val : '用户');
-  
-  // Default Skeleton
-  let u = isMe ? commUser : { username: finalName, id: finalUid, signature: '加载中...', background_url: 'https://thefallback.cc.cd/bg.jpg', level: 1, followers_count: 0, following_count: 0 };
+  container.innerHTML = renderProfileSkeleton('加载中...');
+  let u = isMe ? commUser : { username: finalName, id: finalUid, signature: '加载中...', background_url: 'https://thefallback.cc.cd/bg.jpg', level: 1, followers_count: 0, following_count: 0, viewer_is_following: false };
   
   const draw = (userObj) => {
     const progress = getXpProgress(userObj);
@@ -2425,9 +2688,9 @@ async function renderProfileHeader(val, isName, uid) {
           </div>
           <div class="profile-stats">
             <div class="stat-item"><span class="stat-val">${userObj.following_count || 0}</span><span class="stat-lbl">关注</span></div>
-            <div class="stat-item"><span class="stat-val">${userObj.followers_count || 0}</span><span class="stat-lbl">粉丝</span></div>
+            <div class="stat-item"><span class="stat-val" id="profile-followers-count">${userObj.followers_count || 0}</span><span class="stat-lbl">粉丝</span></div>
             <div class="stat-item"><span class="stat-val" style="font-size:12px; font-family:monospace; margin-top:3px;">${userObj.id ? userObj.id.split('-')[0] : '...'}</span><span class="stat-lbl">UID</span></div>
-            ${isMe ? '<button onclick="openEditProfile()" style="margin-left:auto; background:var(--s2); border:1px solid var(--border); color:var(--text); padding:4px 12px; border-radius:16px; font-size:12px; cursor:pointer; font-weight:600;">编辑资料</button><button onclick="commLogout()" style="margin-left:8px; background:rgba(224,80,80,0.15); border:1px solid rgba(224,80,80,0.3); color:#fca5a5; padding:4px 12px; border-radius:16px; font-size:12px; cursor:pointer; font-weight:600;">退出</button>' : `<button onclick="toggleFollow('${userObj.id}')" style="margin-left:auto; background:var(--accent); color:white; border:none; padding:6px 16px; border-radius:16px; font-size:12px; font-weight:700; cursor:pointer;">关注</button>`}
+            ${isMe ? '<button onclick="openEditProfile()" style="margin-left:auto; background:var(--s2); border:1px solid var(--border); color:var(--text); padding:4px 12px; border-radius:16px; font-size:12px; cursor:pointer; font-weight:600;">编辑资料</button><button onclick="commLogout()" style="margin-left:8px; background:rgba(224,80,80,0.15); border:1px solid rgba(224,80,80,0.3); color:#fca5a5; padding:4px 12px; border-radius:16px; font-size:12px; cursor:pointer; font-weight:600;">退出</button>' : `<button id="profile-follow-btn" class="profile-action-btn ${userObj.viewer_is_following ? 'following' : 'primary'}" data-following="${userObj.viewer_is_following ? '1' : '0'}" onclick="toggleFollow('${userObj.id}', this)">${userObj.viewer_is_following ? '已关注' : '关注'}</button>`}
           </div>
         </div>
       </div>
@@ -2438,7 +2701,10 @@ async function renderProfileHeader(val, isName, uid) {
   
   // Fetch real stats
   try {
-    const r = await fetch(`/api/community/profile?${isName ? 'username=' + encodeURIComponent(val) : 'id=' + val}`);
+    const authHeader = getCommAuthHeader(false);
+    const r = await trackedFetch(`/api/community/profile?${isName ? 'username=' + encodeURIComponent(val) : 'id=' + val}`, {
+      headers: authHeader ? { 'Authorization': authHeader } : {}
+    });
     const d = await r.json();
     if (d.ok && d.user) {
       if (isMe) {
@@ -2447,20 +2713,37 @@ async function renderProfileHeader(val, isName, uid) {
       }
       draw(d.user);
     }
-  } catch(e) {}
+  } catch(e) {
+    if (!isMe) {
+      container.innerHTML = renderEmptyState(getUiErrorMessage(e, '资料加载失败'), 'error');
+    }
+  }
 }
 
 
-async function toggleFollow(id) {
+async function toggleFollow(id, btn) {
   if (!commUser) return openCommAuth();
+  const authHeader = getCommAuthHeader();
+  if (!authHeader) return;
+  const isFollowing = (btn?.dataset.following || '0') === '1';
+  if (btn) btn.disabled = true;
   try {
-    const r = await fetch('/api/community/follow', {
+    const r = await trackedFetch('/api/community/follow', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${commUser.username}:${commUser.passHash}` },
+      headers: { 'Content-Type': 'application/json', 'Authorization': authHeader },
       body: JSON.stringify({ following_id: id })
     });
-    if ((await r.json()).ok) showToast('操作成功', 'success');
-  } catch(e) {}
+    const d = await r.json();
+    if (d.ok) {
+      const nextFollowing = d.action === 'followed';
+      patchFollowUi(nextFollowing);
+      showToast(nextFollowing ? '已关注' : '已取消关注', 'success');
+    }
+  } catch(e) {
+    showToast(getUiErrorMessage(e, '操作失败，请稍后重试'), 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 async function commAuth(action) {
@@ -2469,7 +2752,7 @@ async function commAuth(action) {
   if (!username || !password) return showToast('请输入账号密码', 'error');
   
   try {
-    const r = await fetch('/api/community/auth', {
+    const r = await trackedFetch('/api/community/auth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action, username, password })
@@ -2505,7 +2788,7 @@ function openRepost(id) {
 async function doRepost(postId, content) {
   if (!commUser) return openCommAuth();
   try {
-    const r = await fetch('/api/community/posts', {
+    const r = await trackedFetch('/api/community/posts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${commUser.username}:${commUser.passHash}` },
       body: JSON.stringify({ content, repost_id: postId })
@@ -2530,17 +2813,17 @@ function closeComments() {
 
 async function loadComments(postId) {
   const list = document.getElementById('comm-comments-list');
-  list.innerHTML = '<div style="text-align:center; padding:20px; color:var(--t3);">加载中...</div>';
+  list.innerHTML = renderCommentSkeletons(4);
   try {
-    const r = await fetch(`/api/community/comments?postId=${postId}`);
+    const r = await trackedFetch(`/api/community/comments?postId=${postId}`);
     const d = await r.json();
     if (!d.ok) return;
     if (d.comments.length === 0) {
-      list.innerHTML = '<div style="text-align:center; padding:40px; color:var(--t3);">暂无评论，来发第一条吧！</div>';
+      list.innerHTML = renderEmptyState('暂无评论，来发第一条吧！');
       return;
     }
     list.innerHTML = d.comments.map(c => `
-      <div style="display:flex; gap:10px;">
+      <div class="comment-card" style="display:flex; gap:10px;">
         <div style="width:32px; height:32px; border-radius:16px; background:var(--s3); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:12px; flex-shrink:0;">
           ${c.avatar_url ? `<img src="${c.avatar_url}" style="width:100%;height:100%;border-radius:16px;">` : c.username[0].toUpperCase()}
         </div>
@@ -2553,26 +2836,33 @@ async function loadComments(postId) {
         </div>
       </div>
     `).join('');
-  } catch(e) {}
+  } catch(e) {
+    list.innerHTML = renderEmptyState(getUiErrorMessage(e, '评论加载失败'), 'error');
+  }
 }
 
 async function submitComment() {
   if (!commUser) return openCommAuth();
+  const authHeader = getCommAuthHeader();
+  if (!authHeader) return;
   const inp = document.getElementById('comm-comment-inp');
   const content = inp.value.trim();
   if (!content || !activeCommentPostId) return;
   
   try {
-    const r = await fetch('/api/community/comments', {
+    const r = await trackedFetch('/api/community/comments', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${commUser.username}:${commUser.passHash}` },
+      headers: { 'Content-Type': 'application/json', 'Authorization': authHeader },
       body: JSON.stringify({ post_id: activeCommentPostId, content })
     });
     const d = await r.json();
     if (d.ok) {
       inp.value = '';
+      patchMetricNodes(activeCommentPostId, 'comment', current => current + 1);
       loadComments(activeCommentPostId);
-      loadCommPosts(); // Refresh post count
+      if (currentPage === 'post') {
+        loadPostById(activeCommentPostId);
+      }
     } else {
       showToast(sanitizeErrorMessage(d.msg, '评论发送失败，请稍后重试'), 'error');
     }
@@ -2600,15 +2890,7 @@ function cancelCommImage() {
 }
 
 function getCommAuthTokenOrPrompt() {
-  if (!commUser?.username || !commUser?.passHash) {
-    commUser = null;
-    localStorage.removeItem('commUser');
-    updateCommUI();
-    openCommAuth();
-    showToast('登录状态已失效，请重新登录', 'error');
-    return null;
-  }
-  return `Bearer ${commUser.username}:${commUser.passHash}`;
+  return getCommAuthHeader(true);
 }
 
 async function submitCommPost() {
@@ -2624,7 +2906,7 @@ async function submitCommPost() {
   try {
     let media = [];
     if (currentCommFile) {
-      const rUpload = await fetch('/api/community/upload', {
+      const rUpload = await trackedFetch('/api/community/upload', {
         method: 'POST',
         headers: { 
           'Authorization': authToken,
@@ -2647,7 +2929,7 @@ async function submitCommPost() {
       }
     }
     
-    const r = await fetch('/api/community/posts', {
+    const r = await trackedFetch('/api/community/posts', {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
@@ -2751,8 +3033,11 @@ function navTo(page, push = true) {
   }
 
   // 切换逻辑
+  from.classList.add('behind');
   from.classList.remove('active');
+  to.classList.remove('behind');
   to.classList.add('active');
+  setTimeout(() => from.classList.remove('behind'), 460);
 
   if (push) {
     history.pushState({page}, '', page === 'community' ? '/' : '/' + page);

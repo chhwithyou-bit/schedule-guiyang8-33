@@ -259,6 +259,7 @@ export default {
       if (url.pathname === '/api/community/posts') {
         if (request.method === 'GET') {
           try {
+            const viewer = await getAuth();
             const query = url.searchParams.get('q');
             const userId = url.searchParams.get('userId');
             const username = url.searchParams.get('username');
@@ -286,7 +287,7 @@ export default {
             }
             sql += " ORDER BY p.created_at DESC LIMIT 100 ";
             const { results } = await env.COMMUNITY_DB.prepare(sql).bind(...params).all();
-            
+
             const posts = results || [];
             if (posts.length > 0) {
               const ids = posts.map(p => p.id);
@@ -295,9 +296,18 @@ export default {
               const commQuery = "SELECT c.id, c.post_id, c.content, u.username FROM comments c JOIN users u ON c.user_id = u.id WHERE c.post_id IN (" + placeholders + ") ORDER BY c.created_at ASC LIMIT 500";
               const commResults = await env.COMMUNITY_DB.prepare(commQuery).bind(...ids).all();
               const comms = commResults.results || [];
+              let likedIds = new Set();
+
+              if (viewer) {
+                const likedResults = await env.COMMUNITY_DB.prepare(
+                  "SELECT post_id FROM likes WHERE user_id = ? AND post_id IN (" + placeholders + ")"
+                ).bind(viewer.id, ...ids).all();
+                likedIds = new Set((likedResults.results || []).map(row => row.post_id));
+              }
               
               posts.forEach(p => {
                 p.inline_comments = comms.filter(c => c.post_id === p.id).slice(-3); // Get last 3 comments
+                p.viewer_liked = likedIds.has(p.id);
               });
             }
 
@@ -375,6 +385,7 @@ export default {
 
       
       if (url.pathname === '/api/community/profile' && request.method === 'GET') {
+        const viewer = await getAuth();
         const uid = url.searchParams.get('id');
         const uname = url.searchParams.get('username');
         let sql = "SELECT id, username, avatar_url, background_url, signature, level, xp, role FROM users WHERE ";
@@ -387,6 +398,14 @@ export default {
         const following = await env.COMMUNITY_DB.prepare("SELECT COUNT(*) as c FROM follows WHERE follower_id = ?").bind(user.id).first();
         user.followers_count = followers ? followers.c : 0;
         user.following_count = following ? following.c : 0;
+        user.viewer_is_following = false;
+
+        if (viewer && viewer.id !== user.id) {
+          const relation = await env.COMMUNITY_DB.prepare(
+            "SELECT 1 FROM follows WHERE follower_id = ? AND following_id = ?"
+          ).bind(viewer.id, user.id).first();
+          user.viewer_is_following = !!relation;
+        }
         
         return jsonResp({ ok: true, user });
       }
