@@ -912,6 +912,19 @@ html, body {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+.composer-link-preview {
+  display: none;
+  margin-top: 12px;
+}
+.composer-link-preview.show {
+  display: block;
+}
+.composer-link-preview-label {
+  font-size: 12px;
+  color: var(--t3);
+  margin-bottom: 8px;
+  font-weight: 600;
+}
 
 .notify-bell {
   --bell-size: clamp(38px, 6vw, 46px);
@@ -2161,9 +2174,10 @@ async function adminSetAdminPwd() {
     <button class="close-modal" onclick="closeCommPostModal()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
     <div class="modal-title">发布动态</div>
     <div class="comm-post-composer">
-      <textarea id="comm-post-content" class="inp" style="resize:none;" placeholder="分享你的新鲜事..."></textarea>
+      <textarea id="comm-post-content" class="inp" style="resize:none;" placeholder="分享你的新鲜事..." oninput="scheduleCommComposerPreview()"></textarea>
       <div class="comm-post-emoji" onclick="toggleEmojiPicker(event, 'comm-post-content')">😀</div>
     </div>
+    <div id="comm-link-preview" class="composer-link-preview"></div>
     
     <div class="field-label">图片 (可选)</div>
     <div class="upload-area" id="comm-upload-area" style="padding:16px;">
@@ -2238,9 +2252,13 @@ function openCommAuth() { document.getElementById('commAuthModal').classList.add
 function closeCommAuth() { document.getElementById('commAuthModal').classList.remove('open'); }
 function openCommPostModal() { 
   if (!commUser) return openCommAuth();
-  document.getElementById('commPostModal').classList.add('open'); 
+  document.getElementById('commPostModal').classList.add('open');
+  scheduleCommComposerPreview();
 }
-function closeCommPostModal() { document.getElementById('commPostModal').classList.remove('open'); }
+function closeCommPostModal() {
+  document.getElementById('commPostModal').classList.remove('open');
+  resetCommComposerPreview();
+}
 function openNotifies() { document.getElementById('commNotifyModal').classList.add('open'); loadNotifies(); }
 function closeNotifies() { document.getElementById('commNotifyModal').classList.remove('open'); }
 function navToProfileEncoded(name, id = '') { navToProfile(decodeURIComponent(name || ''), decodeURIComponent(id || '')); }
@@ -2533,6 +2551,53 @@ async function hydrateLinkPreviews(root = document) {
     }
     node.outerHTML = renderLinkPreview(preview);
   }));
+}
+
+function extractPreviewUrls(text) {
+  const urls = String(text || '').match(/https?:\/\/[^\s]+/g) || [];
+  return [...new Set(urls)].filter(shouldAutoPreviewUrl);
+}
+
+let commComposerPreviewTimer = null;
+let commComposerPreviewToken = 0;
+
+function resetCommComposerPreview() {
+  const box = document.getElementById('comm-link-preview');
+  commComposerPreviewToken += 1;
+  if (!box) return;
+  box.classList.remove('show');
+  box.innerHTML = '';
+}
+
+function scheduleCommComposerPreview() {
+  if (commComposerPreviewTimer) clearTimeout(commComposerPreviewTimer);
+  commComposerPreviewTimer = setTimeout(updateCommComposerPreview, 220);
+}
+
+async function updateCommComposerPreview() {
+  const box = document.getElementById('comm-link-preview');
+  const input = document.getElementById('comm-post-content');
+  if (!box || !input) return;
+
+  const [url] = extractPreviewUrls(input.value);
+  if (!url) {
+    resetCommComposerPreview();
+    return;
+  }
+
+  const token = ++commComposerPreviewToken;
+  box.classList.add('show');
+  box.innerHTML = `<div class="composer-link-preview-label">链接预览</div><div class="link-preview-card loading"><div class="link-preview-meta"><div class="link-preview-title">正在解析链接预览...</div><div class="link-preview-host">${escapeHtml(getPreviewHostLabel(url))}</div></div></div>`;
+
+  const preview = await fetchLinkPreview(url);
+  if (token !== commComposerPreviewToken) return;
+  if (!preview) {
+    resetCommComposerPreview();
+    return;
+  }
+
+  box.classList.add('show');
+  box.innerHTML = `<div class="composer-link-preview-label">链接预览</div>${renderLinkPreview(preview)}`;
 }
 
 async function loadCommPosts(query = '', userId = '', username = '', isProfile = false) {
@@ -3269,6 +3334,7 @@ async function submitCommPost() {
       showToast('发布成功', 'success');
       closeCommPostModal();
       document.getElementById('comm-post-content').value = '';
+      resetCommComposerPreview();
       document.getElementById('comm-preview-wrap').style.display = 'none';
       currentCommFile = null;
       loadCommPosts();
