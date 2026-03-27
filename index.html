@@ -2243,9 +2243,21 @@ async function adminSetAdminPwd() {
 <script>
 // Community Logic
 let commUser = JSON.parse(localStorage.getItem('commUser') || 'null');
+function normalizeCommunityUserRole(user) {
+  if (!user || typeof user !== 'object') return user;
+  const role = String(user.role || 'user').toLowerCase();
+  const username = String(user.username || '').trim().toLowerCase();
+  if (role === 'admin' && username === 'admin') {
+    return { ...user, role: 'owner' };
+  }
+  return user;
+}
+commUser = normalizeCommunityUserRole(commUser);
 if (commUser && (!commUser.username || !commUser.passHash)) {
   commUser = null;
   localStorage.removeItem('commUser');
+} else if (commUser) {
+  localStorage.setItem('commUser', JSON.stringify(commUser));
 }
 let adminUsersCache = [];
 let profileRemovals = { avatar: false, banner: false };
@@ -3231,7 +3243,7 @@ async function renderProfileHeader(val, isName, uid) {
     const d = await r.json();
     if (d.ok && d.user) {
       if (isMe) {
-        commUser = { ...commUser, ...d.user };
+        commUser = normalizeCommunityUserRole({ ...commUser, ...d.user });
         localStorage.setItem('commUser', JSON.stringify(commUser));
       }
       draw(d.user);
@@ -3282,7 +3294,7 @@ async function commAuth(action) {
     });
     const d = await r.json();
     if (d.ok) {
-      commUser = d.user;
+      commUser = normalizeCommunityUserRole(d.user);
       localStorage.setItem('commUser', JSON.stringify(commUser));
       updateCommUI();
       closeCommAuth();

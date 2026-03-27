@@ -815,6 +815,7 @@ export default {
 
             const posts = results || [];
             posts.forEach(p => {
+              p.role = normalizeCommunityRole(p, env);
               try {
                 const parsedMedia = JSON.parse(p.media_json || '[]');
                 p.media_json = JSON.stringify(Array.isArray(parsedMedia) ? parsedMedia.filter(item => item && typeof item === 'object') : []);
@@ -926,6 +927,7 @@ export default {
         if (uid) { sql += "id = ?"; } else { sql += "username = ?"; param = uname; }
         const user = await env.COMMUNITY_DB.prepare(sql).bind(param).first();
         if (!user) return jsonResp({ ok: false }, 404);
+        user.role = normalizeCommunityRole(user, env);
         
         const followers = await env.COMMUNITY_DB.prepare("SELECT COUNT(*) as c FROM follows WHERE following_id = ?").bind(user.id).first();
         const following = await env.COMMUNITY_DB.prepare("SELECT COUNT(*) as c FROM follows WHERE follower_id = ?").bind(user.id).first();
