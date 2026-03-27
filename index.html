@@ -4278,6 +4278,7 @@ scheduleInit();
   function startDrag(e, el) {
     if (!canStartPlayerDrag(e)) return;
     drag=true; moved=false; dragEl=el;
+    el.style.transition = 'none'; // 拖拽开始，禁用动画确保跟手
     const t=e.touches?e.touches[0]:e;
     const r=el.getBoundingClientRect();
     if(!el.style.left || el.style.right!=='auto'){
@@ -4336,11 +4337,34 @@ scheduleInit();
       }
     }
   });
+  function snapToEdge() {
+    const W = window.innerWidth;
+    const r = mp.getBoundingClientRect();
+    const centerX = r.left + r.width / 2;
+    let targetX = 12;
+    const isLeft = centerX < W / 2;
+    if (!isLeft) targetX = W - r.width - 12;
+
+    mp.style.transition = 'all 0.45s cubic-bezier(0.18, 0.89, 0.32, 1.28)';
+    mp.style.left = targetX + 'px';
+    _collapseLeft = targetX;
+    _collapseTop = parseFloat(mp.style.top);
+
+    // 同步更新背景推开方向
+    const page = document.querySelector('.page.active');
+    if (page && open) {
+      page.classList.remove('pushed-right', 'pushed-left');
+      page.classList.add(isLeft ? 'pushed-right' : 'pushed-left');
+    }
+  }
+
   document.addEventListener('touchend',()=>{
+    if(drag && moved) snapToEdge();
     if(drag && !moved && !open) expand();
     drag=false; dragEl=null;
   });
   document.addEventListener('mouseup',()=>{
+    if(drag && moved) snapToEdge();
     if(drag && !moved && !open) expand();
     drag=false; dragEl=null;
   });
