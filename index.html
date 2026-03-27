@@ -777,6 +777,26 @@ html, body {
   cursor: pointer;
   flex-shrink: 0;
 }
+.desktop-shell {
+  width: min(1400px, calc(100vw - 48px));
+  margin: 0 auto;
+}
+.desktop-narrow {
+  width: min(980px, calc(100vw - 48px));
+  margin: 0 auto;
+}
+.desktop-wide {
+  width: min(1200px, calc(100vw - 48px));
+  margin: 0 auto;
+}
+@media (max-width: 768px) {
+  .desktop-shell,
+  .desktop-narrow,
+  .desktop-wide {
+    width: auto;
+    margin: 0;
+  }
+}
 
 .hashtag { color: var(--accent2); cursor: pointer; font-weight: 600; text-decoration: none; }
 .hashtag:hover { text-decoration: underline; }
@@ -1493,8 +1513,8 @@ async function adminSetAdminPwd() {
     </button>
     <div style="font-size:18px; font-weight:700; margin-left:16px;">个人主页</div>
   </div>
-  <div id="profile-card-container" style="padding:16px; max-width:600px; margin:0 auto;"></div>
-  <div id="profile-posts-container" style="padding:16px; max-width:600px; margin:0 auto; display:flex; flex-direction:column; gap:16px;"></div>
+  <div id="profile-card-container" class="desktop-narrow" style="padding:16px;"></div>
+  <div id="profile-posts-container" class="desktop-wide" style="padding:16px; display:flex; flex-direction:column; gap:16px;"></div>
 </div>
 
 
@@ -1506,8 +1526,8 @@ async function adminSetAdminPwd() {
     </button>
     <div style="font-size:18px; font-weight:700; margin-left:16px;">推文详情</div>
   </div>
-  <div id="single-post-container" style="padding:16px; max-width:600px; margin:0 auto; display:flex; flex-direction:column; gap:16px;"></div>
-  <div id="single-post-comments" style="padding:16px; max-width:600px; margin:0 auto; display:flex; flex-direction:column; gap:12px;"></div>
+  <div id="single-post-container" class="desktop-narrow" style="padding:16px; display:flex; flex-direction:column; gap:16px;"></div>
+  <div id="single-post-comments" class="desktop-narrow" style="padding:16px; display:flex; flex-direction:column; gap:12px;"></div>
 </div>
 
 <div class="page active" id="page-community" style="overflow-y:auto; background: var(--bg);">
@@ -1532,11 +1552,11 @@ async function adminSetAdminPwd() {
     </div>
   </div>
 
-  <div id="comm-profile" style="display:none; padding:16px; max-width:600px; margin:0 auto;">
+  <div id="comm-profile" class="desktop-narrow" style="display:none; padding:16px;">
     <!-- Profile Card rendered here -->
   </div>
 
-  <div id="comm-posts" class="stagger" style="padding:16px; max-width:600px; margin:0 auto; display:flex; flex-direction:column; gap:16px;">
+  <div id="comm-posts" class="stagger desktop-shell" style="padding:16px; display:flex; flex-direction:column; gap:16px;">
     <!-- Posts will be rendered here -->
     <div style="text-align:center; padding:40px; color:var(--t3);">加载中...</div>
   </div>
