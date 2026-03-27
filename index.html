@@ -164,7 +164,22 @@ html, body {
   color: var(--accent2);
   border: 1px solid rgba(255,119,16,0.25);
 }
-.drawer-item-icon { font-size:20px; width:26px; text-align:center; flex-shrink:0; }
+.drawer-item-icon {
+  font-size:20px;
+  width:26px;
+  height:26px;
+  text-align:center;
+  flex-shrink:0;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  line-height:1;
+}
+.drawer-item-icon svg {
+  display:block;
+  width:20px;
+  height:20px;
+}
 .drawer-item-label { flex:1; }
 .drawer-item-badge {
   font-size:10px; font-weight:700;
@@ -737,8 +752,28 @@ html, body {
   color: var(--accent2); font-size:12px; padding:6px 11px; cursor:pointer;
 }
 /* ===== TWITTER-LIKE UI FIXES ===== */
-#comm-post-fab { position: fixed; bottom: max(30px, env(safe-area-inset-bottom)); right: 20px; width: 60px; height: 60px; border-radius: 30px; background: var(--accent); border: none; color: white; box-shadow: 0 8px 24px rgba(255,119,16,0.4); z-index: 900; display: none; align-items: center; justify-content: center; transition: transform 0.2s; }
+#comm-post-fab {
+  position: fixed;
+  bottom: max(22px, calc(env(safe-area-inset-bottom) + 10px));
+  right: clamp(14px, 3.6vw, 24px);
+  width: clamp(54px, 8vw, 62px);
+  height: clamp(54px, 8vw, 62px);
+  border-radius: 999px;
+  background: var(--accent);
+  border: none;
+  color: white;
+  box-shadow: 0 8px 24px rgba(255,119,16,0.4);
+  z-index: 900;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s;
+}
 #comm-post-fab:active { transform: scale(0.9); }
+#comm-post-fab svg {
+  width: clamp(24px, 3.8vw, 29px);
+  height: clamp(24px, 3.8vw, 29px);
+}
 
 #commCommentModal { align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
 #commCommentModal .modal { width: 100%; max-width: 500px; height: 60vh; min-height: 400px; max-height: 800px; border-radius: 24px; margin: auto; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); border: 1px solid var(--border); animation: staggerIn 0.35s; position: relative; }
@@ -824,10 +859,103 @@ html, body {
 .hashtag { color: var(--accent2); cursor: pointer; font-weight: 600; text-decoration: none; }
 .hashtag:hover { text-decoration: underline; }
 
-.notify-bell { position: relative; cursor: pointer; width: 36px; height: 36px; padding: 0; border-radius: 50%; transition: background 0.2s; display: flex; align-items: center; justify-content: center; }
+.notify-bell {
+  --bell-size: clamp(38px, 6vw, 46px);
+  position: relative;
+  cursor: pointer;
+  width: var(--bell-size);
+  height: var(--bell-size);
+  padding: 0;
+  border-radius: 50%;
+  transition: background 0.2s, transform 0.16s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 .notify-bell:hover { background: var(--s2); }
-.notify-dot { position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; background: #ff4d4d; border-radius: 50%; border: 2px solid var(--bg); display: none; }
+.notify-bell:active { transform: scale(0.96); }
+.notify-bell svg {
+  width: clamp(19px, 3vw, 23px);
+  height: clamp(19px, 3vw, 23px);
+}
+.notify-dot {
+  position: absolute;
+  top: clamp(6px, 1vw, 8px);
+  right: clamp(6px, 1vw, 8px);
+  width: clamp(8px, 1.5vw, 10px);
+  height: clamp(8px, 1.5vw, 10px);
+  background: #ff4d4d;
+  border-radius: 50%;
+  border: 2px solid var(--bg);
+  display: none;
+}
 .notify-dot.show { display: block; }
+
+.comm-post-modal {
+  width: min(560px, calc(100vw - 28px));
+  margin: auto;
+  border-radius: clamp(20px, 3vw, 28px);
+  padding: clamp(20px, 3vw, 28px);
+}
+.comm-post-composer {
+  position: relative;
+  margin-top: 8px;
+}
+.comm-post-composer textarea {
+  min-height: clamp(132px, 24vh, 220px);
+  padding-right: 44px;
+}
+.comm-post-emoji {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  font-size: 20px;
+  cursor: pointer;
+  opacity: 0.7;
+}
+.comm-post-preview {
+  position: relative;
+  display: none;
+  margin-top: 10px;
+  width: fit-content;
+  max-width: 100%;
+}
+.comm-post-preview img {
+  display: block;
+  max-width: 100%;
+  max-height: clamp(150px, 28vh, 220px);
+  border-radius: 12px;
+}
+
+@media (max-width: 640px) {
+  .notify-bell { --bell-size: 40px; }
+  #comm-post-fab {
+    bottom: max(18px, calc(env(safe-area-inset-bottom) + 8px));
+    right: 14px;
+  }
+  #commPostModal {
+    align-items: flex-end;
+    padding: 0;
+  }
+  #commPostModal .comm-post-modal {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    border-radius: 24px 24px 0 0;
+    padding: 18px 16px calc(16px + env(safe-area-inset-bottom));
+    min-height: min(72vh, 620px);
+  }
+  .comm-post-composer textarea {
+    min-height: 148px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .notify-bell { --bell-size: 44px; }
+  .comm-post-modal {
+    width: min(620px, calc(100vw - 80px));
+  }
+}
 
 .repost-card { border-left: 3px solid var(--accent); padding-left: 12px; margin-top: 8px; opacity: 0.9; }
 
@@ -1475,6 +1603,38 @@ function renderProfileSkeleton(label = '加载中...') {
   `;
 }
 
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, char => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[char]));
+}
+
+function escapeAttr(value) {
+  return escapeHtml(value);
+}
+
+function safeJsonArray(value) {
+  try {
+    const parsed = typeof value === 'string' ? JSON.parse(value || '[]') : value;
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function safeInitial(value) {
+  const text = String(value ?? '').trim();
+  return text ? text[0].toUpperCase() : '?';
+}
+
+function encodeInlineArg(value) {
+  return encodeURIComponent(String(value ?? ''));
+}
+
 function getCommAuthHeader(strict = true) {
   if (!commUser?.username || !commUser?.passHash) {
     if (strict) {
@@ -1820,12 +1980,12 @@ async function adminSetAdminPwd() {
     </div>
     <div style="display:flex; align-items:center; gap:12px; min-height:36px;">
       <div class="notify-bell" onclick="openNotifies()">
-        <span style="font-size:20px; display:flex; align-items:center; justify-content:center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg></span>
+        <span style="display:flex; align-items:center; justify-content:center;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg></span>
         <div class="notify-dot" id="comm-notify-dot"></div>
       </div>
       <div id="comm-auth-btn" onclick="openCommAuth()" class="admin-btn">登录 / 注册</div>
       <div id="comm-user-info" style="display:none; align-items:center; gap:8px;">
-        <div id="comm-user-avatar" onclick="navToProfile(commUser.username)" style="width:32px; height:32px; border-radius:16px; background:var(--s3); display:flex; align-items:center; justify-content:center; cursor:pointer; font-weight:700; color:var(--accent); font-size:14px; border: 1px solid var(--border);"></div>
+        <div id="comm-user-avatar" onclick="navToProfile(commUser.username, commUser.id)" style="width:32px; height:32px; border-radius:16px; background:var(--s3); display:flex; align-items:center; justify-content:center; cursor:pointer; font-weight:700; color:var(--accent); font-size:14px; border: 1px solid var(--border);"></div>
       </div>
     </div>
   </div>
@@ -1938,20 +2098,20 @@ async function adminSetAdminPwd() {
 
 <!-- Community Post Modal -->
   <div class="modal-overlay" id="commPostModal">
-  <div class="modal" style="max-width:500px; margin: auto;">
+  <div class="modal comm-post-modal">
     <button class="close-modal" onclick="closeCommPostModal()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
     <div class="modal-title">发布动态</div>
-    <div style="position:relative;">
-      <textarea id="comm-post-content" class="inp" style="height:120px; resize:none; margin-top:16px;" placeholder="分享你的新鲜事..."></textarea>
-      <div onclick="toggleEmojiPicker(event, 'comm-post-content')" style="position:absolute; bottom:12px; right:12px; font-size:20px; cursor:pointer; opacity:0.7;">😀</div>
+    <div class="comm-post-composer">
+      <textarea id="comm-post-content" class="inp" style="resize:none;" placeholder="分享你的新鲜事..."></textarea>
+      <div class="comm-post-emoji" onclick="toggleEmojiPicker(event, 'comm-post-content')">😀</div>
     </div>
     
     <div class="field-label">图片 (可选)</div>
     <div class="upload-area" id="comm-upload-area" style="padding:16px;">
       <input type="file" id="comm-file-input" accept="image/*" onchange="handleCommFile(this)">
       <div class="upload-hint">点击上传图片</div>
-      <div id="comm-preview-wrap" style="position:relative; display:none; margin-top:10px; width:fit-content;">
-     <img id="comm-preview-img" style="max-width:100%; max-height:150px; border-radius:8px; display:block;">
+      <div id="comm-preview-wrap" class="comm-post-preview">
+     <img id="comm-preview-img">
      <button onclick="cancelCommImage()" style="position:absolute; top:-8px; right:-8px; background:var(--bg); border:1px solid var(--border); color:var(--text); width:24px; height:24px; border-radius:12px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:12px;">✕</button>
    </div>
     </div>
@@ -2024,6 +2184,9 @@ function openCommPostModal() {
 function closeCommPostModal() { document.getElementById('commPostModal').classList.remove('open'); }
 function openNotifies() { document.getElementById('commNotifyModal').classList.add('open'); loadNotifies(); }
 function closeNotifies() { document.getElementById('commNotifyModal').classList.remove('open'); }
+function navToProfileEncoded(name, id = '') { navToProfile(decodeURIComponent(name || ''), decodeURIComponent(id || '')); }
+function nativeShareEncoded(author, id) { nativeShare(decodeURIComponent(author || ''), decodeURIComponent(id || '')); }
+function openImgViewerEncoded(src) { openImgViewer(decodeURIComponent(src || '')); }
 
 function updateCommUI() {
   const authBtn = document.getElementById('comm-auth-btn');
@@ -2067,25 +2230,25 @@ function renderAdminUsers() {
   userList.innerHTML = users.map(u => `
     <div class="glass-card admin-user-card">
       <div style="width:36px; height:36px; border-radius:18px; background:var(--s3); display:flex; align-items:center; justify-content:center; font-weight:700; flex-shrink:0;">
-        ${u.avatar_url ? `<img src="${u.avatar_url}" style="width:100%;height:100%;border-radius:18px;object-fit:cover;">` : u.username[0].toUpperCase()}
+        ${u.avatar_url ? `<img src="${escapeAttr(u.avatar_url)}" style="width:100%;height:100%;border-radius:18px;object-fit:cover;">` : safeInitial(u.username)}
       </div>
       <div class="admin-user-meta">
         <div class="admin-user-name">
-          <span>${u.username}</span>
+          <span>${escapeHtml(u.username || '未知用户')}</span>
           ${renderLevelBadge(u)}
           ${renderRoleBadge(u.role)}
         </div>
-        <div class="admin-user-sub">XP: ${u.xp || 0} | UID: ${u.id} | ${u.is_banned ? '<span style="color:#e05050;">已封禁</span>' : '正常'}</div>
-        <div class="admin-user-sub">密码哈希: <span class="badge hash">${u.password_hash || '无'}</span></div>
+        <div class="admin-user-sub">XP: ${u.xp || 0} | UID: ${escapeHtml(u.id || '')} | ${u.is_banned ? '<span style="color:#e05050;">已封禁</span>' : '正常'}</div>
+        <div class="admin-user-sub">密码哈希: <span class="badge hash">${escapeHtml(u.password_hash || '无')}</span></div>
       </div>
       <div class="admin-user-actions">
-        <button class="admin-action-btn accent" onclick="resetUserPassword('${u.id}', '${u.username}')">重置密码</button>
+        <button class="admin-action-btn accent" onclick='resetUserPassword("${escapeAttr(u.id || '')}", decodeURIComponent("${encodeInlineArg(u.username)}"))'>重置密码</button>
         ${isAdminRole(u.role)
-          ? `<button class="admin-action-btn admin" onclick="adminAction('revoke_admin', 'user', '${u.id}')">取消授权</button>`
-          : `<button class="admin-action-btn admin" onclick="adminAction('grant_admin', 'user', '${u.id}')">授权管理员</button>`}
+          ? `<button class="admin-action-btn admin" onclick="adminAction('revoke_admin', 'user', '${escapeAttr(u.id || '')}')">取消授权</button>`
+          : `<button class="admin-action-btn admin" onclick="adminAction('grant_admin', 'user', '${escapeAttr(u.id || '')}')">授权管理员</button>`}
         ${u.is_banned
-          ? `<button class="admin-action-btn" onclick="adminAction('unban_user', 'user', '${u.id}')">解除封禁</button>`
-          : (!isAdminRole(u.role) ? `<button class="admin-action-btn warn" onclick="adminAction('ban_user', 'user', '${u.id}')">封禁</button>` : '')}
+          ? `<button class="admin-action-btn" onclick="adminAction('unban_user', 'user', '${escapeAttr(u.id || '')}')">解除封禁</button>`
+          : (!isAdminRole(u.role) ? `<button class="admin-action-btn warn" onclick="adminAction('ban_user', 'user', '${escapeAttr(u.id || '')}')">封禁</button>` : '')}
       </div>
     </div>
   `).join('') || '<div style="text-align:center; padding:20px; color:var(--t3);">没有匹配的用户</div>';
@@ -2278,8 +2441,20 @@ async function loadCommPosts(query = '', userId = '', username = '', isProfile =
       container.innerHTML = renderEmptyState('没有找到内容');
       return;
     }
-    
-    container.innerHTML = `<div class="waterfall-container">${d.posts.map(p => renderPostCard(p)).join('')}</div>`;
+
+    const cards = d.posts.map(p => {
+      try {
+        return renderPostCard(p);
+      } catch (e) {
+        return '';
+      }
+    }).filter(Boolean);
+    if (!cards.length) {
+      container.innerHTML = renderEmptyState('内容暂时无法显示，请稍后再试', 'error');
+      return;
+    }
+
+    container.innerHTML = `<div class="waterfall-container">${cards.join('')}</div>`;
     observeLazyImages();
   } catch(e) {
     container.innerHTML = renderEmptyState(getUiErrorMessage(e, '加载失败，请刷新后重试'), 'error');
@@ -2287,21 +2462,27 @@ async function loadCommPosts(query = '', userId = '', username = '', isProfile =
 }
 
 function renderPostCard(p) {
-  const media = JSON.parse(p.media_json || '[]');
+  const media = safeJsonArray(p.media_json).filter(item => item && item.url);
   const date = new Date(p.created_at).toLocaleString('zh-CN', {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
   const isAdmin = commUser && commUser.role === 'admin';
   const isOwner = commUser && commUser.id === p.user_id;
   const liked = !!p.viewer_liked;
+  const username = escapeHtml(p.username || '未知用户');
+  const avatarUrl = p.avatar_url ? escapeAttr(p.avatar_url) : '';
+  const displayInitial = safeInitial(p.username);
+  const mediaUrl = media[0]?.url ? escapeAttr(media[0].url) : '';
+  const profileNameArg = encodeInlineArg(p.username);
+  const profileIdArg = encodeInlineArg(p.user_id);
   
   return `
     <div class="glass-card waterfall-item stream-card" data-post-card="${p.id}" style="padding:16px; display:flex; flex-direction:column; gap:10px;">
       <div style="display:flex; align-items:center; gap:10px;">
-        <div onclick="navToProfile('${p.username}', '${p.user_id}')" style="width:36px; height:36px; border-radius:18px; background:var(--s3); display:flex; align-items:center; justify-content:center; font-weight:700; color:var(--accent); cursor:pointer; overflow:hidden;">
-          ${p.avatar_url ? `<img src="${p.avatar_url}" style="width:100%;height:100%;object-fit:cover;">` : p.username[0].toUpperCase()}
+        <div onclick='navToProfileEncoded("${profileNameArg}", "${profileIdArg}")' style="width:36px; height:36px; border-radius:18px; background:var(--s3); display:flex; align-items:center; justify-content:center; font-weight:700; color:var(--accent); cursor:pointer; overflow:hidden;">
+          ${avatarUrl ? `<img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;">` : displayInitial}
         </div>
         <div style="flex:1;">
           <div style="display:flex; align-items:center;">
-            <span onclick="navToProfile('${p.username}', '${p.user_id}')" style="font-size:15px; font-weight:700; cursor:pointer;">${p.username}</span>
+            <span onclick='navToProfileEncoded("${profileNameArg}", "${profileIdArg}")' style="font-size:15px; font-weight:700; cursor:pointer;">${username}</span>
             ${renderLevelBadge(p)}
             ${renderRoleBadge(p.role)}
           </div>
@@ -2310,12 +2491,12 @@ function renderPostCard(p) {
         ${(isOwner || isAdmin) ? `<div onclick="deletePost('${p.id}')" style="cursor:pointer; opacity:0.3; font-size:14px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></div>` : ''}
       </div>
       <div onclick="navToPost('${p.id}')" style="font-size:16px; line-height:1.5; white-space:pre-wrap; color:var(--text); cursor:pointer;">${formatContent(p.content)}</div>
-      ${media.length ? `<img data-src="${media[0].url}" onclick="openImgViewer('${media[0].url}')" class="lazy-img" style="width:100%; border-radius:12px; margin-top:4px; border:1px solid var(--border); cursor:pointer;">` : ''}
+      ${mediaUrl ? `<img data-src="${mediaUrl}" onclick='openImgViewerEncoded("${encodeInlineArg(media[0].url)}")' class="lazy-img" style="width:100%; border-radius:12px; margin-top:4px; border:1px solid var(--border); cursor:pointer;">` : ''}
       
       
       ${p.inline_comments && p.inline_comments.length > 0 ? 
         `<div style="background:var(--s2); border-radius:12px; padding:10px 12px; margin-top:12px; font-size:13px;">
-          ${p.inline_comments.map(c => `<div style="margin-bottom:6px;"><span style="font-weight:700; color:var(--accent); cursor:pointer;" onclick="navToProfile('${c.username}')">${c.username}: </span><span style="color:var(--text); word-break: break-all;">${c.content}</span></div>`).join('')}
+          ${p.inline_comments.map(c => `<div style="margin-bottom:6px;"><span style="font-weight:700; color:var(--accent); cursor:pointer;" onclick='navToProfileEncoded("${encodeInlineArg(c.username)}", "${encodeInlineArg(c.user_id || '')}")'>${escapeHtml(c.username || '未知用户')}: </span><span style="color:var(--text); word-break: break-all;">${escapeHtml(c.content || '')}</span></div>`).join('')}
           ${p.comment_count > p.inline_comments.length ? `<div onclick="openComments('${p.id}')" style="color:var(--t3); cursor:pointer; margin-top:4px;">查看全部 ${p.comment_count} 条评论...</div>` : ''}
         </div>` 
       : ''}
@@ -2336,7 +2517,7 @@ function renderPostCard(p) {
           </div>
         </div>
         <div style="display:flex; align-items:center; gap:16px;">
-          <div onclick="nativeShare('${p.username}', '${p.id}')" style="display:flex; align-items:center; cursor:pointer;">
+          <div onclick='nativeShareEncoded("${profileNameArg}", "${encodeInlineArg(p.id)}")' style="display:flex; align-items:center; cursor:pointer;">
             <svg width="18" height="18" style="display:block;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
           </div>
           <div onclick="reportContent('post', '${p.id}')" style="opacity:0.3; cursor:pointer;"><svg width="16" height="16" style="display:block;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg></div>
@@ -2576,13 +2757,16 @@ async function loadNotifies() {
     }
     list.innerHTML = d.notifications.map(n => {
       const texts = { 'like': '点赞了你的帖子', 'follow': '关注了你', 'repost': '转发了你的帖子', 'comment': '评论了你的帖子' };
+      const avatarUrl = n.avatar_url ? escapeAttr(n.avatar_url) : '';
+      const userNameArg = encodeInlineArg(n.username);
+      const userIdArg = encodeInlineArg(n.user_id || n.from_user_id || '');
       return `
         <div style="display:flex; align-items:center; gap:12px; padding:12px; border-bottom:1px solid var(--border);">
-          <div style="width:32px; height:32px; border-radius:16px; background:var(--s3); display:flex; align-items:center; justify-content:center; font-weight:700;">
-            ${n.avatar_url ? `<img src="${n.avatar_url}" style="width:100%;height:100%;border-radius:16px;">` : n.username[0].toUpperCase()}
+          <div onclick='navToProfileEncoded("${userNameArg}", "${userIdArg}")' style="width:32px; height:32px; border-radius:16px; background:var(--s3); display:flex; align-items:center; justify-content:center; font-weight:700; cursor:pointer;">
+            ${avatarUrl ? `<img src="${avatarUrl}" style="width:100%;height:100%;border-radius:16px;">` : safeInitial(n.username)}
           </div>
           <div style="flex:1; font-size:13px;">
-            <b>${n.username}</b> ${texts[n.type] || '互动了'}
+            <b onclick='navToProfileEncoded("${userNameArg}", "${userIdArg}")' style="cursor:pointer;">${escapeHtml(n.username || '未知用户')}</b> ${texts[n.type] || '互动了'}
             <div style="font-size:11px; color:var(--t3); margin-top:2px;">${new Date(n.created_at).toLocaleString()}</div>
           </div>
         </div>
@@ -2617,16 +2801,16 @@ async function loadPostById(id) {
       if (dc.ok) {
         document.getElementById('single-post-comments').innerHTML = '<div style="font-size:16px; font-weight:700; border-bottom:1px solid var(--border); padding-bottom:8px; margin-bottom:8px;">评论</div>' + dc.comments.map(c => `
           <div class="comment-card" style="display:flex; gap:12px; border-bottom:1px solid rgba(255,255,255,0.05); padding-bottom:12px;">
-            <div onclick="navToProfile('${c.username}')" style="width:32px; height:32px; border-radius:16px; background:var(--s3); display:flex; align-items:center; justify-content:center; font-weight:700; color:var(--accent); cursor:pointer; flex-shrink:0;">
-              ${c.avatar_url ? `<img src="${c.avatar_url}" style="width:100%;height:100%;border-radius:16px;object-fit:cover;">` : c.username[0].toUpperCase()}
+            <div onclick='navToProfileEncoded("${encodeInlineArg(c.username)}", "${encodeInlineArg(c.user_id || '')}")' style="width:32px; height:32px; border-radius:16px; background:var(--s3); display:flex; align-items:center; justify-content:center; font-weight:700; color:var(--accent); cursor:pointer; flex-shrink:0;">
+              ${c.avatar_url ? `<img src="${escapeAttr(c.avatar_url)}" style="width:100%;height:100%;border-radius:16px;object-fit:cover;">` : safeInitial(c.username)}
             </div>
             <div style="flex:1;">
               <div style="display:flex; align-items:center;">
-                <span onclick="navToProfile('${c.username}')" style="font-size:14px; font-weight:700; cursor:pointer;">${c.username}</span>
+                <span onclick='navToProfileEncoded("${encodeInlineArg(c.username)}", "${encodeInlineArg(c.user_id || '')}")' style="font-size:14px; font-weight:700; cursor:pointer;">${escapeHtml(c.username || '未知用户')}</span>
                 ${renderLevelBadge(c)}
                 <span style="font-size:11px; color:var(--t3); margin-left:auto;">${new Date(c.created_at).toLocaleString('zh-CN', {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'})}</span>
               </div>
-              <div style="font-size:14px; color:var(--text); margin-top:4px;">${c.content}</div>
+              <div style="font-size:14px; color:var(--text); margin-top:4px;">${escapeHtml(c.content || '')}</div>
             </div>
           </div>
         `).join('');
@@ -2642,7 +2826,7 @@ async function loadPostById(id) {
 }
 
 function navToProfile(name, id) {
-  const safeName = encodeURIComponent(name || '');
+  const safeName = encodeURIComponent(name || id || '');
   history.pushState({page: 'profile', username: name, userId: id}, '', `/profile/${safeName}`);
   openProfileRoute(name, id);
 }
@@ -2663,20 +2847,24 @@ async function renderProfileHeader(val, isName, uid) {
   
   const draw = (userObj) => {
     const progress = getXpProgress(userObj);
+    const safeUsername = escapeHtml(userObj.username || '未知用户');
+    const safeSignature = escapeHtml(userObj.signature || '这个人很懒，什么都没留下。');
+    const safeAvatar = userObj.avatar_url ? escapeAttr(userObj.avatar_url) : '';
+    const safeBackground = escapeAttr(userObj.background_url || 'https://thefallback.cc.cd/bg.jpg');
     container.innerHTML = `
       <div class="profile-card">
-        <div class="profile-banner" style="background-image: url('${userObj.background_url || 'https://thefallback.cc.cd/bg.jpg'}')"></div>
+        <div class="profile-banner" style="background-image: url('${safeBackground}')"></div>
         <div class="profile-info">
-          <div class="profile-avatar" style="${userObj.avatar_url ? `background-image:url(${userObj.avatar_url}); background-size:cover; color:transparent;` : ''}">
-            ${userObj.avatar_url ? '' : (userObj.username ? userObj.username[0].toUpperCase() : '?')}
+          <div class="profile-avatar" style="${safeAvatar ? `background-image:url(${safeAvatar}); background-size:cover; color:transparent;` : ''}">
+            ${safeAvatar ? '' : safeInitial(userObj.username)}
           </div>
           <div class="profile-meta">
             <div class="profile-name" style="display:flex; align-items:center; gap:6px;">
-              ${userObj.username || '未知用户'}
+              ${safeUsername}
               ${renderLevelBadge(userObj)}
               ${renderRoleBadge(userObj.role)}
             </div>
-            <div class="profile-sig">${userObj.signature || '这个人很懒，什么都没留下。'}</div>
+            <div class="profile-sig">${safeSignature}</div>
           </div>
           <div class="profile-progress">
             <div class="profile-progress-top">
@@ -2825,14 +3013,14 @@ async function loadComments(postId) {
     list.innerHTML = d.comments.map(c => `
       <div class="comment-card" style="display:flex; gap:10px;">
         <div style="width:32px; height:32px; border-radius:16px; background:var(--s3); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:12px; flex-shrink:0;">
-          ${c.avatar_url ? `<img src="${c.avatar_url}" style="width:100%;height:100%;border-radius:16px;">` : c.username[0].toUpperCase()}
+          ${c.avatar_url ? `<img src="${escapeAttr(c.avatar_url)}" style="width:100%;height:100%;border-radius:16px;">` : safeInitial(c.username)}
         </div>
         <div style="flex:1;">
           <div style="font-size:13px; font-weight:700; display:flex; align-items:center; gap:6px;">
-            ${c.username} ${renderLevelBadge(c)}
+            ${escapeHtml(c.username || '未知用户')} ${renderLevelBadge(c)}
             <span style="font-weight:400; color:var(--t3); font-size:11px;">${new Date(c.created_at).toLocaleString()}</span>
           </div>
-          <div style="font-size:14px; color:var(--text); margin-top:4px;">${c.content}</div>
+          <div style="font-size:14px; color:var(--text); margin-top:4px;">${escapeHtml(c.content || '')}</div>
         </div>
       </div>
     `).join('');

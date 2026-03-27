@@ -289,11 +289,19 @@ export default {
             const { results } = await env.COMMUNITY_DB.prepare(sql).bind(...params).all();
 
             const posts = results || [];
+            posts.forEach(p => {
+              try {
+                const parsedMedia = JSON.parse(p.media_json || '[]');
+                p.media_json = JSON.stringify(Array.isArray(parsedMedia) ? parsedMedia.filter(item => item && typeof item === 'object') : []);
+              } catch (e) {
+                p.media_json = '[]';
+              }
+            });
             if (posts.length > 0) {
               const ids = posts.map(p => p.id);
               const placeholders = ids.map(() => '?').join(',');
               // Fetch latest 3 comments for each post (sqlite doesn't have row_number easily, so we just fetch all and group in JS, limit 500 total comments to prevent memory bloat)
-              const commQuery = "SELECT c.id, c.post_id, c.content, u.username FROM comments c JOIN users u ON c.user_id = u.id WHERE c.post_id IN (" + placeholders + ") ORDER BY c.created_at ASC LIMIT 500";
+              const commQuery = "SELECT c.id, c.post_id, c.content, c.user_id, u.username FROM comments c JOIN users u ON c.user_id = u.id WHERE c.post_id IN (" + placeholders + ") ORDER BY c.created_at ASC LIMIT 500";
               const commResults = await env.COMMUNITY_DB.prepare(commQuery).bind(...ids).all();
               const comms = commResults.results || [];
               let likedIds = new Set();
@@ -376,7 +384,7 @@ export default {
         const user = await getAuth();
         if (!user) return jsonResp({ ok: false }, 401);
         const { results } = await env.COMMUNITY_DB.prepare(`
-          SELECT n.*, u.username, u.avatar_url FROM notifications n 
+          SELECT n.*, u.id as user_id, u.username, u.avatar_url FROM notifications n 
           JOIN users u ON n.from_user_id = u.id 
           WHERE n.user_id = ? ORDER BY n.created_at DESC LIMIT 50
         `).bind(user.id).all();
@@ -424,7 +432,7 @@ export default {
         if (request.method === 'GET') {
           const postId = url.searchParams.get('postId');
           const { results } = await env.COMMUNITY_DB.prepare(`
-            SELECT c.*, u.username, u.avatar_url, COALESCE(u.level, 1) as level FROM comments c 
+            SELECT c.*, u.id as user_id, u.username, u.avatar_url, COALESCE(u.level, 1) as level FROM comments c 
             JOIN users u ON c.user_id = u.id 
             WHERE c.post_id = ? ORDER BY c.created_at ASC
           `).bind(postId).all();
