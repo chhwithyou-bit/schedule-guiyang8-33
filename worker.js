@@ -279,6 +279,104 @@ function cleanPreviewTitle(title, host) {
   return raw;
 }
 
+function createTimeoutError(message = 'Operation timed out') {
+  const error = new Error(message);
+  error.name = 'AbortError';
+  return error;
+}
+
+function withTimeout(promise, timeoutMs, message = 'Operation timed out') {
+  let timer = null;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      timer = setTimeout(() => reject(createTimeoutError(message)), timeoutMs);
+    })
+  ]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
+}
+
+function createPreviewTooLargeError() {
+  const error = new Error('LINK_PREVIEW_TOO_LARGE');
+  error.code = 'LINK_PREVIEW_TOO_LARGE';
+  return error;
+}
+
+function isPreviewTooLargeError(error) {
+  return error?.code === 'LINK_PREVIEW_TOO_LARGE' || String(error?.message || '') === 'LINK_PREVIEW_TOO_LARGE';
+}
+
+async function readResponseTextWithLimit(resp, maxBytes = LINK_PREVIEW_MAX_BYTES, timeoutMs = LINK_PREVIEW_TIMEOUT_MS) {
+  if (!resp?.body?.getReader) {
+    const text = await withTimeout(resp.text(), timeoutMs, 'Preview body timeout');
+    if (new TextEncoder().encode(text).length > maxBytes) throw createPreviewTooLargeError();
+    return text;
+  }
+
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  const chunks = [];
+  let totalBytes = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await withTimeout(reader.read(), timeoutMs, 'Preview body timeout');
+      if (done) break;
+
+      const chunk = value instanceof Uint8Array ? value : new Uint8Array(value || []);
+      totalBytes += chunk.byteLength;
+      if (totalBytes > maxBytes) throw createPreviewTooLargeError();
+      chunks.push(decoder.decode(chunk, { stream: true }));
+    }
+  } finally {
+    try { await reader.cancel(); } catch {}
+  }
+
+  chunks.push(decoder.decode());
+  return chunks.join('');
+}
+
+function buildFallbackPreview(targetUrl, reason = '') {
+  try {
+    const parsed = new URL(targetUrl);
+    const host = parsed.hostname.replace(/^www\./, '');
+    const pathParts = parsed.pathname.split('/').filter(Boolean).map(part => safeDecodeURIComponent(part));
+    let title = '';
+
+    if (host.includes('bilibili.com') || host === 'b23.tv') {
+      const bv = pathParts.find(part => /^BV/i.test(part));
+      title = bv ? `Bilibili 视频 ${bv}` : 'Bilibili 链接';
+    } else if (host.includes('xiaohongshu.com')) {
+      title = '小红书链接';
+    } else if (host.includes('douyin.com')) {
+      title = '抖音链接';
+    } else if (host.includes('weibo.com')) {
+      title = '微博链接';
+    } else if (pathParts.length) {
+      title = pathParts[pathParts.length - 1].replace(/\.[a-z0-9]+$/i, '').trim();
+    }
+
+    if (!title) title = host || '链接预览';
+
+    return {
+      url: parsed.toString(),
+      title: title.slice(0, 120),
+      image: '',
+      description: reason ? `暂未获取站点摘要：${reason}` : '',
+      host
+    };
+  } catch {
+    return {
+      url: String(targetUrl || ''),
+      title: '链接预览',
+      image: '',
+      description: reason ? `暂未获取站点摘要：${reason}` : '',
+      host: ''
+    };
+  }
+}
+
 async function fetchWithTimeout(resource, init = {}, timeoutMs = LINK_PREVIEW_TIMEOUT_MS) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -440,6 +538,7 @@ export default {
           const target = new URL(rawUrl);
           if (!['http:', 'https:'].includes(target.protocol)) return jsonResp({ ok: false, msg: '链接协议不支持' }, 400);
           if (isPrivatePreviewHost(target.hostname)) return jsonResp({ ok: false, msg: '该链接不允许预览' }, 400);
+          let fallbackPreview = buildFallbackPreview(target.toString());
 
           const resp = await fetchWithTimeout(target.toString(), {
             redirect: 'follow',
@@ -448,20 +547,32 @@ export default {
               'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8'
             }
           });
-          if (!resp.ok) return jsonResp({ ok: false, msg: '链接解析失败' }, 502);
+          if (!resp.ok) {
+            return jsonResp({
+              ok: true,
+              preview: buildFallbackPreview(target.toString(), '站点拒绝返回预览内容')
+            });
+          }
           const contentType = String(resp.headers.get('content-type') || '').toLowerCase();
           const contentLength = Number(resp.headers.get('content-length') || 0);
           if (contentLength && contentLength > LINK_PREVIEW_MAX_BYTES) {
-            return jsonResp({ ok: false, msg: '链接内容过大，暂不支持预览' }, 413);
+            return jsonResp({
+              ok: true,
+              preview: buildFallbackPreview(target.toString(), '链接内容过大，已改为基础卡片')
+            });
           }
           if (contentType && !/(text\/html|application\/xhtml\+xml)/.test(contentType)) {
-            return jsonResp({ ok: false, msg: '该链接不支持预览' }, 415);
+            return jsonResp({
+              ok: true,
+              preview: buildFallbackPreview(target.toString(), '该链接类型不支持抓取网页信息')
+            });
           }
 
           const finalUrl = resp.url || target.toString();
           const final = new URL(finalUrl);
           if (isPrivatePreviewHost(final.hostname)) return jsonResp({ ok: false, msg: '该链接不允许预览' }, 400);
-          const html = await resp.text();
+          fallbackPreview = buildFallbackPreview(finalUrl);
+          const html = await readResponseTextWithLimit(resp, LINK_PREVIEW_MAX_BYTES, LINK_PREVIEW_TIMEOUT_MS);
           const title = cleanPreviewTitle(
             extractMetaTag(html, 'og:title') || extractMetaTag(html, 'twitter:title', 'name') || extractTitle(html),
             final.hostname
@@ -471,20 +582,30 @@ export default {
             finalUrl
           );
           const description = extractMetaTag(html, 'og:description') || extractMetaTag(html, 'description', 'name') || extractMetaTag(html, 'twitter:description', 'name');
-          if (!title) return jsonResp({ ok: false, msg: '未解析到标题' }, 404);
 
           return jsonResp({
             ok: true,
             preview: {
               url: finalUrl,
-              title,
+              title: title || fallbackPreview.title,
               image,
-              description: String(description || '').trim(),
+              description: String(description || '').trim() || fallbackPreview.description,
               host: final.hostname.replace(/^www\./, '')
             }
           });
         } catch (e) {
-          return jsonResp({ ok: false, msg: isAbortLikeError(e) ? '链接解析超时' : '链接解析失败' }, isAbortLikeError(e) ? 504 : 500);
+          if (isAbortLikeError(e) || isPreviewTooLargeError(e)) {
+            const rawUrl = url.searchParams.get('url') || '';
+            return jsonResp({
+              ok: true,
+              preview: buildFallbackPreview(rawUrl, isPreviewTooLargeError(e) ? '链接内容过大，已改为基础卡片' : '链接解析超时，已改为基础卡片')
+            });
+          }
+          const rawUrl = url.searchParams.get('url') || '';
+          return jsonResp({
+            ok: true,
+            preview: buildFallbackPreview(rawUrl, '暂时无法抓取站点信息')
+          });
         }
       }
 

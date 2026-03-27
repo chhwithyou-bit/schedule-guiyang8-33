@@ -2562,6 +2562,52 @@ function renderLinkPreviewError(url, message) {
   `;
 }
 
+function buildFallbackLinkPreview(url, message = '') {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.replace(/^www\./, '');
+    const pathParts = parsed.pathname.split('/').filter(Boolean).map(part => {
+      try {
+        return decodeURIComponent(part);
+      } catch (e) {
+        return part;
+      }
+    });
+    let title = '';
+
+    if (host.includes('bilibili.com') || host === 'b23.tv') {
+      const bv = pathParts.find(part => /^BV/i.test(part));
+      title = bv ? `Bilibili 视频 ${bv}` : 'Bilibili 链接';
+    } else if (host.includes('xiaohongshu.com')) {
+      title = '小红书链接';
+    } else if (host.includes('douyin.com')) {
+      title = '抖音链接';
+    } else if (host.includes('weibo.com')) {
+      title = '微博链接';
+    } else if (pathParts.length) {
+      title = pathParts[pathParts.length - 1].replace(/\.[a-z0-9]+$/i, '').trim();
+    }
+
+    if (!title) title = host || '链接预览';
+
+    return {
+      url: parsed.toString(),
+      title: title.slice(0, 120),
+      image: '',
+      description: message ? `暂未获取站点摘要：${message}` : '',
+      host
+    };
+  } catch (e) {
+    return {
+      url: String(url || ''),
+      title: '链接预览',
+      image: '',
+      description: message ? `暂未获取站点摘要：${message}` : '',
+      host: getPreviewHostLabel(url)
+    };
+  }
+}
+
 async function fetchLinkPreview(url, options = {}) {
   if (!url) return null;
   const { force = false } = options;
@@ -2587,7 +2633,8 @@ async function fetchLinkPreview(url, options = {}) {
       })
       .catch(error => {
         linkPreviewCache.delete(url);
-        return { ok: false, msg: normalizePreviewErrorMessage(error) };
+        const message = normalizePreviewErrorMessage(error);
+        return { ok: true, preview: buildFallbackLinkPreview(url, message), degraded: true };
       })
       .finally(() => clearTimeout(timer));
     linkPreviewCache.set(url, request);
@@ -2619,7 +2666,7 @@ async function hydrateLinkPreviews(root = document) {
     const rawUrl = decodeURIComponent(node.dataset.previewUrl || '');
     const result = await fetchLinkPreview(rawUrl);
     if (!result?.ok || !result.preview) {
-      node.remove();
+      node.outerHTML = renderLinkPreview(buildFallbackLinkPreview(rawUrl, '暂时无法解析这个链接'));
       return;
     }
     node.outerHTML = renderLinkPreview(result.preview);
@@ -2674,7 +2721,7 @@ async function updateCommComposerPreview() {
   if (token !== commComposerPreviewToken) return;
   if (!result?.ok || !result.preview) {
     box.classList.add('show');
-    box.innerHTML = `<div class="composer-link-preview-label">链接预览</div>${renderLinkPreviewError(url, result?.msg)}`;
+    box.innerHTML = `<div class="composer-link-preview-label">链接预览</div>${renderLinkPreview(buildFallbackLinkPreview(url, result?.msg || '暂时无法解析这个链接'))}`;
     return;
   }
 
