@@ -3994,6 +3994,21 @@ scheduleInit();
     durEl.textContent=fmt(audio.duration);
   });
   audio.addEventListener('loadedmetadata',()=>{durEl.textContent=fmt(audio.duration);});
+  audio.addEventListener('error',()=>{
+    const current = PL[idx];
+    console.error('[music] 音频加载失败:', current && current.url, audio.error);
+    setP(false);
+    fillEl.style.width = '0%';
+    curEl.textContent = '0:00';
+    durEl.textContent = '--:--';
+    if(current && current.name){
+      nameEl.textContent = current.name;
+      artEl.textContent = '链接失效或无法读取';
+    }else{
+      nameEl.textContent = '播放失败';
+      artEl.textContent = '链接失效或无法读取';
+    }
+  });
 
   (function(){
     const bar = $('mp-prog');

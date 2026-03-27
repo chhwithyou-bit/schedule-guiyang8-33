@@ -4,6 +4,7 @@ const DEFAULT_ADMIN_USER = 'admin';
 const DEFAULT_ADMIN_PASS = 'admin888';
 const LINK_PREVIEW_TIMEOUT_MS = 8000;
 const LINK_PREVIEW_MAX_BYTES = 1_500_000;
+const DEFAULT_MUSIC_PUBLIC_BASE_URL = 'https://media.thefallback.cc.cd';
 
 function jsonResp(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -16,6 +17,57 @@ function corsResp() {
   return new Response(null, {
     headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' },
   });
+}
+
+function safeDecodeURIComponent(value) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function encodeObjectKey(key) {
+  return String(key || '')
+    .split('/')
+    .filter(Boolean)
+    .map(part => encodeURIComponent(safeDecodeURIComponent(part)))
+    .join('/');
+}
+
+function getMusicPublicBaseUrl(env) {
+  return String(env.MUSIC_PUBLIC_BASE_URL || DEFAULT_MUSIC_PUBLIC_BASE_URL).replace(/\/+$/, '');
+}
+
+function buildMusicPublicUrl(env, key) {
+  const encodedKey = encodeObjectKey(key);
+  return encodedKey ? `${getMusicPublicBaseUrl(env)}/${encodedKey}` : getMusicPublicBaseUrl(env);
+}
+
+function normalizeMusicTrack(env, track, requestHost) {
+  if (!track || typeof track !== 'object') return track;
+  const next = { ...track };
+  const rawUrl = String(track.url || '').trim();
+  if (!rawUrl) return next;
+
+  try {
+    const parsed = new URL(rawUrl);
+    const legacyHosts = new Set([
+      'thefallback.cc.cd',
+      'www.thefallback.cc.cd',
+      requestHost,
+    ].filter(Boolean));
+
+    if (legacyHosts.has(parsed.hostname)) {
+      const objectKey = parsed.pathname.replace(/^\/+/, '');
+      if (objectKey) next.url = buildMusicPublicUrl(env, objectKey);
+    }
+  } catch {
+    const objectKey = rawUrl.replace(/^\/+/, '');
+    if (objectKey) next.url = buildMusicPublicUrl(env, objectKey);
+  }
+
+  return next;
 }
 
 async function verifyAdmin(env, username, password) {
@@ -246,6 +298,10 @@ export default {
             list = await playlistObj.json();
           }
 
+          if (Array.isArray(list) && list.length) {
+            list = list.map(track => normalizeMusicTrack(env, track, url.hostname));
+          }
+
           // 2. 如果手动配置为空，则自动扫描存储桶中的所有 MP3 文件
           if (!list || list.length === 0) {
             const listed = await env.MUSIC_BUCKET.list();
@@ -257,8 +313,8 @@ export default {
                 return {
                   name: decodeURIComponent(name),
                   artist: 'R2 Drive',
-                  // 使用您的自定义域名拼接链接
-                  url: `https://thefallback.cc.cd/${obj.key}`
+                  // 使用公开的 R2 媒体域名拼接链接，确保浏览器能读取音频元数据
+                  url: buildMusicPublicUrl(env, obj.key)
                 };
               });
           }
