@@ -2279,8 +2279,6 @@ function getXpProgress(user) {
   return { current, next: 100, percent: current, note: `距离下一级还差 ${needed} XP` };
 }
 
-function openCommAuth() { document.getElementById('commAuthModal').classList.add('open'); }
-function closeCommAuth() { document.getElementById('commAuthModal').classList.remove('open'); }
 function openCommPostModal() { 
   if (!commUser) return openCommAuth();
   document.getElementById('commPostModal').classList.add('open');
@@ -2501,8 +2499,6 @@ function openCommAuth() {
 }
 function closeCommAuth() { document.getElementById('commAuthModal').classList.remove('open'); }
 
-// ... (other functions)
-
 function formatContent(content) {
   if (!content) return '';
   // Escaping simple HTML
@@ -2548,18 +2544,6 @@ function normalizePreviewErrorMessage(error) {
   const message = String(error?.message || '').trim();
   if (/超时|timeout|aborted/i.test(message)) return '解析超时，请稍后重试';
   return message || '暂时无法解析这个链接';
-}
-
-function renderLinkPreviewError(url, message) {
-  return `
-    <div class="link-preview-card error">
-      <div class="link-preview-meta">
-        <div class="link-preview-title">${escapeHtml(message || '暂时无法解析这个链接')}</div>
-        <div class="link-preview-host">${escapeHtml(getPreviewHostLabel(url))}</div>
-      </div>
-      <button type="button" class="link-preview-retry" onclick="retryCommComposerPreview()">重新解析</button>
-    </div>
-  `;
 }
 
 function buildFallbackLinkPreview(url, message = '') {

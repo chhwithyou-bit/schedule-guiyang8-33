@@ -377,6 +377,14 @@ function buildFallbackPreview(targetUrl, reason = '') {
   }
 }
 
+function getPreviewFetchHeaders(extra = {}) {
+  return {
+    'user-agent': 'Mozilla/5.0 (compatible; 8communityBot/1.0; +https://thefallback.cc.cd)',
+    'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8',
+    ...extra,
+  };
+}
+
 function extractBilibiliBvid(value) {
   const raw = String(value || '');
   const match = raw.match(/BV[0-9A-Za-z]{10}/i);
@@ -408,10 +416,7 @@ async function fetchBilibiliPreview(targetUrl) {
     try {
       const redirectResp = await fetchWithTimeout(target.toString(), {
         redirect: 'manual',
-        headers: {
-          'user-agent': 'Mozilla/5.0 (compatible; 8communityBot/1.0; +https://thefallback.cc.cd)',
-          'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8'
-        }
+        headers: getPreviewFetchHeaders()
       });
       const location = redirectResp.headers.get('location') || '';
       if (location) {
@@ -424,10 +429,7 @@ async function fetchBilibiliPreview(targetUrl) {
   if (!bvid) return null;
 
   const apiResp = await fetchWithTimeout(`https://api.bilibili.com/x/web-interface/view?bvid=${encodeURIComponent(bvid)}`, {
-    headers: {
-      'user-agent': 'Mozilla/5.0 (compatible; 8communityBot/1.0; +https://thefallback.cc.cd)',
-      'accept': 'application/json'
-    }
+    headers: getPreviewFetchHeaders({ accept: 'application/json' })
   });
   if (!apiResp.ok) return null;
 
@@ -489,10 +491,7 @@ async function fetchYouTubePreview(targetUrl) {
   const canonicalUrl = getYouTubeCanonicalUrl(extractYouTubeVideoId(targetUrl), targetUrl);
   const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(targetUrl)}&format=json`;
   const resp = await fetchWithTimeout(oembedUrl, {
-    headers: {
-      'user-agent': 'Mozilla/5.0 (compatible; 8communityBot/1.0; +https://thefallback.cc.cd)',
-      'accept': 'application/json'
-    }
+    headers: getPreviewFetchHeaders({ accept: 'application/json' })
   });
   if (!resp.ok) return null;
 
@@ -685,10 +684,7 @@ export default {
 
           const resp = await fetchWithTimeout(target.toString(), {
             redirect: 'follow',
-            headers: {
-              'user-agent': 'Mozilla/5.0 (compatible; 8communityBot/1.0; +https://thefallback.cc.cd)',
-              'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8'
-            }
+            headers: getPreviewFetchHeaders()
           });
           if (!resp.ok) {
             return jsonResp({
