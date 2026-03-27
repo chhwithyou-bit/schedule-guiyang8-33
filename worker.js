@@ -210,7 +210,15 @@ export default {
       const getAuth = async () => {
         const auth = request.headers.get('Authorization') || '';
         if (!auth.startsWith('Bearer ')) return null;
-        const [u, p] = auth.slice(7).split(':');
+        const raw = auth.slice(7);
+        const sep = raw.indexOf(':');
+        if (sep === -1) return null;
+        const rawUser = raw.slice(0, sep);
+        const p = raw.slice(sep + 1);
+        let u = rawUser;
+        try {
+          u = decodeURIComponent(rawUser);
+        } catch (e) {}
         const user = await env.COMMUNITY_DB.prepare("SELECT * FROM users WHERE username = ? AND password_hash = ?").bind(u, p).first();
         if (user && user.is_banned) return null;
         return user;

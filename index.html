@@ -1635,6 +1635,11 @@ function encodeInlineArg(value) {
   return encodeURIComponent(String(value ?? ''));
 }
 
+function buildCommAuthHeader(user) {
+  if (!user?.username || !user?.passHash) return null;
+  return `Bearer ${encodeURIComponent(user.username)}:${user.passHash}`;
+}
+
 function getCommAuthHeader(strict = true) {
   if (!commUser?.username || !commUser?.passHash) {
     if (strict) {
@@ -1646,7 +1651,7 @@ function getCommAuthHeader(strict = true) {
     }
     return null;
   }
-  return `Bearer ${commUser.username}:${commUser.passHash}`;
+  return buildCommAuthHeader(commUser);
 }
 
 function patchMetricNodes(postId, action, updater) {
@@ -2257,9 +2262,11 @@ function renderAdminUsers() {
 async function saveAnnouncement() {
   const content = document.getElementById('admin-announcement')?.value || '';
   try {
+    const authHeader = getCommAuthHeader();
+    if (!authHeader) return;
     const r = await fetch('/api/community/admin/action', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${commUser.username}:${commUser.passHash}` },
+      headers: { 'Content-Type': 'application/json', 'Authorization': authHeader },
       body: JSON.stringify({ action: 'set_announcement', content })
     });
     const d = await r.json();
@@ -2309,8 +2316,10 @@ async function loadAdminData() {
   const reportList = document.getElementById('admin-reports-list');
   
   try {
+    const authHeader = getCommAuthHeader(false);
+    if (!authHeader) return;
     const r = await fetch('/api/community/admin/data', {
-      headers: { 'Authorization': `Bearer ${commUser.username}:${commUser.passHash}` }
+      headers: { 'Authorization': authHeader }
     });
     const d = await r.json();
     if (!d.ok) return;
@@ -2340,9 +2349,11 @@ async function loadAdminData() {
 async function adminAction(action, type, id, reportId = null) {
   if (!confirm('确定执行此操作吗？')) return;
   try {
+    const authHeader = getCommAuthHeader();
+    if (!authHeader) return;
     const r = await fetch('/api/community/admin/action', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${commUser.username}:${commUser.passHash}` },
+      headers: { 'Content-Type': 'application/json', 'Authorization': authHeader },
       body: JSON.stringify({ action, target_type: type, target_id: id, report_id: reportId })
     });
     const d = await r.json();
@@ -2365,9 +2376,11 @@ async function resetUserPassword(userId, username) {
   if (!confirm(`确认将 [${username}] 的密码重置为：${newPwd} 吗？`)) return;
 
   try {
+    const authHeader = getCommAuthHeader();
+    if (!authHeader) return;
     const r = await fetch('/api/community/admin/action', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${commUser.username}:${commUser.passHash}` },
+      headers: { 'Content-Type': 'application/json', 'Authorization': authHeader },
       body: JSON.stringify({ action: 'reset_password', target_type: 'user', target_id: userId, new_password: newPwd })
     });
     if ((await r.json()).ok) { 
@@ -2604,9 +2617,11 @@ async function submitEditProfile() {
     let bannerUrl = profileRemovals.banner ? '' : (commUser.background_url || '');
 
     if (profileFiles.avatar) {
+      const authHeader = getCommAuthHeader();
+      if (!authHeader) return;
       const r = await trackedFetch('/api/community/upload', {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${commUser.username}:${commUser.passHash}`, 'Content-Type': profileFiles.avatar.type },
+        headers: { 'Authorization': authHeader, 'Content-Type': profileFiles.avatar.type },
         body: await readFileAsArrayBuffer(profileFiles.avatar)
       });
       const d = await r.json();
@@ -2614,18 +2629,22 @@ async function submitEditProfile() {
     }
 
     if (profileFiles.banner) {
+      const authHeader = getCommAuthHeader();
+      if (!authHeader) return;
       const r = await trackedFetch('/api/community/upload', {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${commUser.username}:${commUser.passHash}`, 'Content-Type': profileFiles.banner.type },
+        headers: { 'Authorization': authHeader, 'Content-Type': profileFiles.banner.type },
         body: await readFileAsArrayBuffer(profileFiles.banner)
       });
       const d = await r.json();
       if (d.ok) bannerUrl = d.url;
     }
 
+    const authHeader = getCommAuthHeader();
+    if (!authHeader) return;
     const r = await trackedFetch('/api/community/profile', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${commUser.username}:${commUser.passHash}` },
+      headers: { 'Content-Type': 'application/json', 'Authorization': authHeader },
       body: JSON.stringify({ signature: sig, avatar_url: avatarUrl, background_url: bannerUrl })
     });
     
@@ -2653,9 +2672,11 @@ async function reportContent(type, id) {
   if (!reason) return;
   if (!commUser) return openCommAuth();
   try {
+    const authHeader = getCommAuthHeader();
+    if (!authHeader) return;
     const r = await trackedFetch('/api/community/report', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${commUser.username}:${commUser.passHash}` },
+      headers: { 'Content-Type': 'application/json', 'Authorization': authHeader },
       body: JSON.stringify({ target_type: type, target_id: id, reason })
     });
     if ((await r.json()).ok) showToast('举报已提交，我们会尽快处理', 'success');
@@ -2679,9 +2700,11 @@ function observeLazyImages() {
 async function deletePost(id) {
   if (!confirm('确定要删除这条内容吗？')) return;
   try {
+    const authHeader = getCommAuthHeader();
+    if (!authHeader) return;
     const r = await trackedFetch(`/api/community/posts?id=${id}`, {
       method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${commUser.username}:${commUser.passHash}` }
+      headers: { 'Authorization': authHeader }
     });
     if ((await r.json()).ok) loadCommPosts();
   } catch(e) { showToast('删除失败', 'error'); }
@@ -2746,8 +2769,10 @@ async function loadNotifies() {
   const list = document.getElementById('comm-notifies-list');
   list.innerHTML = renderCommentSkeletons(3);
   try {
+    const authHeader = getCommAuthHeader(false);
+    if (!authHeader) return;
     const r = await trackedFetch('/api/community/notifications', {
-      headers: { 'Authorization': `Bearer ${commUser.username}:${commUser.passHash}` }
+      headers: { 'Authorization': authHeader }
     });
     const d = await r.json();
     if (!d.ok) return;
@@ -2976,9 +3001,11 @@ function openRepost(id) {
 async function doRepost(postId, content) {
   if (!commUser) return openCommAuth();
   try {
+    const authHeader = getCommAuthHeader();
+    if (!authHeader) return;
     const r = await trackedFetch('/api/community/posts', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${commUser.username}:${commUser.passHash}` },
+      headers: { 'Content-Type': 'application/json', 'Authorization': authHeader },
       body: JSON.stringify({ content, repost_id: postId })
     });
     if ((await r.json()).ok) {
