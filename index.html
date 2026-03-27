@@ -886,6 +886,10 @@ html, body {
   cursor: default;
   color: var(--t2);
 }
+.link-preview-card.error {
+  border-color: rgba(224,80,80,0.32);
+  background: rgba(96,18,18,0.24);
+}
 .link-preview-thumb {
   width: 100%;
   border-radius: 12px;
@@ -922,6 +926,22 @@ html, body {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+.link-preview-retry {
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 7px 10px;
+  border-radius: 9px;
+  border: 1px solid rgba(255,119,16,0.3);
+  background: transparent;
+  color: var(--accent2);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.link-preview-retry:hover {
+  border-color: rgba(255,119,16,0.48);
+  background: rgba(255,119,16,0.08);
 }
 .composer-link-preview {
   display: none;
@@ -2520,15 +2540,57 @@ function getPreviewHostLabel(url) {
   }
 }
 
+const LINK_PREVIEW_TIMEOUT_MS = 8000;
 const linkPreviewCache = new Map();
 
-async function fetchLinkPreview(url) {
+function normalizePreviewErrorMessage(error) {
+  if (error?.name === 'AbortError') return '解析超时，请稍后重试';
+  const message = String(error?.message || '').trim();
+  if (/超时|timeout|aborted/i.test(message)) return '解析超时，请稍后重试';
+  return message || '暂时无法解析这个链接';
+}
+
+function renderLinkPreviewError(url, message) {
+  return `
+    <div class="link-preview-card error">
+      <div class="link-preview-meta">
+        <div class="link-preview-title">${escapeHtml(message || '暂时无法解析这个链接')}</div>
+        <div class="link-preview-host">${escapeHtml(getPreviewHostLabel(url))}</div>
+      </div>
+      <button type="button" class="link-preview-retry" onclick="retryCommComposerPreview()">重新解析</button>
+    </div>
+  `;
+}
+
+async function fetchLinkPreview(url, options = {}) {
   if (!url) return null;
+  const { force = false } = options;
+  if (force) linkPreviewCache.delete(url);
   if (!linkPreviewCache.has(url)) {
-    linkPreviewCache.set(url, trackedFetch(`/api/community/link-preview?url=${encodeURIComponent(url)}`)
-      .then(r => r.json())
-      .then(d => d.ok ? d.preview : null)
-      .catch(() => null));
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), LINK_PREVIEW_TIMEOUT_MS);
+    const request = trackedFetch(`/api/community/link-preview?url=${encodeURIComponent(url)}`, {
+      signal: controller.signal,
+      headers: { 'Accept': 'application/json' }
+    })
+      .then(async r => {
+        let data = null;
+        try {
+          data = await r.json();
+        } catch (e) {
+          throw new Error('链接预览响应无效');
+        }
+        if (!r.ok || !data?.ok || !data.preview?.url || !data.preview?.title) {
+          throw new Error(data?.msg || '链接解析失败');
+        }
+        return { ok: true, preview: data.preview };
+      })
+      .catch(error => {
+        linkPreviewCache.delete(url);
+        return { ok: false, msg: normalizePreviewErrorMessage(error) };
+      })
+      .finally(() => clearTimeout(timer));
+    linkPreviewCache.set(url, request);
   }
   return linkPreviewCache.get(url);
 }
@@ -2555,12 +2617,12 @@ async function hydrateLinkPreviews(root = document) {
     if (node.dataset.previewLoaded === '1') return;
     node.dataset.previewLoaded = '1';
     const rawUrl = decodeURIComponent(node.dataset.previewUrl || '');
-    const preview = await fetchLinkPreview(rawUrl);
-    if (!preview) {
+    const result = await fetchLinkPreview(rawUrl);
+    if (!result?.ok || !result.preview) {
       node.remove();
       return;
     }
-    node.outerHTML = renderLinkPreview(preview);
+    node.outerHTML = renderLinkPreview(result.preview);
   }));
 }
 
@@ -2585,6 +2647,14 @@ function scheduleCommComposerPreview() {
   commComposerPreviewTimer = setTimeout(updateCommComposerPreview, 220);
 }
 
+function retryCommComposerPreview() {
+  if (commComposerPreviewTimer) clearTimeout(commComposerPreviewTimer);
+  const input = document.getElementById('comm-post-content');
+  const [url] = extractPreviewUrls(input?.value || '');
+  if (url) linkPreviewCache.delete(url);
+  updateCommComposerPreview();
+}
+
 async function updateCommComposerPreview() {
   const box = document.getElementById('comm-link-preview');
   const input = document.getElementById('comm-post-content');
@@ -2600,15 +2670,16 @@ async function updateCommComposerPreview() {
   box.classList.add('show');
   box.innerHTML = `<div class="composer-link-preview-label">链接预览</div><div class="link-preview-card loading"><div class="link-preview-meta"><div class="link-preview-title">正在解析链接预览...</div><div class="link-preview-host">${escapeHtml(getPreviewHostLabel(url))}</div></div></div>`;
 
-  const preview = await fetchLinkPreview(url);
+  const result = await fetchLinkPreview(url);
   if (token !== commComposerPreviewToken) return;
-  if (!preview) {
-    resetCommComposerPreview();
+  if (!result?.ok || !result.preview) {
+    box.classList.add('show');
+    box.innerHTML = `<div class="composer-link-preview-label">链接预览</div>${renderLinkPreviewError(url, result?.msg)}`;
     return;
   }
 
   box.classList.add('show');
-  box.innerHTML = `<div class="composer-link-preview-label">链接预览</div>${renderLinkPreview(preview)}`;
+  box.innerHTML = `<div class="composer-link-preview-label">链接预览</div>${renderLinkPreview(result.preview)}`;
 }
 
 async function loadCommPosts(query = '', userId = '', username = '', isProfile = false) {

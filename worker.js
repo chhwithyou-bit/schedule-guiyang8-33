@@ -2,6 +2,8 @@ import htmlContent from './index.html';
 
 const DEFAULT_ADMIN_USER = 'admin';
 const DEFAULT_ADMIN_PASS = 'admin888';
+const LINK_PREVIEW_TIMEOUT_MS = 8000;
+const LINK_PREVIEW_MAX_BYTES = 1_500_000;
 
 function jsonResp(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -167,6 +169,22 @@ function cleanPreviewTitle(title, host) {
   return raw;
 }
 
+async function fetchWithTimeout(resource, init = {}, timeoutMs = LINK_PREVIEW_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(resource, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function isAbortLikeError(error) {
+  const name = String(error?.name || '');
+  const message = String(error?.message || '');
+  return name === 'AbortError' || /aborted|timeout/i.test(message);
+}
+
 function isPrivatePreviewHost(hostname) {
   const host = String(hostname || '').toLowerCase().replace(/^\[|\]$/g, '');
   if (!host) return true;
@@ -328,7 +346,7 @@ export default {
           if (!['http:', 'https:'].includes(target.protocol)) return jsonResp({ ok: false, msg: '链接协议不支持' }, 400);
           if (isPrivatePreviewHost(target.hostname)) return jsonResp({ ok: false, msg: '该链接不允许预览' }, 400);
 
-          const resp = await fetch(target.toString(), {
+          const resp = await fetchWithTimeout(target.toString(), {
             redirect: 'follow',
             headers: {
               'user-agent': 'Mozilla/5.0 (compatible; 8communityBot/1.0; +https://thefallback.cc.cd)',
@@ -336,6 +354,14 @@ export default {
             }
           });
           if (!resp.ok) return jsonResp({ ok: false, msg: '链接解析失败' }, 502);
+          const contentType = String(resp.headers.get('content-type') || '').toLowerCase();
+          const contentLength = Number(resp.headers.get('content-length') || 0);
+          if (contentLength && contentLength > LINK_PREVIEW_MAX_BYTES) {
+            return jsonResp({ ok: false, msg: '链接内容过大，暂不支持预览' }, 413);
+          }
+          if (contentType && !/(text\/html|application\/xhtml\+xml)/.test(contentType)) {
+            return jsonResp({ ok: false, msg: '该链接不支持预览' }, 415);
+          }
 
           const finalUrl = resp.url || target.toString();
           const final = new URL(finalUrl);
@@ -363,7 +389,7 @@ export default {
             }
           });
         } catch (e) {
-          return jsonResp({ ok: false, msg: '链接解析失败' }, 500);
+          return jsonResp({ ok: false, msg: isAbortLikeError(e) ? '链接解析超时' : '链接解析失败' }, isAbortLikeError(e) ? 504 : 500);
         }
       }
 
