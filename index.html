@@ -2591,7 +2591,12 @@ function renderAdminCacheStats(data) {
   const summary = data.summary || {};
   const config = data.config || {};
   const usagePercent = Number(data.usagePercent || 0);
+  const warmStats = data.warmStats || null;
   root.innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:14px; flex-wrap:wrap;">
+      <div style="font-size:12px; color:var(--t3);">Drive 主存储，R2 做小图缓存预热</div>
+      <button class="admin-action-btn accent" onclick="warmCommunityMediaCache()">立即预热缓存</button>
+    </div>
     <div class="admin-stats-grid">
       <div class="admin-stat-card">
         <div class="admin-stat-label">已用缓存</div>
@@ -2610,10 +2615,35 @@ function renderAdminCacheStats(data) {
         <div class="admin-stat-value">${escapeHtml(`${usagePercent.toFixed(2)}%`)}</div>
       </div>
     </div>
+    ${warmStats ? `<div class="admin-stat-note">最近一次预热：选中 ${warmStats.selected} 项，命中 ${warmStats.hit}，新缓存 ${warmStats.cached}，跳过 ${warmStats.skipped}，缺失 ${warmStats.missing}，失败 ${warmStats.failed}。</div>` : ''}
     <div class="admin-stat-note">
       当前策略：社区媒体以 Google Drive 为主存储，R2 只缓存小图。单文件上限 ${escapeHtml(formatBytes(config.maxItemBytes || 0))}，缓存保留期约 ${escapeHtml(String(Math.round((Number(config.maxAgeMs || 0) / 86400000) || 0)))} 天。
     </div>
   `;
+}
+
+async function warmCommunityMediaCache() {
+  const root = document.getElementById('admin-cache-stats');
+  try {
+    const authHeader = getCommAuthHeader();
+    if (!authHeader) return;
+    if (root) root.innerHTML = '<div style="text-align:center; padding:20px; color:var(--t3);">正在预热最近媒体缓存...</div>';
+    const r = await fetch('/api/community/media-cache-warm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': authHeader },
+      body: JSON.stringify({ limit: 24 })
+    });
+    const d = await r.json();
+    if (!d.ok) {
+      renderAdminCacheStats({ ok: false });
+      return showToast(d.msg || '缓存预热失败', 'error');
+    }
+    renderAdminCacheStats({ ...d, warmStats: d.stats });
+    showToast(`缓存预热完成：新增 ${d.stats.cached}，命中 ${d.stats.hit}`, 'success');
+  } catch (e) {
+    renderAdminCacheStats({ ok: false });
+    showToast('缓存预热失败', 'error');
+  }
 }
 
 async function saveAnnouncement() {

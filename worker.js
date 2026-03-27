@@ -208,6 +208,78 @@ async function cacheCommunityMedia(env, fileId, buffer, contentType, source = 'd
   });
   return true;
 }
+
+function extractCommunityMediaFileId(mediaUrl) {
+  const raw = String(mediaUrl || '').trim();
+  if (!raw) return '';
+  try {
+    const parsed = new URL(raw, 'https://local.invalid');
+    const match = parsed.pathname.match(/\/api\/community\/media\/([^/?#]+)/);
+    return match ? safeDecodeURIComponent(match[1]) : '';
+  } catch {
+    const match = raw.match(/\/api\/community\/media\/([^/?#]+)/);
+    return match ? safeDecodeURIComponent(match[1]) : '';
+  }
+}
+
+async function preheatCommunityMediaFile(env, fileId) {
+  if (!fileId) return { status: 'invalid' };
+  if (!env.COMMUNITY_R2) return { status: 'disabled' };
+
+  try {
+    const existing = await env.COMMUNITY_R2.head(fileId);
+    if (existing) {
+      await touchCommunityCacheEntry(env, fileId);
+      return { status: 'hit' };
+    }
+  } catch (e) {}
+
+  const drive = await getFromDrive(env, fileId);
+  if (!drive.ok) return { status: 'missing' };
+
+  const contentType = drive.headers.get('content-type') || 'image/jpeg';
+  const buffer = await drive.arrayBuffer();
+  if (!canCacheCommunityMedia(contentType, buffer.byteLength, env)) {
+    return { status: 'skipped', reason: 'not_cacheable', byteSize: buffer.byteLength, contentType };
+  }
+
+  await cacheCommunityMedia(env, fileId, buffer, contentType, 'admin-preheat');
+  return { status: 'cached', byteSize: buffer.byteLength, contentType };
+}
+
+async function collectRecentCommunityMediaFileIds(env, limit = 24) {
+  const maxItems = Math.max(1, Math.min(80, Number(limit || 24)));
+  const postRows = await env.COMMUNITY_DB.prepare("SELECT media_json FROM posts ORDER BY created_at DESC LIMIT ?").bind(Math.max(maxItems * 2, 40)).all();
+  const userRows = await env.COMMUNITY_DB.prepare("SELECT avatar_url, background_url FROM users ORDER BY created_at DESC LIMIT ?").bind(Math.max(Math.ceil(maxItems / 2), 20)).all();
+  const ids = [];
+  const seen = new Set();
+
+  const pushUrl = (value) => {
+    const fileId = extractCommunityMediaFileId(value);
+    if (!fileId || seen.has(fileId)) return;
+    seen.add(fileId);
+    ids.push(fileId);
+  };
+
+  for (const row of postRows.results || []) {
+    try {
+      const items = JSON.parse(row.media_json || '[]');
+      for (const item of Array.isArray(items) ? items : []) {
+        pushUrl(item?.url);
+        if (ids.length >= maxItems) return ids;
+      }
+    } catch (e) {}
+  }
+
+  for (const row of userRows.results || []) {
+    pushUrl(row.avatar_url);
+    if (ids.length >= maxItems) return ids;
+    pushUrl(row.background_url);
+    if (ids.length >= maxItems) return ids;
+  }
+
+  return ids.slice(0, maxItems);
+}
 const LINK_PREVIEW_TIMEOUT_MS = 8000;
 const LINK_PREVIEW_MAX_BYTES = 1_500_000;
 const DEFAULT_MUSIC_PUBLIC_BASE_URL = 'https://thefallback.cc.cd';
@@ -1334,6 +1406,46 @@ export default {
         const config = getCommunityCacheConfig(env);
         return jsonResp({
           ok: true,
+          summary,
+          config,
+          usagePercent: config.maxBytes ? Number(((Number(summary.totalBytes || 0) / config.maxBytes) * 100).toFixed(2)) : 0
+        });
+      }
+
+      if (url.pathname === '/api/community/media-cache-warm' && request.method === 'POST') {
+        const user = await getAuth();
+        if (!user || !isCommunityAdminRole(user.role)) return jsonResp({ ok: false }, 403);
+        const body = await request.json().catch(() => ({}));
+        const limit = Math.max(1, Math.min(80, Number(body.limit || 24)));
+        const fileIds = await collectRecentCommunityMediaFileIds(env, limit);
+        const stats = {
+          requested: limit,
+          selected: fileIds.length,
+          hit: 0,
+          cached: 0,
+          skipped: 0,
+          missing: 0,
+          failed: 0
+        };
+
+        for (const fileId of fileIds) {
+          try {
+            const result = await preheatCommunityMediaFile(env, fileId);
+            if (result.status === 'hit') stats.hit += 1;
+            else if (result.status === 'cached') stats.cached += 1;
+            else if (result.status === 'skipped') stats.skipped += 1;
+            else if (result.status === 'missing') stats.missing += 1;
+            else stats.failed += 1;
+          } catch (e) {
+            stats.failed += 1;
+          }
+        }
+
+        const summary = await getCommunityCacheSummary(env);
+        const config = getCommunityCacheConfig(env);
+        return jsonResp({
+          ok: true,
+          stats,
           summary,
           config,
           usagePercent: config.maxBytes ? Number(((Number(summary.totalBytes || 0) / config.maxBytes) * 100).toFixed(2)) : 0
