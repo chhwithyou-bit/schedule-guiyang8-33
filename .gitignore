@@ -1,0 +1,10 @@
+node_modules/
+
+# One-off local repair scripts
+build_*.js
+extract_modals.js
+fix*.js
+
+# Local clutter
+.DS_Store
+*.log
