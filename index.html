@@ -4304,6 +4304,17 @@ scheduleInit();
     x=Math.max(8,Math.min(x,W-mp.offsetWidth-8));
     y=Math.max(8,Math.min(y,H-mp.offsetHeight-8));
     mp.style.left=x+'px'; mp.style.top=y+'px';
+
+    // 拖动时如果是展开状态，动态更新推开方向
+    if (open) {
+      _collapseLeft = x; _collapseTop = y;
+      const page = document.querySelector('.page.active');
+      if (page) {
+        const isLeft = (x + mp.offsetWidth/2) < W/2;
+        page.classList.toggle('pushed-right', isLeft);
+        page.classList.toggle('pushed-left', !isLeft);
+      }
+    }
   },{passive:true});
   document.addEventListener('mousemove', e=>{
     if(!drag||!dragEl) return;
@@ -4314,6 +4325,16 @@ scheduleInit();
     x=Math.max(8,Math.min(x,W-mp.offsetWidth-8));
     y=Math.max(8,Math.min(y,H-mp.offsetHeight-8));
     mp.style.left=x+'px'; mp.style.top=y+'px';
+
+    if (open) {
+      _collapseLeft = x; _collapseTop = y;
+      const page = document.querySelector('.page.active');
+      if (page) {
+        const isLeft = (x + mp.offsetWidth/2) < W/2;
+        page.classList.toggle('pushed-right', isLeft);
+        page.classList.toggle('pushed-left', !isLeft);
+      }
+    }
   });
   document.addEventListener('touchend',()=>{
     if(drag && !moved && !open) expand();
