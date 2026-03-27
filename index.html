@@ -2542,7 +2542,7 @@ function renderAdminUsers() {
     return `
       <div class="glass-card admin-user-card">
         <div style="width:36px; height:36px; border-radius:18px; background:var(--s3); display:flex; align-items:center; justify-content:center; font-weight:700; flex-shrink:0;">
-          ${u.avatar_url ? `<img src="${escapeAttr(u.avatar_url)}" style="width:100%;height:100%;border-radius:18px;object-fit:cover;">` : safeInitial(u.username)}
+          ${u.avatar_url ? `<img src="${escapeAttr(u.avatar_url)}" style="width:100%;height:100%;border-radius:18px;object-fit:cover;" loading="lazy" decoding="async" referrerpolicy="no-referrer">` : safeInitial(u.username)}
         </div>
         <div class="admin-user-meta">
           <div class="admin-user-name">
@@ -2833,7 +2833,7 @@ async function fetchLinkPreview(url, options = {}) {
 
 function renderLinkPreview(preview) {
   if (!preview?.url || !preview?.title) return '';
-  const image = preview.image ? `<div class="link-preview-thumb"><img src="${escapeAttr(preview.image)}" alt="${escapeAttr(preview.title)}"></div>` : '';
+  const image = preview.image ? `<div class="link-preview-thumb"><img src="${escapeAttr(preview.image)}" alt="${escapeAttr(preview.title)}" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>` : '';
   const desc = preview.description ? `<div class="link-preview-desc">${escapeHtml(preview.description)}</div>` : '';
   return `
     <a href="${escapeAttr(preview.url)}" target="_blank" rel="noopener noreferrer" class="link-preview-card">
@@ -2960,7 +2960,7 @@ async function loadCommPosts(query = '', userId = '', username = '', isProfile =
     }
 
     container.innerHTML = `<div class="waterfall-container">${cards.join('')}</div>`;
-    observeLazyImages();
+    observeLazyImages(container);
     hydrateLinkPreviews(container);
   } catch(e) {
     container.innerHTML = renderEmptyState(getUiErrorMessage(e, '加载失败，请刷新后重试'), 'error');
@@ -2984,7 +2984,7 @@ function renderPostCard(p) {
     <div class="glass-card waterfall-item stream-card" data-post-card="${p.id}" style="padding:16px; display:flex; flex-direction:column; gap:10px;">
       <div style="display:flex; align-items:center; gap:10px;">
         <div onclick='navToProfileEncoded("${profileNameArg}", "${profileIdArg}")' style="width:36px; height:36px; border-radius:18px; background:var(--s3); display:flex; align-items:center; justify-content:center; font-weight:700; color:var(--accent); cursor:pointer; overflow:hidden;">
-          ${avatarUrl ? `<img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;">` : displayInitial}
+          ${avatarUrl ? `<img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;" loading="lazy" decoding="async" referrerpolicy="no-referrer">` : displayInitial}
         </div>
         <div style="flex:1;">
           <div style="display:flex; align-items:center;">
@@ -2998,7 +2998,7 @@ function renderPostCard(p) {
         ${(isOwner || isAdmin) ? `<div onclick="deletePost('${p.id}')" style="cursor:pointer; opacity:0.3; font-size:14px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></div>` : ''}
       </div>
       <div onclick="navToPost('${p.id}')" style="font-size:16px; line-height:1.5; white-space:pre-wrap; color:var(--text); cursor:pointer;">${formatContent(p.content)}</div>
-      ${mediaUrl ? `<img data-src="${mediaUrl}" onclick='openImgViewerEncoded("${encodeInlineArg(media[0].url)}")' class="lazy-img" style="width:100%; border-radius:12px; margin-top:4px; border:1px solid var(--border); cursor:pointer;">` : ''}
+      ${mediaUrl ? `<img data-src="${mediaUrl}" onclick='openImgViewerEncoded("${encodeInlineArg(media[0].url)}")' class="lazy-img" style="width:100%; border-radius:12px; margin-top:4px; border:1px solid var(--border); cursor:pointer;" loading="lazy" decoding="async" referrerpolicy="no-referrer">` : ''}
       
       
       ${p.inline_comments && p.inline_comments.length > 0 ? 
@@ -3177,18 +3177,51 @@ async function reportContent(type, id) {
   } catch(e) { showToast('提交失败', 'error'); }
 }
 
-function observeLazyImages() {
+function prepareContentImage(img) {
+  if (!img) return;
+  if (!img.hasAttribute('referrerpolicy')) img.setAttribute('referrerpolicy', 'no-referrer');
+  if (!img.hasAttribute('loading')) img.loading = 'lazy';
+  img.decoding = 'async';
+}
+
+function loadLazyImage(img) {
+  if (!img || !img.dataset.src || img.dataset.lazyLoaded === '1') return;
+  prepareContentImage(img);
+  img.dataset.lazyLoaded = '1';
+  img.addEventListener('load', () => img.classList.add('loaded'), { once: true });
+  img.addEventListener('error', () => {
+    img.classList.add('loaded');
+    img.style.opacity = '1';
+    img.alt = img.alt || '图片加载失败';
+  }, { once: true });
+  img.src = img.dataset.src;
+  if (img.complete && img.naturalWidth > 0) img.classList.add('loaded');
+}
+
+function observeLazyImages(root = document) {
+  root.querySelectorAll('img').forEach(prepareContentImage);
+  const lazyImages = [...root.querySelectorAll('.lazy-img')];
+  if (!lazyImages.length) return;
+
+  if (!('IntersectionObserver' in window)) {
+    lazyImages.forEach(loadLazyImage);
+    return;
+  }
+
   const obs = new IntersectionObserver((entries) => {
     entries.forEach(en => {
-      if (en.isIntersecting) {
-        const img = en.target;
-        img.src = img.dataset.src;
-        img.onload = () => img.classList.add('loaded');
-        obs.unobserve(img);
-      }
+      if (!en.isIntersecting) return;
+      const img = en.target;
+      loadLazyImage(img);
+      obs.unobserve(img);
     });
+  }, { rootMargin: '240px 0px' });
+
+  lazyImages.forEach(img => {
+    if (img.dataset.lazyObserved === '1') return;
+    img.dataset.lazyObserved = '1';
+    obs.observe(img);
   });
-  document.querySelectorAll('.lazy-img').forEach(i => obs.observe(i));
 }
 
 async function deletePost(id) {
@@ -3282,7 +3315,7 @@ async function loadNotifies() {
       return `
         <div style="display:flex; align-items:center; gap:12px; padding:12px; border-bottom:1px solid var(--border);">
           <div onclick='navToProfileEncoded("${userNameArg}", "${userIdArg}")' style="width:32px; height:32px; border-radius:16px; background:var(--s3); display:flex; align-items:center; justify-content:center; font-weight:700; cursor:pointer;">
-            ${avatarUrl ? `<img src="${avatarUrl}" style="width:100%;height:100%;border-radius:16px;">` : safeInitial(n.username)}
+            ${avatarUrl ? `<img src="${avatarUrl}" style="width:100%;height:100%;border-radius:16px;" loading="lazy" decoding="async" referrerpolicy="no-referrer">` : safeInitial(n.username)}
           </div>
           <div style="flex:1; font-size:13px;">
             <b onclick='navToProfileEncoded("${userNameArg}", "${userIdArg}")' style="cursor:pointer;">${escapeHtml(n.username || '未知用户')}</b> ${texts[n.type] || '互动了'}
@@ -3316,13 +3349,14 @@ async function loadPostById(id) {
     const d = await r.json();
     if (d.ok && d.posts.length > 0) {
       document.getElementById('single-post-container').innerHTML = renderPostCard(d.posts[0]);
+      observeLazyImages(document.getElementById('single-post-container'));
       hydrateLinkPreviews(document.getElementById('single-post-container'));
       const dc = await rc.json();
       if (dc.ok) {
         document.getElementById('single-post-comments').innerHTML = '<div style="font-size:16px; font-weight:700; border-bottom:1px solid var(--border); padding-bottom:8px; margin-bottom:8px;">评论</div>' + dc.comments.map(c => `
           <div class="comment-card" style="display:flex; gap:12px; border-bottom:1px solid rgba(255,255,255,0.05); padding-bottom:12px;">
             <div onclick='navToProfileEncoded("${encodeInlineArg(c.username)}", "${encodeInlineArg(c.user_id || '')}")' style="width:32px; height:32px; border-radius:16px; background:var(--s3); display:flex; align-items:center; justify-content:center; font-weight:700; color:var(--accent); cursor:pointer; flex-shrink:0;">
-              ${c.avatar_url ? `<img src="${escapeAttr(c.avatar_url)}" style="width:100%;height:100%;border-radius:16px;object-fit:cover;">` : safeInitial(c.username)}
+              ${c.avatar_url ? `<img src="${escapeAttr(c.avatar_url)}" style="width:100%;height:100%;border-radius:16px;object-fit:cover;" loading="lazy" decoding="async" referrerpolicy="no-referrer">` : safeInitial(c.username)}
             </div>
             <div style="flex:1;">
               <div style="display:flex; align-items:center;">
@@ -3540,7 +3574,7 @@ async function loadComments(postId) {
     list.innerHTML = d.comments.map(c => `
       <div class="comment-card" style="display:flex; gap:10px;">
         <div style="width:32px; height:32px; border-radius:16px; background:var(--s3); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:12px; flex-shrink:0;">
-          ${c.avatar_url ? `<img src="${escapeAttr(c.avatar_url)}" style="width:100%;height:100%;border-radius:16px;">` : safeInitial(c.username)}
+          ${c.avatar_url ? `<img src="${escapeAttr(c.avatar_url)}" style="width:100%;height:100%;border-radius:16px;" loading="lazy" decoding="async" referrerpolicy="no-referrer">` : safeInitial(c.username)}
         </div>
         <div style="flex:1;">
           <div style="font-size:13px; font-weight:700; display:flex; align-items:center; gap:6px;">
@@ -4094,7 +4128,15 @@ scheduleInit();
 
   let drag=false, moved=false, ox=0, oy=0, sx=0, sy=0, dragEl=null;
 
+  function canStartPlayerDrag(e) {
+    if (e.type === 'mousedown' && e.button !== 0) return false;
+    const target = e.target;
+    if (!target || typeof target.closest !== 'function') return true;
+    return !target.closest('button, input, textarea, a, .mpb, .mp-li, .ld, #mp-add');
+  }
+
   function startDrag(e, el) {
+    if (!canStartPlayerDrag(e)) return;
     drag=true; moved=false; dragEl=el;
     const t=e.touches?e.touches[0]:e;
     const r=el.getBoundingClientRect();
@@ -4109,6 +4151,8 @@ scheduleInit();
 
   mp.addEventListener('touchstart', e=>{ if(open) return; startDrag(e, mp); },{passive:true});
   $('mp-header').addEventListener('touchstart', e=>{ startDrag(e, mp); },{passive:true});
+  mp.addEventListener('mousedown', e=>{ if(open) return; startDrag(e, mp); });
+  $('mp-header').addEventListener('mousedown', e=>{ startDrag(e, mp); });
 
   document.addEventListener('touchmove', e=>{
     if(!drag||!dragEl) return;
@@ -4121,7 +4165,21 @@ scheduleInit();
     y=Math.max(8,Math.min(y,H-mp.offsetHeight-8));
     mp.style.left=x+'px'; mp.style.top=y+'px';
   },{passive:true});
+  document.addEventListener('mousemove', e=>{
+    if(!drag||!dragEl) return;
+    if(!moved && Math.hypot(e.clientX-sx,e.clientY-sy)<6) return;
+    moved=true;
+    const W=window.innerWidth, H=window.innerHeight;
+    let x=e.clientX-ox, y=e.clientY-oy;
+    x=Math.max(8,Math.min(x,W-mp.offsetWidth-8));
+    y=Math.max(8,Math.min(y,H-mp.offsetHeight-8));
+    mp.style.left=x+'px'; mp.style.top=y+'px';
+  });
   document.addEventListener('touchend',()=>{
+    if(drag && !moved && !open) expand();
+    drag=false; dragEl=null;
+  });
+  document.addEventListener('mouseup',()=>{
     if(drag && !moved && !open) expand();
     drag=false; dragEl=null;
   });
@@ -4275,6 +4333,9 @@ scheduleInit();
     bar.addEventListener('touchstart', e=>{ dragging = true; bar.classList.add('dragging'); seek(e.touches[0].clientX); },{passive:true});
     document.addEventListener('touchmove', e=>{ if(!dragging) return; seek(e.touches[0].clientX); },{passive:true});
     document.addEventListener('touchend', ()=>{ if(!dragging) return; dragging = false; bar.classList.remove('dragging'); });
+    bar.addEventListener('mousedown', e=>{ if(e.button !== 0) return; dragging = true; bar.classList.add('dragging'); seek(e.clientX); });
+    document.addEventListener('mousemove', e=>{ if(!dragging) return; seek(e.clientX); });
+    document.addEventListener('mouseup', ()=>{ if(!dragging) return; dragging = false; bar.classList.remove('dragging'); });
     bar.addEventListener('click', e=>{ seek(e.clientX); });
   })();
   function fmt(s){s=Math.floor(s||0);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');}
@@ -4366,6 +4427,9 @@ scheduleInit();
   document.addEventListener('touchstart', function once(){
     userTouched = true; tryAutoPlay();
   },{once:true, passive:true});
+  document.addEventListener('mousedown', function once(){
+    userTouched = true; tryAutoPlay();
+  },{once:true});
 
 })();
 </script>
