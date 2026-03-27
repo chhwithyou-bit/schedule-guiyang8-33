@@ -1684,6 +1684,7 @@ let commUser = JSON.parse(localStorage.getItem('commUser') || 'null');
 let adminUsersCache = [];
 let profileRemovals = { avatar: false, banner: false };
 let currentAnnouncement = null;
+let announcementPollTimer = null;
 
 function isAdminRole(role) {
   return role === 'admin';
@@ -1800,6 +1801,7 @@ async function saveAnnouncement() {
     if (!d.ok) return showToast(d.msg || '保存失败', 'error');
     showToast('公告已保存', 'success');
     localStorage.removeItem('announcement_dismissed');
+    await maybeShowAnnouncement(true);
     await loadAdminData();
   } catch (e) {
     showToast('保存失败', 'error');
@@ -1815,19 +1817,26 @@ function closeAnnouncementModal() {
   if (modal) modal.classList.remove('open');
 }
 
-async function maybeShowAnnouncement() {
+async function maybeShowAnnouncement(force = false) {
   try {
     const r = await fetch('/api/community/announcement');
     const d = await r.json();
     if (!d.ok || !d.announcement?.content) return;
     currentAnnouncement = d.announcement;
     const dismissed = localStorage.getItem('announcement_dismissed');
-    if (dismissed && dismissed === d.announcement.updatedAt) return;
+    if (!force && dismissed && dismissed === d.announcement.updatedAt) return;
     document.getElementById('announcementContent').textContent = d.announcement.content;
     document.getElementById('announcementUpdatedAt').textContent = d.announcement.updatedAt ? `更新于 ${new Date(d.announcement.updatedAt).toLocaleString('zh-CN')}` : '';
     document.getElementById('announcementDismiss').checked = false;
     document.getElementById('announcementModal').classList.add('open');
   } catch (e) {}
+}
+
+function startAnnouncementPolling() {
+  if (announcementPollTimer) return;
+  announcementPollTimer = setInterval(() => {
+    if (document.visibilityState === 'visible') maybeShowAnnouncement();
+  }, 60000);
 }
 
 async function loadAdminData() {
@@ -1943,6 +1952,7 @@ async function loadCommPosts(query = '', userId = '', username = '', isProfile =
   const container = isProfile ? document.getElementById('profile-posts-container') : document.getElementById('comm-posts');
   if (isProfile) {
     document.getElementById('profile-card-container').style.display = 'block';
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--t3);">加载中...</div>';
     renderProfileHeader(userId || username, !!username, userId);
   } else {
     document.getElementById('comm-profile').style.display = 'none';
@@ -2057,14 +2067,11 @@ function previewProfileFile(input, type) {
   if (!file) return;
   profileFiles[type] = file;
   profileRemovals[type] = false;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const img = document.getElementById('prev-' + type);
-    img.src = e.target.result;
-    img.style.display = 'block';
-    document.getElementById('txt-' + type).style.display = 'none';
-  };
-  reader.readAsDataURL(file);
+  const labels = { avatar: '已选择新头像', banner: '已选择新背景' };
+  document.getElementById('txt-' + type).style.display = 'block';
+  document.getElementById('txt-' + type).textContent = labels[type];
+  document.getElementById('prev-' + type).style.display = 'none';
+  document.getElementById('prev-' + type).src = '';
 }
 
 function openEditProfile() {
@@ -2073,13 +2080,15 @@ function openEditProfile() {
   
   profileFiles = { avatar: null, banner: null };
   profileRemovals = { avatar: false, banner: false };
-  document.getElementById('prev-avatar').style.display = commUser.avatar_url ? 'block' : 'none';
-  if (commUser.avatar_url) document.getElementById('prev-avatar').src = commUser.avatar_url;
-  document.getElementById('txt-avatar').style.display = commUser.avatar_url ? 'none' : 'block';
+  document.getElementById('prev-avatar').style.display = 'none';
+  document.getElementById('prev-avatar').src = '';
+  document.getElementById('txt-avatar').style.display = 'block';
+  document.getElementById('txt-avatar').textContent = commUser.avatar_url ? '点击选择新头像' : '点击选择图片';
 
-  document.getElementById('prev-banner').style.display = commUser.background_url ? 'block' : 'none';
-  if (commUser.background_url) document.getElementById('prev-banner').src = commUser.background_url;
-  document.getElementById('txt-banner').style.display = commUser.background_url ? 'none' : 'block';
+  document.getElementById('prev-banner').style.display = 'none';
+  document.getElementById('prev-banner').src = '';
+  document.getElementById('txt-banner').style.display = 'block';
+  document.getElementById('txt-banner').textContent = commUser.background_url ? '点击选择新背景' : '点击选择图片';
 
   document.getElementById('commEditProfileModal').classList.add('open');
 }
@@ -2091,6 +2100,7 @@ function clearProfileFile(type) {
   document.getElementById('prev-' + type).style.display = 'none';
   document.getElementById('prev-' + type).src = '';
   document.getElementById('txt-' + type).style.display = 'block';
+  document.getElementById('txt-' + type).textContent = type === 'avatar' ? '头像已移除' : '背景已移除';
   const input = document.getElementById('file-' + type);
   if (input) input.value = '';
 }
@@ -2309,9 +2319,9 @@ async function loadPostById(id) {
 }
 
 function navToProfile(name, id) {
-  history.pushState({page: 'profile', username: name, userId: id}, '', `/profile/${name}`);
-  navTo('profile', false);
-  loadCommPosts('', id, id ? '' : name, true);
+  const safeName = encodeURIComponent(name || '');
+  history.pushState({page: 'profile', username: name, userId: id}, '', `/profile/${safeName}`);
+  openProfileRoute(name, id);
 }
 
 function openProfileRoute(name, id) {
@@ -2653,6 +2663,7 @@ document.addEventListener('click', (e) => {
 // Init Community
 updateCommUI();
 maybeShowAnnouncement();
+startAnnouncementPolling();
 </script>
 
 <script>
@@ -2859,9 +2870,8 @@ async function scheduleInit(){
       loadCommPosts();
     }
   } else if (window.location.pathname.startsWith('/profile/')) {
-    const name = window.location.pathname.split('/').pop();
-    navTo('community', false);
-    loadCommPosts('', '', name);
+    const name = decodeURIComponent(window.location.pathname.split('/').pop());
+    openProfileRoute(name, '');
   } else if (window.location.pathname.startsWith('/post/')) {
     const postId = window.location.pathname.split('/').pop();
     await loadPostById(postId);
