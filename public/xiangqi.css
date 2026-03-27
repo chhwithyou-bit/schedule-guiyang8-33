@@ -5,13 +5,78 @@
   justify-content: flex-start;
   padding: 20px;
   color: var(--text);
+  width: min(1440px, calc(100vw - 32px));
+  margin: 0 auto;
 }
 
-#xiangqi-status {
-  font-size: 20px;
-  margin-bottom: 20px;
-  padding: 10px 20px;
+#xiangqi-toolbar {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+#xiangqi-toolbar-note {
+  color: var(--t2);
+  font-size: 13px;
+}
+
+#xiangqi-board-counts {
+  min-width: 240px;
+}
+
+#xiangqi-board-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.xiangqi-board-card {
   background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  padding: 18px;
+  box-shadow: inset 0 1px 0 var(--glass-shine), 0 12px 36px rgba(0, 0, 0, 0.28);
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.xiangqi-board-card.active {
+  border-color: rgba(255, 119, 16, 0.42);
+  box-shadow: inset 0 1px 0 var(--glass-shine), 0 14px 44px rgba(255, 119, 16, 0.12);
+  transform: translateY(-2px);
+}
+
+.xiangqi-board-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.xiangqi-board-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--accent2);
+}
+
+.xiangqi-board-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.xiangqi-status {
+  font-size: 16px;
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  background: rgba(10, 10, 60, 0.52);
   border-radius: 12px;
   border: 1px solid var(--border);
   backdrop-filter: blur(var(--glass-blur));
@@ -19,10 +84,14 @@
   font-weight: bold;
 }
 
-#xiangqi-board {
+.xiangqi-board-surface {
+  width: 100%;
+}
+
+.xiangqi-board {
   position: relative;
   width: 100%;
-  max-width: 400px;
+  max-width: 520px;
   aspect-ratio: 9 / 10;
   background: var(--glass);
   border: 1px solid var(--border);
@@ -33,6 +102,7 @@
   overflow: hidden;
   user-select: none;
   -webkit-user-select: none;
+  margin: 0 auto;
 }
 
 .xq-grid-line {
@@ -40,8 +110,12 @@
   background-color: var(--t4);
 }
 
-.xq-cell {
+.xq-cell-hit {
   position: absolute;
+  width: 11.25%;
+  height: 10%;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
 }
 
 /* Palace diagonals */
@@ -161,4 +235,31 @@
   font-family: "KaiTi", "STKaiti", serif;
   color: var(--t4);
   pointer-events: none;
+}
+
+@media (min-width: 960px) {
+  #xiangqi-board-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1480px) {
+  #xiangqi-board-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  #xiangqi-container {
+    width: calc(100vw - 24px);
+    padding: 12px;
+  }
+
+  .xiangqi-board-card {
+    padding: 14px;
+  }
+
+  .xiangqi-board {
+    max-width: none;
+  }
 }
