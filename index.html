@@ -1736,6 +1736,10 @@ async function adminSetAdminPwd() {
 <script>
 // Community Logic
 let commUser = JSON.parse(localStorage.getItem('commUser') || 'null');
+if (commUser && (!commUser.username || !commUser.passHash)) {
+  commUser = null;
+  localStorage.removeItem('commUser');
+}
 let adminUsersCache = [];
 let profileRemovals = { avatar: false, banner: false };
 let currentAnnouncement = null;
@@ -2492,45 +2496,6 @@ function commLogout() {
   showToast('已退出登录', 'info');
 }
 
-async function submitCommPost() {
-  if (!commUser) return openCommAuth();
-  const content = document.getElementById('comm-post-content').value.trim();
-  if (!content && !currentCommFile) return showToast('请输入内容或上传图片', 'error');
-  
-  const btn = document.getElementById('comm-submit-btn');
-  btn.disabled = true; btn.textContent = '发布中...';
-  
-  try {
-    let media = [];
-    if (currentCommFile) {
-      const rUpload = await fetch('/api/community/upload', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${commUser.username}:${commUser.passHash}`, 'Content-Type': currentCommFile.type },
-        body: await readFileAsArrayBuffer(currentCommFile)
-      });
-      const dUpload = await rUpload.json();
-      if (dUpload.ok) media.push({ url: dUpload.url });
-      else return showToast(sanitizeErrorMessage(dUpload.msg, '图片上传失败，请换一张图或稍后重试'), 'error');
-    }
-    
-    const r = await fetch('/api/community/posts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${commUser.username}:${commUser.passHash}` },
-      body: JSON.stringify({ content, media })
-    });
-    
-    if ((await r.json()).ok) {
-      showToast('发布成功', 'success');
-      closeCommPostModal();
-      document.getElementById('comm-post-content').value = '';
-      document.getElementById('comm-preview-wrap').style.display = 'none';
-      currentCommFile = null;
-      loadCommPosts();
-    }
-  } catch(e) { showToast(getUiErrorMessage(e, '发布失败，请检查网络后重试'), 'error'); }
-  finally { btn.disabled = false; btn.textContent = '发布'; }
-}
-
 function openRepost(id) {
   const content = prompt('转发语 (可选):');
   if (content === null) return;
@@ -2634,8 +2599,22 @@ function cancelCommImage() {
   document.getElementById('comm-preview-img').src = '';
 }
 
+function getCommAuthTokenOrPrompt() {
+  if (!commUser?.username || !commUser?.passHash) {
+    commUser = null;
+    localStorage.removeItem('commUser');
+    updateCommUI();
+    openCommAuth();
+    showToast('登录状态已失效，请重新登录', 'error');
+    return null;
+  }
+  return `Bearer ${commUser.username}:${commUser.passHash}`;
+}
+
 async function submitCommPost() {
   if (!commUser) return openCommAuth();
+  const authToken = getCommAuthTokenOrPrompt();
+  if (!authToken) return;
   const content = document.getElementById('comm-post-content').value.trim();
   if (!content && !currentCommFile) return showToast('请输入内容或上传图片', 'error');
   
@@ -2648,7 +2627,7 @@ async function submitCommPost() {
       const rUpload = await fetch('/api/community/upload', {
         method: 'POST',
         headers: { 
-          'Authorization': `Bearer ${commUser.username}:${commUser.passHash}`,
+          'Authorization': authToken,
           'Content-Type': currentCommFile.type 
         },
         body: await readFileAsArrayBuffer(currentCommFile)
@@ -2657,9 +2636,14 @@ async function submitCommPost() {
       if (dUpload.ok) {
         media.push({ url: dUpload.url });
       } else {
+        if (rUpload.status === 401 || dUpload.msg === 'No Auth') {
+          commLogout();
+          openCommAuth();
+          showToast('登录状态已失效，请重新登录后再发布', 'error');
+          return;
+        }
         showToast(sanitizeErrorMessage(dUpload.msg, '图片上传失败，请换一张图或稍后重试'), 'error');
-        btn.disabled = false; btn.textContent = '发布';
-        return; // 如果图片上传失败，不发布评论，方便调试
+        return;
       }
     }
     
@@ -2667,18 +2651,27 @@ async function submitCommPost() {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${commUser.username}:${commUser.passHash}`
+        'Authorization': authToken
       },
       body: JSON.stringify({ content, media })
     });
-    
-    if ((await r.json()).ok) {
+
+    const d = await r.json();
+    if (d.ok) {
       showToast('发布成功', 'success');
       closeCommPostModal();
       document.getElementById('comm-post-content').value = '';
       document.getElementById('comm-preview-wrap').style.display = 'none';
       currentCommFile = null;
       loadCommPosts();
+    } else {
+      if (r.status === 401 || d.msg === 'No Auth') {
+        commLogout();
+        openCommAuth();
+        showToast('登录状态已失效，请重新登录后再发布', 'error');
+        return;
+      }
+      showToast(sanitizeErrorMessage(d.msg, '发布失败，请稍后重试'), 'error');
     }
   } catch(e) { 
     showToast(getUiErrorMessage(e, '发布失败，请检查网络后重试'), 'error'); 
