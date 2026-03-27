@@ -4,6 +4,11 @@ const DEFAULT_ADMIN_USER = 'admin';
 const DEFAULT_ADMIN_PASS = 'admin888';
 const DEFAULT_COMMUNITY_OWNER_USERS = 'admin';
 const COMMUNITY_LEVEL_THRESHOLDS = [0, 10, 25, 45, 70, 100, 140, 190, 250, 325, 415, 520, 640, 780, 940, 1120, 1325, 1555, 1810, 2090];
+const COMMUNITY_CACHE_META_PREFIX = 'community_cache_meta:';
+const COMMUNITY_CACHE_SUMMARY_KEY = 'community_cache_summary';
+const DEFAULT_COMMUNITY_R2_CACHE_MAX_BYTES = 6 * 1024 * 1024 * 1024;
+const DEFAULT_COMMUNITY_R2_CACHE_MAX_ITEM_BYTES = 2 * 1024 * 1024;
+const DEFAULT_COMMUNITY_R2_CACHE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
 function parseIdentityList(value) {
   return new Set(String(value || '')
@@ -51,6 +56,157 @@ function withCommunityLevel(entity) {
   const level = getCommunityLevelFromXp(xp);
   if (entity.xp === xp && entity.level === level) return entity;
   return { ...entity, xp, level };
+}
+
+function parsePositiveInt(value, fallback) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
+}
+
+function getCommunityCacheConfig(env) {
+  return {
+    maxBytes: parsePositiveInt(env.COMMUNITY_R2_CACHE_MAX_BYTES, DEFAULT_COMMUNITY_R2_CACHE_MAX_BYTES),
+    maxItemBytes: parsePositiveInt(env.COMMUNITY_R2_CACHE_MAX_ITEM_BYTES, DEFAULT_COMMUNITY_R2_CACHE_MAX_ITEM_BYTES),
+    maxAgeMs: parsePositiveInt(env.COMMUNITY_R2_CACHE_MAX_AGE_MS, DEFAULT_COMMUNITY_R2_CACHE_MAX_AGE_MS),
+  };
+}
+
+function canCacheCommunityMedia(contentType, byteSize, env) {
+  if (!env.COMMUNITY_R2) return false;
+  const normalizedType = String(contentType || '').toLowerCase();
+  if (!normalizedType.startsWith('image/')) return false;
+  if (normalizedType.includes('gif')) return false;
+  const config = getCommunityCacheConfig(env);
+  return Number(byteSize || 0) > 0 && Number(byteSize || 0) <= config.maxItemBytes;
+}
+
+async function getCommunityCacheSummary(env) {
+  return (await env.SCHEDULE_KV.get(COMMUNITY_CACHE_SUMMARY_KEY, { type: 'json' })) || {
+    totalBytes: 0,
+    itemCount: 0,
+    updatedAt: null,
+  };
+}
+
+async function setCommunityCacheSummary(env, summary) {
+  await env.SCHEDULE_KV.put(COMMUNITY_CACHE_SUMMARY_KEY, JSON.stringify({
+    totalBytes: Math.max(0, Number(summary?.totalBytes || 0)),
+    itemCount: Math.max(0, Number(summary?.itemCount || 0)),
+    updatedAt: new Date().toISOString(),
+  }));
+}
+
+async function getCommunityCacheMeta(env, fileId) {
+  return await env.SCHEDULE_KV.get(`${COMMUNITY_CACHE_META_PREFIX}${fileId}`, { type: 'json' });
+}
+
+async function setCommunityCacheMeta(env, fileId, meta) {
+  await env.SCHEDULE_KV.put(`${COMMUNITY_CACHE_META_PREFIX}${fileId}`, JSON.stringify({
+    fileId,
+    byteSize: Math.max(0, Number(meta?.byteSize || 0)),
+    contentType: String(meta?.contentType || 'image/jpeg'),
+    source: String(meta?.source || 'drive'),
+    createdAt: meta?.createdAt || new Date().toISOString(),
+    lastAccessAt: meta?.lastAccessAt || new Date().toISOString(),
+  }));
+}
+
+async function deleteCommunityCacheEntry(env, fileId, meta = null) {
+  if (!env.COMMUNITY_R2) return;
+  const existingMeta = meta || await getCommunityCacheMeta(env, fileId);
+  await env.COMMUNITY_R2.delete(fileId);
+  await env.SCHEDULE_KV.delete(`${COMMUNITY_CACHE_META_PREFIX}${fileId}`);
+  const summary = await getCommunityCacheSummary(env);
+  await setCommunityCacheSummary(env, {
+    totalBytes: Math.max(0, Number(summary.totalBytes || 0) - Number(existingMeta?.byteSize || 0)),
+    itemCount: Math.max(0, Number(summary.itemCount || 0) - (existingMeta ? 1 : 0)),
+  });
+}
+
+async function listCommunityCacheMetas(env) {
+  const entries = [];
+  let cursor = undefined;
+  do {
+    const page = await env.SCHEDULE_KV.list({ prefix: COMMUNITY_CACHE_META_PREFIX, cursor });
+    cursor = page.list_complete ? undefined : page.cursor;
+    for (const key of page.keys || []) {
+      const value = await env.SCHEDULE_KV.get(key.name, { type: 'json' });
+      if (value && value.fileId) entries.push(value);
+    }
+  } while (cursor);
+  return entries;
+}
+
+async function pruneCommunityCache(env, bytesNeeded = 0) {
+  if (!env.COMMUNITY_R2) return;
+  const config = getCommunityCacheConfig(env);
+  const now = Date.now();
+  const allEntries = await listCommunityCacheMetas(env);
+  let entries = allEntries.filter(Boolean);
+
+  for (const entry of entries) {
+    const lastAccessAt = Date.parse(entry.lastAccessAt || entry.createdAt || 0);
+    if (lastAccessAt && now - lastAccessAt > config.maxAgeMs) {
+      await deleteCommunityCacheEntry(env, entry.fileId, entry);
+    }
+  }
+
+  entries = (await listCommunityCacheMetas(env)).sort((a, b) => {
+    const aTime = Date.parse(a.lastAccessAt || a.createdAt || 0) || 0;
+    const bTime = Date.parse(b.lastAccessAt || b.createdAt || 0) || 0;
+    return aTime - bTime;
+  });
+
+  let totalBytes = entries.reduce((sum, entry) => sum + Number(entry.byteSize || 0), 0);
+  while (entries.length && totalBytes + bytesNeeded > config.maxBytes) {
+    const victim = entries.shift();
+    totalBytes -= Number(victim?.byteSize || 0);
+    await deleteCommunityCacheEntry(env, victim.fileId, victim);
+  }
+
+  await setCommunityCacheSummary(env, {
+    totalBytes: Math.max(0, totalBytes),
+    itemCount: entries.length,
+  });
+}
+
+async function touchCommunityCacheEntry(env, fileId) {
+  const meta = await getCommunityCacheMeta(env, fileId);
+  if (!meta) return;
+  await setCommunityCacheMeta(env, fileId, {
+    ...meta,
+    lastAccessAt: new Date().toISOString(),
+  });
+}
+
+async function cacheCommunityMedia(env, fileId, buffer, contentType, source = 'drive') {
+  if (!canCacheCommunityMedia(contentType, buffer?.byteLength || 0, env)) return false;
+  const byteSize = Number(buffer.byteLength || 0);
+  const existingMeta = await getCommunityCacheMeta(env, fileId);
+  const previousBytes = Number(existingMeta?.byteSize || 0);
+  await pruneCommunityCache(env, Math.max(0, byteSize - previousBytes));
+  await env.COMMUNITY_R2.put(fileId, buffer, {
+    httpMetadata: { contentType },
+    customMetadata: {
+      source,
+      cachedAt: new Date().toISOString(),
+      byteSize: String(byteSize),
+    }
+  });
+  await setCommunityCacheMeta(env, fileId, {
+    fileId,
+    byteSize,
+    contentType,
+    source,
+    createdAt: existingMeta?.createdAt || new Date().toISOString(),
+    lastAccessAt: new Date().toISOString(),
+  });
+  const summary = await getCommunityCacheSummary(env);
+  await setCommunityCacheSummary(env, {
+    totalBytes: Math.max(0, Number(summary.totalBytes || 0) - previousBytes + byteSize),
+    itemCount: Math.max(0, Number(summary.itemCount || 0) + (existingMeta ? 0 : 1)),
+  });
+  return true;
 }
 const LINK_PREVIEW_TIMEOUT_MS = 8000;
 const LINK_PREVIEW_MAX_BYTES = 1_500_000;
@@ -1104,17 +1260,21 @@ export default {
           const driveData = await uploadToDrive(env, buffer, `img_${Date.now()}`, contentType);
           const fileId = driveData.id;
 
-          // R2 异步后台缓存
-          if (env.COMMUNITY_R2) {
+          // R2 只做有上限的图片缓存，不做全量永久主存储。
+          if (canCacheCommunityMedia(contentType, buffer.byteLength, env)) {
             ctx.waitUntil(
-              env.COMMUNITY_R2.put(fileId, buffer, { 
-                httpMetadata: { contentType },
-                customMetadata: { source: 'gdrive', uploadedAt: new Date().toISOString() }
-              }).catch(e => console.error("R2 Background Cache Error:", e))
+              cacheCommunityMedia(env, fileId, buffer, contentType, 'upload')
+                .catch(e => console.error('R2 Background Cache Error:', e))
             );
           }
 
-          return jsonResp({ ok: true, fileId, url: `/api/community/media/${fileId}`, fromDrive: true });
+          return jsonResp({
+            ok: true,
+            fileId,
+            url: `/api/community/media/${fileId}`,
+            fromDrive: true,
+            cachedToR2: canCacheCommunityMedia(contentType, buffer.byteLength, env)
+          });
         } catch (e) { 
           return jsonResp({ ok: false, msg: "Drive 发布失败: " + e.message }, 500); 
         }
@@ -1128,6 +1288,7 @@ export default {
           try {
             const cache = await env.COMMUNITY_R2.get(fileId);
             if (cache) {
+              ctx.waitUntil(touchCommunityCacheEntry(env, fileId).catch(() => {}));
               return new Response(cache.body, { 
                 headers: { 
                   'Access-Control-Allow-Origin': '*', 
@@ -1147,11 +1308,11 @@ export default {
           const contentType = drive.headers.get('content-type') || 'image/jpeg';
           const buf = await drive.arrayBuffer();
 
-          // 3. 异步回填 R2 缓存
-          if (env.COMMUNITY_R2) {
+          // 3. 只把合适的小图回填到 R2。
+          if (canCacheCommunityMedia(contentType, buf.byteLength, env)) {
             ctx.waitUntil(
-              env.COMMUNITY_R2.put(fileId, buf, { httpMetadata: { contentType } })
-                .catch(e => console.error("R2 Backfill Error:", e))
+              cacheCommunityMedia(env, fileId, buf, contentType, 'drive-backfill')
+                .catch(e => console.error('R2 Backfill Error:', e))
             );
           }
 
@@ -1164,6 +1325,19 @@ export default {
             } 
           });
         } catch (e) { return new Response('Media Not Found', { status: 404 }); }
+      }
+
+      if (url.pathname === '/api/community/media-cache-stats' && request.method === 'GET') {
+        const user = await getAuth();
+        if (!user || !isCommunityAdminRole(user.role)) return jsonResp({ ok: false }, 403);
+        const summary = await getCommunityCacheSummary(env);
+        const config = getCommunityCacheConfig(env);
+        return jsonResp({
+          ok: true,
+          summary,
+          config,
+          usagePercent: config.maxBytes ? Number(((Number(summary.totalBytes || 0) / config.maxBytes) * 100).toFixed(2)) : 0
+        });
       }
 
       if (url.pathname === '/api/community/test-drive') {

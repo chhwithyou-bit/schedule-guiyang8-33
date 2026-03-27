@@ -31,3 +31,7 @@ database_id = "6d9636b4-a7a9-4451-a701-7f48df456c6e"
 [vars]
 # Google Drive Folder ID
 GDRIVE_FOLDER_ID = "1JLM76eGeMI7AJB3PXiuPAQzEnt9AJhtg"
+# Optional community media cache tuning:
+# COMMUNITY_R2_CACHE_MAX_BYTES = "6442450944"     # 6 GiB
+# COMMUNITY_R2_CACHE_MAX_ITEM_BYTES = "2097152"   # 2 MiB
+# COMMUNITY_R2_CACHE_MAX_AGE_MS = "2592000000"    # 30 days
