@@ -377,6 +377,72 @@ function buildFallbackPreview(targetUrl, reason = '') {
   }
 }
 
+function extractBilibiliBvid(value) {
+  const raw = String(value || '');
+  const match = raw.match(/BV[0-9A-Za-z]{10}/i);
+  return match ? match[0].toUpperCase() : '';
+}
+
+function getBilibiliCanonicalUrl(bvid) {
+  return `https://www.bilibili.com/video/${encodeURIComponent(bvid)}`;
+}
+
+function normalizeBilibiliImageUrl(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (raw.startsWith('//')) return `https:${raw}`;
+  if (raw.startsWith('http://')) return `https://${raw.slice('http://'.length)}`;
+  return raw;
+}
+
+async function fetchBilibiliPreview(targetUrl) {
+  const target = new URL(targetUrl);
+  let bvid = extractBilibiliBvid(target.toString());
+
+  if (!bvid && target.hostname === 'b23.tv') {
+    try {
+      const redirectResp = await fetchWithTimeout(target.toString(), {
+        redirect: 'manual',
+        headers: {
+          'user-agent': 'Mozilla/5.0 (compatible; 8communityBot/1.0; +https://thefallback.cc.cd)',
+          'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8'
+        }
+      });
+      const location = redirectResp.headers.get('location') || '';
+      if (location) {
+        const redirectedUrl = new URL(location, target.toString()).toString();
+        bvid = extractBilibiliBvid(redirectedUrl);
+      }
+    } catch {}
+  }
+
+  if (!bvid) return null;
+
+  const apiResp = await fetchWithTimeout(`https://api.bilibili.com/x/web-interface/view?bvid=${encodeURIComponent(bvid)}`, {
+    headers: {
+      'user-agent': 'Mozilla/5.0 (compatible; 8communityBot/1.0; +https://thefallback.cc.cd)',
+      'accept': 'application/json'
+    }
+  });
+  if (!apiResp.ok) return null;
+
+  const payload = await apiResp.json();
+  if (payload?.code !== 0 || !payload?.data?.title) return null;
+
+  const data = payload.data;
+  const description = String(data.desc || '').trim();
+  const ownerName = String(data.owner?.name || '').trim();
+  const host = 'bilibili.com';
+
+  return {
+    url: getBilibiliCanonicalUrl(bvid),
+    title: cleanPreviewTitle(data.title, host),
+    image: normalizeBilibiliImageUrl(data.pic),
+    description: description && description !== '-' ? description : (ownerName ? `UP主：${ownerName}` : ''),
+    host
+  };
+}
+
 async function fetchWithTimeout(resource, init = {}, timeoutMs = LINK_PREVIEW_TIMEOUT_MS) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -538,6 +604,12 @@ export default {
           const target = new URL(rawUrl);
           if (!['http:', 'https:'].includes(target.protocol)) return jsonResp({ ok: false, msg: '链接协议不支持' }, 400);
           if (isPrivatePreviewHost(target.hostname)) return jsonResp({ ok: false, msg: '该链接不允许预览' }, 400);
+          if (/(^|\.)bilibili\.com$/i.test(target.hostname) || target.hostname === 'b23.tv') {
+            const bilibiliPreview = await fetchBilibiliPreview(target.toString());
+            if (bilibiliPreview) {
+              return jsonResp({ ok: true, preview: bilibiliPreview });
+            }
+          }
           let fallbackPreview = buildFallbackPreview(target.toString());
 
           const resp = await fetchWithTimeout(target.toString(), {
