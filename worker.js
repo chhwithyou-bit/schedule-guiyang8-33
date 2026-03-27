@@ -439,14 +439,22 @@ export default {
         if (!user || user.role !== 'admin') return jsonResp({ ok: false }, 403);
         const reports = await env.COMMUNITY_DB.prepare("SELECT * FROM reports WHERE status = 'pending' ORDER BY created_at DESC").all();
         const users = await env.COMMUNITY_DB.prepare("SELECT id, username, role, level, xp, is_banned, created_at, avatar_url, password_hash FROM users ORDER BY created_at DESC").all();
-        return jsonResp({ ok: true, reports: reports.results || [], users: users.results || [] });
+        const announcementRaw = await env.SCHEDULE_KV.get('community_announcement');
+        const announcement = announcementRaw ? JSON.parse(announcementRaw) : { content: '', updatedAt: null };
+        return jsonResp({ ok: true, reports: reports.results || [], users: users.results || [], announcement });
+      }
+
+      if (url.pathname === '/api/community/announcement' && request.method === 'GET') {
+        const announcementRaw = await env.SCHEDULE_KV.get('community_announcement');
+        const announcement = announcementRaw ? JSON.parse(announcementRaw) : { content: '', updatedAt: null };
+        return jsonResp({ ok: true, announcement });
       }
 
       
       if (url.pathname === '/api/community/admin/action' && request.method === 'POST') {
         const user = await getAuth();
         if (!user || user.role !== 'admin') return jsonResp({ ok: false }, 403);
-        const { action, target_type, target_id, report_id, new_password } = await request.json();
+        const { action, target_type, target_id, report_id, new_password, content } = await request.json();
         
         if (action === 'reset_password' && target_type === 'user') {
            const passHash = await sha256Hex(new_password);
@@ -469,6 +477,11 @@ export default {
         } else if (action === 'revoke_admin' && target_type === 'user') {
           if (target_id === user.id) return jsonResp({ ok: false, msg: '不能撤销自己的管理员权限' }, 400);
           await env.COMMUNITY_DB.prepare("UPDATE users SET role = 'user' WHERE id = ?").bind(target_id).run();
+        } else if (action === 'set_announcement') {
+          await env.SCHEDULE_KV.put('community_announcement', JSON.stringify({
+            content: String(content || '').trim(),
+            updatedAt: new Date().toISOString()
+          }));
         }
         return jsonResp({ ok: true });
       }
