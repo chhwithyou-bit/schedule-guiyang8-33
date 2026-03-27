@@ -93,26 +93,11 @@ html, body {
   background: transparent;
   will-change: transform;
   z-index: 10;
-  /* 稳定背景元素，防止平移时抖动 */
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-  perspective: 1000px;
-  -webkit-perspective: 1000px;
 }
 .page.active {
   transform: translate3d(0, 0, 0);
   opacity: 1;
   pointer-events: all;
-}
-/* 强力推开效果：200px */
-.page.active.pushed-right {
-  transform: translate3d(200px, 0, 0);
-}
-.page.active.pushed-left {
-  transform: translate3d(-200px, 0, 0);
-}
-.page.active.pushing {
-  transition: transform 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .page.behind {
   transform: translateX(-28%);
@@ -4196,16 +4181,6 @@ scheduleInit();
     mp.classList.add('open');
     mp.style.overflow = 'hidden';
 
-    // 立即计算边缘并推开页面
-    const rect = mp.getBoundingClientRect();
-    const isLeft = (rect.left + rect.width / 2) < window.innerWidth / 2;
-    const page = document.querySelector('.page.active');
-    if (page) {
-      page.classList.add('pushing');
-      page.classList.remove('pushed-right', 'pushed-left');
-      page.classList.add(isLeft ? 'pushed-right' : 'pushed-left');
-    }
-
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         const W = window.innerWidth;
@@ -4213,6 +4188,7 @@ scheduleInit();
         const CARD_W = 248;
         let left = parseFloat(mp.style.left);
         const r0 = mp.getBoundingClientRect();
+        
         if(!mp.style.left || mp.style.right !== 'auto'){
           mp.style.right  = 'auto';
           mp.style.bottom = 'auto';
@@ -4222,16 +4198,19 @@ scheduleInit();
         } else {
           left = parseFloat(mp.style.left);
         }
-        _collapseLeft = parseFloat(mp.style.left);
+        
+        _collapseLeft = left;
         _collapseTop  = parseFloat(mp.style.top);
-        if(left + CARD_W > W - 8){ 
-          left = W - CARD_W - 8; 
-          mp.style.left = left + 'px'; 
-          if (page) {
-            page.classList.remove('pushed-right', 'pushed-left');
-            page.classList.add(left + CARD_W/2 < W/2 ? 'pushed-right' : 'pushed-left');
-          }
-        }
+
+        const isLeft = (left + 26) < W / 2;
+        
+        // 自我推送逻辑：如果是左侧，增加左间距，像是蹬了一下墙壁把自己推出来
+        let targetLeft = isLeft ? Math.max(20, left + 12) : Math.max(8, left - (CARD_W - 52) - 12);
+        
+        // 确保不会溢出
+        if (targetLeft + CARD_W > W - 8) targetLeft = W - CARD_W - 8;
+        if (targetLeft < 8) targetLeft = 8;
+
         mp.style.transition = [
           'width 0.55s cubic-bezier(0.34,1.56,0.64,1)',
           'height 0.55s cubic-bezier(0.34,1.56,0.64,1)',
@@ -4240,9 +4219,12 @@ scheduleInit();
           'top 0.45s cubic-bezier(0.34,1.2,0.64,1)',
           'box-shadow 0.4s ease', 'border-color 0.3s ease'
         ].join(',');
+
+        mp.style.left   = targetLeft + 'px';
         mp.style.width  = CARD_W + 'px';
         mp.style.height = h + 'px';
         window._mpBaseH = h;
+        
         const top = parseFloat(mp.style.top) || mp.getBoundingClientRect().top;
         const H = window.innerHeight;
         if(top + h > H - 8) mp.style.top = Math.max(8, H - h - 8) + 'px';
@@ -4255,13 +4237,6 @@ scheduleInit();
     listArea.classList.remove('show');
     mp.classList.remove('open');
     
-    const page = document.querySelector('.page.active');
-    if (page) {
-      page.classList.add('pushing');
-      page.classList.remove('pushed-right', 'pushed-left');
-      setTimeout(() => page.classList.remove('pushing'), 600);
-    }
-
     mp.style.transition = [
       'width 0.46s cubic-bezier(0.34,1.3,0.64,1)',
       'height 0.46s cubic-bezier(0.34,1.3,0.64,1)',
@@ -4270,8 +4245,10 @@ scheduleInit();
       'top 0.35s cubic-bezier(0.34,1.2,0.64,1)',
       'box-shadow 0.35s ease', 'border-color 0.25s ease'
     ].join(',');
+    
     mp.style.width  = '52px';
     mp.style.height = '52px';
+    // 恢复到收起前记录的位置（吸附点）
     if(_collapseLeft !== null) mp.style.left = _collapseLeft + 'px';
     if(_collapseTop  !== null) mp.style.top  = _collapseTop  + 'px';
   }
