@@ -387,6 +387,10 @@ function getBilibiliCanonicalUrl(bvid) {
   return `https://www.bilibili.com/video/${encodeURIComponent(bvid)}`;
 }
 
+function getBilibiliEmbedUrl(bvid) {
+  return `https://player.bilibili.com/player.html?bvid=${encodeURIComponent(bvid)}&page=1&as_wide=1&high_quality=1&danmaku=0`;
+}
+
 function normalizeBilibiliImageUrl(value) {
   const raw = String(value || '').trim();
   if (!raw) return '';
@@ -427,7 +431,17 @@ async function fetchBilibiliPreview(targetUrl) {
   if (!apiResp.ok) return null;
 
   const payload = await apiResp.json();
-  if (payload?.code !== 0 || !payload?.data?.title) return null;
+  if (payload?.code !== 0 || !payload?.data?.title) {
+    return {
+      url: getBilibiliCanonicalUrl(bvid),
+      title: `Bilibili 视频 ${bvid}`,
+      image: '',
+      description: '官方播放器预览',
+      host: 'bilibili.com',
+      embedUrl: getBilibiliEmbedUrl(bvid),
+      embedType: 'iframe'
+    };
+  }
 
   const data = payload.data;
   const description = String(data.desc || '').trim();
@@ -439,7 +453,9 @@ async function fetchBilibiliPreview(targetUrl) {
     title: cleanPreviewTitle(data.title, host),
     image: normalizeBilibiliImageUrl(data.pic),
     description: description && description !== '-' ? description : (ownerName ? `UP主：${ownerName}` : ''),
-    host
+    host,
+    embedUrl: getBilibiliEmbedUrl(bvid),
+    embedType: 'iframe'
   };
 }
 
