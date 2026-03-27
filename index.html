@@ -858,6 +858,51 @@ html, body {
 
 .hashtag { color: var(--accent2); cursor: pointer; font-weight: 600; text-decoration: none; }
 .hashtag:hover { text-decoration: underline; }
+.link-preview-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(10,10,60,0.42);
+  color: var(--text);
+  text-decoration: none;
+}
+.link-preview-card:hover { border-color: rgba(255,119,16,0.35); }
+.link-preview-card.loading {
+  cursor: default;
+  color: var(--t2);
+}
+.link-preview-thumb {
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--s2);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.link-preview-thumb img {
+  display: block;
+  width: 100%;
+  max-height: 240px;
+  object-fit: cover;
+}
+.link-preview-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.link-preview-title {
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 700;
+  color: var(--text);
+}
+.link-preview-host {
+  font-size: 11px;
+  color: var(--t3);
+}
 
 .notify-bell {
   --bell-size: clamp(38px, 6vw, 46px);
@@ -2410,20 +2455,72 @@ function formatContent(content) {
   html = html.replace(/#([\w\u4e00-\u9fa5]+)/g, '<span class="hashtag" onclick="event.stopPropagation(); loadCommPosts(\'$1\')">#$1</span>');
   // URLs
   html = html.replace(/(https?:\/\/[^\s]+)/g, (url) => {
-    const videoThumb = parseVideo(url);
-    if (videoThumb) return `<a href="${url}" target="_blank" class="hashtag">${url}</a><img src="${videoThumb}" style="width:100%; border-radius:12px; margin-top:8px; display:block;">`;
-    return `<a href="${url}" target="_blank" class="hashtag">${url}</a>`;
+    const safeUrl = escapeAttr(url);
+    const previewMarkup = shouldAutoPreviewUrl(url)
+      ? `<div class="link-preview-card loading" data-preview-url="${encodeInlineArg(url)}"><div class="link-preview-meta"><div class="link-preview-title">正在解析链接预览...</div><div class="link-preview-host">${escapeHtml(getPreviewHostLabel(url))}</div></div></div>`
+      : '';
+    return `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="hashtag">${safeUrl}</a>${previewMarkup}`;
   });
   return html;
 }
 
-function parseVideo(url) {
-  if (url.includes('youtube.com') || url.includes('youtu.be')) {
-    const id = url.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/);
-    return id ? `https://img.youtube.com/vi/${id[1]}/mqdefault.jpg` : null;
+function shouldAutoPreviewUrl(url) {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return ['b23.tv', 'www.bilibili.com', 'm.bilibili.com', 'bilibili.com', 'youtu.be', 'www.youtube.com', 'youtube.com'].includes(host);
+  } catch (e) {
+    return false;
   }
-  if (url.includes('bilibili.com')) return 'https://static.hdslb.com/images/favicon.ico'; // Placeholder for Bili
-  return null;
+}
+
+function getPreviewHostLabel(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch (e) {
+    return '链接';
+  }
+}
+
+const linkPreviewCache = new Map();
+
+async function fetchLinkPreview(url) {
+  if (!url) return null;
+  if (!linkPreviewCache.has(url)) {
+    linkPreviewCache.set(url, trackedFetch(`/api/community/link-preview?url=${encodeURIComponent(url)}`)
+      .then(r => r.json())
+      .then(d => d.ok ? d.preview : null)
+      .catch(() => null));
+  }
+  return linkPreviewCache.get(url);
+}
+
+function renderLinkPreview(preview) {
+  if (!preview?.url || !preview?.title) return '';
+  const image = preview.image ? `<div class="link-preview-thumb"><img src="${escapeAttr(preview.image)}" alt="${escapeAttr(preview.title)}"></div>` : '';
+  return `
+    <a href="${escapeAttr(preview.url)}" target="_blank" rel="noopener noreferrer" class="link-preview-card">
+      ${image}
+      <div class="link-preview-meta">
+        <div class="link-preview-title">${escapeHtml(preview.title)}</div>
+        <div class="link-preview-host">${escapeHtml(preview.host || getPreviewHostLabel(preview.url))}</div>
+      </div>
+    </a>
+  `;
+}
+
+async function hydrateLinkPreviews(root = document) {
+  const nodes = [...root.querySelectorAll('[data-preview-url]')];
+  await Promise.all(nodes.map(async node => {
+    if (node.dataset.previewLoaded === '1') return;
+    node.dataset.previewLoaded = '1';
+    const rawUrl = decodeURIComponent(node.dataset.previewUrl || '');
+    const preview = await fetchLinkPreview(rawUrl);
+    if (!preview) {
+      node.remove();
+      return;
+    }
+    node.outerHTML = renderLinkPreview(preview);
+  }));
 }
 
 async function loadCommPosts(query = '', userId = '', username = '', isProfile = false) {
@@ -2469,6 +2566,7 @@ async function loadCommPosts(query = '', userId = '', username = '', isProfile =
 
     container.innerHTML = `<div class="waterfall-container">${cards.join('')}</div>`;
     observeLazyImages();
+    hydrateLinkPreviews(container);
   } catch(e) {
     container.innerHTML = renderEmptyState(getUiErrorMessage(e, '加载失败，请刷新后重试'), 'error');
   }
@@ -2822,6 +2920,7 @@ async function loadPostById(id) {
     const d = await r.json();
     if (d.ok && d.posts.length > 0) {
       document.getElementById('single-post-container').innerHTML = renderPostCard(d.posts[0]);
+      hydrateLinkPreviews(document.getElementById('single-post-container'));
       const dc = await rc.json();
       if (dc.ok) {
         document.getElementById('single-post-comments').innerHTML = '<div style="font-size:16px; font-weight:700; border-bottom:1px solid var(--border); padding-bottom:8px; margin-bottom:8px;">评论</div>' + dc.comments.map(c => `

@@ -132,6 +132,34 @@ async function sha256Hex(input) {
   ).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+function extractMetaTag(html, key, attr = 'property') {
+  const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(`<meta[^>]+${attr}=["']${escaped}["'][^>]+content=["']([^"']+)["'][^>]*>`, 'i');
+  const reverseRegex = new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+${attr}=["']${escaped}["'][^>]*>`, 'i');
+  const match = html.match(regex) || html.match(reverseRegex);
+  return match ? match[1].trim() : '';
+}
+
+function extractTitle(html) {
+  const match = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  if (!match) return '';
+  return match[1].replace(/\s+/g, ' ').trim();
+}
+
+function cleanPreviewTitle(title, host) {
+  const raw = String(title || '').trim();
+  if (!raw) return '';
+  if (host.includes('bilibili.com') || host === 'b23.tv') {
+    return raw.replace(/[-_ ]*哔哩哔哩.*$/i, '').replace(/[-_ ]*bilibili.*$/i, '').trim();
+  }
+  return raw;
+}
+
+function isAllowedPreviewHost(hostname) {
+  const host = String(hostname || '').toLowerCase();
+  return ['b23.tv', 'bilibili.com', 'www.bilibili.com', 'm.bilibili.com', 'youtube.com', 'www.youtube.com', 'youtu.be'].includes(host);
+}
+
 // FINAL DEPLOY V4.3 - Optimized Storage & Auth
 export default {
   async fetch(request, env, ctx) {
@@ -264,6 +292,48 @@ export default {
           return jsonResp({ ok: false, msg: '服务端错误: ' + e.message }, 500);
         }
       }
+
+      if (url.pathname === '/api/community/link-preview' && request.method === 'GET') {
+        try {
+          const rawUrl = url.searchParams.get('url') || '';
+          if (!rawUrl) return jsonResp({ ok: false, msg: '缺少链接' }, 400);
+          const target = new URL(rawUrl);
+          if (!['http:', 'https:'].includes(target.protocol)) return jsonResp({ ok: false, msg: '链接协议不支持' }, 400);
+          if (!isAllowedPreviewHost(target.hostname)) return jsonResp({ ok: false, msg: '暂不支持该链接预览' }, 400);
+
+          const resp = await fetch(target.toString(), {
+            redirect: 'follow',
+            headers: {
+              'user-agent': 'Mozilla/5.0 (compatible; 8communityBot/1.0; +https://thefallback.cc.cd)',
+              'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8'
+            }
+          });
+          if (!resp.ok) return jsonResp({ ok: false, msg: '链接解析失败' }, 502);
+
+          const finalUrl = resp.url || target.toString();
+          const final = new URL(finalUrl);
+          const html = await resp.text();
+          const title = cleanPreviewTitle(
+            extractMetaTag(html, 'og:title') || extractMetaTag(html, 'twitter:title', 'name') || extractTitle(html),
+            final.hostname
+          );
+          const image = extractMetaTag(html, 'og:image') || extractMetaTag(html, 'twitter:image', 'name');
+          if (!title) return jsonResp({ ok: false, msg: '未解析到标题' }, 404);
+
+          return jsonResp({
+            ok: true,
+            preview: {
+              url: finalUrl,
+              title,
+              image,
+              host: final.hostname.replace(/^www\./, '')
+            }
+          });
+        } catch (e) {
+          return jsonResp({ ok: false, msg: '链接解析失败' }, 500);
+        }
+      }
+
       if (url.pathname === '/api/community/posts') {
         if (request.method === 'GET') {
           try {
