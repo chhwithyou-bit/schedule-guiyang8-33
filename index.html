@@ -539,7 +539,7 @@ html, body {
   opacity: 1; transform: translateX(-50%) translateY(0);
 }
 #g-toast-inner {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
   padding: 13px 20px; border-radius: 16px;
   font-size: 14px; font-weight: 700; letter-spacing: 0.3px;
   /* 统一为深蓝毛玻璃 + 爱马仕橙边框 */
@@ -548,7 +548,9 @@ html, body {
   border: 1px solid rgba(255, 119, 16, 0.4);
   color: #f5efe0;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 153, 68, 0.1);
-  white-space: nowrap;
+  white-space: normal;
+  text-align: center;
+  line-height: 1.45;
 }
 /* 状态颜色仅改变文字或微调边框，保持整体风格统一 */
 #g-toast-inner.success { color: var(--accent2); }
@@ -1251,6 +1253,30 @@ function showToast(msg, type = 'info', duration = 2500) {
   wrap.classList.add('show');
   if (_toastTimer) clearTimeout(_toastTimer);
   _toastTimer = setTimeout(() => wrap.classList.remove('show'), duration);
+}
+
+function sanitizeErrorMessage(input, fallback = '操作失败，请稍后重试') {
+  const raw = String(input || '').trim();
+  if (!raw) return fallback;
+  const lower = raw.toLowerCase();
+  const noisy = ['window.fetch', 'failed to fetch', 'networkerror', 'cannot convert', 'cannt conver', 'body stream', 'arraybuffer'];
+  if (noisy.some(token => lower.includes(token))) return fallback;
+  return raw.length > 120 ? fallback : raw;
+}
+
+function getUiErrorMessage(error, fallback = '操作失败，请稍后重试') {
+  return sanitizeErrorMessage(error && error.message ? error.message : error, fallback);
+}
+
+async function readFileAsArrayBuffer(file) {
+  if (!file) throw new Error('文件不存在');
+  if (typeof file.arrayBuffer === 'function') return file.arrayBuffer();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('文件读取失败'));
+    reader.readAsArrayBuffer(file);
+  });
 }
 
 let nodesRole = null;
@@ -2004,7 +2030,7 @@ async function loadCommPosts(query = '', userId = '', username = '', isProfile =
     container.innerHTML = `<div class="waterfall-container">${d.posts.map(p => renderPostCard(p)).join('')}</div>`;
     observeLazyImages();
   } catch(e) {
-    container.innerHTML = `<div style="text-align:center;padding:40px;color:var(--red);">加载失败: ${e.message}</div>`;
+    container.innerHTML = `<div style="text-align:center;padding:40px;color:var(--red);">${getUiErrorMessage(e, '加载失败，请刷新后重试')}</div>`;
   }
 }
 
@@ -2147,7 +2173,7 @@ async function submitEditProfile() {
       const r = await fetch('/api/community/upload', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${commUser.username}:${commUser.passHash}`, 'Content-Type': profileFiles.avatar.type },
-        body: await profileFiles.avatar.arrayBuffer()
+        body: await readFileAsArrayBuffer(profileFiles.avatar)
       });
       const d = await r.json();
       if (d.ok) avatarUrl = d.url;
@@ -2157,7 +2183,7 @@ async function submitEditProfile() {
       const r = await fetch('/api/community/upload', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${commUser.username}:${commUser.passHash}`, 'Content-Type': profileFiles.banner.type },
-        body: await profileFiles.banner.arrayBuffer()
+        body: await readFileAsArrayBuffer(profileFiles.banner)
       });
       const d = await r.json();
       if (d.ok) bannerUrl = d.url;
@@ -2478,10 +2504,11 @@ async function submitCommPost() {
       const rUpload = await fetch('/api/community/upload', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${commUser.username}:${commUser.passHash}`, 'Content-Type': currentCommFile.type },
-        body: await currentCommFile.arrayBuffer()
+        body: await readFileAsArrayBuffer(currentCommFile)
       });
       const dUpload = await rUpload.json();
       if (dUpload.ok) media.push({ url: dUpload.url });
+      else return showToast(sanitizeErrorMessage(dUpload.msg, '图片上传失败，请换一张图或稍后重试'), 'error');
     }
     
     const r = await fetch('/api/community/posts', {
@@ -2498,7 +2525,7 @@ async function submitCommPost() {
       currentCommFile = null;
       loadCommPosts();
     }
-  } catch(e) { showToast('发布异常: ' + e.message, 'error'); }
+  } catch(e) { showToast(getUiErrorMessage(e, '发布失败，请检查网络后重试'), 'error'); }
   finally { btn.disabled = false; btn.textContent = '发布'; }
 }
 
@@ -2574,12 +2601,15 @@ async function submitComment() {
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${commUser.username}:${commUser.passHash}` },
       body: JSON.stringify({ post_id: activeCommentPostId, content })
     });
-    if ((await r.json()).ok) {
+    const d = await r.json();
+    if (d.ok) {
       inp.value = '';
       loadComments(activeCommentPostId);
       loadCommPosts(); // Refresh post count
+    } else {
+      showToast(sanitizeErrorMessage(d.msg, '评论发送失败，请稍后重试'), 'error');
     }
-  } catch(e) {}
+  } catch(e) { showToast(getUiErrorMessage(e, '评论发送失败，请稍后重试'), 'error'); }
 }
 
 let currentCommFile = null;
@@ -2619,13 +2649,13 @@ async function submitCommPost() {
           'Authorization': `Bearer ${commUser.username}:${commUser.passHash}`,
           'Content-Type': currentCommFile.type 
         },
-        body: await currentCommFile.arrayBuffer()
+        body: await readFileAsArrayBuffer(currentCommFile)
       });
       const dUpload = await rUpload.json();
       if (dUpload.ok) {
         media.push({ url: dUpload.url });
       } else {
-        showToast(dUpload.msg || '图片上传失败', 'error');
+        showToast(sanitizeErrorMessage(dUpload.msg, '图片上传失败，请换一张图或稍后重试'), 'error');
         btn.disabled = false; btn.textContent = '发布';
         return; // 如果图片上传失败，不发布评论，方便调试
       }
@@ -2649,7 +2679,7 @@ async function submitCommPost() {
       loadCommPosts();
     }
   } catch(e) { 
-    showToast('发布异常: ' + e.message, 'error'); 
+    showToast(getUiErrorMessage(e, '发布失败，请检查网络后重试'), 'error'); 
   }
   finally { btn.disabled = false; btn.textContent = '发布'; }
 }
