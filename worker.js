@@ -4,7 +4,7 @@ const DEFAULT_ADMIN_USER = 'admin';
 const DEFAULT_ADMIN_PASS = 'admin888';
 const LINK_PREVIEW_TIMEOUT_MS = 8000;
 const LINK_PREVIEW_MAX_BYTES = 1_500_000;
-const DEFAULT_MUSIC_PUBLIC_BASE_URL = 'https://media.thefallback.cc.cd';
+const DEFAULT_MUSIC_PUBLIC_BASE_URL = 'https://thefallback.cc.cd';
 
 function jsonResp(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -55,6 +55,7 @@ function normalizeMusicTrack(env, track, requestHost) {
     const legacyHosts = new Set([
       'thefallback.cc.cd',
       'www.thefallback.cc.cd',
+      'media.thefallback.cc.cd',
       requestHost,
     ].filter(Boolean));
 
@@ -313,7 +314,7 @@ export default {
                 return {
                   name: decodeURIComponent(name),
                   artist: 'R2 Drive',
-                  // 使用公开的 R2 媒体域名拼接链接，确保浏览器能读取音频元数据
+                  // 使用 music 桶的自定义域名拼接链接，确保浏览器能读取音频元数据
                   url: buildMusicPublicUrl(env, obj.key)
                 };
               });
