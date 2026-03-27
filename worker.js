@@ -3,6 +3,7 @@ import htmlContent from './index.html';
 const DEFAULT_ADMIN_USER = 'admin';
 const DEFAULT_ADMIN_PASS = 'admin888';
 const DEFAULT_COMMUNITY_OWNER_USERS = 'admin';
+const COMMUNITY_LEVEL_THRESHOLDS = [0, 10, 25, 45, 70, 100, 140, 190, 250, 325, 415, 520, 640, 780, 940, 1120, 1325, 1555, 1810, 2090];
 
 function parseIdentityList(value) {
   return new Set(String(value || '')
@@ -34,6 +35,22 @@ function withCommunityRole(user, env) {
   if (!user) return null;
   const role = normalizeCommunityRole(user, env);
   return role === user.role ? user : { ...user, role };
+}
+
+function getCommunityLevelFromXp(xpValue) {
+  const xp = Math.max(0, Number(xpValue || 0));
+  for (let i = COMMUNITY_LEVEL_THRESHOLDS.length - 1; i >= 0; i -= 1) {
+    if (xp >= COMMUNITY_LEVEL_THRESHOLDS[i]) return i + 1;
+  }
+  return 1;
+}
+
+function withCommunityLevel(entity) {
+  if (!entity || typeof entity !== 'object') return entity;
+  const xp = Math.max(0, Number(entity.xp || 0));
+  const level = getCommunityLevelFromXp(xp);
+  if (entity.xp === xp && entity.level === level) return entity;
+  return { ...entity, xp, level };
 }
 const LINK_PREVIEW_TIMEOUT_MS = 8000;
 const LINK_PREVIEW_MAX_BYTES = 1_500_000;
@@ -650,11 +667,15 @@ export default {
         } catch (e) {}
         const user = await env.COMMUNITY_DB.prepare("SELECT * FROM users WHERE username = ? AND password_hash = ?").bind(u, p).first();
         if (user && user.is_banned) return null;
-        return withCommunityRole(user, env);
+        return withCommunityLevel(withCommunityRole(user, env));
       };
 
       const awardXP = async (userId, amount) => {
-        await env.COMMUNITY_DB.prepare("UPDATE users SET xp = xp + ?, level = CAST(((xp + ?) / 100) + 1 AS INTEGER) WHERE id = ?").bind(amount, amount, userId).run();
+        const current = await env.COMMUNITY_DB.prepare("SELECT xp FROM users WHERE id = ?").bind(userId).first();
+        if (!current) return;
+        const nextXp = Math.max(0, Number(current.xp || 0)) + Number(amount || 0);
+        const nextLevel = getCommunityLevelFromXp(nextXp);
+        await env.COMMUNITY_DB.prepare("UPDATE users SET xp = ?, level = ? WHERE id = ?").bind(nextXp, nextLevel, userId).run();
       };
 
       const addNotify = async (userId, type, fromUserId, targetId) => {
@@ -684,10 +705,8 @@ export default {
             const user = await env.COMMUNITY_DB.prepare("SELECT * FROM users WHERE username = ? AND password_hash = ?").bind(username, passHash).first();
             if (!user) return jsonResp({ ok: false, msg: '用户名或密码错误' }, 401);
             if (user.is_banned) return jsonResp({ ok: false, msg: '账号已被封禁' }, 403);
-            let role = normalizeCommunityRole(user, env);
-            let level = user.level || 1;
-            let xp = user.xp || 0;
-            return jsonResp({ ok: true, user: { id: user.id, username, passHash, role, level, xp, signature: user.signature, avatar_url: user.avatar_url, background_url: user.background_url } });
+            const normalizedUser = withCommunityLevel(withCommunityRole(user, env));
+            return jsonResp({ ok: true, user: { id: normalizedUser.id, username, passHash, role: normalizedUser.role, level: normalizedUser.level, xp: normalizedUser.xp, signature: normalizedUser.signature, avatar_url: normalizedUser.avatar_url, background_url: normalizedUser.background_url } });
           }
         } catch (e) {
           return jsonResp({ ok: false, msg: '服务端错误: ' + e.message }, 500);
@@ -789,7 +808,7 @@ export default {
             const userId = url.searchParams.get('userId');
             const username = url.searchParams.get('username');
             let sql = `
-              SELECT p.*, u.username, u.avatar_url, COALESCE(u.level, 1) as level, COALESCE(u.role, 'user') as role,
+              SELECT p.*, u.username, u.avatar_url, COALESCE(u.xp, 0) as xp, COALESCE(u.level, 1) as level, COALESCE(u.role, 'user') as role,
               (SELECT COUNT(*) FROM likes WHERE post_id = p.id) as like_count,
               (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comment_count,
               (SELECT COUNT(*) FROM posts WHERE repost_id = p.id) as repost_count
@@ -815,7 +834,10 @@ export default {
 
             const posts = results || [];
             posts.forEach(p => {
-              p.role = normalizeCommunityRole(p, env);
+              const normalizedPostUser = withCommunityLevel({ role: normalizeCommunityRole(p, env), xp: p.xp, level: p.level });
+              p.role = normalizedPostUser.role;
+              p.level = normalizedPostUser.level;
+              p.xp = normalizedPostUser.xp;
               try {
                 const parsedMedia = JSON.parse(p.media_json || '[]');
                 p.media_json = JSON.stringify(Array.isArray(parsedMedia) ? parsedMedia.filter(item => item && typeof item === 'object') : []);
@@ -827,9 +849,16 @@ export default {
               const ids = posts.map(p => p.id);
               const placeholders = ids.map(() => '?').join(',');
               // Fetch latest 3 comments for each post (sqlite doesn't have row_number easily, so we just fetch all and group in JS, limit 500 total comments to prevent memory bloat)
-              const commQuery = "SELECT c.id, c.post_id, c.content, c.user_id, u.username FROM comments c JOIN users u ON c.user_id = u.id WHERE c.post_id IN (" + placeholders + ") ORDER BY c.created_at ASC LIMIT 500";
+              const commQuery = "SELECT c.id, c.post_id, c.content, c.user_id, u.username, u.avatar_url, COALESCE(u.xp, 0) as xp, COALESCE(u.level, 1) as level FROM comments c JOIN users u ON c.user_id = u.id WHERE c.post_id IN (" + placeholders + ") ORDER BY c.created_at ASC LIMIT 500";
               const commResults = await env.COMMUNITY_DB.prepare(commQuery).bind(...ids).all();
-              const comms = commResults.results || [];
+              const comms = (commResults.results || []).map(comment => {
+                const normalizedCommentUser = withCommunityLevel(comment);
+                return {
+                  ...comment,
+                  level: normalizedCommentUser.level,
+                  xp: normalizedCommentUser.xp
+                };
+              });
               let likedIds = new Set();
 
               if (viewer) {
@@ -928,6 +957,7 @@ export default {
         const user = await env.COMMUNITY_DB.prepare(sql).bind(param).first();
         if (!user) return jsonResp({ ok: false }, 404);
         user.role = normalizeCommunityRole(user, env);
+        user.level = getCommunityLevelFromXp(user.xp);
         
         const followers = await env.COMMUNITY_DB.prepare("SELECT COUNT(*) as c FROM follows WHERE following_id = ?").bind(user.id).first();
         const following = await env.COMMUNITY_DB.prepare("SELECT COUNT(*) as c FROM follows WHERE follower_id = ?").bind(user.id).first();
@@ -959,11 +989,12 @@ export default {
         if (request.method === 'GET') {
           const postId = url.searchParams.get('postId');
           const { results } = await env.COMMUNITY_DB.prepare(`
-            SELECT c.*, u.id as user_id, u.username, u.avatar_url, COALESCE(u.level, 1) as level FROM comments c 
+            SELECT c.*, u.id as user_id, u.username, u.avatar_url, COALESCE(u.xp, 0) as xp, COALESCE(u.level, 1) as level FROM comments c 
             JOIN users u ON c.user_id = u.id 
             WHERE c.post_id = ? ORDER BY c.created_at ASC
           `).bind(postId).all();
-          return jsonResp({ ok: true, comments: results || [] });
+          const comments = (results || []).map(comment => withCommunityLevel(comment));
+          return jsonResp({ ok: true, comments });
         }
         if (request.method === 'POST') {
           const user = await getAuth();
@@ -994,7 +1025,7 @@ export default {
         const reports = await env.COMMUNITY_DB.prepare("SELECT * FROM reports WHERE status = 'pending' ORDER BY created_at DESC").all();
         const users = await env.COMMUNITY_DB.prepare("SELECT id, username, role, level, xp, is_banned, created_at, avatar_url, password_hash FROM users ORDER BY created_at DESC").all();
         const normalizedUsers = (users.results || []).map(row => ({
-          ...row,
+          ...withCommunityLevel(row),
           role: normalizeCommunityRole(row, env)
         }));
         const announcementRaw = await env.SCHEDULE_KV.get('community_announcement');

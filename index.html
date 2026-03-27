@@ -800,7 +800,7 @@ html, body {
 .upload-box:hover { border-color: var(--accent); }
 .upload-preview-sm { width: 60px; height: 60px; border-radius: 8px; object-fit: cover; margin-top: 10px; display: none; }
 
-.badge { display: inline-flex; align-items: center; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 800; text-transform: uppercase; margin-left: 6px; }
+.badge { display: inline-flex; align-items: center; padding: 3px 7px; border-radius: 999px; font-size: 10px; font-weight: 800; text-transform: uppercase; margin-left: 6px; white-space: nowrap; line-height: 1.15; }
 .badge.lvl { background: var(--accent); color: white; }
 .badge.admin { background: #e05050; color: white; }
 .badge.admin-level { background: linear-gradient(135deg, #e05050, #ff9a3c); color: white; }
@@ -2265,6 +2265,28 @@ let currentAnnouncement = null;
 let announcementPollTimer = null;
 let communityRoleSyncTimer = null;
 let communityRoleSyncPromise = null;
+const COMMUNITY_LEVELS = [
+  { minXp: 0, title: '新芽' },
+  { minXp: 10, title: '破冰' },
+  { minXp: 25, title: '活跃' },
+  { minXp: 45, title: '常驻' },
+  { minXp: 70, title: '热心' },
+  { minXp: 100, title: '骨干' },
+  { minXp: 140, title: '先锋' },
+  { minXp: 190, title: '核心' },
+  { minXp: 250, title: '炽星' },
+  { minXp: 325, title: '锋芒' },
+  { minXp: 415, title: '热浪' },
+  { minXp: 520, title: '领航' },
+  { minXp: 640, title: '风云' },
+  { minXp: 780, title: '耀光' },
+  { minXp: 940, title: '名流' },
+  { minXp: 1120, title: '支柱' },
+  { minXp: 1325, title: '殿堂' },
+  { minXp: 1555, title: '传奇' },
+  { minXp: 1810, title: '史诗' },
+  { minXp: 2090, title: '巅峰' }
+];
 
 function isAdminRole(role) {
   return role === 'admin' || role === 'owner';
@@ -2274,9 +2296,40 @@ function isOwnerRole(role) {
   return role === 'owner';
 }
 
+function getCommunityLevelMeta(user) {
+  const xp = Math.max(0, Number(user?.xp || 0));
+  let index = 0;
+  for (let i = 0; i < COMMUNITY_LEVELS.length; i += 1) {
+    if (xp >= COMMUNITY_LEVELS[i].minXp) index = i;
+    else break;
+  }
+  const current = COMMUNITY_LEVELS[index];
+  const next = COMMUNITY_LEVELS[index + 1] || null;
+  const level = index + 1;
+  const currentLevelXp = xp - current.minXp;
+  const nextLevelSpan = next ? (next.minXp - current.minXp) : 0;
+  const remainingXp = next ? Math.max(0, next.minXp - xp) : 0;
+  const percent = next ? Math.max(0, Math.min(100, (currentLevelXp / Math.max(1, nextLevelSpan)) * 100)) : 100;
+  return {
+    level,
+    title: current.title,
+    xp,
+    currentLevelXp,
+    nextLevelSpan,
+    remainingXp,
+    percent,
+    nextLevel: next ? level + 1 : null,
+    nextTitle: next ? next.title : '',
+    currentMinXp: current.minXp,
+    nextMinXp: next ? next.minXp : current.minXp
+  };
+}
+
 function displayLevel(user) {
   if (isOwnerRole(user?.role)) return 'OWNER';
-  return isAdminRole(user?.role) ? 'ADMIN' : `LV.${user?.level || 1}`;
+  if (isAdminRole(user?.role)) return 'ADMIN';
+  const meta = getCommunityLevelMeta(user);
+  return `LV.${meta.level} ${meta.title}`;
 }
 
 function renderRoleBadge(role) {
@@ -2293,10 +2346,25 @@ function getXpProgress(user) {
   if (isAdminRole(user?.role)) {
     return { current: '特殊', next: '特殊', percent: 100, note: isOwnerRole(user?.role) ? '站长等级为特殊等级，不参与普通升级进度。' : '管理员等级为特殊等级，不参与普通升级进度。' };
   }
-  const xp = Number(user?.xp || 0);
-  const current = xp % 100;
-  const needed = 100 - current;
-  return { current, next: 100, percent: current, note: `距离下一级还差 ${needed} XP` };
+  const meta = getCommunityLevelMeta(user);
+  if (!meta.nextLevel) {
+    return {
+      current: 'MAX',
+      next: 'MAX',
+      percent: 100,
+      note: `当前称号：${meta.title} · 已满级 · 总 XP ${meta.xp}`,
+      title: meta.title,
+      totalXp: meta.xp
+    };
+  }
+  return {
+    current: meta.currentLevelXp,
+    next: meta.nextLevelSpan,
+    percent: meta.percent,
+    note: `当前称号：${meta.title} · 距离 LV.${meta.nextLevel} ${meta.nextTitle} 还差 ${meta.remainingXp} XP`,
+    title: meta.title,
+    totalXp: meta.xp
+  };
 }
 
 function openCommPostModal() { 
@@ -2451,7 +2519,7 @@ function renderAdminUsers() {
             ${renderLevelBadge(u)}
             ${renderRoleBadge(u.role)}
           </div>
-          <div class="admin-user-sub">XP: ${u.xp || 0} | UID: ${escapeHtml(u.id || '')} | ${u.is_banned ? '<span style="color:#e05050;">已封禁</span>' : '正常'}</div>
+          <div class="admin-user-sub">${escapeHtml(displayLevel(u))} | XP: ${u.xp || 0} | UID: ${escapeHtml(u.id || '')} | ${u.is_banned ? '<span style="color:#e05050;">已封禁</span>' : '正常'}</div>
           <div class="admin-user-sub">密码哈希: <span class="badge hash">${escapeHtml(u.password_hash || '无')}</span></div>
         </div>
         <div class="admin-user-actions">${actions.join('')}</div>
@@ -3266,6 +3334,7 @@ async function renderProfileHeader(val, isName, uid) {
   
   const draw = (userObj) => {
     const progress = getXpProgress(userObj);
+    const levelMeta = isAdminRole(userObj.role) ? null : getCommunityLevelMeta(userObj);
     const safeUsername = escapeHtml(userObj.username || '未知用户');
     const safeSignature = escapeHtml(userObj.signature || '这个人很懒，什么都没留下。');
     const safeAvatar = userObj.avatar_url ? escapeAttr(userObj.avatar_url) : '';
@@ -3284,6 +3353,7 @@ async function renderProfileHeader(val, isName, uid) {
               ${renderRoleBadge(userObj.role)}
             </div>
             <div class="profile-sig">${safeSignature}</div>
+            ${levelMeta ? `<div class="profile-sig" style="font-size:12px;">当前称号：${escapeHtml(levelMeta.title)} · 总 XP ${levelMeta.xp}</div>` : ''}
           </div>
           <div class="profile-progress">
             <div class="profile-progress-top">
