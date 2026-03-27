@@ -2,6 +2,39 @@ import htmlContent from './index.html';
 
 const DEFAULT_ADMIN_USER = 'admin';
 const DEFAULT_ADMIN_PASS = 'admin888';
+const DEFAULT_COMMUNITY_OWNER_USERS = 'admin';
+
+function parseIdentityList(value) {
+  return new Set(String(value || '')
+    .split(',')
+    .map(item => item.trim().toLowerCase())
+    .filter(Boolean));
+}
+
+function isCommunityAdminRole(role) {
+  return role === 'admin' || role === 'owner';
+}
+
+function isCommunityOwnerRole(role) {
+  return role === 'owner';
+}
+
+function normalizeCommunityRole(user, env) {
+  const baseRole = String(user?.role || 'user').trim().toLowerCase();
+  if (baseRole === 'owner') return 'owner';
+  if (baseRole !== 'admin') return 'user';
+  const ownerUsers = parseIdentityList(env.COMMUNITY_OWNER_USERS || DEFAULT_COMMUNITY_OWNER_USERS);
+  const ownerIds = parseIdentityList(env.COMMUNITY_OWNER_IDS || '');
+  const username = String(user?.username || '').trim().toLowerCase();
+  const id = String(user?.id || '').trim().toLowerCase();
+  return (ownerUsers.has(username) || ownerIds.has(id)) ? 'owner' : 'admin';
+}
+
+function withCommunityRole(user, env) {
+  if (!user) return null;
+  const role = normalizeCommunityRole(user, env);
+  return role === user.role ? user : { ...user, role };
+}
 const LINK_PREVIEW_TIMEOUT_MS = 8000;
 const LINK_PREVIEW_MAX_BYTES = 1_500_000;
 const DEFAULT_MUSIC_PUBLIC_BASE_URL = 'https://thefallback.cc.cd';
@@ -617,7 +650,7 @@ export default {
         } catch (e) {}
         const user = await env.COMMUNITY_DB.prepare("SELECT * FROM users WHERE username = ? AND password_hash = ?").bind(u, p).first();
         if (user && user.is_banned) return null;
-        return user;
+        return withCommunityRole(user, env);
       };
 
       const awardXP = async (userId, amount) => {
@@ -651,7 +684,7 @@ export default {
             const user = await env.COMMUNITY_DB.prepare("SELECT * FROM users WHERE username = ? AND password_hash = ?").bind(username, passHash).first();
             if (!user) return jsonResp({ ok: false, msg: '用户名或密码错误' }, 401);
             if (user.is_banned) return jsonResp({ ok: false, msg: '账号已被封禁' }, 403);
-            let role = user.role || 'user';
+            let role = normalizeCommunityRole(user, env);
             let level = user.level || 1;
             let xp = user.xp || 0;
             return jsonResp({ ok: true, user: { id: user.id, username, passHash, role, level, xp, signature: user.signature, avatar_url: user.avatar_url, background_url: user.background_url } });
@@ -835,7 +868,7 @@ export default {
           const postId = url.searchParams.get('id');
           const post = await env.COMMUNITY_DB.prepare("SELECT user_id FROM posts WHERE id = ?").bind(postId).first();
           if (!post) return jsonResp({ ok: false, msg: 'Not found' }, 404);
-          if (post.user_id !== user.id && user.role !== 'admin') return jsonResp({ ok: false, msg: 'Forbidden' }, 403);
+          if (post.user_id !== user.id && !isCommunityAdminRole(user.role)) return jsonResp({ ok: false, msg: 'Forbidden' }, 403);
           await env.COMMUNITY_DB.prepare("DELETE FROM posts WHERE id = ?").bind(postId).run();
           return jsonResp({ ok: true });
         }
@@ -955,12 +988,16 @@ export default {
 
       if (url.pathname === '/api/community/admin/data' && request.method === 'GET') {
         const user = await getAuth();
-        if (!user || user.role !== 'admin') return jsonResp({ ok: false }, 403);
+        if (!user || !isCommunityAdminRole(user.role)) return jsonResp({ ok: false }, 403);
         const reports = await env.COMMUNITY_DB.prepare("SELECT * FROM reports WHERE status = 'pending' ORDER BY created_at DESC").all();
         const users = await env.COMMUNITY_DB.prepare("SELECT id, username, role, level, xp, is_banned, created_at, avatar_url, password_hash FROM users ORDER BY created_at DESC").all();
+        const normalizedUsers = (users.results || []).map(row => ({
+          ...row,
+          role: normalizeCommunityRole(row, env)
+        }));
         const announcementRaw = await env.SCHEDULE_KV.get('community_announcement');
         const announcement = announcementRaw ? JSON.parse(announcementRaw) : { content: '', updatedAt: null };
-        return jsonResp({ ok: true, reports: reports.results || [], users: users.results || [], announcement });
+        return jsonResp({ ok: true, reports: reports.results || [], users: normalizedUsers, announcement });
       }
 
       if (url.pathname === '/api/community/announcement' && request.method === 'GET') {
@@ -972,10 +1009,19 @@ export default {
       
       if (url.pathname === '/api/community/admin/action' && request.method === 'POST') {
         const user = await getAuth();
-        if (!user || user.role !== 'admin') return jsonResp({ ok: false }, 403);
+        if (!user || !isCommunityAdminRole(user.role)) return jsonResp({ ok: false }, 403);
         const { action, target_type, target_id, report_id, new_password, content } = await request.json();
+        const targetUser = target_type === 'user' && target_id
+          ? withCommunityRole(await env.COMMUNITY_DB.prepare("SELECT * FROM users WHERE id = ?").bind(target_id).first(), env)
+          : null;
+        const actorIsOwner = isCommunityOwnerRole(user.role);
+        const targetIsPrivileged = isCommunityAdminRole(targetUser?.role);
+        const targetIsOwner = isCommunityOwnerRole(targetUser?.role);
         
         if (action === 'reset_password' && target_type === 'user') {
+           if (!targetUser) return jsonResp({ ok: false, msg: '用户不存在' }, 404);
+           if (targetIsOwner) return jsonResp({ ok: false, msg: '不能重置 owner 账号密码' }, 403);
+           if (targetIsPrivileged && !actorIsOwner) return jsonResp({ ok: false, msg: '只有 owner 可以重置管理员密码' }, 403);
            const passHash = await sha256Hex(new_password);
            await env.COMMUNITY_DB.prepare("UPDATE users SET password_hash = ? WHERE id = ?").bind(passHash, target_id).run();
            return jsonResp({ ok: true });
@@ -988,13 +1034,23 @@ export default {
         } else if (action === 'resolve_report') {
           await env.COMMUNITY_DB.prepare("UPDATE reports SET status = 'resolved' WHERE id = ?").bind(target_id).run();
         } else if (action === 'ban_user') {
+          if (!targetUser) return jsonResp({ ok: false, msg: '用户不存在' }, 404);
+          if (targetIsPrivileged) return jsonResp({ ok: false, msg: '不能封禁管理员账号' }, 403);
           await env.COMMUNITY_DB.prepare("UPDATE users SET is_banned = 1 WHERE id = ?").bind(target_id).run();
         } else if (action === 'unban_user') {
+          if (!targetUser) return jsonResp({ ok: false, msg: '用户不存在' }, 404);
+          if (targetIsPrivileged) return jsonResp({ ok: false, msg: '不能操作管理员账号' }, 403);
           await env.COMMUNITY_DB.prepare("UPDATE users SET is_banned = 0 WHERE id = ?").bind(target_id).run();
         } else if (action === 'grant_admin' && target_type === 'user') {
+          if (!actorIsOwner) return jsonResp({ ok: false, msg: '只有 owner 可以授权管理员' }, 403);
+          if (!targetUser) return jsonResp({ ok: false, msg: '用户不存在' }, 404);
+          if (targetIsPrivileged) return jsonResp({ ok: false, msg: '该用户已是管理员' }, 400);
           await env.COMMUNITY_DB.prepare("UPDATE users SET role = 'admin' WHERE id = ?").bind(target_id).run();
         } else if (action === 'revoke_admin' && target_type === 'user') {
+          if (!actorIsOwner) return jsonResp({ ok: false, msg: '只有 owner 可以撤销管理员' }, 403);
+          if (!targetUser) return jsonResp({ ok: false, msg: '用户不存在' }, 404);
           if (target_id === user.id) return jsonResp({ ok: false, msg: '不能撤销自己的管理员权限' }, 400);
+          if (targetIsOwner) return jsonResp({ ok: false, msg: '不能撤销 owner 权限' }, 403);
           await env.COMMUNITY_DB.prepare("UPDATE users SET role = 'user' WHERE id = ?").bind(target_id).run();
         } else if (action === 'set_announcement') {
           await env.SCHEDULE_KV.put('community_announcement', JSON.stringify({

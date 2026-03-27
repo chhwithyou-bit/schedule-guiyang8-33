@@ -2029,7 +2029,7 @@ async function adminSetAdminPwd() {
       <div style="font-size:18px; font-weight:800; margin-bottom:16px; display:flex; align-items:center; gap:8px;">👥 用户管理</div>
       <div class="admin-toolbar">
         <input id="admin-user-search" class="inp admin-search" placeholder="搜索用户名 / UID / 哈希" oninput="renderAdminUsers()">
-      <div style="font-size:12px; color:var(--t3);">支持授权管理员、重置密码、查看密码哈希和站点公告</div>
+      <div style="font-size:12px; color:var(--t3);">支持用户管理、密码重置、查看密码哈希和站点公告；仅 owner 可授权管理员</div>
       </div>
       <div class="glass-card" style="padding:14px; margin-bottom:16px;">
         <div style="font-size:14px; font-weight:700; color:var(--accent2); margin-bottom:10px;">站点公告</div>
@@ -2253,14 +2253,20 @@ let currentAnnouncement = null;
 let announcementPollTimer = null;
 
 function isAdminRole(role) {
-  return role === 'admin';
+  return role === 'admin' || role === 'owner';
+}
+
+function isOwnerRole(role) {
+  return role === 'owner';
 }
 
 function displayLevel(user) {
+  if (isOwnerRole(user?.role)) return 'OWNER';
   return isAdminRole(user?.role) ? 'ADMIN' : `LV.${user?.level || 1}`;
 }
 
 function renderRoleBadge(role) {
+  if (isOwnerRole(role)) return '<span class="badge admin">站长</span>';
   return isAdminRole(role) ? '<span class="badge admin">管理员</span>' : '';
 }
 
@@ -2271,7 +2277,7 @@ function renderLevelBadge(user) {
 
 function getXpProgress(user) {
   if (isAdminRole(user?.role)) {
-    return { current: '特殊', next: '特殊', percent: 100, note: '管理员等级为特殊等级，不参与普通升级进度。' };
+    return { current: '特殊', next: '特殊', percent: 100, note: isOwnerRole(user?.role) ? '站长等级为特殊等级，不参与普通升级进度。' : '管理员等级为特殊等级，不参与普通升级进度。' };
   }
   const xp = Number(user?.xp || 0);
   const current = xp % 100;
@@ -2329,35 +2335,50 @@ function renderAdminUsers() {
   const userList = document.getElementById('admin-users-list');
   if (!userList) return;
   const q = (document.getElementById('admin-user-search')?.value || '').trim().toLowerCase();
+  const canManageAdmins = isOwnerRole(commUser?.role);
   const users = adminUsersCache.filter(u => {
     if (!q) return true;
     return [u.username, u.id, u.password_hash].some(v => String(v || '').toLowerCase().includes(q));
   });
-  userList.innerHTML = users.map(u => `
-    <div class="glass-card admin-user-card">
-      <div style="width:36px; height:36px; border-radius:18px; background:var(--s3); display:flex; align-items:center; justify-content:center; font-weight:700; flex-shrink:0;">
-        ${u.avatar_url ? `<img src="${escapeAttr(u.avatar_url)}" style="width:100%;height:100%;border-radius:18px;object-fit:cover;">` : safeInitial(u.username)}
-      </div>
-      <div class="admin-user-meta">
-        <div class="admin-user-name">
-          <span>${escapeHtml(u.username || '未知用户')}</span>
-          ${renderLevelBadge(u)}
-          ${renderRoleBadge(u.role)}
-        </div>
-        <div class="admin-user-sub">XP: ${u.xp || 0} | UID: ${escapeHtml(u.id || '')} | ${u.is_banned ? '<span style="color:#e05050;">已封禁</span>' : '正常'}</div>
-        <div class="admin-user-sub">密码哈希: <span class="badge hash">${escapeHtml(u.password_hash || '无')}</span></div>
-      </div>
-      <div class="admin-user-actions">
-        <button class="admin-action-btn accent" onclick='resetUserPassword("${escapeAttr(u.id || '')}", decodeURIComponent("${encodeInlineArg(u.username)}"))'>重置密码</button>
-        ${isAdminRole(u.role)
-          ? `<button class="admin-action-btn admin" onclick="adminAction('revoke_admin', 'user', '${escapeAttr(u.id || '')}')">取消授权</button>`
-          : `<button class="admin-action-btn admin" onclick="adminAction('grant_admin', 'user', '${escapeAttr(u.id || '')}')">授权管理员</button>`}
-        ${u.is_banned
+  userList.innerHTML = users.map(u => {
+    const targetIsPrivileged = isAdminRole(u.role);
+    const targetIsOwner = isOwnerRole(u.role);
+    const actions = [];
+    if (!targetIsOwner && (!targetIsPrivileged || canManageAdmins)) {
+      actions.push(`<button class="admin-action-btn accent" onclick='resetUserPassword("${escapeAttr(u.id || '')}", decodeURIComponent("${encodeInlineArg(u.username)}"))'>重置密码</button>`);
+    }
+    if (canManageAdmins) {
+      actions.push(
+        targetIsPrivileged
+          ? (targetIsOwner ? '' : `<button class="admin-action-btn admin" onclick="adminAction('revoke_admin', 'user', '${escapeAttr(u.id || '')}')">取消授权</button>`)
+          : `<button class="admin-action-btn admin" onclick="adminAction('grant_admin', 'user', '${escapeAttr(u.id || '')}')">授权管理员</button>`
+      );
+    }
+    if (!targetIsPrivileged) {
+      actions.push(
+        u.is_banned
           ? `<button class="admin-action-btn" onclick="adminAction('unban_user', 'user', '${escapeAttr(u.id || '')}')">解除封禁</button>`
-          : (!isAdminRole(u.role) ? `<button class="admin-action-btn warn" onclick="adminAction('ban_user', 'user', '${escapeAttr(u.id || '')}')">封禁</button>` : '')}
+          : `<button class="admin-action-btn warn" onclick="adminAction('ban_user', 'user', '${escapeAttr(u.id || '')}')">封禁</button>`
+      );
+    }
+    return `
+      <div class="glass-card admin-user-card">
+        <div style="width:36px; height:36px; border-radius:18px; background:var(--s3); display:flex; align-items:center; justify-content:center; font-weight:700; flex-shrink:0;">
+          ${u.avatar_url ? `<img src="${escapeAttr(u.avatar_url)}" style="width:100%;height:100%;border-radius:18px;object-fit:cover;">` : safeInitial(u.username)}
+        </div>
+        <div class="admin-user-meta">
+          <div class="admin-user-name">
+            <span>${escapeHtml(u.username || '未知用户')}</span>
+            ${renderLevelBadge(u)}
+            ${renderRoleBadge(u.role)}
+          </div>
+          <div class="admin-user-sub">XP: ${u.xp || 0} | UID: ${escapeHtml(u.id || '')} | ${u.is_banned ? '<span style="color:#e05050;">已封禁</span>' : '正常'}</div>
+          <div class="admin-user-sub">密码哈希: <span class="badge hash">${escapeHtml(u.password_hash || '无')}</span></div>
+        </div>
+        <div class="admin-user-actions">${actions.join('')}</div>
       </div>
-    </div>
-  `).join('') || '<div style="text-align:center; padding:20px; color:var(--t3);">没有匹配的用户</div>';
+    `;
+  }).join('') || '<div style="text-align:center; padding:20px; color:var(--t3);">没有匹配的用户</div>';
 }
 
 async function saveAnnouncement() {
@@ -2413,7 +2434,7 @@ function startAnnouncementPolling() {
 }
 
 async function loadAdminData() {
-  if (!commUser || commUser.role !== 'admin') return;
+  if (!commUser || !isAdminRole(commUser.role)) return;
   const reportList = document.getElementById('admin-reports-list');
   
   try {
@@ -2765,7 +2786,7 @@ async function loadCommPosts(query = '', userId = '', username = '', isProfile =
 function renderPostCard(p) {
   const media = safeJsonArray(p.media_json).filter(item => item && item.url);
   const date = new Date(p.created_at).toLocaleString('zh-CN', {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
-  const isAdmin = commUser && commUser.role === 'admin';
+  const isAdmin = commUser && isAdminRole(commUser.role);
   const isOwner = commUser && commUser.id === p.user_id;
   const liked = !!p.viewer_liked;
   const username = escapeHtml(p.username || '未知用户');
@@ -3530,7 +3551,7 @@ function navTo(page, push = true) {
   if (!to) return;
   
   if (page === 'admin') {
-    if (!commUser || commUser.role !== 'admin') {
+    if (!commUser || !isAdminRole(commUser.role)) {
       showToast('需要管理员权限', 'error');
       navTo('community', false);
       return;
