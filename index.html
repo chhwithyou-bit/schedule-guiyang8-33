@@ -95,17 +95,15 @@ html, body {
   z-index: 10;
 }
 .page.active {
-  transform: translateX(0);
+  transform: translate3d(0, 0, 0);
   opacity: 1;
   pointer-events: all;
 }
 .page.active.pushed-right {
-  transform: translateX(48px) scale(0.97);
-  opacity: 0.88;
+  transform: translate3d(42px, 0, 0);
 }
 .page.active.pushed-left {
-  transform: translateX(-48px) scale(0.97);
-  opacity: 0.88;
+  transform: translate3d(-42px, 0, 0);
 }
 .page.behind {
   transform: translateX(-28%);
@@ -4189,12 +4187,12 @@ scheduleInit();
     mp.classList.add('open');
     mp.style.overflow = 'hidden';
 
-    // Push screen logic
+    // 立即推背景，不要等下两帧，消除“跳”的感觉
     const rect = mp.getBoundingClientRect();
-    const isLeft = rect.left < window.innerWidth / 2;
+    const isLeft = (rect.left + rect.width / 2) < window.innerWidth / 2;
     const page = document.querySelector('.page.active');
     if (page) {
-      page.classList.remove('pushed-right', 'pushed-left');
+      page.style.transition = 'transform 0.45s cubic-bezier(0.22, 0.8, 0.32, 1)';
       page.classList.add(isLeft ? 'pushed-right' : 'pushed-left');
     }
 
@@ -4221,13 +4219,13 @@ scheduleInit();
           mp.style.left = left + 'px'; 
           if (page) {
             page.classList.remove('pushed-right', 'pushed-left');
-            page.classList.add(left < W/2 ? 'pushed-right' : 'pushed-left');
+            page.classList.add(left + CARD_W/2 < W/2 ? 'pushed-right' : 'pushed-left');
           }
         }
         mp.style.transition = [
-          'width 0.52s cubic-bezier(0.34,1.4,0.64,1)',
-          'height 0.52s cubic-bezier(0.34,1.4,0.64,1)',
-          'border-radius 0.52s cubic-bezier(0.34,1.4,0.64,1)',
+          'width 0.5s cubic-bezier(0.34,1.4,0.64,1)',
+          'height 0.5s cubic-bezier(0.34,1.4,0.64,1)',
+          'border-radius 0.5s cubic-bezier(0.34,1.4,0.64,1)',
           'left 0.35s cubic-bezier(0.34,1.2,0.64,1)',
           'top 0.35s cubic-bezier(0.34,1.2,0.64,1)',
           'box-shadow 0.4s ease', 'border-color 0.3s ease'
@@ -4312,8 +4310,11 @@ scheduleInit();
       const page = document.querySelector('.page.active');
       if (page) {
         const isLeft = (x + mp.offsetWidth/2) < W/2;
-        page.classList.toggle('pushed-right', isLeft);
-        page.classList.toggle('pushed-left', !isLeft);
+        const targetClass = isLeft ? 'pushed-right' : 'pushed-left';
+        if (!page.classList.contains(targetClass)) {
+          page.classList.remove('pushed-right', 'pushed-left');
+          page.classList.add(targetClass);
+        }
       }
     }
   },{passive:true});
