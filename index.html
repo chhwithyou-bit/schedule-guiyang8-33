@@ -847,6 +847,11 @@ html, body {
 .admin-user-name { display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-weight:700; }
 .admin-user-sub { font-size:11px; color:var(--t3); margin-top:4px; line-height:1.5; word-break:break-all; }
 .admin-user-actions { display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end; }
+.admin-stats-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:10px; }
+.admin-stat-card { padding:12px; border-radius:12px; background:rgba(255,255,255,0.04); border:1px solid var(--border); }
+.admin-stat-label { font-size:11px; color:var(--t3); }
+.admin-stat-value { margin-top:6px; font-size:18px; font-weight:800; color:var(--text); }
+.admin-stat-note { margin-top:10px; font-size:11px; color:var(--t3); line-height:1.5; }
 .admin-action-btn { background:none; border:1px solid var(--border); color:var(--text); padding:4px 8px; border-radius:6px; font-size:11px; cursor:pointer; }
 .admin-action-btn.warn { border-color:rgba(224,80,80,0.35); color:#fca5a5; }
 .admin-action-btn.accent { border-color:rgba(255,119,16,0.35); color:var(--accent2); }
@@ -2035,6 +2040,13 @@ async function adminSetAdminPwd() {
 
   <div style="padding:16px; max-width:800px; margin:0 auto;">
     <div class="glass-card" style="padding:20px; margin-bottom:20px;">
+      <div style="font-size:18px; font-weight:800; margin-bottom:16px; display:flex; align-items:center; gap:8px;">🗄️ 媒体缓存</div>
+      <div id="admin-cache-stats">
+        <div style="text-align:center; padding:20px; color:var(--t3);">加载中...</div>
+      </div>
+    </div>
+
+    <div class="glass-card" style="padding:20px; margin-bottom:20px;">
       <div style="font-size:18px; font-weight:800; margin-bottom:16px; display:flex; align-items:center; gap:8px;">🚩 待处理举报</div>
       <div id="admin-reports-list" style="display:flex; flex-direction:column; gap:12px;">
         <div style="text-align:center; padding:20px; color:var(--t3);">加载中...</div>
@@ -2560,6 +2572,50 @@ function renderAdminUsers() {
   }).join('') || '<div style="text-align:center; padding:20px; color:var(--t3);">没有匹配的用户</div>';
 }
 
+function formatBytes(bytes) {
+  const value = Number(bytes || 0);
+  if (!value) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const exponent = Math.min(Math.floor(Math.log(value) / Math.log(1024)), units.length - 1);
+  const scaled = value / (1024 ** exponent);
+  return `${scaled >= 100 || exponent === 0 ? scaled.toFixed(0) : scaled.toFixed(1)} ${units[exponent]}`;
+}
+
+function renderAdminCacheStats(data) {
+  const root = document.getElementById('admin-cache-stats');
+  if (!root) return;
+  if (!data?.ok) {
+    root.innerHTML = '<div style="text-align:center; padding:20px; color:var(--t3);">缓存统计暂时不可用</div>';
+    return;
+  }
+  const summary = data.summary || {};
+  const config = data.config || {};
+  const usagePercent = Number(data.usagePercent || 0);
+  root.innerHTML = `
+    <div class="admin-stats-grid">
+      <div class="admin-stat-card">
+        <div class="admin-stat-label">已用缓存</div>
+        <div class="admin-stat-value">${escapeHtml(formatBytes(summary.totalBytes || 0))}</div>
+      </div>
+      <div class="admin-stat-card">
+        <div class="admin-stat-label">缓存上限</div>
+        <div class="admin-stat-value">${escapeHtml(formatBytes(config.maxBytes || 0))}</div>
+      </div>
+      <div class="admin-stat-card">
+        <div class="admin-stat-label">缓存文件数</div>
+        <div class="admin-stat-value">${escapeHtml(String(summary.itemCount || 0))}</div>
+      </div>
+      <div class="admin-stat-card">
+        <div class="admin-stat-label">占用比例</div>
+        <div class="admin-stat-value">${escapeHtml(`${usagePercent.toFixed(2)}%`)}</div>
+      </div>
+    </div>
+    <div class="admin-stat-note">
+      当前策略：社区媒体以 Google Drive 为主存储，R2 只缓存小图。单文件上限 ${escapeHtml(formatBytes(config.maxItemBytes || 0))}，缓存保留期约 ${escapeHtml(String(Math.round((Number(config.maxAgeMs || 0) / 86400000) || 0)))} 天。
+    </div>
+  `;
+}
+
 async function saveAnnouncement() {
   const content = document.getElementById('admin-announcement')?.value || '';
   try {
@@ -2616,15 +2672,29 @@ async function loadAdminData() {
   await syncCurrentCommunityUser({ silent: true, source: 'load-admin' });
   if (!commUser || !isAdminRole(commUser.role)) return;
   const reportList = document.getElementById('admin-reports-list');
+  const cacheStatsRoot = document.getElementById('admin-cache-stats');
   
   try {
     const authHeader = getCommAuthHeader(false);
     if (!authHeader) return;
-    const r = await fetch('/api/community/admin/data', {
-      headers: { 'Authorization': authHeader }
-    });
-    const d = await r.json();
+    if (cacheStatsRoot) {
+      cacheStatsRoot.innerHTML = '<div style="text-align:center; padding:20px; color:var(--t3);">加载中...</div>';
+    }
+    const [adminResp, cacheResp] = await Promise.all([
+      fetch('/api/community/admin/data', { headers: { 'Authorization': authHeader } }),
+      fetch('/api/community/media-cache-stats', { headers: { 'Authorization': authHeader } }).catch(() => null)
+    ]);
+    const d = await adminResp.json();
     if (!d.ok) return;
+    if (cacheResp) {
+      try {
+        renderAdminCacheStats(await cacheResp.json());
+      } catch (e) {
+        renderAdminCacheStats({ ok: false });
+      }
+    } else {
+      renderAdminCacheStats({ ok: false });
+    }
     
     reportList.innerHTML = d.reports.map(r => `
       <div class="glass-card" style="padding:12px; font-size:13px; background:rgba(224,80,80,0.05);">
@@ -2645,7 +2715,9 @@ async function loadAdminData() {
       document.getElementById('admin-announcement').value = d.announcement?.content || '';
     }
     renderAdminUsers();
-  } catch(e) {}
+  } catch(e) {
+    renderAdminCacheStats({ ok: false });
+  }
 }
 
 async function adminAction(action, type, id, reportId = null) {
