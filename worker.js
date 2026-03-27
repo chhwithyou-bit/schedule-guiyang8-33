@@ -44,6 +44,18 @@ function buildMusicPublicUrl(env, key) {
   return encodedKey ? `${getMusicPublicBaseUrl(env)}/${encodedKey}` : getMusicPublicBaseUrl(env);
 }
 
+function extractMusicObjectKey(trackUrl) {
+  const rawUrl = String(trackUrl || '').trim();
+  if (!rawUrl) return '';
+
+  try {
+    const parsed = new URL(rawUrl);
+    return safeDecodeURIComponent(parsed.pathname.replace(/^\/+/, ''));
+  } catch {
+    return safeDecodeURIComponent(rawUrl.replace(/^\/+/, ''));
+  }
+}
+
 function normalizeMusicTrack(env, track, requestHost) {
   if (!track || typeof track !== 'object') return track;
   const next = { ...track };
@@ -69,6 +81,51 @@ function normalizeMusicTrack(env, track, requestHost) {
   }
 
   return next;
+}
+
+function mergeMusicPlaylist(env, storedList, bucketObjects) {
+  const savedTracks = Array.isArray(storedList) ? storedList.filter(track => track && typeof track === 'object') : [];
+  const savedByKey = new Map();
+  const savedOrder = new Map();
+  const externalTracks = [];
+
+  savedTracks.forEach((track, index) => {
+    const objectKey = extractMusicObjectKey(track.url);
+    if (!objectKey || objectKey === 'playlist.json') {
+      externalTracks.push(track);
+      return;
+    }
+    if (!savedByKey.has(objectKey)) {
+      savedByKey.set(objectKey, track);
+      savedOrder.set(objectKey, index);
+    }
+  });
+
+  const mergedBucketTracks = bucketObjects
+    .filter(obj => obj.key.toLowerCase().endsWith('.mp3'))
+    .map(obj => {
+      const saved = savedByKey.get(obj.key);
+      const fallbackName = safeDecodeURIComponent(obj.key.replace(/\.[^/.]+$/, '')) || '未知';
+      return {
+        name: (saved && String(saved.name || '').trim()) || fallbackName,
+        artist: saved && typeof saved.artist === 'string' ? saved.artist : 'R2 Drive',
+        url: buildMusicPublicUrl(env, obj.key),
+      };
+    })
+    .sort((a, b) => {
+      const aKey = extractMusicObjectKey(a.url);
+      const bKey = extractMusicObjectKey(b.url);
+      const aOrder = savedOrder.has(aKey) ? savedOrder.get(aKey) : Number.MAX_SAFE_INTEGER;
+      const bOrder = savedOrder.has(bKey) ? savedOrder.get(bKey) : Number.MAX_SAFE_INTEGER;
+      if (aOrder !== bOrder) return aOrder - bOrder;
+      return a.name.localeCompare(b.name, 'zh-CN');
+    });
+
+  const normalizedExternalTracks = externalTracks
+    .map(track => normalizeMusicTrack(env, track, ''))
+    .filter(track => track && String(track.url || '').trim());
+
+  return [...mergedBucketTracks, ...normalizedExternalTracks];
 }
 
 async function verifyAdmin(env, username, password) {
@@ -292,34 +349,15 @@ export default {
     if (url.pathname === '/api/music') {
       if (request.method === 'GET') {
         try {
-          // 1. 优先尝试获取手动配置的歌单
+          // 始终扫描 R2，避免新上传的歌曲被旧 playlist.json 遗漏
           const playlistObj = await env.MUSIC_BUCKET.get('playlist.json');
-          let list = [];
+          let storedList = [];
           if (playlistObj) {
-            list = await playlistObj.json();
+            storedList = await playlistObj.json();
           }
 
-          if (Array.isArray(list) && list.length) {
-            list = list.map(track => normalizeMusicTrack(env, track, url.hostname));
-          }
-
-          // 2. 如果手动配置为空，则自动扫描存储桶中的所有 MP3 文件
-          if (!list || list.length === 0) {
-            const listed = await env.MUSIC_BUCKET.list();
-            list = listed.objects
-              .filter(obj => obj.key.toLowerCase().endsWith('.mp3'))
-              .map(obj => {
-                // 将文件名去掉 .mp3 后缀作为歌名
-                const name = obj.key.replace(/\.[^/.]+$/, "");
-                return {
-                  name: decodeURIComponent(name),
-                  artist: 'R2 Drive',
-                  // 使用 music 桶的自定义域名拼接链接，确保浏览器能读取音频元数据
-                  url: buildMusicPublicUrl(env, obj.key)
-                };
-              });
-          }
-          
+          const listed = await env.MUSIC_BUCKET.list();
+          const list = mergeMusicPlaylist(env, storedList, listed.objects || []);
           return jsonResp(list);
         } catch (e) { return jsonResp({ ok: false, msg: e.message }, 500); }
       }
