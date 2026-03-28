@@ -250,7 +250,8 @@ test('liquid bar compacts cleanly and keeps chat actions attached to the bottom 
 
   await page.locator('#liquidSearchBtn').click();
   await expect(page.locator('#liquidSurface')).toHaveClass(/open/);
-  await page.locator('#liquidCenterInput').fill('Alice');
+  await expect(page.locator('#liquidSearchInput')).toBeVisible();
+  await page.locator('#liquidSearchInput').fill('Alice');
   await page.waitForTimeout(500);
   await expect(page.locator('#liquidUserResults')).toContainText('Alice');
   await page.getByRole('button', { name: '开始私聊' }).click();
@@ -271,7 +272,7 @@ test('liquid bar compacts cleanly and keeps chat actions attached to the bottom 
   await page.locator('.liquid-surface-close').click({ force: true });
   await expect(page.locator('#liquidSurface')).not.toHaveClass(/open/);
   await page.locator('#liquidSearchBtn').click();
-  await page.locator('#liquidCenterInput').fill('Night');
+  await page.locator('#liquidSearchInput').fill('Night');
   await page.waitForTimeout(500);
   await expect(page.locator('#liquidGroupResults')).toContainText('Night Sprint');
   await page.getByRole('button', { name: '加入并进入' }).click();

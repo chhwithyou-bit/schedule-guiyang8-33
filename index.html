@@ -1575,24 +1575,22 @@ html, body {
     rgba(6, 10, 56, 0.62);
 }
 #liquidBar.mode-search .liquid-bar-center {
-  align-items: stretch;
-  flex-direction: column;
-  gap: 10px;
-  min-height: 88px;
-  padding: 12px 14px 14px 16px;
-}
-#liquidBar.mode-search .liquid-center-input-wrap {
-  display: flex;
+  min-height: 68px;
+  padding: 12px 14px 12px 16px;
 }
 .liquid-center-copy {
   display: block;
 }
 #liquidBar.mode-search .liquid-center-copy {
   display: block;
-  flex: none;
 }
 #liquidBar.mode-search .liquid-bar-center::before {
-  display: none;
+  width: 14px;
+  height: 14px;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255,255,255,0.18), transparent 32%),
+    linear-gradient(145deg, rgba(255,153,68,0.36), rgba(96,168,224,0.18));
+  box-shadow: 0 0 0 8px rgba(96,168,224,0.08), 0 0 18px rgba(255,168,94,0.22);
 }
 #liquidBar.mode-messages .liquid-bar-center {
   min-height: 68px;
@@ -1714,7 +1712,8 @@ html, body {
   position: fixed;
   left: 50%;
   bottom: calc(env(safe-area-inset-bottom) + 90px);
-  transform: translateX(-50%) translateY(24px) scale(0.98);
+  transform: perspective(1600px) translate3d(-50%, 42px, 0) scale(0.94) rotateX(9deg);
+  transform-origin: center bottom;
   width: min(96vw, 1100px);
   max-height: min(72vh, 760px);
   overflow: hidden;
@@ -1729,8 +1728,14 @@ html, body {
   box-shadow: 0 28px 64px rgba(0,0,0,0.36), 0 8px 18px rgba(255,168,94,0.06);
   z-index: 9400;
   opacity: 0;
+  filter: saturate(0.72) blur(14px);
   pointer-events: none;
-  transition: transform 0.66s cubic-bezier(0.22, 0.82, 0.24, 1), opacity 0.28s ease, box-shadow 0.4s ease;
+  will-change: transform, opacity, filter;
+  transition:
+    transform 0.88s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.36s ease,
+    filter 0.52s ease,
+    box-shadow 0.58s ease;
 }
 .liquid-surface::before {
   content: '';
@@ -1738,28 +1743,44 @@ html, body {
   inset: 1px;
   border-radius: inherit;
   background:
-    linear-gradient(180deg, rgba(255,255,255,0.22), rgba(255,255,255,0.08) 18%, rgba(255,255,255,0.03) 38%, transparent 62%);
+    linear-gradient(180deg, rgba(255,255,255,0.26), rgba(255,255,255,0.10) 14%, rgba(255,168,94,0.06) 34%, transparent 62%);
+  opacity: 0.72;
+  transform: translate3d(0, -18px, 0) scaleY(0.92);
   pointer-events: none;
+  transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease;
 }
 .liquid-surface::after {
   content: '';
   position: absolute;
-  right: 8%;
-  bottom: -12%;
-  width: 34%;
-  height: 34%;
+  right: -6%;
+  bottom: -18%;
+  width: 48%;
+  height: 46%;
   border-radius: 50%;
   background:
-    radial-gradient(circle at 28% 28%, rgba(255,255,255,0.18), transparent 54%),
-    radial-gradient(circle at 72% 72%, rgba(255,168,94,0.12), transparent 60%);
-  filter: blur(22px);
-  opacity: 0.28;
+    radial-gradient(circle at 24% 24%, rgba(255,255,255,0.24), transparent 48%),
+    radial-gradient(circle at 52% 62%, rgba(255,168,94,0.18), transparent 56%),
+    radial-gradient(circle at 84% 26%, rgba(96,168,224,0.16), transparent 42%);
+  filter: blur(26px);
+  opacity: 0;
+  transform: translate3d(18%, 14%, 0) scale(0.72);
   pointer-events: none;
+  transition: transform 0.96s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.52s ease;
 }
 .liquid-surface.open {
   opacity: 1;
   pointer-events: auto;
-  transform: translateX(-50%) translateY(0) scale(1);
+  transform: perspective(1600px) translate3d(-50%, 0, 0) scale(1) rotateX(0);
+  filter: saturate(1) blur(0);
+  box-shadow: 0 38px 92px rgba(0,0,0,0.44), 0 18px 36px rgba(255,168,94,0.14);
+}
+.liquid-surface.open::before {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scaleY(1);
+}
+.liquid-surface.open::after {
+  opacity: 0.54;
+  transform: translate3d(0, 0, 0) scale(1);
 }
 .liquid-surface-grab {
   width: 68px;
@@ -1811,7 +1832,118 @@ html, body {
   z-index: 1;
 }
 .liquid-panel { display: none; }
-.liquid-panel.active { display: block; }
+.liquid-panel.active {
+  display: block;
+  animation: liquidPanelReveal 0.72s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes liquidPanelReveal {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 28px, 0) scale(0.964);
+    filter: blur(16px) saturate(0.8);
+  }
+  62% {
+    opacity: 1;
+    transform: translate3d(0, -4px, 0) scale(1.01);
+    filter: blur(0) saturate(1);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    filter: blur(0) saturate(1);
+  }
+}
+@keyframes liquidCardReveal {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 40px, 0) scale(0.93);
+    filter: blur(16px) saturate(0.84);
+  }
+  68% {
+    opacity: 1;
+    transform: translate3d(0, -6px, 0) scale(1.016);
+    filter: blur(0) saturate(1.04);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    filter: blur(0) saturate(1);
+  }
+}
+@keyframes liquidItemCascade {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 28px, 0) scale(0.96);
+  }
+  72% {
+    opacity: 1;
+    transform: translate3d(0, -2px, 0) scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+.liquid-panel.active .liquid-search-hero .liquid-search-entry-shell {
+  animation: liquidHeroPulse 0.9s 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes liquidHeroPulse {
+  0% {
+    transform: scale(0.96);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 8px 18px rgba(0,0,0,0.08);
+  }
+  58% {
+    transform: scale(1.018);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), 0 20px 42px rgba(255,119,16,0.18);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 14px 28px rgba(0,0,0,0.10);
+  }
+}
+.liquid-panel.active .liquid-builder,
+.liquid-panel.active .liquid-thread-shell,
+.liquid-panel.active .liquid-search-card,
+.liquid-panel.active .liquid-compose-card {
+  animation: liquidCardReveal 0.64s cubic-bezier(0.19, 1, 0.22, 1) both;
+}
+.liquid-panel.active .liquid-compose-grid > *,
+.liquid-panel.active .liquid-search-layout > *,
+.liquid-panel.active .liquid-chat-layout > * {
+  animation: liquidCardReveal 0.64s cubic-bezier(0.19, 1, 0.22, 1) both;
+}
+.liquid-panel.active .liquid-compose-grid > *:nth-child(1),
+.liquid-panel.active .liquid-search-layout > *:nth-child(1),
+.liquid-panel.active .liquid-chat-layout > *:nth-child(1) { animation-delay: 0.04s; }
+.liquid-panel.active .liquid-compose-grid > *:nth-child(2),
+.liquid-panel.active .liquid-search-layout > *:nth-child(2),
+.liquid-panel.active .liquid-chat-layout > *:nth-child(2) { animation-delay: 0.1s; }
+.liquid-panel.active .liquid-compose-grid > *:nth-child(3),
+.liquid-panel.active .liquid-search-layout > *:nth-child(3),
+.liquid-panel.active .liquid-chat-layout > *:nth-child(3) { animation-delay: 0.16s; }
+.liquid-panel.active .liquid-search-list > *,
+.liquid-panel.active .liquid-group-grid > *,
+.liquid-panel.active .liquid-conversation-list > * {
+  animation: liquidItemCascade 0.46s cubic-bezier(0.22, 0.82, 0.24, 1) both;
+}
+.liquid-panel.active .liquid-search-list > *:nth-child(1),
+.liquid-panel.active .liquid-group-grid > *:nth-child(1),
+.liquid-panel.active .liquid-conversation-list > *:nth-child(1) { animation-delay: 0.08s; }
+.liquid-panel.active .liquid-search-list > *:nth-child(2),
+.liquid-panel.active .liquid-group-grid > *:nth-child(2),
+.liquid-panel.active .liquid-conversation-list > *:nth-child(2) { animation-delay: 0.12s; }
+.liquid-panel.active .liquid-search-list > *:nth-child(3),
+.liquid-panel.active .liquid-group-grid > *:nth-child(3),
+.liquid-panel.active .liquid-conversation-list > *:nth-child(3) { animation-delay: 0.16s; }
+.liquid-panel.active .liquid-search-list > *:nth-child(4),
+.liquid-panel.active .liquid-group-grid > *:nth-child(4),
+.liquid-panel.active .liquid-conversation-list > *:nth-child(4) { animation-delay: 0.2s; }
+.liquid-panel.active .liquid-search-list > *:nth-child(5),
+.liquid-panel.active .liquid-group-grid > *:nth-child(5),
+.liquid-panel.active .liquid-conversation-list > *:nth-child(5) { animation-delay: 0.24s; }
+.liquid-panel.active .liquid-search-list > *:nth-child(6),
+.liquid-panel.active .liquid-group-grid > *:nth-child(6),
+.liquid-panel.active .liquid-conversation-list > *:nth-child(6) { animation-delay: 0.28s; }
 .liquid-compose-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1927,6 +2059,92 @@ html, body {
   display: grid;
   grid-template-columns: 1.02fr 1fr;
   gap: 14px;
+}
+.liquid-search-hero {
+  grid-column: 1 / -1;
+  padding: 18px;
+}
+.liquid-search-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.liquid-search-entry-shell {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 24px;
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.10), rgba(255,255,255,0.03) 44%, rgba(255,168,94,0.08) 100%),
+    rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 14px 28px rgba(0,0,0,0.10);
+}
+.liquid-search-entry-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent2);
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255,255,255,0.18), transparent 30%),
+    linear-gradient(145deg, rgba(255,153,68,0.30), rgba(96,168,224,0.12));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 10px 20px rgba(255,119,16,0.12);
+}
+.liquid-search-entry-icon svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+.liquid-search-entry-input {
+  min-width: 0;
+  min-height: 52px;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.4;
+  padding: 0 6px 0 2px;
+  font-family: inherit;
+}
+.liquid-search-entry-input::placeholder {
+  color: var(--t3);
+}
+.liquid-search-entry-submit {
+  border: none;
+  cursor: pointer;
+  min-width: 96px;
+  min-height: 48px;
+  padding: 0 18px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(255,119,16,0.92), rgba(255,153,68,0.98));
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 12px 24px rgba(255,119,16,0.22);
+  transition: transform 0.2s ease, box-shadow 0.24s ease, filter 0.24s ease;
+}
+.liquid-search-entry-submit:active {
+  transform: scale(0.96);
+}
+.liquid-search-entry-submit:disabled {
+  opacity: 0.46;
+  cursor: not-allowed;
+  box-shadow: none;
+  filter: grayscale(0.12);
+}
+.liquid-search-entry-meta {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--t2);
+}
+.liquid-search-stage {
+  min-height: 100%;
 }
 .liquid-column-head {
   display: flex;
@@ -2331,7 +2549,7 @@ html, body {
     padding: 8px 12px;
   }
   #liquidBar.mode-search .liquid-bar-center {
-    min-height: 84px;
+    min-height: 54px;
     padding: 12px;
   }
   .liquid-center-title {
@@ -2363,6 +2581,15 @@ html, body {
     min-width: 84px;
     min-height: 46px;
     padding: 0 14px;
+  }
+  .liquid-search-entry-shell {
+    grid-template-columns: auto minmax(0, 1fr);
+    padding: 12px;
+  }
+  .liquid-search-entry-submit {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-height: 48px;
   }
   .liquid-nav-picker {
     width: min(94vw, 430px);
@@ -3446,7 +3673,25 @@ async function adminSetAdminPwd() {
 
     <section class="liquid-panel" id="liquidSearchPanel">
       <div class="liquid-search-layout">
-        <div class="liquid-search-card">
+        <div class="liquid-search-card liquid-search-hero">
+          <div class="liquid-column-head">
+            <div>
+              <div class="liquid-column-title">Search Deck</div>
+              <div class="liquid-column-note">搜索框回到卡片里，输入后结果会在下面两列同步刷新。</div>
+            </div>
+          </div>
+          <div class="liquid-search-entry">
+            <div class="liquid-search-entry-shell">
+              <span class="liquid-search-entry-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+              </span>
+              <input id="liquidSearchInput" class="liquid-search-entry-input" placeholder="搜索用户、群组、签名或兴趣">
+              <button class="liquid-search-entry-submit" id="liquidSearchSubmitBtn" onclick="submitLiquidSearch()">搜索</button>
+            </div>
+            <div class="liquid-search-entry-meta" id="liquidSearchEntryMeta">搜到就能直接开始私聊或加入群组。</div>
+          </div>
+        </div>
+        <div class="liquid-search-card liquid-search-stage">
           <div class="liquid-column-head">
             <div>
               <div class="liquid-column-title">Users</div>
@@ -3455,7 +3700,7 @@ async function adminSetAdminPwd() {
           </div>
           <div class="liquid-search-list" id="liquidUserResults"></div>
         </div>
-        <div class="liquid-search-card">
+        <div class="liquid-search-card liquid-search-stage">
           <div class="liquid-column-head">
             <div>
               <div class="liquid-column-title">Groups</div>
@@ -3485,10 +3730,6 @@ async function adminSetAdminPwd() {
         <div class="liquid-center-copy">
           <div class="liquid-center-kicker" id="liquidCenterKicker">Liquid Navigation</div>
           <div class="liquid-center-title" id="liquidCenterTitle">全局导航、私信和用户群组搜索整合到底部。</div>
-        </div>
-        <div class="liquid-center-input-wrap">
-          <input id="liquidCenterInput" class="liquid-center-input" placeholder="搜索用户或群组">
-          <button class="liquid-inline-send" id="liquidInlineSend" onclick="handleLiquidInlineAction()">搜索</button>
         </div>
       </div>
       <div class="liquid-bar-actions">
@@ -3872,7 +4113,7 @@ function getLiquidSurfaceCopy(mode) {
   if (mode === 'search') {
     return {
       title: 'Search',
-      sub: '面向用户和群组的全局搜索，搜到就能直接发起动作。'
+      sub: '搜索框已经回到搜索卡片顶部，搜到就能直接发起动作。'
     };
   }
   return {
@@ -3889,14 +4130,61 @@ function getLiquidFallbackMode() {
   return liquidChatState.activeConversationId ? 'messages' : 'hub';
 }
 
-function focusLiquidCenterInput() {
-  const input = document.getElementById('liquidCenterInput');
+function focusLiquidSearchInput() {
+  const input = document.getElementById('liquidSearchInput');
   if (!input || input.disabled) return;
   requestAnimationFrame(() => {
     input.focus({ preventScroll: true });
     const end = input.value.length;
     if (typeof input.setSelectionRange === 'function') input.setSelectionRange(end, end);
   });
+}
+
+function getLiquidSearchQuery() {
+  const input = document.getElementById('liquidSearchInput');
+  return String(input ? input.value : (liquidSearchState.query || '')).trim();
+}
+
+function syncLiquidSearchForm(options = {}) {
+  const { preserveFocus = false } = options;
+  const input = document.getElementById('liquidSearchInput');
+  const submit = document.getElementById('liquidSearchSubmitBtn');
+  const meta = document.getElementById('liquidSearchEntryMeta');
+  const query = String(liquidSearchState.query || '').trim();
+  if (input && !(preserveFocus && document.activeElement === input)) input.value = query;
+  if (submit) submit.disabled = !!liquidSearchState.busy;
+  if (meta) {
+    if (liquidSearchState.busy) {
+      meta.textContent = query ? `正在搜索 “${query}”` : '正在拉取用户和群组列表…';
+    } else if (query) {
+      meta.textContent = `当前关键词：${query}，结果卡片会在下面两列同步刷新。`;
+    } else {
+      meta.textContent = '搜到就能直接开始私聊或加入群组。';
+    }
+  }
+}
+
+function scheduleLiquidDiscovery(query = '') {
+  liquidSearchState.query = String(query || '').trim();
+  syncLiquidSearchForm({ preserveFocus: true });
+  updateLiquidBar();
+  if (liquidSearchDebounceTimer) clearTimeout(liquidSearchDebounceTimer);
+  liquidSearchDebounceTimer = setTimeout(() => {
+    loadLiquidDiscovery(liquidSearchState.query);
+  }, 180);
+}
+
+function submitLiquidSearch() {
+  if (liquidSearchDebounceTimer) clearTimeout(liquidSearchDebounceTimer);
+  liquidSearchState.query = getLiquidSearchQuery();
+  syncLiquidSearchForm({ preserveFocus: true });
+  updateLiquidBar();
+  if (!isLiquidSurfaceOpen() || liquidSurfaceMode !== 'search') {
+    openLiquidSurface('search');
+    return;
+  }
+  loadLiquidDiscovery(liquidSearchState.query);
+  focusLiquidSearchInput();
 }
 
 function focusLiquidThreadComposer() {
@@ -3991,8 +4279,6 @@ function updateLiquidBar() {
   const centerKicker = document.getElementById('liquidCenterKicker');
   const centerTitle = document.getElementById('liquidCenterTitle');
   const compactLabel = document.getElementById('liquidCompactLabel');
-  const centerInput = document.getElementById('liquidCenterInput');
-  const inlineSend = document.getElementById('liquidInlineSend');
   const composeBtn = document.getElementById('liquidComposeBtn');
   const messageBtn = document.getElementById('liquidMessageBtn');
   const searchBtn = document.getElementById('liquidSearchBtn');
@@ -4006,26 +4292,12 @@ function updateLiquidBar() {
   if (liquidMode === 'messages') {
     centerKicker.textContent = activeConversation?.kind === 'group' ? 'Group Channel' : 'Direct Message';
     centerTitle.textContent = activeConversation ? `当前会话 · ${activeConversation.title}` : (commUser ? '打开对话框后再发消息，输入框已经移进会话面板。' : '登录后可开启私信系统。');
-    centerInput.value = '';
-    centerInput.placeholder = activeConversation ? `搜索 ${activeConversation.title}` : '先打开一个会话';
-    centerInput.disabled = true;
-    inlineSend.textContent = '对话';
-    inlineSend.disabled = !activeConversation;
   } else if (liquidMode === 'search') {
     centerKicker.textContent = 'People & Groups';
-    centerTitle.textContent = liquidSearchState.query ? `正在搜索：${liquidSearchState.query}` : '输入关键词，底部层会同步刷新用户和群组结果。';
-    centerInput.placeholder = '搜索用户、群组、签名或兴趣';
-    centerInput.value = liquidSearchState.query;
-    centerInput.disabled = false;
-    inlineSend.textContent = '搜索';
-    inlineSend.disabled = false;
+    centerTitle.textContent = liquidSearchState.query ? `搜索卡片 · ${liquidSearchState.query}` : '搜索框已经回到搜索卡片里，结果会在上方搜索面板同步刷新。';
   } else {
     centerKicker.textContent = 'Liquid Navigation';
     centerTitle.textContent = activeConversation ? `已固定会话 · ${activeConversation.title}` : '全局导航、私信和用户群组搜索整合到底部。';
-    centerInput.value = '';
-    centerInput.disabled = true;
-    inlineSend.disabled = false;
-    inlineSend.textContent = '打开';
   }
 
   if (compactLabel) {
@@ -4165,7 +4437,11 @@ function openLiquidSurface(mode = 'compose') {
   document.getElementById('liquidSurfaceBackdrop')?.classList.add('open');
   document.getElementById('liquidSurface')?.classList.add('open');
   if (mode === 'messages') refreshLiquidConversations();
-  if (mode === 'search') loadLiquidDiscovery(document.getElementById('liquidCenterInput')?.value || '');
+  if (mode === 'search') {
+    syncLiquidSearchForm();
+    loadLiquidDiscovery(getLiquidSearchQuery());
+    focusLiquidSearchInput();
+  }
   if (mode === 'compose') seedLiquidGroupCandidates();
   updateLiquidBar();
 }
@@ -4224,6 +4500,8 @@ async function loadLiquidDiscovery(query = '') {
   const groupWrap = document.getElementById('liquidGroupResults');
   liquidSearchState.query = String(query || '').trim();
   liquidSearchState.busy = true;
+  syncLiquidSearchForm();
+  updateLiquidBar();
   if (userWrap) userWrap.innerHTML = '<div class="liquid-empty">正在搜索用户…</div>';
   if (groupWrap) groupWrap.innerHTML = '<div class="liquid-empty">正在搜索群组…</div>';
 
@@ -4242,6 +4520,7 @@ async function loadLiquidDiscovery(query = '') {
     if (groupWrap) groupWrap.innerHTML = `<div class="liquid-empty">${escapeHtml(getUiErrorMessage(error, '搜索失败'))}</div>`;
   } finally {
     liquidSearchState.busy = false;
+    syncLiquidSearchForm();
     updateLiquidBar();
   }
 }
@@ -4503,9 +4782,7 @@ function handleLiquidInlineAction() {
     return;
   }
   if (liquidMode === 'search') {
-    openLiquidSurface('search');
-    loadLiquidDiscovery(document.getElementById('liquidCenterInput')?.value || '');
-    focusLiquidCenterInput();
+    submitLiquidSearch();
     return;
   }
   openLiquidSurface('compose');
@@ -4691,29 +4968,29 @@ function attachLiquidBarCenterAction() {
       event.preventDefault();
       openLiquidSurface('messages');
       focusLiquidThreadComposer();
+      return;
+    }
+    if (liquidMode === 'search') {
+      event.preventDefault();
+      openLiquidSurface('search');
+      focusLiquidSearchInput();
     }
   });
 }
 
 function attachLiquidInputEvents() {
-  const input = document.getElementById('liquidCenterInput');
-  if (!input) return;
-  input.addEventListener('focus', () => {
-    if (liquidMode === 'search') openLiquidSurface('search');
-  });
-  input.addEventListener('input', event => {
-    if (liquidMode !== 'search') return;
-    if (liquidSearchDebounceTimer) clearTimeout(liquidSearchDebounceTimer);
-    liquidSearchDebounceTimer = setTimeout(() => {
-      openLiquidSurface('search');
-      loadLiquidDiscovery(event.target.value);
-    }, 180);
-  });
-  input.addEventListener('keydown', event => {
-    if (event.key !== 'Enter') return;
-    event.preventDefault();
-    handleLiquidInlineAction();
-  });
+  const searchInput = document.getElementById('liquidSearchInput');
+  if (searchInput) {
+    searchInput.addEventListener('input', event => {
+      scheduleLiquidDiscovery(event.target.value);
+    });
+    searchInput.addEventListener('keydown', event => {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      submitLiquidSearch();
+    });
+  }
+  syncLiquidSearchForm();
 
   const threadInput = document.getElementById('liquidThreadComposerInput');
   if (!threadInput) return;
