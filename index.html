@@ -654,20 +654,17 @@ html, body {
   box-shadow: 0 4px 16px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08);
   overflow: hidden; cursor: pointer; touch-action: none; user-select: none;
   transition:
-    width      0.92s cubic-bezier(0.18, 1, 0.3, 1),
-    height     0.92s cubic-bezier(0.18, 1, 0.3, 1),
-    left       0.92s cubic-bezier(0.18, 1, 0.3, 1),
-    top        0.92s cubic-bezier(0.18, 1, 0.3, 1),
-    border-radius 0.92s cubic-bezier(0.18, 1, 0.3, 1),
-    box-shadow 0.74s ease, border-color 0.46s ease, background 0.62s ease;
+    width      0.68s cubic-bezier(0.23, 1, 0.32, 1),
+    height     0.68s cubic-bezier(0.23, 1, 0.32, 1),
+    left       0.68s cubic-bezier(0.23, 1, 0.32, 1),
+    top        0.68s cubic-bezier(0.23, 1, 0.32, 1),
+    border-radius 0.68s cubic-bezier(0.23, 1, 0.32, 1),
+    box-shadow 0.6s ease, border-color 0.4s ease;
   will-change: width, height, left, top, transform;
 }
 #mp:not(.open):active { transform: scale(0.92); transition: transform 0.1s; }
 #mp.open {
   width: 248px; height: 52px; border-radius: 22px;
-  background:
-    linear-gradient(180deg, rgba(15, 18, 54, 0.78), rgba(4, 2, 34, 0.62)),
-    rgba(2,0,41,0.55);
   border-color: rgba(255,119,16,0.5);
   box-shadow: 0 20px 60px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,119,16,0.1),
               inset 0 1px 0 rgba(255,255,255,0.15);
@@ -677,22 +674,11 @@ html, body {
 #mp-icon {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
-  transition:
-    opacity 0.26s ease,
-    transform 0.54s cubic-bezier(0.22, 1, 0.36, 1),
-    filter 0.3s ease;
+  transition: opacity 0.2s 0.05s, transform 0.2s;
   pointer-events: none;
 }
 #mp-icon svg { width: 26px; height: 26px; display: block; }
-#mp.open #mp-icon {
-  opacity: 0;
-  transform: scale(0.54) translateY(4px);
-  filter: blur(4px);
-  transition:
-    opacity 0.24s ease,
-    transform 0.6s cubic-bezier(0.22, 1, 0.36, 1),
-    filter 0.32s ease;
-}
+#mp.open #mp-icon { opacity: 0; transform: scale(0.6); transition: opacity 0.15s, transform 0.15s; }
 #mp.playing #mp-icon svg, #mp.buffering #mp-icon svg { animation: ball-pulse 2s ease-in-out infinite; }
 #mp.buffering #mp-icon svg { animation-duration: 0.8s; }
 @keyframes ball-pulse {
@@ -702,23 +688,9 @@ html, body {
 #mp-body {
   position: absolute; inset: 0; opacity: 0; pointer-events: none;
   display: flex; flex-direction: column; min-width: 248px;
-  transform: translateY(14px) scale(0.985);
-  filter: blur(10px);
-  transition:
-    opacity 0.24s ease,
-    transform 0.84s cubic-bezier(0.18, 1, 0.28, 1),
-    filter 0.56s ease;
+  transition: opacity 0.18s;
 }
-#mp.open #mp-body {
-  opacity: 1;
-  pointer-events: all;
-  transform: translateY(0) scale(1);
-  filter: blur(0);
-  transition:
-    opacity 0.42s 0.16s ease,
-    transform 0.92s cubic-bezier(0.18, 1, 0.28, 1),
-    filter 0.62s 0.08s ease;
-}
+#mp.open #mp-body { opacity: 1; pointer-events: all; transition: opacity 0.3s 0.24s; }
 #mp-header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 11px 13px 6px; cursor: grab; user-select: none; touch-action: none; flex-shrink: 0;
@@ -801,75 +773,32 @@ html, body {
   touch-action: pan-y;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
-  transform-origin: top center;
 }
-.mp-list-area.show {
-  display: block;
-  border-top-width: 1px;
-  animation: mp-list-reveal 0.58s cubic-bezier(0.22, 1, 0.36, 1);
-}
+.mp-list-area.show { display: block; border-top-width: 1px; }
 .mp-list-area::-webkit-scrollbar { width: 2px; }
 .mp-list-area::-webkit-scrollbar-thumb { background: rgba(255,119,16,0.25); border-radius: 1px; }
 .mp-search-wrap {
   position: sticky;
   top: 0;
   z-index: 1;
-  padding: 10px 10px 8px;
-  margin-bottom: 2px;
-  background: linear-gradient(
-    180deg,
-    rgba(10, 12, 42, 0.84) 0%,
-    rgba(10, 12, 42, 0.62) 58%,
-    rgba(10, 12, 42, 0.18) 86%,
-    rgba(10, 12, 42, 0) 100%
-  );
-  backdrop-filter: blur(22px) saturate(145%);
-  -webkit-backdrop-filter: blur(22px) saturate(145%);
-}
-.mp-search-wrap::after {
-  content: '';
-  position: absolute;
-  left: 14px;
-  right: 14px;
-  bottom: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255,119,16,0.28), transparent);
-  opacity: 0.9;
+  padding: 8px 10px 6px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  background: rgba(2,0,41,0.54);
+  backdrop-filter: blur(18px) saturate(170%);
+  -webkit-backdrop-filter: blur(18px) saturate(170%);
 }
 .mp-search {
   width: 100%;
-  background: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.06));
-  border: 1px solid rgba(255,255,255,0.09);
-  border-radius: 10px;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 9px;
   color: #fff;
   font-size: 11px;
   padding: 7px 10px;
   outline: none;
-  box-shadow:
-    0 12px 28px rgba(0,0,0,0.16),
-    inset 0 1px 0 rgba(255,255,255,0.08);
 }
 .mp-search::placeholder { color: rgba(255,255,255,0.22); }
-.mp-search:focus {
-  border-color: rgba(255,119,16,0.42);
-  background: linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.08));
-  box-shadow:
-    0 14px 34px rgba(0,0,0,0.2),
-    0 0 0 1px rgba(255,119,16,0.14),
-    inset 0 1px 0 rgba(255,255,255,0.1);
-}
-@keyframes mp-list-reveal {
-  from {
-    opacity: 0;
-    transform: translateY(-10px) scaleY(0.97);
-    filter: blur(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scaleY(1);
-    filter: blur(0);
-  }
-}
+.mp-search:focus { border-color: rgba(255,119,16,0.4); }
 .mp-li {
   display: flex; align-items: center; gap: 8px;
   padding: 8px 13px; cursor: pointer;
@@ -7112,14 +7041,15 @@ scheduleInit();
         let targetLeft = isLeft ? -2 : (W - CARD_W + 2);
         
         // 设置极具质感的慢速动画曲线
-        const SPRING_T = '0.94s cubic-bezier(0.18, 1, 0.28, 1)';
+        const SPRING_T = '0.98s cubic-bezier(0.16, 1, 0.3, 1)';
         mp.style.transition = [
           'width ' + SPRING_T,
           'height ' + SPRING_T,
           'border-radius ' + SPRING_T,
           'left ' + SPRING_T,
           'top ' + SPRING_T,
-          'box-shadow 0.76s ease', 'border-color 0.46s ease', 'background 0.62s ease'
+          'box-shadow 0.72s ease',
+          'border-color 0.44s ease'
         ].join(',');
 
         mp.style.left   = targetLeft + 'px';
@@ -7140,14 +7070,15 @@ scheduleInit();
     listArea.style.maxHeight = '0px';
     mp.classList.remove('open');
     
-    const SNAP_T = '0.74s cubic-bezier(0.4, 0, 0.2, 1)';
+    const SNAP_T = '0.52s cubic-bezier(0.23, 1, 0.32, 1)';
     mp.style.transition = [
       'width ' + SNAP_T,
       'height ' + SNAP_T,
       'border-radius ' + SNAP_T,
       'left ' + SNAP_T,
       'top ' + SNAP_T,
-      'box-shadow 0.54s ease', 'border-color 0.3s ease', 'background 0.46s ease'
+      'box-shadow 0.45s ease',
+      'border-color 0.25s ease'
     ].join(',');
     
     mp.style.width  = '52px';
@@ -7238,7 +7169,7 @@ scheduleInit();
     // 零间距吸附：稍微伸出 2px 藏住边框
     let targetX = isLeft ? -2 : (W - r.width + 2);
 
-    mp.style.transition = 'all 0.62s cubic-bezier(0.22, 1, 0.36, 1)';
+    mp.style.transition = 'all 0.5s cubic-bezier(0.23, 1, 0.32, 1)';
     mp.style.left = targetX + 'px';
     _collapseLeft = targetX;
     _collapseTop = parseFloat(mp.style.top);
@@ -7332,12 +7263,11 @@ scheduleInit();
     const listBtn = $('mpb-list');
     let listTapped = false;
     const SPRING_T = [
-      'width 0.68s cubic-bezier(0.22,1,0.36,1)',
-      'height 0.68s cubic-bezier(0.22,1,0.36,1)',
-      'border-radius 0.68s cubic-bezier(0.22,1,0.36,1)',
-      'box-shadow 0.42s ease',
-      'border-color 0.3s ease',
-      'background 0.42s ease'
+      'width 0.42s cubic-bezier(0.34,1.3,0.64,1)',
+      'height 0.42s cubic-bezier(0.34,1.3,0.64,1)',
+      'border-radius 0.42s cubic-bezier(0.34,1.3,0.64,1)',
+      'box-shadow 0.3s ease',
+      'border-color 0.2s ease'
     ].join(',');
 
     const MAX_ITEMS = 5;
@@ -7368,7 +7298,7 @@ scheduleInit();
         const H = window.innerHeight;
         const r = mp.getBoundingClientRect();
         if(r.top + targetH > H - 8){
-          mp.style.transition = ['top 0.56s cubic-bezier(0.22,1,0.36,1)', SPRING_T].join(',');
+          mp.style.transition = ['top 0.4s cubic-bezier(0.34,1.2,0.64,1)', SPRING_T].join(',');
           mp.style.top = Math.max(8, H - targetH - 8) + 'px';
         }
       });
