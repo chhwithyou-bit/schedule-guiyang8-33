@@ -669,6 +669,7 @@ html, body {
   box-shadow: 0 20px 60px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,119,16,0.1),
               inset 0 1px 0 rgba(255,255,255,0.15);
   cursor: default;
+  touch-action: auto;
 }
 #mp-icon {
   position: absolute; inset: 0;
@@ -761,10 +762,42 @@ html, body {
 }
 .mpb.play svg { width: 18px; height: 18px; }
 .mpb.play:active { background: rgba(255,119,16,0.12); }
-.mp-list-area { border-top: 0px solid rgba(255,255,255,0.07); overflow-y: auto; flex-shrink: 0; display: none; }
+.mp-list-area {
+  border-top: 0px solid rgba(255,255,255,0.07);
+  overflow-y: auto;
+  display: none;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 0;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
 .mp-list-area.show { display: block; border-top-width: 1px; }
 .mp-list-area::-webkit-scrollbar { width: 2px; }
 .mp-list-area::-webkit-scrollbar-thumb { background: rgba(255,119,16,0.25); border-radius: 1px; }
+.mp-search-wrap {
+  padding: 8px 10px 6px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: rgba(2,0,41,0.92);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+.mp-search {
+  width: 100%;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 9px;
+  color: #fff;
+  font-size: 11px;
+  padding: 7px 10px;
+  outline: none;
+}
+.mp-search::placeholder { color: rgba(255,255,255,0.22); }
+.mp-search:focus { border-color: rgba(255,119,16,0.4); }
 .mp-li {
   display: flex; align-items: center; gap: 8px;
   padding: 8px 13px; cursor: pointer;
@@ -778,6 +811,11 @@ html, body {
 .mp-li .lt { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .mp-li .ld { opacity:0; background:none; border:none; color:rgba(255,255,255,0.25); cursor:pointer; padding:0 3px; font-size:12px; }
 .mp-li:hover .ld { opacity:1; }
+.mp-empty {
+  padding: 11px 13px;
+  font-size: 11px;
+  color: rgba(245,239,224,0.35);
+}
 .mp-add { display:none; gap:5px; padding:7px 10px 10px; border-top:1px solid rgba(255,255,255,0.06); flex-shrink:0; }
 .mp-add.show { display:flex; }
 .mp-add input {
@@ -6944,6 +6982,9 @@ scheduleInit();
       </button>
     </div>
     <div class="mp-list-area" id="mp-list-area">
+      <div class="mp-search-wrap">
+        <input id="mp-search" class="mp-search" placeholder="搜索歌曲 / 歌手" autocomplete="off" spellcheck="false"/>
+      </div>
       <div id="mp-list"></div>
       <div class="mp-add" id="mp-add">
         <input id="mp-add-inp" placeholder="歌名,歌手,mp3链接"/>
@@ -6956,11 +6997,11 @@ scheduleInit();
 <script>
 (function(){
   const audio = new Audio();
-  let PL=[], idx=0, playing=false, open=false, listOpen=false;
+  let PL=[], idx=0, playing=false, open=false, listOpen=false, searchQuery='';
   const $=id=>document.getElementById(id);
   const mp=$('mp'), disc=$('mp-disc'), nameEl=$('mp-name'), artEl=$('mp-artist');
   const fillEl=$('mp-fill'), curEl=$('mp-cur'), durEl=$('mp-dur');
-  const playIco=$('mpb-play-ico'), listArea=$('mp-list-area'), listEl=$('mp-list');
+  const playIco=$('mpb-play-ico'), listArea=$('mp-list-area'), listEl=$('mp-list'), searchEl=$('mp-search');
 
   let _collapseLeft = null, _collapseTop = null;
 
@@ -7024,6 +7065,7 @@ scheduleInit();
   function collapse() {
     open = false; listOpen = false;
     listArea.classList.remove('show');
+    listArea.style.maxHeight = '0px';
     mp.classList.remove('open');
     
     const SNAP_T = '0.52s cubic-bezier(0.23, 1, 0.32, 1)';
@@ -7224,12 +7266,14 @@ scheduleInit();
       'box-shadow 0.3s ease', 'border-color 0.2s ease'
     ].join(',');
 
-    const ITEM_H = 26;
     const MAX_ITEMS = 5;
-    function listHeight(){
-      const n = Math.min(PL.length || 1, MAX_ITEMS);
-      const addH = $('mp-add').classList.contains('show') ? 44 : 0;
-      return n * ITEM_H + addH + 8;
+    function listViewportHeight(){
+      const searchH = searchEl ? searchEl.closest('.mp-search-wrap').offsetHeight : 0;
+      const addH = $('mp-add').classList.contains('show') ? $('mp-add').offsetHeight : 0;
+      const sampleItem = listEl.querySelector('.mp-li');
+      const itemH = sampleItem ? sampleItem.offsetHeight : 32;
+      const visibleRows = Math.min(Math.max(getFilteredList().length, 1), MAX_ITEMS);
+      return searchH + (visibleRows * itemH) + addH;
     }
     function resizeCard(withList){
       if(!open) return;
@@ -7237,8 +7281,11 @@ scheduleInit();
       const bh = window._mpBaseH || 0;
       let targetH = bh;
       if(withList){
-        const listH = Math.min($('mp-list').scrollHeight + ($('mp-add').classList.contains('show') ? 44 : 0) + 8, MAX_ITEMS * ITEM_H + 8);
-        targetH = bh + Math.max(listH, listHeight());
+        const visibleListH = Math.min(listArea.scrollHeight, listViewportHeight());
+        listArea.style.maxHeight = visibleListH + 'px';
+        targetH = bh + visibleListH;
+      } else {
+        listArea.style.maxHeight = '0px';
       }
       
       mp.style.height = targetH + 'px';
@@ -7332,20 +7379,44 @@ scheduleInit();
   })();
   function fmt(s){s=Math.floor(s||0);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');}
 
+  function getFilteredList(){
+    const q = searchQuery.trim().toLowerCase();
+    return PL
+      .map((track, originalIndex) => ({ track, originalIndex }))
+      .filter(({ track }) => {
+        if(!q) return true;
+        const name = String(track.name || '').toLowerCase();
+        const artist = String(track.artist || '').toLowerCase();
+        const url = String(track.url || '').toLowerCase();
+        return name.includes(q) || artist.includes(q) || url.includes(q);
+      });
+  }
+
   function render(){
     const admin=!!(window.nodesAdminUser&&window.nodesAdminPwd);
-    listEl.innerHTML=PL.map((t,i)=>`
-      <div class="mp-li${i===idx?' on':''}" onclick="mpPlay(${i})">
-        <span class="ln">${i===idx&&playing?'▶':i+1}</span>
+    const filtered = getFilteredList();
+    listEl.innerHTML = filtered.map(({ track: t, originalIndex })=>`
+      <div class="mp-li${originalIndex===idx?' on':''}" onclick="mpPlay(${originalIndex})">
+        <span class="ln">${originalIndex===idx&&playing?'▶':originalIndex+1}</span>
         <span class="lt">${t.name}${t.artist?` <span style="opacity:.35">- ${t.artist}</span>`:''}</span>
-        ${admin?`<button class="ld" onclick="event.stopPropagation();mpDel(${i})"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>`:''}
-      </div>`).join('')||'<div style="padding:11px 13px;font-size:11px;color:rgba(245,239,224,0.2)">暂无歌曲</div>';
+        ${admin?`<button class="ld" onclick="event.stopPropagation();mpDel(${originalIndex})"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>`:''}
+      </div>`).join('');
+    if(!listEl.innerHTML){
+      listEl.innerHTML = `<div class="mp-empty">${PL.length ? '没有匹配的歌曲' : '暂无歌曲'}</div>`;
+    }
   }
   window.mpPlay=i=>load(i,true);
   window.mpDel=async i=>{
+    const wasCurrent = i === idx;
+    const resumePlay = playing;
     PL.splice(i,1);await save();
+    if(i < idx) idx -= 1;
     if(idx>=PL.length)idx=Math.max(0,PL.length-1);
-    PL.length?load(idx,false):(audio.src='',nameEl.textContent='-',setP(false));
+    if(PL.length){
+      if(wasCurrent) load(idx,resumePlay);
+    }else{
+      audio.src=''; nameEl.textContent='-'; artEl.textContent=''; setP(false);
+    }
     render();
     if(window._mpResizeCard && window._mpListOpen && window._mpListOpen())
       window._mpResizeCard(true);
@@ -7364,6 +7435,13 @@ scheduleInit();
   }
   btn('mp-add-ok',addTrack);
   $('mp-add-inp').addEventListener('keydown',e=>{if(e.key==='Enter')addTrack();});
+  searchEl.addEventListener('input', e=>{
+    searchQuery = e.target.value || '';
+    render();
+    if(window._mpResizeCard && window._mpListOpen && window._mpListOpen()){
+      requestAnimationFrame(() => window._mpResizeCard(true));
+    }
+  });
 
   async function fetchPL(){
     try{
@@ -7409,7 +7487,13 @@ scheduleInit();
       else{console.log('[music] 歌单已保存到R2');}
     }catch(e){console.error('[music] save异常:',e);}
   }
-  window.musicSetAdminMode=v=>{$('mp-add').classList.toggle('show',v);render();};
+  window.musicSetAdminMode=v=>{
+    $('mp-add').classList.toggle('show',v);
+    render();
+    if(window._mpResizeCard && window._mpListOpen && window._mpListOpen()){
+      requestAnimationFrame(() => window._mpResizeCard(true));
+    }
+  };
 
   let plReady=false, userTouched=false;
   function tryAutoPlay(){ if(plReady && userTouched && !playing && audio.src) doPlay(); }
