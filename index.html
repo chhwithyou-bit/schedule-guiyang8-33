@@ -1057,17 +1057,68 @@ html, body {
   opacity: 0.7;
 }
 .comm-post-preview {
-  position: relative;
-  display: none;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
   margin-top: 10px;
-  width: fit-content;
-  max-width: 100%;
+  width: 100%;
 }
-.comm-post-preview img {
-  display: block;
-  max-width: 100%;
-  max-height: clamp(150px, 28vh, 220px);
+.comm-post-preview-item {
+  position: relative;
+  aspect-ratio: 1;
+  background: var(--s2);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.comm-post-preview-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.comm-post-preview-item .remove-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: rgba(0,0,0,0.5);
+  color: white;
+  border: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 10px;
+  backdrop-filter: blur(4px);
+}
+
+/* Media Grid for Posts */
+.media-grid {
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
   border-radius: 12px;
+  overflow: hidden;
+}
+.media-grid.count-1 { grid-template-columns: 1fr; max-width: 80%; }
+.media-grid.count-2 { grid-template-columns: repeat(2, 1fr); }
+.media-grid.count-3 { grid-template-columns: repeat(3, 1fr); }
+.media-grid.count-4 { grid-template-columns: repeat(2, 1fr); width: calc(200% / 3 + 4px); } /* 2x2 square */
+.media-grid.count-5, .media-grid.count-6, .media-grid.count-7, .media-grid.count-8, .media-grid.count-9 { grid-template-columns: repeat(3, 1fr); }
+
+.media-grid-item {
+  aspect-ratio: 1;
+  cursor: pointer;
+  background: var(--s2);
+  position: relative;
+}
+.media-grid.count-1 .media-grid-item { aspect-ratio: auto; max-height: 400px; }
+.media-grid-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 @media (max-width: 640px) {
@@ -1179,6 +1230,753 @@ html, body {
 @keyframes flyParticle { 0% { transform: translate(0, 0) scale(1); opacity: 1; } 100% { transform: translate(var(--dx), var(--dy)) scale(0); opacity: 0; } }
 .heart-active svg { animation: popHeart 0.35s cubic-bezier(.17,.89,.32,1.28); }
 .like-particle { position:fixed; width:6px; height:6px; background:#e05050; border-radius:50%; pointer-events:none; z-index:999999; }
+
+/* ===== LIQUID GLASS BAR ===== */
+.header .ham-btn { display: none !important; }
+#comm-post-fab { display: none !important; }
+#page-schedule,
+#page-xiangqi,
+#page-nodes,
+#page-admin,
+#page-profile,
+#page-post,
+#page-community {
+  padding-bottom: calc(120px + env(safe-area-inset-bottom));
+}
+#mp {
+  bottom: max(112px, calc(env(safe-area-inset-bottom) + 20px));
+}
+#liquidBarDock {
+  position: fixed;
+  left: 50%;
+  bottom: max(10px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: min(96vw, 1080px);
+  z-index: 9500;
+  pointer-events: none;
+}
+#liquidBar {
+  position: relative;
+  pointer-events: auto;
+  padding: 10px;
+  border-radius: 34px;
+  background:
+    radial-gradient(circle at top left, rgba(255,255,255,0.12), transparent 34%),
+    radial-gradient(circle at bottom right, rgba(255,153,68,0.14), transparent 28%),
+    rgba(8, 10, 48, 0.58);
+  backdrop-filter: blur(34px) saturate(185%) brightness(1.08);
+  -webkit-backdrop-filter: blur(34px) saturate(185%) brightness(1.08);
+  border: 1px solid rgba(255, 184, 120, 0.22);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.16),
+    inset 0 -1px 0 rgba(255,255,255,0.04),
+    0 24px 60px rgba(0,0,0,0.45),
+    0 6px 16px rgba(255,119,16,0.12);
+  transition:
+    width 0.42s cubic-bezier(0.22, 0.82, 0.24, 1),
+    transform 0.42s cubic-bezier(0.22, 0.82, 0.24, 1),
+    border-radius 0.42s cubic-bezier(0.22, 0.82, 0.24, 1),
+    padding 0.42s cubic-bezier(0.22, 0.82, 0.24, 1),
+    box-shadow 0.3s ease,
+    background 0.3s ease;
+}
+#liquidBar::before {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255,255,255,0.08), transparent 24%, transparent 72%, rgba(255,255,255,0.03));
+  pointer-events: none;
+}
+#liquidBar.compact {
+  width: min(310px, 58vw);
+  padding: 8px 10px;
+  border-radius: 999px;
+  transform: scale(0.97);
+}
+#liquidBar.mode-search,
+#liquidBar.mode-messages {
+  width: min(96vw, 1120px);
+}
+.liquid-bar-shell {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+.liquid-nav-trigger,
+.liquid-action-btn,
+.liquid-chip-btn {
+  border: none;
+  cursor: pointer;
+  color: var(--text);
+  font-family: inherit;
+}
+.liquid-nav-trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 140px;
+  padding: 12px 14px;
+  border-radius: 24px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.08);
+  transition: transform 0.18s ease, background 0.22s ease, border-color 0.22s ease;
+  user-select: none;
+  touch-action: none;
+}
+.liquid-nav-trigger:active,
+.liquid-action-btn:active,
+.liquid-chip-btn:active {
+  transform: scale(0.96);
+}
+.liquid-nav-glyph,
+.liquid-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.liquid-nav-glyph {
+  width: 34px;
+  height: 34px;
+  border-radius: 18px;
+  background: linear-gradient(145deg, rgba(255,153,68,0.26), rgba(255,119,16,0.12));
+  color: var(--accent2);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
+  flex-shrink: 0;
+}
+.liquid-nav-glyph svg,
+.liquid-action-btn svg,
+.liquid-search-item-icon svg,
+.liquid-compose-card svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+.liquid-nav-meta {
+  min-width: 0;
+  text-align: left;
+}
+.liquid-nav-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+.liquid-nav-sub {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--t3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.liquid-bar-center {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 60px;
+  padding: 8px 10px 8px 14px;
+  border-radius: 26px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.06);
+  transition: border-radius 0.38s cubic-bezier(0.22, 0.82, 0.24, 1), background 0.22s ease, padding 0.22s ease;
+}
+.liquid-bar-center::before {
+  content: '';
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ffe0c0, #ff9c52);
+  box-shadow: 0 0 0 6px rgba(255,153,68,0.08);
+  flex-shrink: 0;
+}
+.liquid-center-copy {
+  min-width: 0;
+  flex: 1;
+}
+.liquid-center-kicker {
+  font-size: 10px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--accent3);
+}
+.liquid-center-title {
+  margin-top: 3px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.liquid-center-input-wrap {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+.liquid-center-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+}
+.liquid-center-input::placeholder { color: var(--t3); }
+.liquid-inline-send {
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 10px 14px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(255,119,16,0.88), rgba(255,153,68,0.96));
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 10px 20px rgba(255,119,16,0.22);
+}
+#liquidBar.mode-search .liquid-bar-center,
+#liquidBar.mode-messages .liquid-bar-center {
+  border-radius: 24px 30px 30px 24px;
+  background: rgba(255,255,255,0.1);
+}
+#liquidBar.mode-search .liquid-center-copy,
+#liquidBar.mode-messages .liquid-center-copy {
+  display: none;
+}
+#liquidBar.mode-search .liquid-center-input-wrap,
+#liquidBar.mode-messages .liquid-center-input-wrap {
+  display: flex;
+}
+.liquid-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.liquid-action-btn {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border-radius: 18px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.08);
+  transition: transform 0.18s ease, background 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+}
+.liquid-action-btn.active {
+  background: rgba(255,119,16,0.18);
+  border-color: rgba(255,153,68,0.28);
+  color: var(--accent2);
+  box-shadow: 0 10px 24px rgba(255,119,16,0.16);
+}
+.liquid-action-btn.count::after {
+  content: attr(data-count);
+  position: absolute;
+  top: -4px;
+  right: -2px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #ff6b57;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid rgba(2,0,41,0.95);
+}
+#liquidBar.compact .liquid-nav-meta,
+#liquidBar.compact .liquid-center-kicker {
+  display: none;
+}
+#liquidBar.compact .liquid-bar-shell {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+#liquidBar.compact .liquid-nav-trigger {
+  min-width: 56px;
+  padding: 10px;
+}
+#liquidBar.compact .liquid-bar-center {
+  min-height: 46px;
+  padding: 8px 12px;
+}
+#liquidBar.compact .liquid-center-title {
+  font-size: 12px;
+}
+#liquidBar.compact .liquid-action-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 16px;
+}
+.liquid-surface-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9390;
+  background: rgba(1, 2, 18, 0.14);
+  backdrop-filter: blur(0);
+  -webkit-backdrop-filter: blur(0);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.26s ease, backdrop-filter 0.26s ease;
+}
+.liquid-surface-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.liquid-surface {
+  position: fixed;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom) + 90px);
+  transform: translateX(-50%) translateY(24px) scale(0.98);
+  width: min(96vw, 1100px);
+  max-height: min(72vh, 760px);
+  overflow: hidden;
+  border-radius: 32px;
+  background:
+    radial-gradient(circle at top left, rgba(255,255,255,0.12), transparent 28%),
+    rgba(7, 8, 40, 0.76);
+  backdrop-filter: blur(32px) saturate(180%);
+  -webkit-backdrop-filter: blur(32px) saturate(180%);
+  border: 1px solid rgba(255,184,120,0.18);
+  box-shadow: 0 36px 80px rgba(0,0,0,0.5);
+  z-index: 9400;
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.32s cubic-bezier(0.22, 0.82, 0.24, 1), opacity 0.24s ease;
+}
+.liquid-surface.open {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0) scale(1);
+}
+.liquid-surface-grab {
+  width: 68px;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.14);
+  margin: 12px auto 0;
+}
+.liquid-surface-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px 20px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.liquid-surface-title {
+  font-size: 18px;
+  font-weight: 800;
+}
+.liquid-surface-sub {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--t3);
+}
+.liquid-surface-close {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.06);
+  color: var(--text);
+  cursor: pointer;
+}
+.liquid-surface-body {
+  padding: 18px;
+  overflow-y: auto;
+  max-height: calc(min(72vh, 760px) - 74px);
+}
+.liquid-panel { display: none; }
+.liquid-panel.active { display: block; }
+.liquid-compose-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+.liquid-compose-card,
+.liquid-search-card,
+.liquid-conv-card,
+.liquid-group-card,
+.liquid-glass-card {
+  border-radius: 24px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.06);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+}
+.liquid-compose-card {
+  padding: 16px;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.22s ease, background 0.22s ease;
+}
+.liquid-compose-card:hover,
+.liquid-conv-card:hover,
+.liquid-search-item:hover,
+.liquid-group-card:hover {
+  border-color: rgba(255,153,68,0.26);
+  background: rgba(255,255,255,0.08);
+}
+.liquid-compose-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+  background: linear-gradient(145deg, rgba(255,153,68,0.22), rgba(255,119,16,0.08));
+  color: var(--accent2);
+}
+.liquid-compose-title {
+  font-size: 15px;
+  font-weight: 700;
+}
+.liquid-compose-desc {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--t2);
+}
+.liquid-builder {
+  margin-top: 18px;
+  padding: 18px;
+}
+.liquid-builder-top {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.liquid-builder textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+.liquid-builder-members {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 12px;
+}
+.liquid-member-results,
+.liquid-member-picked,
+.liquid-search-list,
+.liquid-conversation-list,
+.liquid-thread-body,
+.liquid-group-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.liquid-search-layout,
+.liquid-chat-layout {
+  display: grid;
+  grid-template-columns: 1.02fr 1fr;
+  gap: 14px;
+}
+.liquid-column-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.liquid-column-title {
+  font-size: 13px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--accent3);
+}
+.liquid-column-note {
+  font-size: 11px;
+  color: var(--t3);
+}
+.liquid-search-card,
+.liquid-thread-shell {
+  padding: 14px;
+}
+.liquid-search-item,
+.liquid-conv-card,
+.liquid-picked-member {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 18px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.05);
+}
+.liquid-search-item-icon,
+.liquid-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.08);
+  color: var(--accent2);
+  font-weight: 800;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.liquid-avatar img,
+.liquid-search-item-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.liquid-item-main {
+  min-width: 0;
+  flex: 1;
+}
+.liquid-item-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.liquid-item-sub,
+.liquid-item-meta {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--t2);
+  line-height: 1.5;
+}
+.liquid-item-meta { color: var(--t3); }
+.liquid-chip-btn {
+  padding: 10px 14px;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.08);
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.liquid-chip-btn.primary {
+  background: linear-gradient(135deg, rgba(255,119,16,0.92), rgba(255,153,68,0.96));
+  color: #fff;
+  box-shadow: 0 12px 24px rgba(255,119,16,0.18);
+}
+.liquid-chip-btn.ghost {
+  color: var(--accent2);
+  border-color: rgba(255,153,68,0.22);
+}
+.liquid-conv-card.active {
+  border-color: rgba(255,153,68,0.28);
+  background: rgba(255,153,68,0.08);
+}
+.liquid-conv-badge {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #ff6b57;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.liquid-thread-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 420px;
+}
+.liquid-thread-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.liquid-thread-body {
+  flex: 1;
+  min-height: 260px;
+  max-height: 420px;
+  overflow-y: auto;
+  padding: 14px 2px 6px;
+}
+.liquid-bubble {
+  max-width: min(76%, 520px);
+  padding: 12px 14px;
+  border-radius: 20px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.05);
+}
+.liquid-bubble.self {
+  margin-left: auto;
+  background: linear-gradient(135deg, rgba(255,119,16,0.22), rgba(255,153,68,0.12));
+  border-color: rgba(255,153,68,0.18);
+}
+.liquid-bubble-author {
+  font-size: 11px;
+  color: var(--accent3);
+  margin-bottom: 5px;
+}
+.liquid-bubble-text {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text);
+  word-break: break-word;
+}
+.liquid-bubble-time {
+  margin-top: 6px;
+  font-size: 10px;
+  color: var(--t3);
+}
+.liquid-thread-empty,
+.liquid-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--t3);
+}
+.liquid-group-grid {
+  margin-top: 10px;
+}
+.liquid-group-card {
+  padding: 16px;
+}
+.liquid-group-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+.liquid-group-stats {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.liquid-stat-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.06);
+  color: var(--t2);
+  font-size: 11px;
+}
+.liquid-nav-picker {
+  position: fixed;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom) + 114px);
+  transform: translateX(-50%) translateY(18px) scale(0.98);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 28px;
+  background: rgba(5, 7, 36, 0.74);
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  border: 1px solid rgba(255,184,120,0.16);
+  box-shadow: 0 28px 70px rgba(0,0,0,0.42);
+  z-index: 9550;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.24s ease, transform 0.28s cubic-bezier(0.22, 0.82, 0.24, 1);
+}
+.liquid-nav-picker.open {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0) scale(1);
+}
+.liquid-nav-option {
+  min-width: 92px;
+  padding: 12px 10px;
+  border-radius: 20px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  text-align: center;
+  transition: transform 0.16s ease, background 0.22s ease, border-color 0.22s ease;
+}
+.liquid-nav-option.active,
+.liquid-nav-option.preview {
+  background: rgba(255,119,16,0.16);
+  border-color: rgba(255,153,68,0.24);
+  color: var(--accent2);
+}
+.liquid-nav-option-icon {
+  width: 38px;
+  height: 38px;
+  margin: 0 auto 8px;
+  border-radius: 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.06);
+}
+.liquid-nav-option-title {
+  font-size: 12px;
+  font-weight: 700;
+}
+.liquid-nav-option-sub {
+  margin-top: 3px;
+  font-size: 10px;
+  color: var(--t3);
+}
+@media (max-width: 920px) {
+  .liquid-compose-grid,
+  .liquid-search-layout,
+  .liquid-chat-layout,
+  .liquid-builder-top,
+  .liquid-builder-members {
+    grid-template-columns: 1fr;
+  }
+  .liquid-surface {
+    max-height: min(78vh, 820px);
+    bottom: calc(env(safe-area-inset-bottom) + 86px);
+  }
+}
+@media (max-width: 720px) {
+  #liquidBarDock {
+    width: min(98vw, 720px);
+  }
+  #liquidBar {
+    padding: 8px;
+    border-radius: 28px;
+  }
+  .liquid-bar-shell {
+    gap: 8px;
+  }
+  .liquid-nav-trigger {
+    min-width: 58px;
+    padding: 10px;
+  }
+  .liquid-nav-meta {
+    display: none;
+  }
+  .liquid-bar-center {
+    min-height: 52px;
+    padding: 8px 12px;
+  }
+  .liquid-center-title {
+    font-size: 13px;
+  }
+  .liquid-action-btn {
+    width: 42px;
+    height: 42px;
+    border-radius: 15px;
+  }
+  .liquid-nav-picker {
+    width: min(94vw, 430px);
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+}
 </style>
 
 <link rel="stylesheet" href="xiangqi.css">
@@ -2155,6 +2953,158 @@ async function adminSetAdminPwd() {
   </div>
 </div>
 
+<div class="liquid-surface-backdrop" id="liquidSurfaceBackdrop" onclick="closeLiquidSurface()"></div>
+<div class="liquid-surface" id="liquidSurface">
+  <div class="liquid-surface-grab"></div>
+  <div class="liquid-surface-head">
+    <div>
+      <div class="liquid-surface-title" id="liquidSurfaceTitle">Liquid Hub</div>
+      <div class="liquid-surface-sub" id="liquidSurfaceSub">全局导航、私信和用户群组搜索都在这里。</div>
+    </div>
+    <button class="liquid-surface-close" onclick="closeLiquidSurface()">✕</button>
+  </div>
+  <div class="liquid-surface-body">
+    <section class="liquid-panel active" id="liquidComposePanel">
+      <div class="liquid-compose-grid">
+        <button class="liquid-compose-card" onclick="openCommPostModal(); closeLiquidSurface(); setLiquidMode('hub');">
+          <span class="liquid-compose-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+          </span>
+          <div class="liquid-compose-title">发布动态</div>
+          <div class="liquid-compose-desc">把原来的发帖入口收进底栏，保持浏览流不中断。</div>
+        </button>
+        <button class="liquid-compose-card" onclick="openLiquidSurface('messages')">
+          <span class="liquid-compose-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8A8.5 8.5 0 0 1 12.5 20a8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6A8.4 8.4 0 0 1 12.5 3h.5a8.5 8.5 0 0 1 8 8z"></path></svg>
+          </span>
+          <div class="liquid-compose-title">发起私信</div>
+          <div class="liquid-compose-desc">先搜索用户，再把会话固定到底栏消息输入区里。</div>
+        </button>
+        <button class="liquid-compose-card" onclick="openLiquidSurface('search')">
+          <span class="liquid-compose-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+          </span>
+          <div class="liquid-compose-title">搜索用户与群组</div>
+          <div class="liquid-compose-desc">从底栏直接搜人、搜群、加入群组，不必跳页。</div>
+        </button>
+      </div>
+
+      <div class="liquid-builder liquid-glass-card">
+        <div class="liquid-column-head">
+          <div>
+            <div class="liquid-column-title">Create Group</div>
+            <div class="liquid-column-note">创建一个有质感的协作群，选中用户即可一起进房。</div>
+          </div>
+          <button class="liquid-chip-btn ghost" onclick="seedLiquidGroupCandidates()">刷新候选</button>
+        </div>
+        <div class="liquid-builder-top">
+          <input id="liquid-group-title" class="inp" placeholder="群组名称，例如 Night Sprint">
+          <input id="liquid-group-search" class="inp" placeholder="搜索要邀请的用户" oninput="searchLiquidGroupMembers(this.value)">
+        </div>
+        <textarea id="liquid-group-desc" class="inp" style="margin-top:12px;" placeholder="群组介绍、协作节奏、使用规则"></textarea>
+        <div class="liquid-builder-members">
+          <div>
+            <div class="liquid-column-head">
+              <div class="liquid-column-title">Candidates</div>
+              <div class="liquid-column-note">点一下加入邀请名单</div>
+            </div>
+            <div class="liquid-member-results" id="liquidGroupMemberResults"></div>
+          </div>
+          <div>
+            <div class="liquid-column-head">
+              <div class="liquid-column-title">Selected</div>
+              <div class="liquid-column-note">最多 12 人</div>
+            </div>
+            <div class="liquid-member-picked" id="liquidGroupMemberPicked"></div>
+          </div>
+        </div>
+        <div class="action-row" style="margin-top:16px;">
+          <button class="btn-cancel" style="flex:1;" onclick="resetLiquidGroupBuilder()">重置</button>
+          <button class="btn-confirm" style="flex:1;" onclick="createLiquidGroup()">创建群组</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="liquid-panel" id="liquidMessagesPanel">
+      <div class="liquid-chat-layout">
+        <div class="liquid-search-card">
+          <div class="liquid-column-head">
+            <div>
+              <div class="liquid-column-title">Inbox</div>
+              <div class="liquid-column-note">私信与群组会话</div>
+            </div>
+            <button class="liquid-chip-btn ghost" onclick="refreshLiquidConversations()">刷新</button>
+          </div>
+          <div class="liquid-conversation-list" id="liquidConversationList"></div>
+        </div>
+        <div class="liquid-thread-shell liquid-glass-card">
+          <div class="liquid-thread-head" id="liquidThreadHead"></div>
+          <div class="liquid-thread-body" id="liquidThreadBody"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="liquid-panel" id="liquidSearchPanel">
+      <div class="liquid-search-layout">
+        <div class="liquid-search-card">
+          <div class="liquid-column-head">
+            <div>
+              <div class="liquid-column-title">Users</div>
+              <div class="liquid-column-note">搜索用户后可直接开启私信。</div>
+            </div>
+          </div>
+          <div class="liquid-search-list" id="liquidUserResults"></div>
+        </div>
+        <div class="liquid-search-card">
+          <div class="liquid-column-head">
+            <div>
+              <div class="liquid-column-title">Groups</div>
+              <div class="liquid-column-note">搜索群组、加入群组、或直接打开会话。</div>
+            </div>
+          </div>
+          <div class="liquid-group-grid" id="liquidGroupResults"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="liquid-nav-picker" id="liquidNavPicker"></div>
+<div id="liquidBarDock">
+  <div id="liquidBar" class="mode-hub">
+    <div class="liquid-bar-shell">
+      <button class="liquid-nav-trigger" id="liquidNavTrigger" aria-label="打开页面导航">
+        <span class="liquid-nav-glyph" id="liquidNavGlyph"></span>
+        <span class="liquid-nav-meta">
+          <div class="liquid-nav-title" id="liquidNavTitle">社区</div>
+          <div class="liquid-nav-sub" id="liquidNavSub">长按并拖动切换页面</div>
+        </span>
+      </button>
+      <div class="liquid-bar-center" id="liquidBarCenter">
+        <div class="liquid-center-copy">
+          <div class="liquid-center-kicker" id="liquidCenterKicker">Liquid Navigation</div>
+          <div class="liquid-center-title" id="liquidCenterTitle">全局导航、私信和用户群组搜索整合到底部。</div>
+        </div>
+        <div class="liquid-center-input-wrap">
+          <input id="liquidCenterInput" class="liquid-center-input" placeholder="搜索用户或群组">
+          <button class="liquid-inline-send" id="liquidInlineSend" onclick="handleLiquidInlineAction()">发送</button>
+        </div>
+      </div>
+      <div class="liquid-bar-actions">
+        <button class="liquid-action-btn" id="liquidComposeBtn" onclick="openLiquidSurface('compose')" aria-label="打开创建菜单">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+        </button>
+        <button class="liquid-action-btn" id="liquidMessageBtn" onclick="openLiquidSurface('messages')" aria-label="打开消息">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8A8.5 8.5 0 0 1 12.5 20a8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6A8.4 8.4 0 0 1 12.5 3h.5a8.5 8.5 0 0 1 8 8z"></path></svg>
+        </button>
+        <button class="liquid-action-btn" id="liquidSearchBtn" onclick="openLiquidSurface('search')" aria-label="打开搜索">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
   <!-- Notification Modal -->
   <div class="modal-overlay" id="commNotifyModal">
     <div class="modal" style="max-width:400px; margin: auto; padding: 0; overflow: hidden;">
@@ -2262,16 +3212,12 @@ async function adminSetAdminPwd() {
     </div>
     <div id="comm-link-preview" class="composer-link-preview"></div>
     
-    <div class="field-label">图片 (可选)</div>
+    <div class="field-label">图片 (可选，最多9张)</div>
     <div class="upload-area" id="comm-upload-area" style="padding:16px;">
-      <input type="file" id="comm-file-input" accept="image/*" onchange="handleCommFile(this)">
-      <div class="upload-hint">点击上传图片</div>
-      <div id="comm-preview-wrap" class="comm-post-preview">
-     <img id="comm-preview-img">
-     <button onclick="cancelCommImage()" style="position:absolute; top:-8px; right:-8px; background:var(--bg); border:1px solid var(--border); color:var(--text); width:24px; height:24px; border-radius:12px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:12px;">✕</button>
-   </div>
+      <input type="file" id="comm-file-input" accept="image/*" multiple onchange="handleCommFile(this)">
+      <div class="upload-hint">点击或拖拽上传图片</div>
+      <div id="comm-preview-wrap" class="comm-post-preview" style="display:none;"></div>
     </div>
-    
     <button id="comm-submit-btn" class="parse-btn" onclick="submitCommPost()">发布</button>
   </div>
 </div>
@@ -2294,6 +3240,7 @@ async function adminSetAdminPwd() {
 
 <script>
 // Community Logic
+var currentPage = 'community';
 let commUser = JSON.parse(localStorage.getItem('commUser') || 'null');
 function normalizeCommunityUserRole(user) {
   if (!user || typeof user !== 'object') return user;
@@ -2317,6 +3264,17 @@ let currentAnnouncement = null;
 let announcementPollTimer = null;
 let communityRoleSyncTimer = null;
 let communityRoleSyncPromise = null;
+let liquidMode = 'hub';
+let liquidSurfaceMode = 'compose';
+let liquidLastScrollTop = 0;
+let liquidNavHoldTimer = null;
+let liquidNavHoldTriggered = false;
+let liquidNavDragActive = false;
+let liquidChatPollTimer = null;
+let liquidSearchDebounceTimer = null;
+const liquidSearchState = { query: '', users: [], groups: [], busy: false };
+const liquidChatState = { conversations: [], activeConversationId: '', unreadTotal: 0, messages: [] };
+const liquidGroupBuilder = { selected: [], candidates: [] };
 const COMMUNITY_LEVELS = [
   { minXp: 0, title: '新芽' },
   { minXp: 10, title: '破冰' },
@@ -2434,6 +3392,747 @@ function getXpProgress(user) {
   };
 }
 
+function getLiquidNavItems() {
+  const items = [
+    {
+      page: 'community',
+      title: '社区',
+      sub: '动态与互动主场',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8A8.5 8.5 0 0 1 12.5 20a8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6A8.4 8.4 0 0 1 12.5 3h.5a8.5 8.5 0 0 1 8 8z"></path></svg>'
+    },
+    {
+      page: 'schedule',
+      title: '课程表',
+      sub: '日程与考试节奏',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect x="3" y="5" width="18" height="16" rx="3"></rect><path d="M3 10h18"></path></svg>'
+    },
+    {
+      page: 'nodes',
+      title: '节点',
+      sub: '分享与管理',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7.1-7.1l-1.7 1.7"></path><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7.1 7.1l1.7-1.7"></path></svg>'
+    },
+    {
+      page: 'xiangqi',
+      title: '象棋',
+      sub: '对弈与复盘',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="4"></circle><path d="M7 21h10"></path><path d="M12 11v10"></path><path d="M8 15h8"></path></svg>'
+    }
+  ];
+  if (isAdminRole(commUser?.role)) {
+    items.push({
+      page: 'admin',
+      title: '管理',
+      sub: '缓存、用户与公告',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"></path></svg>'
+    });
+  }
+  return items;
+}
+
+function getLiquidPageMeta(page) {
+  const found = getLiquidNavItems().find(item => item.page === page);
+  if (found) return found;
+  if (page === 'profile') {
+    return {
+      page: 'profile',
+      title: '个人主页',
+      sub: '查看用户资料',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21a8 8 0 0 0-16 0"></path><circle cx="12" cy="7" r="4"></circle></svg>'
+    };
+  }
+  if (page === 'post') {
+    return {
+      page: 'post',
+      title: '动态详情',
+      sub: '浏览评论与互动',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>'
+    };
+  }
+  return getLiquidNavItems()[0];
+}
+
+function setLiquidMode(mode = 'hub') {
+  liquidMode = mode;
+  updateLiquidBar();
+}
+
+function getLiquidSurfaceCopy(mode) {
+  if (mode === 'messages') {
+    return {
+      title: 'Messages',
+      sub: commUser ? '底栏输入区会跟随当前会话，发送消息时不会打断浏览。' : '登录后开启私信与群组会话。'
+    };
+  }
+  if (mode === 'search') {
+    return {
+      title: 'Search',
+      sub: '面向用户和群组的全局搜索，搜到就能直接发起动作。'
+    };
+  }
+  return {
+    title: 'Compose',
+    sub: '发帖、建群、发起私信，全都从底部液态玻璃入口开始。'
+  };
+}
+
+function updateLiquidBar() {
+  const root = document.getElementById('liquidBar');
+  if (!root) return;
+  root.classList.remove('mode-hub', 'mode-search', 'mode-messages', 'mode-compose');
+  root.classList.add(`mode-${liquidMode}`);
+
+  const pageMeta = getLiquidPageMeta(currentPage);
+  const navGlyph = document.getElementById('liquidNavGlyph');
+  const navTitle = document.getElementById('liquidNavTitle');
+  const navSub = document.getElementById('liquidNavSub');
+  const centerKicker = document.getElementById('liquidCenterKicker');
+  const centerTitle = document.getElementById('liquidCenterTitle');
+  const centerInput = document.getElementById('liquidCenterInput');
+  const inlineSend = document.getElementById('liquidInlineSend');
+  const composeBtn = document.getElementById('liquidComposeBtn');
+  const messageBtn = document.getElementById('liquidMessageBtn');
+  const searchBtn = document.getElementById('liquidSearchBtn');
+  const messageCount = Math.min(99, Number(liquidChatState.unreadTotal || 0));
+  const activeConversation = liquidChatState.conversations.find(item => item.id === liquidChatState.activeConversationId) || null;
+
+  navGlyph.innerHTML = pageMeta.icon;
+  navTitle.textContent = pageMeta.title;
+  navSub.textContent = liquidNavDragActive ? '拖动到页面后松手' : '长按并拖动切换页面';
+
+  if (liquidMode === 'messages') {
+    centerKicker.textContent = activeConversation?.kind === 'group' ? 'Group Channel' : 'Direct Message';
+    centerTitle.textContent = activeConversation ? `当前会话 · ${activeConversation.title}` : (commUser ? '从右侧列表选择一个会话，消息输入就会吸附到这里。' : '登录后可开启私信系统。');
+    centerInput.placeholder = activeConversation ? `发送给 ${activeConversation.title}` : '先打开一个会话';
+    centerInput.disabled = !activeConversation;
+    inlineSend.textContent = '发送';
+    inlineSend.disabled = !activeConversation;
+  } else if (liquidMode === 'search') {
+    centerKicker.textContent = 'People & Groups';
+    centerTitle.textContent = liquidSearchState.query ? `正在搜索：${liquidSearchState.query}` : '输入关键词，底部层会同步刷新用户和群组结果。';
+    centerInput.placeholder = '搜索用户、群组、签名或兴趣';
+    centerInput.value = liquidSearchState.query;
+    centerInput.disabled = false;
+    inlineSend.textContent = '搜索';
+    inlineSend.disabled = false;
+  } else {
+    centerKicker.textContent = 'Liquid Navigation';
+    centerTitle.textContent = activeConversation ? `已固定会话 · ${activeConversation.title}` : '全局导航、私信和用户群组搜索整合到底部。';
+    centerInput.value = '';
+    centerInput.disabled = true;
+    inlineSend.disabled = false;
+    inlineSend.textContent = '打开';
+  }
+
+  [composeBtn, messageBtn, searchBtn].forEach(btn => btn.classList.remove('active', 'count'));
+  if (liquidMode === 'compose') composeBtn.classList.add('active');
+  if (liquidMode === 'messages') messageBtn.classList.add('active');
+  if (liquidMode === 'search') searchBtn.classList.add('active');
+  if (messageCount > 0) {
+    messageBtn.classList.add('count');
+    messageBtn.dataset.count = String(messageCount);
+  } else {
+    delete messageBtn.dataset.count;
+  }
+
+  renderLiquidNavPicker();
+}
+
+function renderLiquidNavPicker(previewPage = '') {
+  const picker = document.getElementById('liquidNavPicker');
+  if (!picker) return;
+  const preview = previewPage || '';
+  picker.innerHTML = getLiquidNavItems().map(item => `
+    <button class="liquid-nav-option${item.page === currentPage ? ' active' : ''}${item.page === preview ? ' preview' : ''}" data-page="${item.page}" onclick="closeLiquidNavPicker(); navTo('${item.page}')">
+      <span class="liquid-nav-option-icon">${item.icon}</span>
+      <div class="liquid-nav-option-title">${item.title}</div>
+      <div class="liquid-nav-option-sub">${item.sub}</div>
+    </button>
+  `).join('');
+}
+
+function openLiquidNavPicker() {
+  renderLiquidNavPicker();
+  document.getElementById('liquidNavPicker')?.classList.add('open');
+}
+
+function closeLiquidNavPicker() {
+  liquidNavDragActive = false;
+  renderLiquidNavPicker();
+  document.getElementById('liquidNavPicker')?.classList.remove('open');
+  updateLiquidBar();
+}
+
+function previewLiquidNavAtPoint(clientX, clientY) {
+  const target = document.elementFromPoint(clientX, clientY)?.closest('.liquid-nav-option');
+  document.querySelectorAll('.liquid-nav-option').forEach(node => {
+    node.classList.toggle('preview', node === target);
+  });
+  return target ? target.dataset.page : '';
+}
+
+function attachLiquidNavGesture() {
+  const trigger = document.getElementById('liquidNavTrigger');
+  if (!trigger) return;
+
+  trigger.addEventListener('pointerdown', event => {
+    liquidNavHoldTriggered = false;
+    if (liquidNavHoldTimer) clearTimeout(liquidNavHoldTimer);
+    liquidNavHoldTimer = setTimeout(() => {
+      liquidNavHoldTriggered = true;
+      liquidNavDragActive = true;
+      openLiquidNavPicker();
+      previewLiquidNavAtPoint(event.clientX, event.clientY);
+      updateLiquidBar();
+    }, 280);
+  });
+
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach(type => {
+    trigger.addEventListener(type, () => {
+      if (liquidNavHoldTimer) clearTimeout(liquidNavHoldTimer);
+    });
+  });
+
+  trigger.addEventListener('click', event => {
+    event.preventDefault();
+    if (liquidNavHoldTriggered) {
+      liquidNavHoldTriggered = false;
+      return;
+    }
+    const picker = document.getElementById('liquidNavPicker');
+    if (picker?.classList.contains('open')) closeLiquidNavPicker();
+    else openLiquidNavPicker();
+  });
+
+  window.addEventListener('pointermove', event => {
+    const picker = document.getElementById('liquidNavPicker');
+    if (!liquidNavDragActive || !picker?.classList.contains('open')) return;
+    const page = previewLiquidNavAtPoint(event.clientX, event.clientY);
+    if (page) {
+      document.getElementById('liquidNavSub').textContent = `松手进入 ${getLiquidPageMeta(page).title}`;
+    }
+  });
+
+  window.addEventListener('pointerup', event => {
+    const picker = document.getElementById('liquidNavPicker');
+    if (!liquidNavDragActive || !picker?.classList.contains('open')) return;
+    const page = previewLiquidNavAtPoint(event.clientX, event.clientY);
+    closeLiquidNavPicker();
+    if (page && page !== currentPage) navTo(page);
+  });
+}
+
+function openLiquidSurface(mode = 'compose') {
+  if ((mode === 'messages' || mode === 'compose') && !commUser) {
+    openCommAuth();
+    showToast('登录后可使用私信与群组能力', 'info');
+    return;
+  }
+  liquidSurfaceMode = mode;
+  setLiquidMode(mode === 'compose' ? 'compose' : mode);
+  const copy = getLiquidSurfaceCopy(mode);
+  document.getElementById('liquidSurfaceTitle').textContent = copy.title;
+  document.getElementById('liquidSurfaceSub').textContent = copy.sub;
+  document.querySelectorAll('.liquid-panel').forEach(panel => panel.classList.remove('active'));
+  document.getElementById(`liquid${mode.charAt(0).toUpperCase()}${mode.slice(1)}Panel`)?.classList.add('active');
+  document.getElementById('liquidSurfaceBackdrop')?.classList.add('open');
+  document.getElementById('liquidSurface')?.classList.add('open');
+  if (mode === 'messages') refreshLiquidConversations();
+  if (mode === 'search') loadLiquidDiscovery(document.getElementById('liquidCenterInput')?.value || '');
+  if (mode === 'compose') seedLiquidGroupCandidates();
+  updateLiquidBar();
+}
+
+function closeLiquidSurface() {
+  document.getElementById('liquidSurfaceBackdrop')?.classList.remove('open');
+  document.getElementById('liquidSurface')?.classList.remove('open');
+  if (liquidMode === 'compose') setLiquidMode(liquidChatState.activeConversationId ? 'messages' : 'hub');
+}
+
+function renderLiquidUserCard(user, context = 'search') {
+  return `
+    <div class="${context === 'pick' ? 'liquid-picked-member' : 'liquid-search-item'}">
+      <div class="liquid-avatar">
+        ${user.avatar_url ? `<img src="${escapeAttr(user.avatar_url)}" loading="lazy" decoding="async" referrerpolicy="no-referrer">` : safeInitial(user.username)}
+      </div>
+      <div class="liquid-item-main">
+        <div class="liquid-item-title">
+          <span>${escapeHtml(user.username || '未知用户')}</span>
+          ${renderLevelBadge(user)}
+          ${renderTitleBadge(user)}
+          ${renderRoleBadge(user.role)}
+        </div>
+        <div class="liquid-item-sub">${escapeHtml(user.signature || '这个用户还没有留下签名。')}</div>
+      </div>
+      ${context === 'pick'
+        ? `<button class="liquid-chip-btn ghost" onclick="toggleLiquidGroupMember('${escapeAttr(user.id)}')">移除</button>`
+        : `<button class="liquid-chip-btn primary" onclick="openLiquidUserChat('${escapeAttr(user.id)}')">私信</button>`}
+    </div>
+  `;
+}
+
+function renderLiquidGroupCard(group) {
+  return `
+    <div class="liquid-group-card">
+      <div class="liquid-group-top">
+        <div class="liquid-item-main">
+          <div class="liquid-item-title">${escapeHtml(group.title || '未命名群组')}</div>
+          <div class="liquid-item-sub">${escapeHtml(group.description || '暂无群组介绍')}</div>
+        </div>
+        <button class="liquid-chip-btn ${group.joined ? 'ghost' : 'primary'}" onclick="handleLiquidGroupAction('${escapeAttr(group.id)}')">${group.joined ? '打开' : '加入'}</button>
+      </div>
+      <div class="liquid-group-stats">
+        <span class="liquid-stat-chip">${Number(group.member_count || 0)} 位成员</span>
+        <span class="liquid-stat-chip">${group.joined ? '已加入' : '可加入'}</span>
+      </div>
+    </div>
+  `;
+}
+
+async function loadLiquidDiscovery(query = '') {
+  const userWrap = document.getElementById('liquidUserResults');
+  const groupWrap = document.getElementById('liquidGroupResults');
+  liquidSearchState.query = String(query || '').trim();
+  liquidSearchState.busy = true;
+  if (userWrap) userWrap.innerHTML = '<div class="liquid-empty">正在搜索用户…</div>';
+  if (groupWrap) groupWrap.innerHTML = '<div class="liquid-empty">正在搜索群组…</div>';
+
+  try {
+    const authHeader = getCommAuthHeader(false);
+    const r = await trackedFetch(`/api/community/discovery?q=${encodeURIComponent(liquidSearchState.query)}`, {
+      headers: authHeader ? { 'Authorization': authHeader } : undefined
+    });
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.msg || '搜索失败');
+    liquidSearchState.users = d.users || [];
+    liquidSearchState.groups = d.groups || [];
+    renderLiquidDiscovery();
+  } catch (error) {
+    if (userWrap) userWrap.innerHTML = `<div class="liquid-empty">${escapeHtml(getUiErrorMessage(error, '搜索失败'))}</div>`;
+    if (groupWrap) groupWrap.innerHTML = `<div class="liquid-empty">${escapeHtml(getUiErrorMessage(error, '搜索失败'))}</div>`;
+  } finally {
+    liquidSearchState.busy = false;
+    updateLiquidBar();
+  }
+}
+
+function renderLiquidDiscovery() {
+  const userWrap = document.getElementById('liquidUserResults');
+  const groupWrap = document.getElementById('liquidGroupResults');
+  if (!userWrap || !groupWrap) return;
+  userWrap.innerHTML = liquidSearchState.users.length
+    ? liquidSearchState.users.map(user => renderLiquidUserCard(user)).join('')
+    : '<div class="liquid-empty">没有搜到匹配的用户。</div>';
+  groupWrap.innerHTML = liquidSearchState.groups.length
+    ? liquidSearchState.groups.map(group => renderLiquidGroupCard(group)).join('')
+    : '<div class="liquid-empty">没有搜到匹配的群组。</div>';
+}
+
+async function openLiquidUserChat(userId) {
+  if (!commUser) return openCommAuth();
+  const authHeader = getCommAuthHeader();
+  if (!authHeader) return;
+  try {
+    const r = await trackedFetch('/api/community/chats/direct', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': authHeader },
+      body: JSON.stringify({ target_user_id: userId })
+    });
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.msg || '无法创建会话');
+    await refreshLiquidConversations({ focusConversationId: d.conversation?.id || '' });
+    openLiquidSurface('messages');
+  } catch (error) {
+    showToast(getUiErrorMessage(error, '开启私信失败'), 'error');
+  }
+}
+
+async function handleLiquidGroupAction(groupId) {
+  const current = liquidSearchState.groups.find(item => item.id === groupId);
+  if (!current) return;
+  if (current.joined) {
+    liquidSurfaceMode = 'messages';
+    openLiquidSurface('messages');
+    await refreshLiquidConversations();
+    const next = liquidChatState.conversations.find(item => item.id === groupId);
+    if (next) openLiquidConversation(groupId);
+    return;
+  }
+  if (!commUser) return openCommAuth();
+  const authHeader = getCommAuthHeader();
+  if (!authHeader) return;
+  try {
+    const r = await trackedFetch('/api/community/groups/join', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': authHeader },
+      body: JSON.stringify({ conversation_id: groupId })
+    });
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.msg || '加入失败');
+    showToast('已加入群组', 'success');
+    await loadLiquidDiscovery(liquidSearchState.query);
+    await refreshLiquidConversations({ focusConversationId: groupId });
+    openLiquidSurface('messages');
+  } catch (error) {
+    showToast(getUiErrorMessage(error, '加入群组失败'), 'error');
+  }
+}
+
+async function refreshLiquidConversations(options = {}) {
+  const { focusConversationId = '' } = options;
+  const list = document.getElementById('liquidConversationList');
+  if (!commUser) {
+    liquidChatState.conversations = [];
+    liquidChatState.activeConversationId = '';
+    liquidChatState.unreadTotal = 0;
+    if (list) list.innerHTML = '<div class="liquid-empty">登录后才能查看私信和群组会话。</div>';
+    renderLiquidThread();
+    updateLiquidBar();
+    return;
+  }
+  const authHeader = getCommAuthHeader(false);
+  if (!authHeader) return;
+  if (list) list.innerHTML = '<div class="liquid-empty">正在同步会话列表…</div>';
+  try {
+    const r = await trackedFetch('/api/community/chats', {
+      headers: { 'Authorization': authHeader }
+    });
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.msg || '加载会话失败');
+    liquidChatState.conversations = d.conversations || [];
+    liquidChatState.unreadTotal = Number(d.unread_total || 0);
+    if (focusConversationId) {
+      liquidChatState.activeConversationId = focusConversationId;
+    } else if (!liquidChatState.activeConversationId && liquidChatState.conversations[0]) {
+      liquidChatState.activeConversationId = liquidChatState.conversations[0].id;
+    } else if (liquidChatState.activeConversationId && !liquidChatState.conversations.some(item => item.id === liquidChatState.activeConversationId)) {
+      liquidChatState.activeConversationId = liquidChatState.conversations[0]?.id || '';
+    }
+    renderLiquidConversations();
+    if (liquidChatState.activeConversationId) {
+      await loadLiquidMessages(liquidChatState.activeConversationId, { silent: true });
+    } else {
+      liquidChatState.messages = [];
+      renderLiquidThread();
+    }
+  } catch (error) {
+    if (list) list.innerHTML = `<div class="liquid-empty">${escapeHtml(getUiErrorMessage(error, '加载会话失败'))}</div>`;
+  } finally {
+    updateLiquidBar();
+  }
+}
+
+function renderLiquidConversations() {
+  const list = document.getElementById('liquidConversationList');
+  if (!list) return;
+  if (!liquidChatState.conversations.length) {
+    list.innerHTML = '<div class="liquid-empty">还没有会话。先去搜索一个用户，或者加入一个群组。</div>';
+    return;
+  }
+  list.innerHTML = liquidChatState.conversations.map(conv => `
+    <button class="liquid-conv-card${conv.id === liquidChatState.activeConversationId ? ' active' : ''}" onclick="openLiquidConversation('${escapeAttr(conv.id)}')">
+      <span class="liquid-avatar">
+        ${conv.avatar_url ? `<img src="${escapeAttr(conv.avatar_url)}" loading="lazy" decoding="async" referrerpolicy="no-referrer">` : safeInitial(conv.title)}
+      </span>
+      <span class="liquid-item-main">
+        <span class="liquid-item-title">${escapeHtml(conv.title || '未命名会话')}</span>
+        <span class="liquid-item-sub">${escapeHtml(conv.last_message ? `${conv.last_sender_name ? conv.last_sender_name + ' · ' : ''}${conv.last_message}` : (conv.description || '还没有消息，先发第一句吧。'))}</span>
+        <span class="liquid-item-meta">${conv.kind === 'group' ? `${Number(conv.member_count || 0)} 人群组` : '私信'} · ${escapeHtml(formatLiquidTime(conv.last_message_at || conv.updated_at))}</span>
+      </span>
+      ${Number(conv.unread_count || 0) > 0 ? `<span class="liquid-conv-badge">${Math.min(99, Number(conv.unread_count || 0))}</span>` : ''}
+    </button>
+  `).join('');
+}
+
+async function openLiquidConversation(conversationId) {
+  liquidChatState.activeConversationId = conversationId;
+  setLiquidMode('messages');
+  renderLiquidConversations();
+  renderLiquidThread();
+  await loadLiquidMessages(conversationId);
+}
+
+async function loadLiquidMessages(conversationId, options = {}) {
+  const { silent = false } = options;
+  const authHeader = getCommAuthHeader(false);
+  if (!authHeader || !conversationId) return;
+  const body = document.getElementById('liquidThreadBody');
+  if (!silent && body) body.innerHTML = '<div class="liquid-thread-empty">正在加载消息…</div>';
+  try {
+    const r = await trackedFetch(`/api/community/chats/messages?conversation_id=${encodeURIComponent(conversationId)}`, {
+      headers: { 'Authorization': authHeader }
+    });
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.msg || '读取消息失败');
+    liquidChatState.messages = d.messages || [];
+    const active = liquidChatState.conversations.find(item => item.id === conversationId);
+    if (active) active.unread_count = 0;
+    liquidChatState.unreadTotal = liquidChatState.conversations.reduce((sum, item) => sum + Number(item.unread_count || 0), 0);
+    renderLiquidConversations();
+    renderLiquidThread();
+  } catch (error) {
+    if (body) body.innerHTML = `<div class="liquid-thread-empty">${escapeHtml(getUiErrorMessage(error, '读取消息失败'))}</div>`;
+  } finally {
+    updateLiquidBar();
+  }
+}
+
+function renderLiquidThread() {
+  const head = document.getElementById('liquidThreadHead');
+  const body = document.getElementById('liquidThreadBody');
+  if (!head || !body) return;
+  const active = liquidChatState.conversations.find(item => item.id === liquidChatState.activeConversationId) || null;
+  if (!active) {
+    head.innerHTML = `
+      <div class="liquid-avatar">8</div>
+      <div class="liquid-item-main">
+        <div class="liquid-item-title">选择一个会话</div>
+        <div class="liquid-item-sub">会话固定后，底栏中间区域会直接变成消息输入条。</div>
+      </div>
+    `;
+    body.innerHTML = '<div class="liquid-thread-empty">右侧没有选中任何会话。</div>';
+    return;
+  }
+  head.innerHTML = `
+    <div class="liquid-avatar">
+      ${active.avatar_url ? `<img src="${escapeAttr(active.avatar_url)}" loading="lazy" decoding="async" referrerpolicy="no-referrer">` : safeInitial(active.title)}
+    </div>
+    <div class="liquid-item-main">
+      <div class="liquid-item-title">${escapeHtml(active.title || '未命名会话')}</div>
+      <div class="liquid-item-sub">${escapeHtml(active.kind === 'group' ? `${Number(active.member_count || 0)} 位成员 · ${active.description || '群组会话'}` : (active.description || '私信会话'))}</div>
+    </div>
+  `;
+  body.innerHTML = liquidChatState.messages.length
+    ? liquidChatState.messages.map(message => {
+        const isSelf = message.sender_id === commUser?.id;
+        return `
+          <div class="liquid-bubble${isSelf ? ' self' : ''}">
+            ${!isSelf ? `<div class="liquid-bubble-author">${escapeHtml(message.sender?.username || '系统')}</div>` : ''}
+            <div class="liquid-bubble-text">${escapeHtml(message.content || '')}</div>
+            <div class="liquid-bubble-time">${escapeHtml(formatLiquidTime(message.created_at))}</div>
+          </div>
+        `;
+      }).join('')
+    : '<div class="liquid-thread-empty">这条会话还没有消息，先从底栏发第一句。</div>';
+  body.scrollTop = body.scrollHeight;
+}
+
+async function sendLiquidMessage() {
+  const active = liquidChatState.conversations.find(item => item.id === liquidChatState.activeConversationId);
+  const input = document.getElementById('liquidCenterInput');
+  if (!active || !input) return;
+  const content = input.value.trim();
+  if (!content) return;
+  const authHeader = getCommAuthHeader();
+  if (!authHeader) return;
+  input.value = '';
+  try {
+    const r = await trackedFetch('/api/community/chats/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': authHeader },
+      body: JSON.stringify({ conversation_id: active.id, content })
+    });
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.msg || '发送失败');
+    liquidChatState.messages.push(d.message);
+    active.last_message = d.message.content;
+    active.last_message_at = d.message.created_at;
+    active.last_sender_name = d.message.sender?.username || commUser?.username || '';
+    renderLiquidThread();
+    renderLiquidConversations();
+  } catch (error) {
+    input.value = content;
+    showToast(getUiErrorMessage(error, '消息发送失败'), 'error');
+  }
+}
+
+function handleLiquidInlineAction() {
+  if (liquidMode === 'messages') {
+    sendLiquidMessage();
+    return;
+  }
+  if (liquidMode === 'search') {
+    openLiquidSurface('search');
+    loadLiquidDiscovery(document.getElementById('liquidCenterInput')?.value || '');
+    return;
+  }
+  openLiquidSurface('compose');
+}
+
+function formatLiquidTime(value) {
+  if (!value) return '刚刚';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '刚刚';
+  const diff = Date.now() - date.getTime();
+  if (diff < 60 * 1000) return '刚刚';
+  if (diff < 60 * 60 * 1000) return `${Math.floor(diff / 60000)} 分钟前`;
+  if (diff < 24 * 60 * 60 * 1000) return `${Math.floor(diff / 3600000)} 小时前`;
+  return date.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
+function renderLiquidGroupBuilder() {
+  const resultWrap = document.getElementById('liquidGroupMemberResults');
+  const pickedWrap = document.getElementById('liquidGroupMemberPicked');
+  if (!resultWrap || !pickedWrap) return;
+  resultWrap.innerHTML = liquidGroupBuilder.candidates.length
+    ? liquidGroupBuilder.candidates.map(user => `
+        <div class="liquid-search-item">
+          <div class="liquid-avatar">
+            ${user.avatar_url ? `<img src="${escapeAttr(user.avatar_url)}" loading="lazy" decoding="async" referrerpolicy="no-referrer">` : safeInitial(user.username)}
+          </div>
+          <div class="liquid-item-main">
+            <div class="liquid-item-title">${escapeHtml(user.username || '未知用户')} ${renderLevelBadge(user)}</div>
+            <div class="liquid-item-sub">${escapeHtml(user.signature || '这个用户还没有签名。')}</div>
+          </div>
+          <button class="liquid-chip-btn primary" onclick="toggleLiquidGroupMember('${escapeAttr(user.id)}')">${liquidGroupBuilder.selected.some(item => item.id === user.id) ? '已选' : '邀请'}</button>
+        </div>
+      `).join('')
+    : '<div class="liquid-empty">没有更多候选用户。</div>';
+  pickedWrap.innerHTML = liquidGroupBuilder.selected.length
+    ? liquidGroupBuilder.selected.map(user => renderLiquidUserCard(user, 'pick')).join('')
+    : '<div class="liquid-empty">还没有选择成员。</div>';
+}
+
+async function seedLiquidGroupCandidates() {
+  try {
+    const authHeader = getCommAuthHeader(false);
+    const r = await trackedFetch('/api/community/discovery', {
+      headers: authHeader ? { 'Authorization': authHeader } : undefined
+    });
+    const d = await r.json();
+    liquidGroupBuilder.candidates = (d.users || []).slice(0, 8);
+    renderLiquidGroupBuilder();
+  } catch (error) {
+    const wrap = document.getElementById('liquidGroupMemberResults');
+    if (wrap) wrap.innerHTML = `<div class="liquid-empty">${escapeHtml(getUiErrorMessage(error, '候选用户加载失败'))}</div>`;
+  }
+}
+
+async function searchLiquidGroupMembers(query = '') {
+  if (!commUser) return;
+  try {
+    const authHeader = getCommAuthHeader(false);
+    const r = await trackedFetch(`/api/community/discovery?q=${encodeURIComponent(query || '')}`, {
+      headers: authHeader ? { 'Authorization': authHeader } : undefined
+    });
+    const d = await r.json();
+    liquidGroupBuilder.candidates = (d.users || []).slice(0, 8);
+    renderLiquidGroupBuilder();
+  } catch (error) {}
+}
+
+function toggleLiquidGroupMember(userId) {
+  const existingIndex = liquidGroupBuilder.selected.findIndex(user => user.id === userId);
+  if (existingIndex >= 0) {
+    liquidGroupBuilder.selected.splice(existingIndex, 1);
+    renderLiquidGroupBuilder();
+    return;
+  }
+  if (liquidGroupBuilder.selected.length >= 12) {
+    showToast('群组最多选择 12 位成员', 'error');
+    return;
+  }
+  const candidate = liquidGroupBuilder.candidates.find(user => user.id === userId);
+  if (!candidate) return;
+  liquidGroupBuilder.selected.push(candidate);
+  renderLiquidGroupBuilder();
+}
+
+function resetLiquidGroupBuilder() {
+  liquidGroupBuilder.selected = [];
+  document.getElementById('liquid-group-title').value = '';
+  document.getElementById('liquid-group-desc').value = '';
+  document.getElementById('liquid-group-search').value = '';
+  seedLiquidGroupCandidates();
+  renderLiquidGroupBuilder();
+}
+
+async function createLiquidGroup() {
+  if (!commUser) return openCommAuth();
+  const authHeader = getCommAuthHeader();
+  if (!authHeader) return;
+  const title = document.getElementById('liquid-group-title').value.trim();
+  const description = document.getElementById('liquid-group-desc').value.trim();
+  if (!title) {
+    showToast('请输入群组名称', 'error');
+    return;
+  }
+  try {
+    const r = await trackedFetch('/api/community/groups', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': authHeader },
+      body: JSON.stringify({
+        title,
+        description,
+        member_ids: liquidGroupBuilder.selected.map(user => user.id)
+      })
+    });
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.msg || '创建失败');
+    showToast('群组已创建', 'success');
+    resetLiquidGroupBuilder();
+    await refreshLiquidConversations({ focusConversationId: d.conversation_id || '' });
+    openLiquidSurface('messages');
+  } catch (error) {
+    showToast(getUiErrorMessage(error, '群组创建失败'), 'error');
+  }
+}
+
+function attachLiquidScrollObservers() {
+  document.querySelectorAll('.page').forEach(page => {
+    page.addEventListener('scroll', event => {
+      const target = event.currentTarget;
+      if (!target.classList.contains('active')) return;
+      const top = target.scrollTop || 0;
+      const root = document.getElementById('liquidBar');
+      if (!root) return;
+      if (top > liquidLastScrollTop + 18 && top > 28) root.classList.add('compact');
+      if (top < liquidLastScrollTop - 12 || top <= 12) root.classList.remove('compact');
+      liquidLastScrollTop = top;
+    }, { passive: true });
+  });
+}
+
+function attachLiquidInputEvents() {
+  const input = document.getElementById('liquidCenterInput');
+  if (!input) return;
+  input.addEventListener('focus', () => {
+    if (liquidMode === 'search') openLiquidSurface('search');
+  });
+  input.addEventListener('input', event => {
+    if (liquidMode !== 'search') return;
+    if (liquidSearchDebounceTimer) clearTimeout(liquidSearchDebounceTimer);
+    liquidSearchDebounceTimer = setTimeout(() => {
+      openLiquidSurface('search');
+      loadLiquidDiscovery(event.target.value);
+    }, 180);
+  });
+  input.addEventListener('keydown', event => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    handleLiquidInlineAction();
+  });
+}
+
+function startLiquidChatPolling() {
+  if (liquidChatPollTimer) clearInterval(liquidChatPollTimer);
+  liquidChatPollTimer = setInterval(() => {
+    if (document.visibilityState !== 'visible' || !commUser?.id) return;
+    refreshLiquidConversations();
+  }, 12000);
+}
+
+function initLiquidBar() {
+  renderLiquidNavPicker();
+  attachLiquidNavGesture();
+  attachLiquidScrollObservers();
+  attachLiquidInputEvents();
+  seedLiquidGroupCandidates();
+  refreshLiquidConversations();
+  startLiquidChatPolling();
+  updateLiquidBar();
+}
+
 function openCommPostModal() { 
   if (!commUser) return openCommAuth();
   document.getElementById('commPostModal').classList.add('open');
@@ -2478,6 +4177,8 @@ function updateCommUI() {
     fab.style.display = 'none';
     if (adminNav) adminNav.style.display = 'none';
   }
+  renderLiquidNavPicker();
+  updateLiquidBar();
 }
 
 async function syncCurrentCommunityUser(options = {}) {
@@ -3102,9 +4803,22 @@ function renderPostCard(p) {
   const username = escapeHtml(p.username || '未知用户');
   const avatarUrl = p.avatar_url ? escapeAttr(p.avatar_url) : '';
   const displayInitial = safeInitial(p.username);
-  const mediaUrl = media[0]?.url ? escapeAttr(media[0].url) : '';
   const profileNameArg = encodeInlineArg(p.username);
   const profileIdArg = encodeInlineArg(p.user_id);
+  
+  let mediaHtml = '';
+  if (media.length > 0) {
+    const gridClass = `count-${Math.min(media.length, 9)}`;
+    mediaHtml = `
+      <div class="media-grid ${gridClass}">
+        ${media.map(m => `
+          <div class="media-grid-item" onclick='event.stopPropagation(); openImgViewerEncoded("${encodeInlineArg(m.url)}")'>
+            <img data-src="${escapeAttr(m.url)}" class="lazy-img" loading="lazy" decoding="async" referrerpolicy="no-referrer">
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
   
   return `
     <div class="glass-card waterfall-item stream-card" data-post-card="${p.id}" style="padding:16px; display:flex; flex-direction:column; gap:10px;">
@@ -3124,7 +4838,7 @@ function renderPostCard(p) {
         ${(isOwner || isAdmin) ? `<div onclick="deletePost('${p.id}')" style="cursor:pointer; opacity:0.3; font-size:14px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></div>` : ''}
       </div>
       <div onclick="navToPost('${p.id}')" style="font-size:16px; line-height:1.5; white-space:pre-wrap; color:var(--text); cursor:pointer;">${formatContent(p.content)}</div>
-      ${mediaUrl ? `<img data-src="${mediaUrl}" onclick='openImgViewerEncoded("${encodeInlineArg(media[0].url)}")' class="lazy-img" style="width:100%; border-radius:12px; margin-top:4px; border:1px solid var(--border); cursor:pointer;" loading="lazy" decoding="async" referrerpolicy="no-referrer">` : ''}
+      ${mediaHtml}
       
       
       ${p.inline_comments && p.inline_comments.length > 0 ? 
@@ -3434,7 +5148,7 @@ async function loadNotifies() {
       return;
     }
     list.innerHTML = d.notifications.map(n => {
-      const texts = { 'like': '点赞了你的帖子', 'follow': '关注了你', 'repost': '转发了你的帖子', 'comment': '评论了你的帖子' };
+      const texts = { 'like': '点赞了你的帖子', 'follow': '关注了你', 'repost': '转发了你的帖子', 'comment': '评论了你的帖子', 'message': '给你发来一条私信' };
       const avatarUrl = n.avatar_url ? escapeAttr(n.avatar_url) : '';
       const userNameArg = encodeInlineArg(n.username);
       const userIdArg = encodeInlineArg(n.user_id || n.from_user_id || '');
@@ -3634,6 +5348,8 @@ async function commAuth(action) {
       commUser = normalizeCommunityUserRole(d.user);
       localStorage.setItem('commUser', JSON.stringify(commUser));
       updateCommUI();
+      resetLiquidGroupBuilder();
+      refreshLiquidConversations();
       closeCommAuth();
       showToast(action === 'login' ? '欢迎回来' : '注册成功', 'success');
       syncCurrentCommunityUser({ silent: true, force: true, source: 'login' });
@@ -3647,7 +5363,16 @@ async function commAuth(action) {
 function commLogout() {
   commUser = null;
   localStorage.removeItem('commUser');
+  liquidChatState.conversations = [];
+  liquidChatState.activeConversationId = '';
+  liquidChatState.messages = [];
+  liquidChatState.unreadTotal = 0;
+  liquidGroupBuilder.selected = [];
   updateCommUI();
+  renderLiquidThread();
+  renderLiquidConversations();
+  closeLiquidSurface();
+  setLiquidMode('hub');
   redirectToCommunityAfterLogout();
   showToast('已退出登录', 'info');
 }
@@ -3744,24 +5469,53 @@ async function submitComment() {
   } catch(e) { showToast(getUiErrorMessage(e, '评论发送失败，请稍后重试'), 'error'); }
 }
 
-let currentCommFile = null;
+let commFiles = [];
 function handleCommFile(input) {
-  const file = input.files[0];
-  if (!file) return;
-  currentCommFile = file;
-  const reader = new FileReader();
-  reader.onload = e => {
-    document.getElementById('comm-preview-img').src = e.target.result;
-    document.getElementById('comm-preview-wrap').style.display = 'block';
-  };
-  reader.readAsDataURL(file);
+  const files = Array.from(input.files);
+  if (commFiles.length + files.length > 9) {
+    showToast('最多只能上传 9 张图片', 'error');
+  }
+  
+  const remaining = 9 - commFiles.length;
+  const toAdd = files.slice(0, remaining);
+  
+  toAdd.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const id = Math.random().toString(36).substr(2, 9);
+      commFiles.push({ id, file, src: e.target.result });
+      renderCommPreviews();
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
+}
+
+function renderCommPreviews() {
+  const wrap = document.getElementById('comm-preview-wrap');
+  if (commFiles.length === 0) {
+    wrap.style.display = 'none';
+    wrap.innerHTML = '';
+    return;
+  }
+  
+  wrap.style.display = 'grid';
+  wrap.innerHTML = commFiles.map(item => `
+    <div class="comm-post-preview-item">
+      <img src="${item.src}">
+      <button class="remove-btn" onclick="removeCommImage('${item.id}')">✕</button>
+    </div>
+  `).join('');
+}
+
+function removeCommImage(id) {
+  commFiles = commFiles.filter(item => item.id !== id);
+  renderCommPreviews();
 }
 
 function cancelCommImage() {
-  currentCommFile = null;
-  document.getElementById('comm-file-input').value = '';
-  document.getElementById('comm-preview-wrap').style.display = 'none';
-  document.getElementById('comm-preview-img').src = '';
+  commFiles = [];
+  renderCommPreviews();
 }
 
 function getCommAuthTokenOrPrompt() {
@@ -3773,34 +5527,35 @@ async function submitCommPost() {
   const authToken = getCommAuthTokenOrPrompt();
   if (!authToken) return;
   const content = document.getElementById('comm-post-content').value.trim();
-  if (!content && !currentCommFile) return showToast('请输入内容或上传图片', 'error');
+  if (!content && commFiles.length === 0) return showToast('请输入内容或上传图片', 'error');
   
   const btn = document.getElementById('comm-submit-btn');
   btn.disabled = true; btn.textContent = '发布中...';
   
   try {
     let media = [];
-    if (currentCommFile) {
-      const rUpload = await trackedFetch('/api/community/upload', {
-        method: 'POST',
-        headers: { 
-          'Authorization': authToken,
-          'Content-Type': currentCommFile.type 
-        },
-        body: await readFileAsArrayBuffer(currentCommFile)
-      });
-      const dUpload = await rUpload.json();
-      if (dUpload.ok) {
-        media.push({ url: dUpload.url });
-      } else {
-        if (rUpload.status === 401 || dUpload.msg === 'No Auth') {
-          commLogout();
-          openCommAuth();
-          showToast('登录状态已失效，请重新登录后再发布', 'error');
-          return;
+    if (commFiles.length > 0) {
+      for (const item of commFiles) {
+        const rUpload = await trackedFetch('/api/community/upload', {
+          method: 'POST',
+          headers: { 
+            'Authorization': authToken,
+            'Content-Type': item.file.type 
+          },
+          body: await readFileAsArrayBuffer(item.file)
+        });
+        const dUpload = await rUpload.json();
+        if (dUpload.ok) {
+          media.push({ type: 'image', url: dUpload.url });
+        } else {
+          if (rUpload.status === 401 || dUpload.msg === 'No Auth') {
+            commLogout();
+            openCommAuth();
+            showToast('登录状态已失效，请重新登录后再发布', 'error');
+            return;
+          }
+          throw new Error(dUpload.msg || '图片上传失败');
         }
-        showToast(sanitizeErrorMessage(dUpload.msg, '图片上传失败，请换一张图或稍后重试'), 'error');
-        return;
       }
     }
     
@@ -3819,8 +5574,7 @@ async function submitCommPost() {
       closeCommPostModal();
       document.getElementById('comm-post-content').value = '';
       resetCommComposerPreview();
-      document.getElementById('comm-preview-wrap').style.display = 'none';
-      currentCommFile = null;
+      cancelCommImage();
       loadCommPosts();
     } else {
       if (r.status === 401 || d.msg === 'No Auth') {
@@ -3829,10 +5583,10 @@ async function submitCommPost() {
         showToast('登录状态已失效，请重新登录后再发布', 'error');
         return;
       }
-      showToast(sanitizeErrorMessage(d.msg, '发布失败，请稍后重试'), 'error');
+      throw new Error(d.msg || '发布失败');
     }
   } catch(e) { 
-    showToast(getUiErrorMessage(e, '发布失败，请检查网络后重试'), 'error'); 
+    showToast(getUiErrorMessage(e, '发布失败'), 'error'); 
   }
   finally { btn.disabled = false; btn.textContent = '发布'; }
 }
@@ -3869,10 +5623,15 @@ document.addEventListener('click', (e) => {
   if (picker && !picker.contains(e.target) && picker.style.display === 'grid' && !e.target.closest('[onclick^="toggleEmoji"]')) {
     picker.style.display = 'none';
   }
+  const liquidPicker = document.getElementById('liquidNavPicker');
+  if (liquidPicker && liquidPicker.classList.contains('open') && !e.target.closest('#liquidNavPicker') && !e.target.closest('#liquidNavTrigger')) {
+    closeLiquidNavPicker();
+  }
 });
 
 // Init Community
 updateCommUI();
+initLiquidBar();
 maybeShowAnnouncement();
 startAnnouncementPolling();
 startCommunityRoleSync();
@@ -3885,7 +5644,7 @@ document.addEventListener('visibilitychange', () => {
 </script>
 
 <script>
-let currentPage = 'community';
+currentPage = currentPage || 'community';
 let _navLock = false;
 
 function redirectToCommunityAfterLogout() {
@@ -3899,6 +5658,7 @@ function redirectToCommunityAfterLogout() {
 
 async function navTo(page, push = true) {
   closeDrawer();
+  closeLiquidNavPicker();
   if (page === currentPage || _navLock) return;
   _navLock = true;
   setTimeout(() => _navLock = false, 480);
@@ -3960,18 +5720,8 @@ async function navTo(page, push = true) {
   
   currentPage = page;
   const fab = document.getElementById('comm-post-fab');
-  if (fab) if (fab) {
-    if (page === 'community') {
-      fab.style.display = 'flex';
-      if (!commUser) {
-        fab.style.opacity = '1'; // 不要半透明，直接显示，点击时引导登录即可
-      } else {
-        fab.style.opacity = '1';
-      }
-    } else {
-      fab.style.display = 'none';
-    }
-  }
+  if (fab) fab.style.display = 'none';
+  updateLiquidBar();
 }
 
 window.addEventListener('popstate', e => {

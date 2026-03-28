@@ -64,3 +64,42 @@ CREATE TABLE IF NOT EXISTS reports (
     status TEXT DEFAULT 'pending', -- 'pending', 'resolved', 'ignored'
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS conversations (
+    id TEXT PRIMARY KEY,
+    kind TEXT NOT NULL DEFAULT 'direct', -- 'direct' or 'group'
+    title TEXT,
+    description TEXT,
+    avatar_url TEXT,
+    direct_key TEXT UNIQUE,
+    created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS conversation_members (
+    conversation_id TEXT REFERENCES conversations(id) ON DELETE CASCADE,
+    user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+    role TEXT DEFAULT 'member', -- 'owner', 'admin', 'member'
+    last_read_at DATETIME,
+    joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY(conversation_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS messages (
+    id TEXT PRIMARY KEY,
+    conversation_id TEXT REFERENCES conversations(id) ON DELETE CASCADE,
+    sender_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+    content TEXT NOT NULL,
+    meta_json TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_conversations_kind_updated
+    ON conversations(kind, updated_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_conversation_members_user
+    ON conversation_members(user_id, joined_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_messages_conversation_created
+    ON messages(conversation_id, created_at DESC);

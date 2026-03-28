@@ -280,6 +280,173 @@ async function collectRecentCommunityMediaFileIds(env, limit = 24) {
 
   return ids.slice(0, maxItems);
 }
+
+const DEFAULT_COMMUNITY_GROUPS = [
+  {
+    id: 'group-campus-pulse',
+    title: 'Campus Pulse',
+    description: '全站信息流的延伸空间，适合发起临时协作、问路和实时讨论。'
+  },
+  {
+    id: 'group-night-studio',
+    title: 'Night Studio',
+    description: '晚修、任务推进和互相催更的高密度讨论组。'
+  },
+  {
+    id: 'group-xiangqi-lab',
+    title: 'Xiangqi Lab',
+    description: '象棋对局、复盘和残局研究集中区。'
+  },
+  {
+    id: 'group-node-radar',
+    title: 'Node Radar',
+    description: '节点分享、测速反馈和网络状态交流。'
+  }
+];
+
+let communityMessagingSetupPromise = null;
+
+function buildDirectConversationKey(userA, userB) {
+  return [String(userA || '').trim(), String(userB || '').trim()].sort().join(':');
+}
+
+async function ensureCommunityMessagingSchema(env) {
+  if (communityMessagingSetupPromise) return communityMessagingSetupPromise;
+
+  communityMessagingSetupPromise = (async () => {
+    await env.COMMUNITY_DB.batch([
+      env.COMMUNITY_DB.prepare(`
+        CREATE TABLE IF NOT EXISTS conversations (
+          id TEXT PRIMARY KEY,
+          kind TEXT NOT NULL DEFAULT 'direct',
+          title TEXT,
+          description TEXT,
+          avatar_url TEXT,
+          direct_key TEXT UNIQUE,
+          created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `),
+      env.COMMUNITY_DB.prepare(`
+        CREATE TABLE IF NOT EXISTS conversation_members (
+          conversation_id TEXT REFERENCES conversations(id) ON DELETE CASCADE,
+          user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+          role TEXT DEFAULT 'member',
+          last_read_at DATETIME,
+          joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY(conversation_id, user_id)
+        )
+      `),
+      env.COMMUNITY_DB.prepare(`
+        CREATE TABLE IF NOT EXISTS messages (
+          id TEXT PRIMARY KEY,
+          conversation_id TEXT REFERENCES conversations(id) ON DELETE CASCADE,
+          sender_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+          content TEXT NOT NULL,
+          meta_json TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `),
+      env.COMMUNITY_DB.prepare("CREATE INDEX IF NOT EXISTS idx_conversations_kind_updated ON conversations(kind, updated_at DESC)"),
+      env.COMMUNITY_DB.prepare("CREATE INDEX IF NOT EXISTS idx_conversation_members_user ON conversation_members(user_id, joined_at DESC)"),
+      env.COMMUNITY_DB.prepare("CREATE INDEX IF NOT EXISTS idx_messages_conversation_created ON messages(conversation_id, created_at DESC)")
+    ]);
+
+    for (const group of DEFAULT_COMMUNITY_GROUPS) {
+      await env.COMMUNITY_DB.prepare(`
+        INSERT OR IGNORE INTO conversations (id, kind, title, description, direct_key, created_by, updated_at)
+        VALUES (?, 'group', ?, ?, NULL, NULL, CURRENT_TIMESTAMP)
+      `).bind(group.id, group.title, group.description).run();
+    }
+  })().catch(error => {
+    communityMessagingSetupPromise = null;
+    throw error;
+  });
+
+  return communityMessagingSetupPromise;
+}
+
+async function getConversationMembership(env, conversationId, userId) {
+  return await env.COMMUNITY_DB.prepare(`
+    SELECT c.*, cm.role AS member_role, cm.last_read_at, cm.joined_at
+    FROM conversations c
+    JOIN conversation_members cm ON cm.conversation_id = c.id
+    WHERE c.id = ? AND cm.user_id = ?
+  `).bind(conversationId, userId).first();
+}
+
+async function serializeConversation(env, conversation, viewerId) {
+  if (!conversation) return null;
+  const base = {
+    id: conversation.id,
+    kind: conversation.kind,
+    title: conversation.title || '',
+    description: conversation.description || '',
+    avatar_url: conversation.avatar_url || '',
+    member_role: conversation.member_role || 'member',
+    created_at: conversation.created_at,
+    updated_at: conversation.updated_at,
+    joined: true,
+    member_count: Number(conversation.member_count || 0),
+    unread_count: Number(conversation.unread_count || 0),
+    last_message: conversation.last_message || '',
+    last_message_at: conversation.last_message_at || conversation.updated_at,
+    last_sender_name: conversation.last_sender_name || '',
+  };
+
+  if (conversation.kind === 'direct') {
+    const partner = await env.COMMUNITY_DB.prepare(`
+      SELECT u.id, u.username, u.avatar_url, u.signature, COALESCE(u.xp, 0) AS xp, COALESCE(u.level, 1) AS level, COALESCE(u.role, 'user') AS role
+      FROM conversation_members cm
+      JOIN users u ON u.id = cm.user_id
+      WHERE cm.conversation_id = ? AND cm.user_id != ?
+      LIMIT 1
+    `).bind(conversation.id, viewerId).first();
+
+    if (partner) {
+      const normalizedPartner = withCommunityLevel({ ...partner, role: normalizeCommunityRole(partner, env) });
+      base.partner = {
+        id: normalizedPartner.id,
+        username: normalizedPartner.username,
+        avatar_url: normalizedPartner.avatar_url,
+        signature: normalizedPartner.signature,
+        xp: normalizedPartner.xp,
+        level: normalizedPartner.level,
+        role: normalizedPartner.role
+      };
+      base.title = normalizedPartner.username || base.title || '未命名会话';
+      base.avatar_url = normalizedPartner.avatar_url || base.avatar_url;
+      base.description = normalizedPartner.signature || base.description;
+    }
+  }
+
+  return base;
+}
+
+async function listUserConversations(env, userId) {
+  const rows = await env.COMMUNITY_DB.prepare(`
+    SELECT
+      c.*,
+      cm.role AS member_role,
+      (SELECT COUNT(*) FROM conversation_members WHERE conversation_id = c.id) AS member_count,
+      (SELECT content FROM messages WHERE conversation_id = c.id ORDER BY created_at DESC LIMIT 1) AS last_message,
+      (SELECT created_at FROM messages WHERE conversation_id = c.id ORDER BY created_at DESC LIMIT 1) AS last_message_at,
+      (SELECT COALESCE(u.username, '系统') FROM messages m LEFT JOIN users u ON u.id = m.sender_id WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1) AS last_sender_name,
+      (SELECT COUNT(*) FROM messages WHERE conversation_id = c.id AND datetime(created_at) > datetime(COALESCE(cm.last_read_at, '1970-01-01 00:00:00'))) AS unread_count
+    FROM conversations c
+    JOIN conversation_members cm ON cm.conversation_id = c.id
+    WHERE cm.user_id = ?
+    ORDER BY datetime(COALESCE((SELECT created_at FROM messages WHERE conversation_id = c.id ORDER BY created_at DESC LIMIT 1), c.updated_at)) DESC
+    LIMIT 50
+  `).bind(userId).all();
+
+  const conversations = [];
+  for (const row of rows.results || []) {
+    conversations.push(await serializeConversation(env, row, userId));
+  }
+  return conversations.filter(Boolean);
+}
 const LINK_PREVIEW_TIMEOUT_MS = 8000;
 const LINK_PREVIEW_MAX_BYTES = 1_500_000;
 const DEFAULT_MUSIC_PUBLIC_BASE_URL = 'https://thefallback.cc.cd';
@@ -911,6 +1078,342 @@ export default {
         await env.COMMUNITY_DB.prepare("INSERT INTO notifications (id, user_id, type, from_user_id, target_id) VALUES (?, ?, ?, ?, ?)")
           .bind(crypto.randomUUID(), userId, type, fromUserId, targetId).run();
       };
+
+      if (url.pathname === '/api/community/discovery' && request.method === 'GET') {
+        await ensureCommunityMessagingSchema(env);
+        const viewer = await getAuth();
+        const q = String(url.searchParams.get('q') || '').trim();
+        const likeQuery = `%${q}%`;
+
+        const userSql = q
+          ? `
+            SELECT id, username, avatar_url, signature, COALESCE(xp, 0) AS xp, COALESCE(level, 1) AS level, COALESCE(role, 'user') AS role
+            FROM users
+            WHERE is_banned = 0 AND (username LIKE ? OR COALESCE(signature, '') LIKE ?)
+            ORDER BY xp DESC, created_at DESC
+            LIMIT 8
+          `
+          : `
+            SELECT id, username, avatar_url, signature, COALESCE(xp, 0) AS xp, COALESCE(level, 1) AS level, COALESCE(role, 'user') AS role
+            FROM users
+            WHERE is_banned = 0
+            ORDER BY xp DESC, created_at DESC
+            LIMIT 8
+          `;
+        const userRows = await env.COMMUNITY_DB.prepare(userSql).bind(...(q ? [likeQuery, likeQuery] : [])).all();
+
+        const groupSql = q
+          ? `
+            SELECT
+              c.id,
+              c.title,
+              c.description,
+              c.avatar_url,
+              c.updated_at,
+              (SELECT COUNT(*) FROM conversation_members WHERE conversation_id = c.id) AS member_count,
+              ? IS NOT NULL AND EXISTS(
+                SELECT 1 FROM conversation_members cm
+                WHERE cm.conversation_id = c.id AND cm.user_id = ?
+              ) AS joined
+            FROM conversations c
+            WHERE c.kind = 'group' AND (COALESCE(c.title, '') LIKE ? OR COALESCE(c.description, '') LIKE ?)
+            ORDER BY datetime(c.updated_at) DESC, c.title COLLATE NOCASE ASC
+            LIMIT 8
+          `
+          : `
+            SELECT
+              c.id,
+              c.title,
+              c.description,
+              c.avatar_url,
+              c.updated_at,
+              (SELECT COUNT(*) FROM conversation_members WHERE conversation_id = c.id) AS member_count,
+              ? IS NOT NULL AND EXISTS(
+                SELECT 1 FROM conversation_members cm
+                WHERE cm.conversation_id = c.id AND cm.user_id = ?
+              ) AS joined
+            FROM conversations c
+            WHERE c.kind = 'group'
+            ORDER BY datetime(c.updated_at) DESC, c.title COLLATE NOCASE ASC
+            LIMIT 8
+          `;
+        const groupRows = await env.COMMUNITY_DB.prepare(groupSql).bind(
+          viewer?.id || null,
+          viewer?.id || null,
+          ...(q ? [likeQuery, likeQuery] : [])
+        ).all();
+
+        const users = (userRows.results || [])
+          .filter(row => row.id !== viewer?.id)
+          .map(row => {
+            const normalized = withCommunityLevel({ ...row, role: normalizeCommunityRole(row, env) });
+            return {
+              id: normalized.id,
+              username: normalized.username,
+              avatar_url: normalized.avatar_url,
+              signature: normalized.signature,
+              xp: normalized.xp,
+              level: normalized.level,
+              role: normalized.role
+            };
+          });
+
+        const groups = (groupRows.results || []).map(row => ({
+          id: row.id,
+          title: row.title,
+          description: row.description,
+          avatar_url: row.avatar_url,
+          updated_at: row.updated_at,
+          member_count: Number(row.member_count || 0),
+          joined: !!row.joined
+        }));
+
+        return jsonResp({ ok: true, users, groups, query: q });
+      }
+
+      if (url.pathname === '/api/community/chats' && request.method === 'GET') {
+        await ensureCommunityMessagingSchema(env);
+        const user = await getAuth();
+        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+        const conversations = await listUserConversations(env, user.id);
+        const unread_total = conversations.reduce((sum, item) => sum + Number(item?.unread_count || 0), 0);
+        return jsonResp({ ok: true, conversations, unread_total });
+      }
+
+      if (url.pathname === '/api/community/chats/direct' && request.method === 'POST') {
+        await ensureCommunityMessagingSchema(env);
+        const user = await getAuth();
+        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+
+        const { target_user_id } = await request.json();
+        const targetId = String(target_user_id || '').trim();
+        if (!targetId || targetId === user.id) return jsonResp({ ok: false, msg: '目标用户无效' }, 400);
+
+        const targetUser = await env.COMMUNITY_DB.prepare("SELECT id FROM users WHERE id = ? AND is_banned = 0").bind(targetId).first();
+        if (!targetUser) return jsonResp({ ok: false, msg: '用户不存在' }, 404);
+
+        const directKey = buildDirectConversationKey(user.id, targetId);
+        let conversation = await env.COMMUNITY_DB.prepare("SELECT * FROM conversations WHERE direct_key = ? LIMIT 1").bind(directKey).first();
+
+        if (!conversation) {
+          const conversationId = crypto.randomUUID();
+          await env.COMMUNITY_DB.prepare(`
+            INSERT INTO conversations (id, kind, title, description, avatar_url, direct_key, created_by, updated_at)
+            VALUES (?, 'direct', '', '', '', ?, ?, CURRENT_TIMESTAMP)
+          `).bind(conversationId, directKey, user.id).run();
+
+          await env.COMMUNITY_DB.batch([
+            env.COMMUNITY_DB.prepare(`
+              INSERT OR IGNORE INTO conversation_members (conversation_id, user_id, role, last_read_at)
+              VALUES (?, ?, 'member', CURRENT_TIMESTAMP)
+            `).bind(conversationId, user.id),
+            env.COMMUNITY_DB.prepare(`
+              INSERT OR IGNORE INTO conversation_members (conversation_id, user_id, role, last_read_at)
+              VALUES (?, ?, 'member', CURRENT_TIMESTAMP)
+            `).bind(conversationId, targetId)
+          ]);
+
+          conversation = await env.COMMUNITY_DB.prepare("SELECT * FROM conversations WHERE id = ?").bind(conversationId).first();
+        }
+
+        const membership = await getConversationMembership(env, conversation.id, user.id);
+        const detail = await serializeConversation(env, {
+          ...conversation,
+          member_role: membership?.member_role || 'member',
+          member_count: 2,
+          unread_count: 0
+        }, user.id);
+        return jsonResp({ ok: true, conversation: detail });
+      }
+
+      if (url.pathname === '/api/community/chats/messages' && request.method === 'GET') {
+        await ensureCommunityMessagingSchema(env);
+        const user = await getAuth();
+        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+
+        const conversationId = String(url.searchParams.get('conversation_id') || '').trim();
+        if (!conversationId) return jsonResp({ ok: false, msg: '缺少会话 ID' }, 400);
+
+        const membership = await getConversationMembership(env, conversationId, user.id);
+        if (!membership) return jsonResp({ ok: false, msg: '会话不存在' }, 404);
+
+        const rows = await env.COMMUNITY_DB.prepare(`
+          SELECT
+            m.*,
+            u.username,
+            u.avatar_url,
+            COALESCE(u.xp, 0) AS xp,
+            COALESCE(u.level, 1) AS level,
+            COALESCE(u.role, 'user') AS role
+          FROM messages m
+          LEFT JOIN users u ON u.id = m.sender_id
+          WHERE m.conversation_id = ?
+          ORDER BY datetime(m.created_at) DESC
+          LIMIT 80
+        `).bind(conversationId).all();
+
+        await env.COMMUNITY_DB.prepare(`
+          UPDATE conversation_members
+          SET last_read_at = CURRENT_TIMESTAMP
+          WHERE conversation_id = ? AND user_id = ?
+        `).bind(conversationId, user.id).run();
+
+        const messages = (rows.results || []).reverse().map(row => {
+          const sender = row.sender_id
+            ? withCommunityLevel({ ...row, role: normalizeCommunityRole(row, env) })
+            : null;
+          return {
+            id: row.id,
+            conversation_id: row.conversation_id,
+            sender_id: row.sender_id,
+            content: row.content,
+            meta_json: row.meta_json,
+            created_at: row.created_at,
+            sender: sender ? {
+              id: sender.sender_id,
+              username: sender.username,
+              avatar_url: sender.avatar_url,
+              xp: sender.xp,
+              level: sender.level,
+              role: sender.role
+            } : null
+          };
+        });
+
+        return jsonResp({ ok: true, messages });
+      }
+
+      if (url.pathname === '/api/community/chats/messages' && request.method === 'POST') {
+        await ensureCommunityMessagingSchema(env);
+        const user = await getAuth();
+        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+
+        const { conversation_id, content, meta } = await request.json();
+        const conversationId = String(conversation_id || '').trim();
+        const trimmedContent = String(content || '').trim();
+        if (!conversationId || !trimmedContent) return jsonResp({ ok: false, msg: '消息内容不能为空' }, 400);
+
+        const membership = await getConversationMembership(env, conversationId, user.id);
+        if (!membership) return jsonResp({ ok: false, msg: '会话不存在' }, 404);
+
+        const messageId = crypto.randomUUID();
+        await env.COMMUNITY_DB.batch([
+          env.COMMUNITY_DB.prepare(`
+            INSERT INTO messages (id, conversation_id, sender_id, content, meta_json)
+            VALUES (?, ?, ?, ?, ?)
+          `).bind(messageId, conversationId, user.id, trimmedContent, JSON.stringify(meta || {})),
+          env.COMMUNITY_DB.prepare(`
+            UPDATE conversations
+            SET updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+          `).bind(conversationId),
+          env.COMMUNITY_DB.prepare(`
+            UPDATE conversation_members
+            SET last_read_at = CURRENT_TIMESTAMP
+            WHERE conversation_id = ? AND user_id = ?
+          `).bind(conversationId, user.id)
+        ]);
+
+        const conversation = await env.COMMUNITY_DB.prepare("SELECT kind FROM conversations WHERE id = ?").bind(conversationId).first();
+        if (conversation?.kind === 'direct') {
+          const peerRows = await env.COMMUNITY_DB.prepare(`
+            SELECT user_id
+            FROM conversation_members
+            WHERE conversation_id = ? AND user_id != ?
+          `).bind(conversationId, user.id).all();
+          for (const row of peerRows.results || []) {
+            await addNotify(row.user_id, 'message', user.id, conversationId);
+          }
+        }
+
+        return jsonResp({
+          ok: true,
+          message: {
+            id: messageId,
+            conversation_id: conversationId,
+            sender_id: user.id,
+            content: trimmedContent,
+            created_at: new Date().toISOString(),
+            sender: {
+              id: user.id,
+              username: user.username,
+              avatar_url: user.avatar_url,
+              xp: user.xp,
+              level: user.level,
+              role: user.role
+            }
+          }
+        });
+      }
+
+      if (url.pathname === '/api/community/groups' && request.method === 'POST') {
+        await ensureCommunityMessagingSchema(env);
+        const user = await getAuth();
+        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+
+        const body = await request.json();
+        const title = String(body.title || '').trim();
+        const description = String(body.description || '').trim();
+        const memberIds = Array.from(new Set((Array.isArray(body.member_ids) ? body.member_ids : []).map(value => String(value || '').trim()).filter(Boolean)));
+
+        if (!title) return jsonResp({ ok: false, msg: '群组名称不能为空' }, 400);
+        if (title.length > 42) return jsonResp({ ok: false, msg: '群组名称太长了' }, 400);
+
+        const validMembers = memberIds.filter(id => id !== user.id).slice(0, 12);
+        const conversationId = crypto.randomUUID();
+        await env.COMMUNITY_DB.prepare(`
+          INSERT INTO conversations (id, kind, title, description, avatar_url, direct_key, created_by, updated_at)
+          VALUES (?, 'group', ?, ?, '', NULL, ?, CURRENT_TIMESTAMP)
+        `).bind(conversationId, title, description, user.id).run();
+
+        const insertStatements = [
+          env.COMMUNITY_DB.prepare(`
+            INSERT OR IGNORE INTO conversation_members (conversation_id, user_id, role, last_read_at)
+            VALUES (?, ?, 'owner', CURRENT_TIMESTAMP)
+          `).bind(conversationId, user.id)
+        ];
+
+        for (const memberId of validMembers) {
+          insertStatements.push(
+            env.COMMUNITY_DB.prepare(`
+              INSERT OR IGNORE INTO conversation_members (conversation_id, user_id, role, last_read_at)
+              VALUES (?, ?, 'member', CURRENT_TIMESTAMP)
+            `).bind(conversationId, memberId)
+          );
+        }
+
+        await env.COMMUNITY_DB.batch(insertStatements);
+        return jsonResp({ ok: true, conversation_id: conversationId });
+      }
+
+      if (url.pathname === '/api/community/groups/join' && request.method === 'POST') {
+        await ensureCommunityMessagingSchema(env);
+        const user = await getAuth();
+        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+
+        const { conversation_id } = await request.json();
+        const conversationId = String(conversation_id || '').trim();
+        const group = await env.COMMUNITY_DB.prepare(`
+          SELECT id, kind
+          FROM conversations
+          WHERE id = ?
+        `).bind(conversationId).first();
+        if (!group || group.kind !== 'group') return jsonResp({ ok: false, msg: '群组不存在' }, 404);
+
+        await env.COMMUNITY_DB.batch([
+          env.COMMUNITY_DB.prepare(`
+            INSERT OR IGNORE INTO conversation_members (conversation_id, user_id, role, last_read_at)
+            VALUES (?, ?, 'member', CURRENT_TIMESTAMP)
+          `).bind(conversationId, user.id),
+          env.COMMUNITY_DB.prepare(`
+            UPDATE conversations
+            SET updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+          `).bind(conversationId)
+        ]);
+
+        return jsonResp({ ok: true });
+      }
 
       if (url.pathname === '/api/community/auth' && request.method === 'POST') {
         try {
