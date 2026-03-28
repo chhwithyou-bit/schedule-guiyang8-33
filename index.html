@@ -139,6 +139,20 @@ html, body {
     opacity: 0.68;
   }
 }
+@keyframes liquidSheen {
+  0% {
+    background-position: 0% 0%, 18% 12%;
+    opacity: 0.88;
+  }
+  50% {
+    background-position: 100% 0%, 24% 8%;
+    opacity: 1;
+  }
+  100% {
+    background-position: 0% 0%, 18% 12%;
+    opacity: 0.9;
+  }
+}
 .stagger > *:nth-child(1) { animation-delay: 0.1s; }
 .stagger > *:nth-child(2) { animation-delay: 0.2s; }
 .stagger > *:nth-child(3) { animation-delay: 0.3s; }
@@ -1274,7 +1288,12 @@ html, body {
   width: min(96vw, 1080px);
   z-index: 9500;
   pointer-events: auto;
-  transition: transform 0.9s cubic-bezier(0.22, 0.82, 0.24, 1), opacity 0.6s ease;
+  will-change: transform, opacity;
+  transition: transform 1.08s cubic-bezier(0.22, 0.82, 0.24, 1), opacity 0.68s ease;
+}
+#liquidBarDock.compact {
+  transform: translateX(-50%) translateY(-8px) scale(0.988);
+  opacity: 0.98;
 }
 #liquidBar {
   position: relative;
@@ -1282,6 +1301,8 @@ html, body {
   isolation: isolate;
   pointer-events: auto;
   touch-action: manipulation;
+  transform-origin: center bottom;
+  will-change: transform, width, border-radius, box-shadow, backdrop-filter;
   padding: 10px;
   border-radius: 34px;
   background:
@@ -1300,13 +1321,14 @@ html, body {
     0 8px 20px rgba(255,119,16,0.10),
     0 4px 14px rgba(112,168,255,0.08);
   transition:
-    width 0.9s cubic-bezier(0.22, 0.82, 0.24, 1),
-    transform 0.9s cubic-bezier(0.22, 0.82, 0.24, 1),
-    border-radius 0.9s cubic-bezier(0.22, 0.82, 0.24, 1),
-    padding 0.9s cubic-bezier(0.22, 0.82, 0.24, 1),
-    box-shadow 0.72s ease,
-    background 0.72s ease,
-    backdrop-filter 0.72s ease;
+    width 1.08s cubic-bezier(0.22, 0.82, 0.24, 1),
+    transform 1.08s cubic-bezier(0.22, 0.82, 0.24, 1),
+    border-radius 1.08s cubic-bezier(0.22, 0.82, 0.24, 1),
+    padding 0.98s cubic-bezier(0.22, 0.82, 0.24, 1),
+    box-shadow 0.88s ease,
+    background 0.88s ease,
+    backdrop-filter 0.88s ease,
+    border-color 0.88s ease;
 }
 #liquidBar::before {
   content: '';
@@ -1316,6 +1338,8 @@ html, body {
   background:
     linear-gradient(180deg, rgba(255,255,255,0.34), rgba(255,255,255,0.12) 16%, rgba(255,255,255,0.04) 34%, transparent 56%, transparent 74%, rgba(255,255,255,0.08)),
     radial-gradient(circle at 20% 10%, rgba(255,255,255,0.24), transparent 24%);
+  background-size: 180% 180%, 100% 100%;
+  animation: liquidSheen 16s ease-in-out infinite;
   pointer-events: none;
 }
 #liquidBar::after {
@@ -1331,27 +1355,39 @@ html, body {
     radial-gradient(circle at 72% 72%, rgba(255,168,94,0.24), transparent 62%);
   filter: blur(16px);
   opacity: 0.7;
+  transform: translate3d(0, 0, 0) scale(1);
   pointer-events: none;
   animation: liquidDrift 13s ease-in-out infinite alternate;
+  transition: transform 1.08s cubic-bezier(0.22, 0.82, 0.24, 1), opacity 0.88s ease;
 }
 #liquidBar.compact {
-  width: clamp(288px, 42vw, 420px);
+  width: clamp(304px, 36vw, 396px);
   padding: 7px 9px;
   border-radius: 999px;
-  transform: scale(0.94);
+  transform: translate3d(0, -3px, 0) scale(0.925);
   background:
     linear-gradient(140deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.03) 30%, rgba(112,168,255,0.06) 58%, rgba(255,168,94,0.08) 100%),
     radial-gradient(circle at 18% 12%, rgba(255,255,255,0.16), transparent 24%),
     rgba(8, 10, 48, 0.28);
+  backdrop-filter: blur(22px) saturate(182%) brightness(1.02);
+  -webkit-backdrop-filter: blur(22px) saturate(182%) brightness(1.02);
+  border-color: rgba(255,255,255,0.13);
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,0.18),
     inset 0 -1px 0 rgba(255,255,255,0.04),
-    0 18px 44px rgba(0,0,0,0.24),
+    0 20px 48px rgba(0,0,0,0.22),
     0 4px 14px rgba(112,168,255,0.06);
 }
-#liquidBar.mode-search,
-#liquidBar.mode-messages {
+#liquidBar.compact::after {
+  opacity: 0.5;
+  transform: translate3d(10%, -10%, 0) scale(0.82);
+}
+#liquidBar.mode-search:not(.compact),
+#liquidBar.mode-messages:not(.compact) {
   width: min(94vw, 1080px);
+}
+#liquidBar.mode-messages.compact {
+  width: min(76vw, 620px);
 }
 .liquid-bar-shell {
   position: relative;
@@ -1605,18 +1641,29 @@ html, body {
 }
 #liquidBar.compact .liquid-bar-shell {
   grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 6px;
+  gap: 5px;
 }
 #liquidBar.compact .liquid-nav-trigger {
-  min-width: 50px;
-  padding: 9px;
+  min-width: 46px;
+  padding: 8px;
 }
 #liquidBar.compact .liquid-bar-center {
   min-height: 44px;
-  padding: 5px 10px 5px 12px;
+  padding: 4px 8px 4px 10px;
 }
 #liquidBar.compact .liquid-center-title {
-  font-size: 12px;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+#liquidBar.compact .liquid-bar-center::before {
+  width: 7px;
+  height: 7px;
+  box-shadow: 0 0 0 5px rgba(255,153,68,0.08), 0 0 14px rgba(255,168,94,0.14);
+}
+#liquidBar.compact .liquid-nav-glyph {
+  width: 30px;
+  height: 30px;
+  border-radius: 15px;
 }
 #liquidBar.compact .liquid-inline-send {
   min-width: 68px;
@@ -3770,6 +3817,13 @@ async function pinLiquidConversation(conversationId, options = {}) {
   if (focusInput) focusLiquidCenterInput();
 }
 
+function setLiquidCompactState(shouldCompact) {
+  const root = document.getElementById('liquidBar');
+  const dock = document.getElementById('liquidBarDock');
+  if (root) root.classList.toggle('compact', shouldCompact);
+  if (dock) dock.classList.toggle('compact', shouldCompact);
+}
+
 function updateLiquidBar() {
   const root = document.getElementById('liquidBar');
   if (!root) return;
@@ -3831,9 +3885,9 @@ function updateLiquidBar() {
 
   const activePageTop = document.querySelector('.page.active')?.scrollTop || 0;
   if (isLiquidSurfaceOpen() || liquidMode === 'search' || liquidMode === 'compose') {
-    root.classList.remove('compact');
+    setLiquidCompactState(false);
   } else {
-    root.classList.toggle('compact', activePageTop > 44);
+    setLiquidCompactState(activePageTop > 44);
   }
 
   renderLiquidNavPicker();
@@ -4395,14 +4449,13 @@ function attachLiquidScrollObservers() {
       const target = event.currentTarget;
       if (!target.classList.contains('active')) return;
       const top = target.scrollTop || 0;
-      const root = document.getElementById('liquidBar');
-      if (!root) return;
+      if (!document.getElementById('liquidBar')) return;
       if (isLiquidSurfaceOpen() || liquidMode === 'search' || liquidMode === 'compose') {
-        root.classList.remove('compact');
+        setLiquidCompactState(false);
         liquidLastScrollTop = top;
         return;
       }
-      root.classList.toggle('compact', top > 44);
+      setLiquidCompactState(top > 44);
       liquidLastScrollTop = top;
     }, { passive: true });
   });

@@ -1,4 +1,7 @@
 node_modules/
+.wrangler/
+playwright-report/
+test-results/
 
 # One-off local repair scripts
 build_*.js
