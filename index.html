@@ -1237,16 +1237,16 @@ html, body {
 .heart-active svg { animation: popHeart 0.35s cubic-bezier(.17,.89,.32,1.28); }
 .like-particle { position:fixed; width:6px; height:6px; background:#e05050; border-radius:50%; pointer-events:none; z-index:999999; }
 
-/* ===== LIQUID GLASS BAR (VisionOS Upgrade) ===== */
+/* ===== LIQUID GLASS BAR ===== */
 :root {
-  --glass-blur-high: 48px;
-  --glass-saturate: 190%;
-  --glass-brightness: 1.12;
-  --vision-border: rgba(255, 255, 255, 0.38);
-  --vision-border-inner: rgba(255, 119, 16, 0.22);
-  --vision-shadow-ambient: 0 28px 64px rgba(0,0,0,0.42);
-  --vision-shadow-lift: 0 12px 32px rgba(255, 119, 16, 0.18);
-  --vision-glare: radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 0%), rgba(255,255,255,0.12), transparent 45%);
+  --glass-blur-high: 22px;
+  --glass-saturate: 165%;
+  --glass-brightness: 1.02;
+  --liquid-bar-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --liquid-bar-glass: rgba(10, 14, 38, 0.58);
+  --liquid-bar-glass-compact: rgba(10, 14, 38, 0.7);
+  --liquid-bar-border: rgba(255, 255, 255, 0.14);
+  --liquid-bar-shadow: 0 12px 30px rgba(0, 0, 0, 0.22);
 }
 
 .header .ham-btn { display: none !important; }
@@ -1275,7 +1275,7 @@ html, body {
   z-index: 9500;
   pointer-events: auto;
   will-change: transform, opacity;
-  transition: transform 1.08s cubic-bezier(0.22, 0.82, 0.24, 1), opacity 0.68s ease;
+  transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s ease;
 }
 #liquidBarDock.compact {
   transform: translateX(-50%) translateY(0) scale(1);
@@ -1288,88 +1288,48 @@ html, body {
   pointer-events: auto;
   touch-action: manipulation;
   transform-origin: center bottom;
-  will-change: transform, width, border-radius, box-shadow;
-  width: min(94vw, 1080px);
+  will-change: transform, width, border-radius, opacity;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  contain: layout paint;
+  width: min(92vw, 1040px);
   max-width: 100%;
-  padding: 10px;
-  border-radius: 38px;
-  background:
-    var(--vision-glare),
-    radial-gradient(circle at 14% 24%, rgba(255, 153, 68, 0.18), transparent 22%),
-    radial-gradient(circle at 86% 100%, rgba(96, 168, 224, 0.14), transparent 28%),
-    linear-gradient(145deg, rgba(12, 16, 72, 0.88), rgba(3, 6, 46, 0.84) 58%, rgba(255, 119, 16, 0.12) 100%);
+  padding: 7px;
+  border-radius: 30px;
+  background: var(--liquid-bar-glass);
   backdrop-filter: blur(var(--glass-blur-high)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
   -webkit-backdrop-filter: blur(var(--glass-blur-high)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
-  border: 0.5px solid var(--vision-border);
+  border: 1px solid var(--liquid-bar-border);
   box-shadow:
-    inset 0 0.5px 0 rgba(255,255,255,0.25),
-    inset 0 -0.5px 0 rgba(255,153,68,0.15),
-    var(--vision-shadow-ambient),
-    var(--vision-shadow-lift);
-  /* Optical Convex Refraction */
-  filter: url(#liquid-convex-filter);
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    var(--liquid-bar-shadow);
   transition:
-    width 1.08s cubic-bezier(0.22, 0.82, 0.24, 1),
-    transform 1.08s cubic-bezier(0.22, 0.82, 0.24, 1),
-    border-radius 1.08s cubic-bezier(0.22, 0.82, 0.24, 1),
-    padding 0.98s cubic-bezier(0.22, 0.82, 0.24, 1),
-    box-shadow 0.88s ease,
-    background 0.88s ease,
-    border-color 0.88s ease;
-}
-#liquidBar::before {
-  content: '';
-  position: absolute;
-  inset: 1px;
-  border-radius: inherit;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.22), rgba(255,255,255,0.06) 16%, rgba(255,153,68,0.06) 38%, transparent 62%, rgba(255,153,68,0.12));
-  pointer-events: none;
-}
-#liquidBar::after {
-  content: '';
-  position: absolute;
-  left: 8%;
-  bottom: -30%;
-  width: 52%;
-  height: 120%;
-  border-radius: 999px;
-  background:
-    radial-gradient(circle at 28% 30%, rgba(255,255,255,0.15), transparent 38%),
-    radial-gradient(circle at 68% 68%, rgba(255,168,94,0.22), transparent 56%),
-    radial-gradient(circle at 82% 24%, rgba(96,168,224,0.18), transparent 42%);
-  filter: blur(28px);
-  opacity: 0.54;
-  pointer-events: none;
-  transition: opacity 0.88s ease;
+    width 0.42s var(--liquid-bar-ease),
+    transform 0.42s var(--liquid-bar-ease),
+    border-radius 0.42s var(--liquid-bar-ease),
+    padding 0.42s var(--liquid-bar-ease),
+    background 0.28s ease,
+    border-color 0.28s ease,
+    box-shadow 0.28s ease,
+    opacity 0.28s ease;
 }
 #liquidBar.compact {
-  width: clamp(176px, 22vw, 252px);
-  padding: 8px 10px;
+  width: clamp(122px, 16vw, 180px);
+  padding: 4px 6px;
   border-radius: 999px;
-  transform: translate3d(0, 0, 0) scale(0.95);
-  touch-action: none;
-  background:
-    radial-gradient(circle at 16% 50%, rgba(255,153,68,0.16), transparent 22%),
-    linear-gradient(140deg, rgba(18, 20, 76, 0.82) 0%, rgba(6, 8, 44, 0.84) 62%, rgba(255,168,94,0.10) 100%);
-  backdrop-filter: blur(32px) saturate(160%) brightness(1.1);
-  -webkit-backdrop-filter: blur(32px) saturate(160%) brightness(1.1);
-  border-color: rgba(255, 255, 255, 0.25);
+  transform: translate3d(0, 0, 0) scale(0.94);
+  background: var(--liquid-bar-glass-compact);
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.15),
-    0 16px 34px rgba(0,0,0,0.28),
-    0 4px 16px rgba(255,119,16,0.14);
+    inset 0 1px 0 rgba(255, 255, 255, 0.13),
+    0 10px 24px rgba(0, 0, 0, 0.18);
   cursor: pointer;
-}
-#liquidBar.compact::after {
-  opacity: 0.35;
 }
 #liquidBar.mode-search:not(.compact),
 #liquidBar.mode-messages:not(.compact) {
-  width: min(94vw, 1080px);
+  width: min(92vw, 1040px);
 }
 #liquidBar.mode-messages.compact {
-  width: clamp(208px, 28vw, 340px);
+  width: clamp(154px, 20vw, 228px);
 }
 .liquid-bar-shell {
   position: relative;
@@ -1377,8 +1337,8 @@ html, body {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 12px;
-  transition: gap 0.72s cubic-bezier(0.22, 0.82, 0.24, 1);
+  gap: 10px;
+  transition: gap 0.42s var(--liquid-bar-ease), transform 0.42s var(--liquid-bar-ease), opacity 0.24s ease;
 }
 .liquid-nav-trigger,
 .liquid-action-btn,
@@ -1392,17 +1352,19 @@ html, body {
   display: flex;
   align-items: center;
   gap: 12px;
-  min-width: 140px;
-  padding: 12px 16px;
-  border-radius: 26px;
-  background:
-    linear-gradient(145deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04) 34%, rgba(255,168,94,0.14) 100%),
-    rgba(2,0,41,0.42);
-  backdrop-filter: blur(12px) saturate(135%);
-  -webkit-backdrop-filter: blur(12px) saturate(135%);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 10px 22px rgba(0,0,0,0.14);
-  transition: transform 0.24s ease, background 0.66s ease, border-color 0.66s ease, box-shadow 0.66s ease, padding 0.72s cubic-bezier(0.22, 0.82, 0.24, 1);
+  min-width: 124px;
+  padding: 10px 14px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+  transition:
+    transform 0.18s ease,
+    background 0.28s ease,
+    border-color 0.28s ease,
+    padding 0.42s var(--liquid-bar-ease),
+    min-width 0.42s var(--liquid-bar-ease),
+    opacity 0.24s ease;
   user-select: none;
   touch-action: none;
 }
@@ -1422,11 +1384,8 @@ html, body {
   width: 36px;
   height: 36px;
   border-radius: 18px;
-  background:
-    radial-gradient(circle at 32% 30%, rgba(255,255,255,0.22), transparent 28%),
-    linear-gradient(145deg, rgba(255,153,68,0.36), rgba(255,119,16,0.18));
+  background: linear-gradient(145deg, rgba(255,153,68,0.25), rgba(255,119,16,0.1));
   color: var(--accent2);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), 0 8px 18px rgba(255,119,16,0.18);
   flex-shrink: 0;
 }
 .liquid-nav-glyph svg,
@@ -1462,36 +1421,40 @@ html, body {
   isolation: isolate;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
-  min-height: 64px;
-  padding: 8px 12px 8px 16px;
-  border-radius: 28px;
-  background:
-    linear-gradient(150deg, rgba(255,255,255,0.12), rgba(255,255,255,0.03) 34%, rgba(96,168,224,0.12) 70%, rgba(255,168,94,0.14) 100%),
-    rgba(4, 10, 54, 0.54);
-  backdrop-filter: blur(14px) saturate(140%);
-  -webkit-backdrop-filter: blur(14px) saturate(140%);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), inset 0 -1px 0 rgba(255,153,68,0.08);
-  transition: border-radius 0.72s cubic-bezier(0.22, 0.82, 0.24, 1), background 0.66s ease, padding 0.72s cubic-bezier(0.22, 0.82, 0.24, 1), min-height 0.72s cubic-bezier(0.22, 0.82, 0.24, 1);
+  min-height: 58px;
+  padding: 6px 10px 6px 12px;
+  border-radius: 24px;
+  background: transparent;
+  border: 1px solid transparent;
+  transition:
+    border-radius 0.42s var(--liquid-bar-ease),
+    background 0.28s ease,
+    padding 0.42s var(--liquid-bar-ease),
+    min-height 0.42s var(--liquid-bar-ease),
+    opacity 0.24s ease,
+    transform 0.42s var(--liquid-bar-ease);
 }
 .liquid-bar-center::before {
   content: '';
-  width: 10px;
-  height: 10px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #ffe0c0, #ff9c52);
-  box-shadow: 0 0 0 7px rgba(255,153,68,0.08), 0 0 18px rgba(255,168,94,0.22);
+  background: rgba(255, 166, 94, 0.82);
+  box-shadow: 0 0 10px rgba(255, 153, 68, 0.24);
   flex-shrink: 0;
+  transition: opacity 0.24s ease, transform 0.42s var(--liquid-bar-ease);
 }
 .liquid-compact-label {
-  display: none;
+  position: absolute;
+  inset: 0;
+  display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 2px;
-  width: 100%;
+  padding: 0 14px;
   min-width: 0;
   font-size: 13px;
   font-weight: 700;
@@ -1501,6 +1464,11 @@ html, body {
   text-overflow: ellipsis;
   letter-spacing: 0.01em;
   text-align: center;
+  opacity: 0;
+  transform: translateY(6px) scale(0.96);
+  pointer-events: none;
+  will-change: transform, opacity;
+  transition: opacity 0.2s ease, transform 0.42s var(--liquid-bar-ease);
 }
 .liquid-compact-label-sub {
   font-size: 10px;
@@ -1514,6 +1482,8 @@ html, body {
   display: flex;
   flex-direction: column;
   justify-content: center;
+  will-change: transform, opacity;
+  transition: opacity 0.2s ease, transform 0.42s var(--liquid-bar-ease);
 }
 .liquid-center-kicker {
   font-size: 10px;
@@ -1540,11 +1510,8 @@ html, body {
   min-height: 60px;
   padding: 4px;
   border-radius: 24px;
-  background:
-    linear-gradient(145deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04) 40%, rgba(255,168,94,0.12) 100%),
-    rgba(2, 0, 41, 0.36);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 0 rgba(255,153,68,0.06);
+  background: rgba(2, 0, 41, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 .liquid-center-input {
   flex: 1;
@@ -1572,52 +1539,47 @@ html, body {
   min-height: 50px;
   padding: 0 20px;
   border-radius: 20px;
-  background: linear-gradient(135deg, rgba(255,119,16,0.92), rgba(255,153,68,0.98));
+  background: var(--accent);
   color: #fff;
   font-weight: 700;
   font-size: 14px;
   line-height: 1;
-  box-shadow: 0 10px 20px rgba(255,119,16,0.22);
-  transition: transform 0.2s ease, box-shadow 0.24s ease, filter 0.24s ease;
+  box-shadow: 0 4px 12px rgba(255,119,16,0.3);
+  transition: transform 0.15s ease, opacity 0.15s ease;
 }
 .liquid-inline-send:disabled {
   opacity: 0.46;
   cursor: not-allowed;
   box-shadow: none;
-  filter: grayscale(0.12);
 }
 #liquidBar.mode-search .liquid-bar-center,
 #liquidBar.mode-messages .liquid-bar-center {
-  border-radius: 26px 32px 32px 26px;
-  background:
-    linear-gradient(150deg, rgba(255,255,255,0.14), rgba(255,255,255,0.04) 36%, rgba(96,168,224,0.14) 72%, rgba(255,168,94,0.16) 100%),
-    rgba(6, 10, 56, 0.62);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.035);
+  border-color: rgba(255, 255, 255, 0.06);
 }
 #liquidBar.mode-search .liquid-bar-center {
-  min-height: 72px;
-  padding: 12px 16px;
+  min-height: 68px;
+  padding: 10px 14px;
 }
 .liquid-center-copy {
-  display: block;
+  display: flex;
 }
 #liquidBar.mode-search .liquid-center-copy {
-  display: block;
+  display: flex;
 }
 #liquidBar.mode-search .liquid-bar-center::before {
-  width: 15px;
-  height: 15px;
-  background:
-    radial-gradient(circle at 30% 30%, rgba(255,255,255,0.24), transparent 32%),
-    linear-gradient(145deg, rgba(255,153,68,0.42), rgba(96,168,224,0.22));
-  box-shadow: 0 0 0 8px rgba(96,168,224,0.08), 0 0 18px rgba(255,168,94,0.22);
+  width: 8px;
+  height: 8px;
+  background: rgba(255, 166, 94, 0.82);
 }
 #liquidBar.mode-messages .liquid-bar-center {
-  min-height: 72px;
-  padding: 12px 16px;
+  min-height: 68px;
+  padding: 10px 14px;
   cursor: pointer;
 }
 #liquidBar.mode-messages .liquid-center-copy {
-  display: block;
+  display: flex;
 }
 #liquidBar.mode-messages .liquid-center-input-wrap {
   display: none;
@@ -1629,44 +1591,44 @@ html, body {
   display: flex;
   align-items: center;
   gap: 10px;
-  transition: gap 0.72s cubic-bezier(0.22, 0.82, 0.24, 1);
+  transition: gap 0.42s var(--liquid-bar-ease), opacity 0.24s ease;
 }
 .liquid-action-btn {
   position: relative;
   overflow: hidden;
   isolation: isolate;
-  width: 52px;
-  height: 52px;
-  border-radius: 20px;
-  background:
-    linear-gradient(145deg, rgba(255,255,255,0.10), rgba(255,255,255,0.03) 42%, rgba(96,168,224,0.10) 100%),
-    rgba(2, 0, 41, 0.42);
-  backdrop-filter: blur(12px) saturate(135%);
-  -webkit-backdrop-filter: blur(12px) saturate(135%);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 10px 20px rgba(0,0,0,0.14);
-  transition: transform 0.24s ease, background 0.66s ease, border-color 0.66s ease, box-shadow 0.66s ease, width 0.72s cubic-bezier(0.22, 0.82, 0.24, 1), height 0.72s cubic-bezier(0.22, 0.82, 0.24, 1), border-radius 0.72s cubic-bezier(0.22, 0.82, 0.24, 1);
+  width: 48px;
+  height: 48px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+  transition:
+    transform 0.18s ease,
+    background 0.28s ease,
+    border-color 0.28s ease,
+    width 0.42s var(--liquid-bar-ease),
+    height 0.42s var(--liquid-bar-ease),
+    border-radius 0.42s var(--liquid-bar-ease),
+    opacity 0.24s ease;
 }
 .liquid-action-btn.active {
-  background:
-    linear-gradient(145deg, rgba(255,255,255,0.15), rgba(255,168,94,0.22) 52%, rgba(255,119,16,0.14) 100%),
-    rgba(255,119,16,0.18);
-  border-color: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 119, 16, 0.12);
+  border-color: rgba(255, 186, 140, 0.22);
   color: var(--accent2);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), 0 14px 28px rgba(255,119,16,0.20);
 }
 .liquid-action-btn.count::after {
   content: attr(data-count);
   position: absolute;
-  top: -4px;
-  right: -2px;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 6px;
+  top: -2px;
+  right: 0px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
   border-radius: 999px;
   background: #ff6b57;
   color: #fff;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
   display: inline-flex;
   align-items: center;
@@ -1682,20 +1644,28 @@ html, body {
   gap: 0;
 }
 #liquidBar.compact .liquid-bar-center {
-  min-height: 52px;
-  padding: 0 20px;
+  min-height: 34px;
+  padding: 0 14px;
   justify-content: center;
   border-radius: 999px;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
 }
 #liquidBar.compact .liquid-nav-trigger,
 #liquidBar.compact .liquid-bar-actions,
 #liquidBar.compact .liquid-bar-center::before,
-#liquidBar.compact .liquid-center-copy,
 #liquidBar.compact .liquid-center-input-wrap {
   display: none !important;
 }
 #liquidBar.compact .liquid-compact-label {
-  display: flex;
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+#liquidBar.compact .liquid-center-copy {
+  opacity: 0;
+  transform: translateY(-6px) scale(0.97);
+  pointer-events: none;
 }
 .liquid-builder .inp {
   background:
@@ -2665,26 +2635,26 @@ html, body {
     padding: 0 4px;
   }
   #liquidBar {
-    padding: 7px;
-    border-radius: 26px;
+    padding: 6px;
+    border-radius: 24px;
   }
   .liquid-bar-shell {
     gap: 8px;
   }
   .liquid-nav-trigger {
     min-width: 58px;
-    padding: 10px;
+    padding: 9px 10px;
   }
   .liquid-nav-meta {
     display: none;
   }
   .liquid-bar-center {
-    min-height: 54px;
-    padding: 8px 12px;
+    min-height: 50px;
+    padding: 6px 10px;
   }
   #liquidBar.mode-search .liquid-bar-center {
     min-height: 54px;
-    padding: 12px;
+    padding: 10px 12px;
   }
   .liquid-center-title {
     font-size: 13px;
@@ -2694,15 +2664,15 @@ html, body {
     padding: 0 14px;
   }
   .liquid-action-btn {
-    width: 44px;
-    height: 44px;
-    border-radius: 15px;
+    width: 40px;
+    height: 40px;
+    border-radius: 14px;
   }
   #liquidBar.compact {
-    width: clamp(176px, 58vw, 280px);
+    width: clamp(148px, 48vw, 224px);
   }
   #liquidBar.mode-messages.compact {
-    width: clamp(208px, 70vw, 336px);
+    width: clamp(176px, 56vw, 272px);
   }
   .liquid-thread-compose-shell {
     padding: 8px;
@@ -4050,6 +4020,7 @@ let liquidLastScrollTop = 0;
 let liquidCompactExpanded = false;
 let liquidCompactPinnedUntil = 0;
 let liquidLastCompactTapAt = 0;
+let liquidCompactStateActive = false;
 let liquidNavHoldTimer = null;
 let liquidNavHoldTriggered = false;
 let liquidNavDragActive = false;
@@ -4375,8 +4346,12 @@ async function pinLiquidConversation(conversationId, options = {}) {
 function setLiquidCompactState(shouldCompact) {
   const root = document.getElementById('liquidBar');
   const dock = document.getElementById('liquidBarDock');
-  if (root) root.classList.toggle('compact', shouldCompact);
-  if (dock) dock.classList.toggle('compact', shouldCompact);
+  const nextState = Boolean(shouldCompact);
+  const currentState = root?.classList.contains('compact') || dock?.classList.contains('compact') || liquidCompactStateActive;
+  if (currentState === nextState) return;
+  liquidCompactStateActive = nextState;
+  if (root) root.classList.toggle('compact', nextState);
+  if (dock) dock.classList.toggle('compact', nextState);
 }
 
 function isLiquidCompactPinned() {
@@ -4479,17 +4454,6 @@ function updateLiquidBar() {
 
   renderLiquidNavPicker();
 }
-
-// 增加 visionOS 级鼠标追踪高光特效
-document.addEventListener('pointermove', event => {
-  const bar = document.getElementById('liquidBar');
-  if (!bar) return;
-  const rect = bar.getBoundingClientRect();
-  const x = ((event.clientX - rect.left) / rect.width) * 100;
-  const y = ((event.clientY - rect.top) / rect.height) * 100;
-  bar.style.setProperty('--mouse-x', `${x}%`);
-  bar.style.setProperty('--mouse-y', `${y}%`);
-});
 
 function renderLiquidNavPicker(previewPage = '') {
   const picker = document.getElementById('liquidNavPicker');
@@ -7467,16 +7431,5 @@ scheduleInit();
     <div onclick="insertEmoji('😀')" style="font-size:24px; text-align:center; cursor:pointer; padding:4px; border-radius:8px;" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">😀</div><div onclick="insertEmoji('😂')" style="font-size:24px; text-align:center; cursor:pointer; padding:4px; border-radius:8px;" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">😂</div><div onclick="insertEmoji('🥰')" style="font-size:24px; text-align:center; cursor:pointer; padding:4px; border-radius:8px;" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">🥰</div><div onclick="insertEmoji('😎')" style="font-size:24px; text-align:center; cursor:pointer; padding:4px; border-radius:8px;" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">😎</div><div onclick="insertEmoji('😭')" style="font-size:24px; text-align:center; cursor:pointer; padding:4px; border-radius:8px;" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">😭</div><div onclick="insertEmoji('🥺')" style="font-size:24px; text-align:center; cursor:pointer; padding:4px; border-radius:8px;" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">🥺</div><div onclick="insertEmoji('😡')" style="font-size:24px; text-align:center; cursor:pointer; padding:4px; border-radius:8px;" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">😡</div><div onclick="insertEmoji('👍')" style="font-size:24px; text-align:center; cursor:pointer; padding:4px; border-radius:8px;" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">👍</div><div onclick="insertEmoji('🙏')" style="font-size:24px; text-align:center; cursor:pointer; padding:4px; border-radius:8px;" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">🙏</div><div onclick="insertEmoji('🎉')" style="font-size:24px; text-align:center; cursor:pointer; padding:4px; border-radius:8px;" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">🎉</div><div onclick="insertEmoji('🔥')" style="font-size:24px; text-align:center; cursor:pointer; padding:4px; border-radius:8px;" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">🔥</div><div onclick="insertEmoji('❤️')" style="font-size:24px; text-align:center; cursor:pointer; padding:4px; border-radius:8px;" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">❤️</div><div onclick="insertEmoji('✨')" style="font-size:24px; text-align:center; cursor:pointer; padding:4px; border-radius:8px;" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">✨</div><div onclick="insertEmoji('👀')" style="font-size:24px; text-align:center; cursor:pointer; padding:4px; border-radius:8px;" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">👀</div><div onclick="insertEmoji('💯')" style="font-size:24px; text-align:center; cursor:pointer; padding:4px; border-radius:8px;" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">💯</div><div onclick="insertEmoji('🤔')" style="font-size:24px; text-align:center; cursor:pointer; padding:4px; border-radius:8px;" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">🤔</div><div onclick="insertEmoji('🤮')" style="font-size:24px; text-align:center; cursor:pointer; padding:4px; border-radius:8px;" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">🤮</div><div onclick="insertEmoji('🤡')" style="font-size:24px; text-align:center; cursor:pointer; padding:4px; border-radius:8px;" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">🤡</div><div onclick="insertEmoji('💀')" style="font-size:24px; text-align:center; cursor:pointer; padding:4px; border-radius:8px;" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">💀</div><div onclick="insertEmoji('👽')" style="font-size:24px; text-align:center; cursor:pointer; padding:4px; border-radius:8px;" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">👽</div>
   </div>
 
-  <svg width="0" height="0" style="position:absolute;">
-    <defs>
-      <filter id="liquid-convex-filter" x="-20%" y="-20%" width="140%" height="140%">
-        <!-- 边缘凸透镜折射：使用 feMorphology 扩张边缘，feDisplacementMap 造成位移 -->
-        <feGaussianBlur in="SourceAlpha" stdDeviation="4" result="blur" />
-        <feOffset in="blur" dx="0" dy="0" result="offsetBlur" />
-        <!-- 生成置换图：模拟边缘向外“溢出”的物理感 -->
-        <feDisplacementMap in="SourceGraphic" in2="offsetBlur" scale="8" xChannelSelector="R" yChannelSelector="G" />
-      </filter>
-    </defs>
-  </svg>
 </body>
 </html>
