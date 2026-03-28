@@ -153,6 +153,34 @@ html, body {
     opacity: 0.9;
   }
 }
+@keyframes liquidRefract {
+  0% {
+    transform: translate3d(-5%, 4%, 0) scale(0.94) rotate(-4deg);
+    opacity: 0.34;
+  }
+  50% {
+    transform: translate3d(4%, -3%, 0) scale(1.05) rotate(2deg);
+    opacity: 0.54;
+  }
+  100% {
+    transform: translate3d(7%, 2%, 0) scale(1.02) rotate(5deg);
+    opacity: 0.4;
+  }
+}
+@keyframes liquidCausticSweep {
+  0% {
+    transform: translate3d(-8%, 10%, 0) scale(1) rotate(-7deg);
+    opacity: 0.12;
+  }
+  50% {
+    transform: translate3d(6%, -8%, 0) scale(1.08) rotate(5deg);
+    opacity: 0.24;
+  }
+  100% {
+    transform: translate3d(10%, 6%, 0) scale(0.98) rotate(8deg);
+    opacity: 0.14;
+  }
+}
 .stagger > *:nth-child(1) { animation-delay: 0.1s; }
 .stagger > *:nth-child(2) { animation-delay: 0.2s; }
 .stagger > *:nth-child(3) { animation-delay: 0.3s; }
@@ -1285,6 +1313,8 @@ html, body {
   left: 50%;
   bottom: max(10px, env(safe-area-inset-bottom));
   transform: translateX(-50%);
+  display: flex;
+  justify-content: center;
   width: min(96vw, 1080px);
   z-index: 9500;
   pointer-events: auto;
@@ -1292,7 +1322,7 @@ html, body {
   transition: transform 1.08s cubic-bezier(0.22, 0.82, 0.24, 1), opacity 0.68s ease;
 }
 #liquidBarDock.compact {
-  transform: translateX(-50%) translateY(-8px) scale(0.988);
+  transform: translateX(-50%) translateY(0) scale(1);
   opacity: 0.98;
 }
 #liquidBar {
@@ -1303,6 +1333,8 @@ html, body {
   touch-action: manipulation;
   transform-origin: center bottom;
   will-change: transform, width, border-radius, box-shadow, backdrop-filter;
+  width: min(94vw, 1080px);
+  max-width: 100%;
   padding: 10px;
   border-radius: 34px;
   background:
@@ -1329,6 +1361,44 @@ html, body {
     background 0.88s ease,
     backdrop-filter 0.88s ease,
     border-color 0.88s ease;
+}
+.liquid-filter-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.liquid-refraction-layer,
+.liquid-caustic-layer {
+  position: absolute;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+}
+.liquid-refraction-layer {
+  inset: -14%;
+  background:
+    linear-gradient(112deg, rgba(255,255,255,0.30) 0%, rgba(255,255,255,0.04) 16%, rgba(112,168,255,0.22) 34%, rgba(255,255,255,0.05) 50%, rgba(255,168,94,0.18) 66%, rgba(255,255,255,0.02) 82%, transparent 100%),
+    radial-gradient(circle at 18% 24%, rgba(255,255,255,0.42), transparent 18%),
+    radial-gradient(circle at 78% 72%, rgba(255,181,122,0.26), transparent 20%),
+    radial-gradient(circle at 58% 28%, rgba(120,176,255,0.22), transparent 18%);
+  opacity: 0.42;
+  mix-blend-mode: screen;
+  filter: url(#liquidGlassDistort) blur(10px) saturate(1.12);
+  transform-origin: center;
+  animation: liquidRefract 18s cubic-bezier(0.4, 0, 0.2, 1) infinite alternate;
+}
+.liquid-caustic-layer {
+  inset: -8% -10%;
+  background:
+    repeating-linear-gradient(110deg, transparent 0 18px, rgba(255,255,255,0.11) 19px 21px, transparent 22px 36px),
+    radial-gradient(circle at 22% 30%, rgba(255,255,255,0.16), transparent 34%),
+    radial-gradient(circle at 72% 78%, rgba(255,168,94,0.12), transparent 26%);
+  opacity: 0.2;
+  mix-blend-mode: screen;
+  filter: url(#liquidGlassDistort) blur(12px);
+  animation: liquidCausticSweep 15s linear infinite;
 }
 #liquidBar::before {
   content: '';
@@ -1361,10 +1431,10 @@ html, body {
   transition: transform 1.08s cubic-bezier(0.22, 0.82, 0.24, 1), opacity 0.88s ease;
 }
 #liquidBar.compact {
-  width: clamp(304px, 36vw, 396px);
-  padding: 7px 9px;
+  width: clamp(176px, 22vw, 252px);
+  padding: 7px 8px;
   border-radius: 999px;
-  transform: translate3d(0, -3px, 0) scale(0.925);
+  transform: translate3d(0, 0, 0) scale(0.95);
   background:
     linear-gradient(140deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.03) 30%, rgba(112,168,255,0.06) 58%, rgba(255,168,94,0.08) 100%),
     radial-gradient(circle at 18% 12%, rgba(255,255,255,0.16), transparent 24%),
@@ -1377,17 +1447,18 @@ html, body {
     inset 0 -1px 0 rgba(255,255,255,0.04),
     0 20px 48px rgba(0,0,0,0.22),
     0 4px 14px rgba(112,168,255,0.06);
+  cursor: pointer;
 }
 #liquidBar.compact::after {
-  opacity: 0.5;
-  transform: translate3d(10%, -10%, 0) scale(0.82);
+  opacity: 0.44;
+  transform: translate3d(8%, -6%, 0) scale(0.76);
 }
 #liquidBar.mode-search:not(.compact),
 #liquidBar.mode-messages:not(.compact) {
   width: min(94vw, 1080px);
 }
 #liquidBar.mode-messages.compact {
-  width: min(76vw, 620px);
+  width: clamp(208px, 28vw, 340px);
 }
 .liquid-bar-shell {
   position: relative;
@@ -1501,6 +1572,30 @@ html, body {
   box-shadow: 0 0 0 7px rgba(255,153,68,0.08), 0 0 18px rgba(255,168,94,0.18);
   flex-shrink: 0;
 }
+.liquid-compact-label {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.03em;
+}
+.liquid-compact-label::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #ffe0c0, #ff9c52);
+  box-shadow: 0 0 0 6px rgba(255,153,68,0.08), 0 0 16px rgba(255,168,94,0.18);
+}
 .liquid-center-copy {
   min-width: 0;
   flex: 1;
@@ -1525,25 +1620,26 @@ html, body {
   align-items: stretch;
   gap: 8px;
   width: 100%;
-  min-height: 44px;
-  padding: 3px 3px 3px 0;
-  border-radius: 20px;
+  min-height: 58px;
+  padding: 4px;
+  border-radius: 22px;
   background:
-    linear-gradient(145deg, rgba(255,255,255,0.12), rgba(255,255,255,0.03) 44%, rgba(255,168,94,0.06) 100%),
-    rgba(255,255,255,0.03);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+    linear-gradient(145deg, rgba(255,255,255,0.16), rgba(255,255,255,0.04) 44%, rgba(255,168,94,0.08) 100%),
+    rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.12);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.10), inset 0 -1px 0 rgba(255,255,255,0.03);
 }
 .liquid-center-input {
   flex: 1;
   min-width: 0;
-  min-height: 38px;
+  min-height: 48px;
   border: none;
   outline: none;
   background: transparent;
   color: var(--text);
-  font-size: 14px;
-  line-height: 1.2;
-  padding: 0 6px;
+  font-size: 15px;
+  line-height: 1.4;
+  padding: 0 12px;
   font-family: inherit;
 }
 .liquid-center-input::placeholder { color: var(--t3); }
@@ -1555,13 +1651,14 @@ html, body {
   justify-content: center;
   align-self: stretch;
   flex-shrink: 0;
-  min-width: 78px;
-  min-height: 38px;
-  padding: 0 16px;
-  border-radius: 16px;
+  min-width: 96px;
+  min-height: 48px;
+  padding: 0 18px;
+  border-radius: 18px;
   background: linear-gradient(135deg, rgba(255,119,16,0.88), rgba(255,153,68,0.96));
   color: #fff;
   font-weight: 700;
+  font-size: 14px;
   line-height: 1;
   box-shadow: 0 10px 20px rgba(255,119,16,0.22);
   transition: transform 0.2s ease, box-shadow 0.24s ease, filter 0.24s ease;
@@ -1579,13 +1676,39 @@ html, body {
     linear-gradient(150deg, rgba(255,255,255,0.16), rgba(255,255,255,0.04) 40%, rgba(112,168,255,0.08) 72%, rgba(255,168,94,0.10) 100%),
     rgba(255,255,255,0.08);
 }
-#liquidBar.mode-search .liquid-center-copy,
-#liquidBar.mode-messages .liquid-center-copy {
+#liquidBar.mode-search .liquid-bar-center {
+  align-items: stretch;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 88px;
+  padding: 12px 14px 14px 16px;
+}
+#liquidBar.mode-search .liquid-center-input-wrap {
+  display: flex;
+}
+.liquid-center-copy {
+  display: block;
+}
+#liquidBar.mode-search .liquid-center-copy {
+  display: block;
+  flex: none;
+}
+#liquidBar.mode-search .liquid-bar-center::before {
   display: none;
 }
-#liquidBar.mode-search .liquid-center-input-wrap,
+#liquidBar.mode-messages .liquid-bar-center {
+  min-height: 68px;
+  padding: 12px 14px 12px 16px;
+  cursor: pointer;
+}
+#liquidBar.mode-messages .liquid-center-copy {
+  display: block;
+}
 #liquidBar.mode-messages .liquid-center-input-wrap {
-  display: flex;
+  display: none;
+}
+.liquid-bar-shell {
+  position: relative;
 }
 .liquid-bar-actions {
   display: flex;
@@ -1640,39 +1763,24 @@ html, body {
   display: none;
 }
 #liquidBar.compact .liquid-bar-shell {
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 5px;
-}
-#liquidBar.compact .liquid-nav-trigger {
-  min-width: 46px;
-  padding: 8px;
+  grid-template-columns: 1fr;
+  gap: 0;
 }
 #liquidBar.compact .liquid-bar-center {
-  min-height: 44px;
-  padding: 4px 8px 4px 10px;
+  min-height: 48px;
+  padding: 0 16px;
+  justify-content: center;
+  border-radius: 999px;
 }
-#liquidBar.compact .liquid-center-title {
-  font-size: 11px;
-  letter-spacing: 0.02em;
+#liquidBar.compact .liquid-nav-trigger,
+#liquidBar.compact .liquid-bar-actions,
+#liquidBar.compact .liquid-bar-center::before,
+#liquidBar.compact .liquid-center-copy,
+#liquidBar.compact .liquid-center-input-wrap {
+  display: none !important;
 }
-#liquidBar.compact .liquid-bar-center::before {
-  width: 7px;
-  height: 7px;
-  box-shadow: 0 0 0 5px rgba(255,153,68,0.08), 0 0 14px rgba(255,168,94,0.14);
-}
-#liquidBar.compact .liquid-nav-glyph {
-  width: 30px;
-  height: 30px;
-  border-radius: 15px;
-}
-#liquidBar.compact .liquid-inline-send {
-  min-width: 68px;
-  border-radius: 14px;
-}
-#liquidBar.compact .liquid-action-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: 15px;
+#liquidBar.compact .liquid-compact-label {
+  display: flex;
 }
 .liquid-builder .inp {
   background:
@@ -1727,6 +1835,26 @@ html, body {
   opacity: 0;
   pointer-events: none;
   transition: transform 0.66s cubic-bezier(0.22, 0.82, 0.24, 1), opacity 0.28s ease, box-shadow 0.4s ease;
+}
+.liquid-refraction-layer-bar {
+  opacity: 0.4;
+}
+.liquid-caustic-layer-bar {
+  opacity: 0.18;
+}
+#liquidBar.compact .liquid-refraction-layer-bar {
+  opacity: 0.28;
+}
+#liquidBar.compact .liquid-caustic-layer-bar {
+  opacity: 0.1;
+}
+.liquid-refraction-layer-surface {
+  inset: -10%;
+  opacity: 0.46;
+}
+.liquid-caustic-layer-surface {
+  inset: -6% -8%;
+  opacity: 0.22;
 }
 .liquid-surface::before {
   content: '';
@@ -1788,6 +1916,8 @@ html, body {
   color: var(--t3);
 }
 .liquid-surface-close {
+  position: relative;
+  z-index: 2;
   width: 34px;
   height: 34px;
   border-radius: 50%;
@@ -2067,6 +2197,77 @@ html, body {
   overflow-y: auto;
   padding: 14px 2px 6px;
 }
+.liquid-thread-compose {
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.liquid-thread-compose-meta {
+  font-size: 11px;
+  color: var(--t3);
+  letter-spacing: 0.04em;
+}
+.liquid-thread-compose-shell {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 24px;
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.16), rgba(255,255,255,0.04) 44%, rgba(255,168,94,0.08) 100%),
+    rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.10);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.10), inset 0 -1px 0 rgba(255,255,255,0.03);
+}
+.liquid-thread-compose-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 54px;
+  max-height: 144px;
+  resize: none;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.6;
+  padding: 10px 8px 8px;
+  font-family: inherit;
+}
+.liquid-thread-compose-input::placeholder {
+  color: var(--t3);
+}
+.liquid-thread-compose-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.liquid-thread-send {
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  min-width: 96px;
+  min-height: 50px;
+  padding: 0 18px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(255,119,16,0.9), rgba(255,153,68,0.98));
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 12px 24px rgba(255,119,16,0.2);
+  transition: transform 0.2s ease, box-shadow 0.24s ease, filter 0.24s ease;
+}
+.liquid-thread-send:active {
+  transform: scale(0.96);
+}
+.liquid-thread-send:disabled {
+  opacity: 0.46;
+  cursor: not-allowed;
+  box-shadow: none;
+  filter: grayscale(0.12);
+}
 .liquid-bubble {
   max-width: min(76%, 520px);
   padding: 12px 14px;
@@ -2254,17 +2455,39 @@ html, body {
     min-height: 52px;
     padding: 8px 12px;
   }
+  #liquidBar.mode-search .liquid-bar-center {
+    min-height: 84px;
+    padding: 12px;
+  }
   .liquid-center-title {
     font-size: 13px;
   }
   .liquid-inline-send {
-    min-width: 66px;
+    min-width: 84px;
     padding: 0 14px;
   }
   .liquid-action-btn {
     width: 42px;
     height: 42px;
     border-radius: 15px;
+  }
+  #liquidBar.compact {
+    width: clamp(164px, 52vw, 260px);
+  }
+  #liquidBar.mode-messages.compact {
+    width: clamp(196px, 64vw, 320px);
+  }
+  .liquid-thread-compose-shell {
+    padding: 8px;
+  }
+  .liquid-thread-compose-input {
+    min-height: 50px;
+    font-size: 14px;
+  }
+  .liquid-thread-send {
+    min-width: 84px;
+    min-height: 46px;
+    padding: 0 14px;
   }
   .liquid-nav-picker {
     width: min(94vw, 430px);
@@ -2273,6 +2496,8 @@ html, body {
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  .liquid-refraction-layer,
+  .liquid-caustic-layer,
   #liquidBar::after,
   .liquid-surface::after {
     animation: none;
@@ -2286,6 +2511,16 @@ html, body {
 
 <body>
 
+<svg class="liquid-filter-defs" aria-hidden="true" focusable="false">
+  <defs>
+    <filter id="liquidGlassDistort" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.012 0.028" numOctaves="2" seed="8" result="noise">
+        <animate attributeName="baseFrequency" dur="18s" values="0.012 0.028;0.02 0.05;0.012 0.028" repeatCount="indefinite"></animate>
+      </feTurbulence>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="28" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap>
+    </filter>
+  </defs>
+</svg>
 <canvas id="bg-canvas"></canvas>
 <div id="bg-img"></div>
 
@@ -3256,6 +3491,8 @@ async function adminSetAdminPwd() {
 
 <div class="liquid-surface-backdrop" id="liquidSurfaceBackdrop" onclick="closeLiquidSurface()"></div>
 <div class="liquid-surface" id="liquidSurface">
+  <div class="liquid-refraction-layer liquid-refraction-layer-surface"></div>
+  <div class="liquid-caustic-layer liquid-caustic-layer-surface"></div>
   <div class="liquid-surface-grab"></div>
   <div class="liquid-surface-head">
     <div>
@@ -3279,7 +3516,7 @@ async function adminSetAdminPwd() {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8A8.5 8.5 0 0 1 12.5 20a8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6A8.4 8.4 0 0 1 12.5 3h.5a8.5 8.5 0 0 1 8 8z"></path></svg>
           </span>
           <div class="liquid-compose-title">发起私信</div>
-          <div class="liquid-compose-desc">先搜索用户，再把会话固定到底栏消息输入区里。</div>
+          <div class="liquid-compose-desc">先搜索用户，再把会话固定到底栏，输入框直接放进对话面板里。</div>
         </button>
         <button class="liquid-compose-card" onclick="openLiquidSurface('search')">
           <span class="liquid-compose-icon">
@@ -3341,6 +3578,13 @@ async function adminSetAdminPwd() {
         <div class="liquid-thread-shell liquid-glass-card">
           <div class="liquid-thread-head" id="liquidThreadHead"></div>
           <div class="liquid-thread-body" id="liquidThreadBody"></div>
+          <div class="liquid-thread-compose" id="liquidThreadCompose">
+            <div class="liquid-thread-compose-meta" id="liquidThreadComposeMeta">先选择一个会话</div>
+            <div class="liquid-thread-compose-shell">
+              <textarea id="liquidThreadComposerInput" class="liquid-thread-compose-input" placeholder="先选择一个会话" disabled></textarea>
+              <button class="liquid-thread-send" id="liquidThreadSendBtn" onclick="sendLiquidMessage()" disabled>发送</button>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -3373,6 +3617,8 @@ async function adminSetAdminPwd() {
 <div class="liquid-nav-picker" id="liquidNavPicker"></div>
 <div id="liquidBarDock">
   <div id="liquidBar" class="mode-hub">
+    <div class="liquid-refraction-layer liquid-refraction-layer-bar"></div>
+    <div class="liquid-caustic-layer liquid-caustic-layer-bar"></div>
     <div class="liquid-bar-shell">
       <button class="liquid-nav-trigger" id="liquidNavTrigger" aria-label="打开页面导航">
         <span class="liquid-nav-glyph" id="liquidNavGlyph"></span>
@@ -3382,13 +3628,14 @@ async function adminSetAdminPwd() {
         </span>
       </button>
       <div class="liquid-bar-center" id="liquidBarCenter">
+        <div class="liquid-compact-label" id="liquidCompactLabel">社区</div>
         <div class="liquid-center-copy">
           <div class="liquid-center-kicker" id="liquidCenterKicker">Liquid Navigation</div>
           <div class="liquid-center-title" id="liquidCenterTitle">全局导航、私信和用户群组搜索整合到底部。</div>
         </div>
         <div class="liquid-center-input-wrap">
           <input id="liquidCenterInput" class="liquid-center-input" placeholder="搜索用户或群组">
-          <button class="liquid-inline-send" id="liquidInlineSend" onclick="handleLiquidInlineAction()">发送</button>
+          <button class="liquid-inline-send" id="liquidInlineSend" onclick="handleLiquidInlineAction()">搜索</button>
         </div>
       </div>
       <div class="liquid-bar-actions">
@@ -3569,6 +3816,7 @@ let liquidMode = 'hub';
 let liquidSurfaceMode = 'compose';
 let liquidSurfaceReturnMode = 'hub';
 let liquidLastScrollTop = 0;
+let liquidCompactExpanded = false;
 let liquidNavHoldTimer = null;
 let liquidNavHoldTriggered = false;
 let liquidNavDragActive = false;
@@ -3763,7 +4011,7 @@ function getLiquidSurfaceCopy(mode) {
   if (mode === 'messages') {
     return {
       title: 'Messages',
-      sub: commUser ? '底栏输入区会跟随当前会话，发送消息时不会打断浏览。' : '登录后开启私信与群组会话。'
+      sub: commUser ? '底栏只保留会话摘要，真正的发送框已经并入当前对话面板。' : '登录后开启私信与群组会话。'
     };
   }
   if (mode === 'search') {
@@ -3796,6 +4044,31 @@ function focusLiquidCenterInput() {
   });
 }
 
+function focusLiquidThreadComposer() {
+  const input = document.getElementById('liquidThreadComposerInput');
+  if (!input || input.disabled) return;
+  requestAnimationFrame(() => {
+    input.focus({ preventScroll: true });
+    const end = input.value.length;
+    if (typeof input.setSelectionRange === 'function') input.setSelectionRange(end, end);
+  });
+}
+
+function resizeLiquidThreadComposer() {
+  const input = document.getElementById('liquidThreadComposerInput');
+  if (!input) return;
+  input.style.height = '54px';
+  input.style.height = `${Math.min(Math.max(input.scrollHeight, 54), 144)}px`;
+}
+
+function syncLiquidThreadComposerState() {
+  const input = document.getElementById('liquidThreadComposerInput');
+  const send = document.getElementById('liquidThreadSendBtn');
+  if (!input || !send) return;
+  send.disabled = input.disabled || !input.value.trim();
+  resizeLiquidThreadComposer();
+}
+
 function moveLiquidConversationToFront(conversationId = '') {
   if (!conversationId) return;
   const index = liquidChatState.conversations.findIndex(item => item.id === conversationId);
@@ -3805,16 +4078,18 @@ function moveLiquidConversationToFront(conversationId = '') {
 }
 
 async function pinLiquidConversation(conversationId, options = {}) {
-  const { closeSurface = true, silent = false, focusInput = true } = options;
+  const { closeSurface = false, silent = false, focusInput = true } = options;
   if (!conversationId) return;
   liquidChatState.activeConversationId = conversationId;
   moveLiquidConversationToFront(conversationId);
+  liquidCompactExpanded = true;
   setLiquidMode('messages');
   renderLiquidConversations();
   renderLiquidThread();
   if (closeSurface) closeLiquidSurface({ forceMode: 'messages' });
+  else openLiquidSurface('messages');
   await loadLiquidMessages(conversationId, { silent });
-  if (focusInput) focusLiquidCenterInput();
+  if (focusInput) focusLiquidThreadComposer();
 }
 
 function setLiquidCompactState(shouldCompact) {
@@ -3836,6 +4111,7 @@ function updateLiquidBar() {
   const navSub = document.getElementById('liquidNavSub');
   const centerKicker = document.getElementById('liquidCenterKicker');
   const centerTitle = document.getElementById('liquidCenterTitle');
+  const compactLabel = document.getElementById('liquidCompactLabel');
   const centerInput = document.getElementById('liquidCenterInput');
   const inlineSend = document.getElementById('liquidInlineSend');
   const composeBtn = document.getElementById('liquidComposeBtn');
@@ -3850,10 +4126,11 @@ function updateLiquidBar() {
 
   if (liquidMode === 'messages') {
     centerKicker.textContent = activeConversation?.kind === 'group' ? 'Group Channel' : 'Direct Message';
-    centerTitle.textContent = activeConversation ? `当前会话 · ${activeConversation.title}` : (commUser ? '从右侧列表选择一个会话，消息输入就会吸附到这里。' : '登录后可开启私信系统。');
-    centerInput.placeholder = activeConversation ? `发送给 ${activeConversation.title}` : '先打开一个会话';
-    centerInput.disabled = !activeConversation;
-    inlineSend.textContent = '发送';
+    centerTitle.textContent = activeConversation ? `当前会话 · ${activeConversation.title}` : (commUser ? '打开对话框后再发消息，输入框已经移进会话面板。' : '登录后可开启私信系统。');
+    centerInput.value = '';
+    centerInput.placeholder = activeConversation ? `搜索 ${activeConversation.title}` : '先打开一个会话';
+    centerInput.disabled = true;
+    inlineSend.textContent = '对话';
     inlineSend.disabled = !activeConversation;
   } else if (liquidMode === 'search') {
     centerKicker.textContent = 'People & Groups';
@@ -3872,6 +4149,18 @@ function updateLiquidBar() {
     inlineSend.textContent = '打开';
   }
 
+  if (compactLabel) {
+    if (liquidMode === 'messages') {
+      compactLabel.textContent = activeConversation ? activeConversation.title : '消息';
+    } else if (liquidMode === 'search') {
+      compactLabel.textContent = liquidSearchState.query ? `搜索 · ${liquidSearchState.query}` : '搜索';
+    } else if (activeConversation) {
+      compactLabel.textContent = activeConversation.title;
+    } else {
+      compactLabel.textContent = pageMeta.title;
+    }
+  }
+
   [composeBtn, messageBtn, searchBtn].forEach(btn => btn.classList.remove('active', 'count'));
   if (liquidMode === 'compose') composeBtn.classList.add('active');
   if (liquidMode === 'messages') messageBtn.classList.add('active');
@@ -3884,10 +4173,11 @@ function updateLiquidBar() {
   }
 
   const activePageTop = document.querySelector('.page.active')?.scrollTop || 0;
-  if (isLiquidSurfaceOpen() || liquidMode === 'search' || liquidMode === 'compose') {
+  const canAutoCompact = !isLiquidSurfaceOpen() && liquidMode !== 'search' && liquidMode !== 'compose';
+  if (!canAutoCompact) {
     setLiquidCompactState(false);
   } else {
-    setLiquidCompactState(activePageTop > 44);
+    setLiquidCompactState(activePageTop > 44 && !liquidCompactExpanded);
   }
 
   renderLiquidNavPicker();
@@ -4204,7 +4494,8 @@ function renderLiquidConversations() {
 }
 
 async function openLiquidConversation(conversationId) {
-  await pinLiquidConversation(conversationId);
+  openLiquidSurface('messages');
+  await pinLiquidConversation(conversationId, { closeSurface: false });
 }
 
 async function loadLiquidMessages(conversationId, options = {}) {
@@ -4235,6 +4526,8 @@ async function loadLiquidMessages(conversationId, options = {}) {
 function renderLiquidThread() {
   const head = document.getElementById('liquidThreadHead');
   const body = document.getElementById('liquidThreadBody');
+  const composeMeta = document.getElementById('liquidThreadComposeMeta');
+  const composeInput = document.getElementById('liquidThreadComposerInput');
   if (!head || !body) return;
   const active = liquidChatState.conversations.find(item => item.id === liquidChatState.activeConversationId) || null;
   if (!active) {
@@ -4242,10 +4535,18 @@ function renderLiquidThread() {
       <div class="liquid-avatar">8</div>
       <div class="liquid-item-main">
         <div class="liquid-item-title">选择一个会话</div>
-        <div class="liquid-item-sub">会话固定后，底栏中间区域会直接变成消息输入条。</div>
+        <div class="liquid-item-sub">会话固定后，底栏只保留摘要，真正的发送框放在当前对话面板里。</div>
       </div>
     `;
     body.innerHTML = '<div class="liquid-thread-empty">右侧没有选中任何会话。</div>';
+    if (composeMeta) composeMeta.textContent = commUser ? '先选择一个会话' : '登录后才能发送消息';
+    if (composeInput) {
+      composeInput.value = '';
+      composeInput.placeholder = commUser ? '先从左侧选择一个会话' : '登录后才能发送消息';
+      composeInput.disabled = true;
+      composeInput.dataset.conversationId = '';
+    }
+    syncLiquidThreadComposerState();
     return;
   }
   head.innerHTML = `
@@ -4268,13 +4569,21 @@ function renderLiquidThread() {
           </div>
         `;
       }).join('')
-    : '<div class="liquid-thread-empty">这条会话还没有消息，先从底栏发第一句。</div>';
+    : '<div class="liquid-thread-empty">这条会话还没有消息，先从下方对话框发第一句。</div>';
   body.scrollTop = body.scrollHeight;
+  if (composeMeta) composeMeta.textContent = active.kind === 'group' ? `发到群组 ${active.title}` : `发给 ${active.title}`;
+  if (composeInput) {
+    if ((composeInput.dataset.conversationId || '') !== active.id) composeInput.value = '';
+    composeInput.dataset.conversationId = active.id;
+    composeInput.placeholder = active.kind === 'group' ? `给 ${active.title} 群里发一句...` : `给 ${active.title} 发条消息...`;
+    composeInput.disabled = false;
+  }
+  syncLiquidThreadComposerState();
 }
 
 async function sendLiquidMessage() {
   const active = liquidChatState.conversations.find(item => item.id === liquidChatState.activeConversationId);
-  const input = document.getElementById('liquidCenterInput');
+  const input = document.getElementById('liquidThreadComposerInput');
   if (!active || !input) return;
   const content = input.value.trim();
   if (!content) return;
@@ -4299,20 +4608,19 @@ async function sendLiquidMessage() {
     renderLiquidThread();
     renderLiquidConversations();
     updateLiquidBar();
-    focusLiquidCenterInput();
+    syncLiquidThreadComposerState();
+    focusLiquidThreadComposer();
   } catch (error) {
     input.value = content;
+    syncLiquidThreadComposerState();
     showToast(getUiErrorMessage(error, '消息发送失败'), 'error');
   }
 }
 
 function handleLiquidInlineAction() {
   if (liquidMode === 'messages') {
-    if (!liquidChatState.activeConversationId) {
-      openLiquidSurface('messages');
-      return;
-    }
-    sendLiquidMessage();
+    openLiquidSurface('messages');
+    focusLiquidThreadComposer();
     return;
   }
   if (liquidMode === 'search') {
@@ -4450,12 +4758,13 @@ function attachLiquidScrollObservers() {
       if (!target.classList.contains('active')) return;
       const top = target.scrollTop || 0;
       if (!document.getElementById('liquidBar')) return;
+      if (Math.abs(top - liquidLastScrollTop) > 2) liquidCompactExpanded = false;
       if (isLiquidSurfaceOpen() || liquidMode === 'search' || liquidMode === 'compose') {
         setLiquidCompactState(false);
         liquidLastScrollTop = top;
         return;
       }
-      setLiquidCompactState(top > 44);
+      setLiquidCompactState(top > 44 && !liquidCompactExpanded);
       liquidLastScrollTop = top;
     }, { passive: true });
   });
@@ -4470,6 +4779,31 @@ function attachLiquidInteractionShield() {
         event.stopPropagation();
       });
     });
+  });
+}
+
+function attachLiquidCompactToggle() {
+  const bar = document.getElementById('liquidBar');
+  if (!bar) return;
+  bar.addEventListener('click', event => {
+    if (!bar.classList.contains('compact')) return;
+    event.preventDefault();
+    liquidCompactExpanded = true;
+    updateLiquidBar();
+  });
+}
+
+function attachLiquidBarCenterAction() {
+  const center = document.getElementById('liquidBarCenter');
+  if (!center) return;
+  center.addEventListener('click', event => {
+    const root = document.getElementById('liquidBar');
+    if (!root || root.classList.contains('compact')) return;
+    if (liquidMode === 'messages') {
+      event.preventDefault();
+      openLiquidSurface('messages');
+      focusLiquidThreadComposer();
+    }
   });
 }
 
@@ -4492,6 +4826,20 @@ function attachLiquidInputEvents() {
     event.preventDefault();
     handleLiquidInlineAction();
   });
+
+  const threadInput = document.getElementById('liquidThreadComposerInput');
+  if (!threadInput) return;
+  threadInput.addEventListener('focus', () => {
+    openLiquidSurface('messages');
+  });
+  threadInput.addEventListener('input', () => {
+    syncLiquidThreadComposerState();
+  });
+  threadInput.addEventListener('keydown', event => {
+    if (event.key !== 'Enter' || event.shiftKey) return;
+    event.preventDefault();
+    sendLiquidMessage();
+  });
 }
 
 function startLiquidChatPolling() {
@@ -4505,12 +4853,15 @@ function startLiquidChatPolling() {
 function initLiquidBar() {
   renderLiquidNavPicker();
   attachLiquidInteractionShield();
+  attachLiquidCompactToggle();
+  attachLiquidBarCenterAction();
   attachLiquidNavGesture();
   attachLiquidScrollObservers();
   attachLiquidInputEvents();
   seedLiquidGroupCandidates();
   refreshLiquidConversations();
   startLiquidChatPolling();
+  syncLiquidThreadComposerState();
   updateLiquidBar();
 }
 

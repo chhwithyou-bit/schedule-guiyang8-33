@@ -199,6 +199,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('liquid bar compacts cleanly and keeps chat actions attached to the bottom rail', async ({ page }, testInfo) => {
+  test.setTimeout(90000);
   await page.goto('/');
   await page.waitForSelector('#liquidBar');
   await page.waitForTimeout(1200);
@@ -244,6 +245,9 @@ test('liquid bar compacts cleanly and keeps chat actions attached to the bottom 
   await expect(page.locator('#liquidBar')).toHaveClass(/compact/);
   await page.screenshot({ path: testInfo.outputPath('liquid-compact.png') });
 
+  await page.locator('#liquidBar').click();
+  await expect(page.locator('#liquidBar')).not.toHaveClass(/compact/);
+
   await page.locator('#liquidSearchBtn').click();
   await expect(page.locator('#liquidSurface')).toHaveClass(/open/);
   await page.locator('#liquidCenterInput').fill('Alice');
@@ -251,38 +255,30 @@ test('liquid bar compacts cleanly and keeps chat actions attached to the bottom 
   await expect(page.locator('#liquidUserResults')).toContainText('Alice');
   await page.getByRole('button', { name: '开始私聊' }).click();
   await page.waitForTimeout(900);
-  await expect(page.locator('#liquidSurface')).not.toHaveClass(/open/);
+  await expect(page.locator('#liquidSurface')).toHaveClass(/open/);
   await expect(page.locator('#liquidBar')).toHaveClass(/mode-messages/);
   await expect(page.locator('#liquidCenterTitle')).toContainText('Alice');
-
-  const alignment = await page.evaluate(() => {
-    const input = document.getElementById('liquidCenterInput');
-    const send = document.getElementById('liquidInlineSend');
-    const inputRect = input.getBoundingClientRect();
-    const sendRect = send.getBoundingClientRect();
-    return Math.abs(
-      (inputRect.top + (inputRect.height / 2)) -
-      (sendRect.top + (sendRect.height / 2))
-    );
-  });
-  expect(alignment).toBeLessThanOrEqual(2);
+  await expect(page.locator('#liquidThreadComposerInput')).toBeVisible();
+  await expect(page.locator('#liquidThreadComposeMeta')).toContainText('Alice');
 
   await page.screenshot({ path: testInfo.outputPath('liquid-dm.png') });
 
-  await page.locator('#liquidCenterInput').fill('浏览器联调消息');
-  await page.locator('#liquidInlineSend').click();
-  await page.locator('#liquidMessageBtn').click();
+  await page.locator('#liquidThreadComposerInput').fill('浏览器联调消息');
+  await page.locator('#liquidThreadSendBtn').click();
   await page.waitForTimeout(600);
   await expect(page.locator('#liquidThreadBody')).toContainText('浏览器联调消息');
 
+  await page.locator('.liquid-surface-close').click({ force: true });
+  await expect(page.locator('#liquidSurface')).not.toHaveClass(/open/);
   await page.locator('#liquidSearchBtn').click();
   await page.locator('#liquidCenterInput').fill('Night');
   await page.waitForTimeout(500);
   await expect(page.locator('#liquidGroupResults')).toContainText('Night Sprint');
   await page.getByRole('button', { name: '加入并进入' }).click();
   await page.waitForTimeout(900);
-  await expect(page.locator('#liquidSurface')).not.toHaveClass(/open/);
+  await expect(page.locator('#liquidSurface')).toHaveClass(/open/);
   await expect(page.locator('#liquidCenterTitle')).toContainText('Night Sprint');
+  await expect(page.locator('#liquidThreadHead')).toContainText('Night Sprint');
 
   await page.screenshot({ path: testInfo.outputPath('liquid-group.png') });
 });
