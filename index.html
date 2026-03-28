@@ -44,6 +44,11 @@
   --glass-border2: rgba(255, 119, 16, 0.18);
   --glass-shine: rgba(255, 153, 68, 0.08);
   --glass-blur: 18px;
+  --liquid-core: rgba(6, 9, 38, 0.34);
+  --liquid-ice: rgba(255, 255, 255, 0.12);
+  --liquid-ice-strong: rgba(255, 255, 255, 0.28);
+  --liquid-cool: rgba(112, 168, 255, 0.16);
+  --liquid-warm: rgba(255, 168, 94, 0.22);
 
   /* 语义色 */
   --blue: #60a8e0;
@@ -118,6 +123,21 @@ html, body {
 }
 .stagger > * {
   animation: staggerIn 0.85s cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+@keyframes liquidDrift {
+  0% {
+    transform: translate3d(-8%, 6%, 0) scale(0.94) rotate(-10deg);
+    opacity: 0.56;
+  }
+  50% {
+    transform: translate3d(6%, -8%, 0) scale(1.04) rotate(5deg);
+    opacity: 0.84;
+  }
+  100% {
+    transform: translate3d(12%, 4%, 0) scale(0.98) rotate(11deg);
+    opacity: 0.68;
+  }
 }
 .stagger > *:nth-child(1) { animation-delay: 0.1s; }
 .stagger > *:nth-child(2) { animation-delay: 0.2s; }
@@ -1253,57 +1273,94 @@ html, body {
   transform: translateX(-50%);
   width: min(96vw, 1080px);
   z-index: 9500;
-  pointer-events: none;
+  pointer-events: auto;
+  transition: transform 0.9s cubic-bezier(0.22, 0.82, 0.24, 1), opacity 0.6s ease;
 }
 #liquidBar {
   position: relative;
+  overflow: hidden;
+  isolation: isolate;
   pointer-events: auto;
+  touch-action: manipulation;
   padding: 10px;
   border-radius: 34px;
   background:
-    radial-gradient(circle at top left, rgba(255,255,255,0.12), transparent 34%),
-    radial-gradient(circle at bottom right, rgba(255,153,68,0.14), transparent 28%),
-    rgba(8, 10, 48, 0.58);
-  backdrop-filter: blur(34px) saturate(185%) brightness(1.08);
-  -webkit-backdrop-filter: blur(34px) saturate(185%) brightness(1.08);
-  border: 1px solid rgba(255, 184, 120, 0.22);
+    linear-gradient(136deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.05) 26%, rgba(112,168,255,0.08) 54%, rgba(255,168,94,0.12) 100%),
+    radial-gradient(circle at 14% 14%, rgba(255,255,255,0.22), transparent 24%),
+    radial-gradient(circle at 84% 18%, rgba(112,168,255,0.18), transparent 26%),
+    radial-gradient(circle at 78% 86%, rgba(255,168,94,0.20), transparent 30%),
+    rgba(8, 10, 48, 0.44);
+  backdrop-filter: blur(28px) saturate(210%) brightness(1.08);
+  -webkit-backdrop-filter: blur(28px) saturate(210%) brightness(1.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.16),
-    inset 0 -1px 0 rgba(255,255,255,0.04),
-    0 24px 60px rgba(0,0,0,0.45),
-    0 6px 16px rgba(255,119,16,0.12);
+    inset 0 1px 0 rgba(255,255,255,0.24),
+    inset 0 -1px 0 rgba(255,255,255,0.05),
+    0 26px 68px rgba(0,0,0,0.42),
+    0 8px 20px rgba(255,119,16,0.10),
+    0 4px 14px rgba(112,168,255,0.08);
   transition:
-    width 0.42s cubic-bezier(0.22, 0.82, 0.24, 1),
-    transform 0.42s cubic-bezier(0.22, 0.82, 0.24, 1),
-    border-radius 0.42s cubic-bezier(0.22, 0.82, 0.24, 1),
-    padding 0.42s cubic-bezier(0.22, 0.82, 0.24, 1),
-    box-shadow 0.3s ease,
-    background 0.3s ease;
+    width 0.9s cubic-bezier(0.22, 0.82, 0.24, 1),
+    transform 0.9s cubic-bezier(0.22, 0.82, 0.24, 1),
+    border-radius 0.9s cubic-bezier(0.22, 0.82, 0.24, 1),
+    padding 0.9s cubic-bezier(0.22, 0.82, 0.24, 1),
+    box-shadow 0.72s ease,
+    background 0.72s ease,
+    backdrop-filter 0.72s ease;
 }
 #liquidBar::before {
   content: '';
   position: absolute;
   inset: 1px;
   border-radius: inherit;
-  background: linear-gradient(180deg, rgba(255,255,255,0.08), transparent 24%, transparent 72%, rgba(255,255,255,0.03));
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.34), rgba(255,255,255,0.12) 16%, rgba(255,255,255,0.04) 34%, transparent 56%, transparent 74%, rgba(255,255,255,0.08)),
+    radial-gradient(circle at 20% 10%, rgba(255,255,255,0.24), transparent 24%);
   pointer-events: none;
 }
-#liquidBar.compact {
-  width: min(310px, 58vw);
-  padding: 8px 10px;
+#liquidBar::after {
+  content: '';
+  position: absolute;
+  left: 26%;
+  bottom: -42%;
+  width: 34%;
+  height: 140%;
   border-radius: 999px;
-  transform: scale(0.97);
+  background:
+    radial-gradient(circle at 28% 26%, rgba(255,255,255,0.54) 0%, rgba(255,255,255,0.22) 18%, rgba(176,214,255,0.16) 36%, transparent 68%),
+    radial-gradient(circle at 72% 72%, rgba(255,168,94,0.24), transparent 62%);
+  filter: blur(16px);
+  opacity: 0.7;
+  pointer-events: none;
+  animation: liquidDrift 13s ease-in-out infinite alternate;
+}
+#liquidBar.compact {
+  width: clamp(288px, 42vw, 420px);
+  padding: 7px 9px;
+  border-radius: 999px;
+  transform: scale(0.94);
+  background:
+    linear-gradient(140deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.03) 30%, rgba(112,168,255,0.06) 58%, rgba(255,168,94,0.08) 100%),
+    radial-gradient(circle at 18% 12%, rgba(255,255,255,0.16), transparent 24%),
+    rgba(8, 10, 48, 0.28);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.18),
+    inset 0 -1px 0 rgba(255,255,255,0.04),
+    0 18px 44px rgba(0,0,0,0.24),
+    0 4px 14px rgba(112,168,255,0.06);
 }
 #liquidBar.mode-search,
 #liquidBar.mode-messages {
-  width: min(96vw, 1120px);
+  width: min(94vw, 1080px);
 }
 .liquid-bar-shell {
   position: relative;
+  z-index: 1;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
+  transition: gap 0.72s cubic-bezier(0.22, 0.82, 0.24, 1);
 }
 .liquid-nav-trigger,
 .liquid-action-btn,
@@ -1320,15 +1377,21 @@ html, body {
   min-width: 140px;
   padding: 12px 14px;
   border-radius: 24px;
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.08);
-  transition: transform 0.18s ease, background 0.22s ease, border-color 0.22s ease;
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.16), rgba(255,255,255,0.04) 44%, rgba(255,168,94,0.08) 100%),
+    rgba(255,255,255,0.05);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  border: 1px solid rgba(255,255,255,0.12);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.16), 0 10px 22px rgba(0,0,0,0.12);
+  transition: transform 0.24s ease, background 0.66s ease, border-color 0.66s ease, box-shadow 0.66s ease, padding 0.72s cubic-bezier(0.22, 0.82, 0.24, 1);
   user-select: none;
   touch-action: none;
 }
 .liquid-nav-trigger:active,
 .liquid-action-btn:active,
-.liquid-chip-btn:active {
+.liquid-chip-btn:active,
+.liquid-inline-send:active {
   transform: scale(0.96);
 }
 .liquid-nav-glyph,
@@ -1341,9 +1404,11 @@ html, body {
   width: 34px;
   height: 34px;
   border-radius: 18px;
-  background: linear-gradient(145deg, rgba(255,153,68,0.26), rgba(255,119,16,0.12));
+  background:
+    radial-gradient(circle at 32% 30%, rgba(255,255,255,0.22), transparent 28%),
+    linear-gradient(145deg, rgba(255,153,68,0.34), rgba(255,119,16,0.10));
   color: var(--accent2);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), 0 8px 18px rgba(255,119,16,0.12);
   flex-shrink: 0;
 }
 .liquid-nav-glyph svg,
@@ -1372,6 +1437,9 @@ html, body {
   text-overflow: ellipsis;
 }
 .liquid-bar-center {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1379,9 +1447,14 @@ html, body {
   min-height: 60px;
   padding: 8px 10px 8px 14px;
   border-radius: 26px;
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.06);
-  transition: border-radius 0.38s cubic-bezier(0.22, 0.82, 0.24, 1), background 0.22s ease, padding 0.22s ease;
+  background:
+    linear-gradient(150deg, rgba(255,255,255,0.14), rgba(255,255,255,0.04) 42%, rgba(112,168,255,0.08) 72%, rgba(255,168,94,0.08) 100%),
+    rgba(255,255,255,0.06);
+  backdrop-filter: blur(18px) saturate(170%);
+  -webkit-backdrop-filter: blur(18px) saturate(170%);
+  border: 1px solid rgba(255,255,255,0.10);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), inset 0 -1px 0 rgba(255,255,255,0.04);
+  transition: border-radius 0.72s cubic-bezier(0.22, 0.82, 0.24, 1), background 0.66s ease, padding 0.72s cubic-bezier(0.22, 0.82, 0.24, 1), min-height 0.72s cubic-bezier(0.22, 0.82, 0.24, 1);
 }
 .liquid-bar-center::before {
   content: '';
@@ -1389,7 +1462,7 @@ html, body {
   height: 9px;
   border-radius: 50%;
   background: linear-gradient(135deg, #ffe0c0, #ff9c52);
-  box-shadow: 0 0 0 6px rgba(255,153,68,0.08);
+  box-shadow: 0 0 0 7px rgba(255,153,68,0.08), 0 0 18px rgba(255,168,94,0.18);
   flex-shrink: 0;
 }
 .liquid-center-copy {
@@ -1413,36 +1486,62 @@ html, body {
 }
 .liquid-center-input-wrap {
   display: none;
-  align-items: center;
-  gap: 10px;
+  align-items: stretch;
+  gap: 8px;
   width: 100%;
+  min-height: 44px;
+  padding: 3px 3px 3px 0;
+  border-radius: 20px;
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.12), rgba(255,255,255,0.03) 44%, rgba(255,168,94,0.06) 100%),
+    rgba(255,255,255,0.03);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
 }
 .liquid-center-input {
   flex: 1;
   min-width: 0;
+  min-height: 38px;
   border: none;
   outline: none;
   background: transparent;
   color: var(--text);
   font-size: 14px;
+  line-height: 1.2;
+  padding: 0 6px;
   font-family: inherit;
 }
 .liquid-center-input::placeholder { color: var(--t3); }
 .liquid-inline-send {
   border: none;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
   flex-shrink: 0;
-  padding: 10px 14px;
-  border-radius: 18px;
+  min-width: 78px;
+  min-height: 38px;
+  padding: 0 16px;
+  border-radius: 16px;
   background: linear-gradient(135deg, rgba(255,119,16,0.88), rgba(255,153,68,0.96));
   color: #fff;
   font-weight: 700;
+  line-height: 1;
   box-shadow: 0 10px 20px rgba(255,119,16,0.22);
+  transition: transform 0.2s ease, box-shadow 0.24s ease, filter 0.24s ease;
+}
+.liquid-inline-send:disabled {
+  opacity: 0.46;
+  cursor: not-allowed;
+  box-shadow: none;
+  filter: grayscale(0.12);
 }
 #liquidBar.mode-search .liquid-bar-center,
 #liquidBar.mode-messages .liquid-bar-center {
   border-radius: 24px 30px 30px 24px;
-  background: rgba(255,255,255,0.1);
+  background:
+    linear-gradient(150deg, rgba(255,255,255,0.16), rgba(255,255,255,0.04) 40%, rgba(112,168,255,0.08) 72%, rgba(255,168,94,0.10) 100%),
+    rgba(255,255,255,0.08);
 }
 #liquidBar.mode-search .liquid-center-copy,
 #liquidBar.mode-messages .liquid-center-copy {
@@ -1456,21 +1555,31 @@ html, body {
   display: flex;
   align-items: center;
   gap: 8px;
+  transition: gap 0.72s cubic-bezier(0.22, 0.82, 0.24, 1);
 }
 .liquid-action-btn {
   position: relative;
+  overflow: hidden;
+  isolation: isolate;
   width: 48px;
   height: 48px;
   border-radius: 18px;
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.08);
-  transition: transform 0.18s ease, background 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.14), rgba(255,255,255,0.03) 46%, rgba(112,168,255,0.05) 100%),
+    rgba(255,255,255,0.05);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  border: 1px solid rgba(255,255,255,0.10);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.14), 0 10px 20px rgba(0,0,0,0.12);
+  transition: transform 0.24s ease, background 0.66s ease, border-color 0.66s ease, box-shadow 0.66s ease, width 0.72s cubic-bezier(0.22, 0.82, 0.24, 1), height 0.72s cubic-bezier(0.22, 0.82, 0.24, 1), border-radius 0.72s cubic-bezier(0.22, 0.82, 0.24, 1);
 }
 .liquid-action-btn.active {
-  background: rgba(255,119,16,0.18);
-  border-color: rgba(255,153,68,0.28);
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.16), rgba(255,168,94,0.14) 52%, rgba(255,119,16,0.10) 100%),
+    rgba(255,119,16,0.14);
+  border-color: rgba(255,185,128,0.34);
   color: var(--accent2);
-  box-shadow: 0 10px 24px rgba(255,119,16,0.16);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), 0 14px 28px rgba(255,119,16,0.18);
 }
 .liquid-action-btn.count::after {
   content: attr(data-count);
@@ -1496,39 +1605,57 @@ html, body {
 }
 #liquidBar.compact .liquid-bar-shell {
   grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 6px;
 }
 #liquidBar.compact .liquid-nav-trigger {
-  min-width: 56px;
-  padding: 10px;
+  min-width: 50px;
+  padding: 9px;
 }
 #liquidBar.compact .liquid-bar-center {
-  min-height: 46px;
-  padding: 8px 12px;
+  min-height: 44px;
+  padding: 5px 10px 5px 12px;
 }
 #liquidBar.compact .liquid-center-title {
   font-size: 12px;
 }
+#liquidBar.compact .liquid-inline-send {
+  min-width: 68px;
+  border-radius: 14px;
+}
 #liquidBar.compact .liquid-action-btn {
-  width: 42px;
-  height: 42px;
-  border-radius: 16px;
+  width: 40px;
+  height: 40px;
+  border-radius: 15px;
+}
+.liquid-builder .inp {
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.10), rgba(255,255,255,0.03) 44%, rgba(255,168,94,0.08) 100%),
+    rgba(10,10,60,0.52);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  border-color: rgba(255,255,255,0.10);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+}
+.liquid-builder .inp:focus {
+  border-color: rgba(255,185,128,0.42);
+  box-shadow: 0 0 0 3px rgba(255,119,16,0.12), inset 0 1px 0 rgba(255,255,255,0.14);
 }
 .liquid-surface-backdrop {
   position: fixed;
   inset: 0;
   z-index: 9390;
-  background: rgba(1, 2, 18, 0.14);
+  background: linear-gradient(180deg, rgba(1, 2, 18, 0.10), rgba(1, 2, 18, 0.30));
   backdrop-filter: blur(0);
   -webkit-backdrop-filter: blur(0);
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.26s ease, backdrop-filter 0.26s ease;
+  transition: opacity 0.34s ease, backdrop-filter 0.34s ease;
 }
 .liquid-surface-backdrop.open {
   opacity: 1;
   pointer-events: auto;
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 .liquid-surface {
   position: fixed;
@@ -1538,18 +1665,47 @@ html, body {
   width: min(96vw, 1100px);
   max-height: min(72vh, 760px);
   overflow: hidden;
+  isolation: isolate;
   border-radius: 32px;
   background:
-    radial-gradient(circle at top left, rgba(255,255,255,0.12), transparent 28%),
-    rgba(7, 8, 40, 0.76);
-  backdrop-filter: blur(32px) saturate(180%);
-  -webkit-backdrop-filter: blur(32px) saturate(180%);
-  border: 1px solid rgba(255,184,120,0.18);
-  box-shadow: 0 36px 80px rgba(0,0,0,0.5);
+    linear-gradient(145deg, rgba(255,255,255,0.14), rgba(255,255,255,0.04) 30%, rgba(112,168,255,0.08) 62%, rgba(255,168,94,0.10) 100%),
+    radial-gradient(circle at 16% 12%, rgba(255,255,255,0.18), transparent 24%),
+    radial-gradient(circle at 84% 18%, rgba(112,168,255,0.16), transparent 26%),
+    rgba(7, 8, 40, 0.56);
+  backdrop-filter: blur(30px) saturate(195%) brightness(1.04);
+  -webkit-backdrop-filter: blur(30px) saturate(195%) brightness(1.04);
+  border: 1px solid rgba(255,255,255,0.14);
+  box-shadow: 0 34px 80px rgba(0,0,0,0.42), 0 8px 24px rgba(112,168,255,0.08);
   z-index: 9400;
   opacity: 0;
   pointer-events: none;
-  transition: transform 0.32s cubic-bezier(0.22, 0.82, 0.24, 1), opacity 0.24s ease;
+  transition: transform 0.66s cubic-bezier(0.22, 0.82, 0.24, 1), opacity 0.28s ease, box-shadow 0.4s ease;
+}
+.liquid-surface::before {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.26), rgba(255,255,255,0.10) 16%, rgba(255,255,255,0.03) 34%, transparent 58%),
+    radial-gradient(circle at 18% 10%, rgba(255,255,255,0.18), transparent 24%);
+  pointer-events: none;
+}
+.liquid-surface::after {
+  content: '';
+  position: absolute;
+  right: 6%;
+  bottom: -16%;
+  width: 38%;
+  height: 48%;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 28% 28%, rgba(255,255,255,0.46), rgba(255,255,255,0.18) 18%, rgba(176,214,255,0.14) 40%, transparent 68%),
+    radial-gradient(circle at 72% 72%, rgba(255,168,94,0.24), transparent 60%);
+  filter: blur(18px);
+  opacity: 0.78;
+  pointer-events: none;
+  animation: liquidDrift 14s ease-in-out infinite alternate;
 }
 .liquid-surface.open {
   opacity: 1;
@@ -1562,6 +1718,8 @@ html, body {
   border-radius: 999px;
   background: rgba(255,255,255,0.14);
   margin: 12px auto 0;
+  position: relative;
+  z-index: 1;
 }
 .liquid-surface-head {
   display: flex;
@@ -1569,7 +1727,9 @@ html, body {
   justify-content: space-between;
   gap: 14px;
   padding: 16px 20px 14px;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  position: relative;
+  z-index: 1;
 }
 .liquid-surface-title {
   font-size: 18px;
@@ -1584,15 +1744,20 @@ html, body {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  border: 1px solid rgba(255,255,255,0.08);
-  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.10);
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.14), rgba(255,255,255,0.03) 50%, rgba(255,168,94,0.08) 100%),
+    rgba(255,255,255,0.04);
   color: var(--text);
   cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.14);
 }
 .liquid-surface-body {
   padding: 18px;
   overflow-y: auto;
   max-height: calc(min(72vh, 760px) - 74px);
+  position: relative;
+  z-index: 1;
 }
 .liquid-panel { display: none; }
 .liquid-panel.active { display: block; }
@@ -1607,22 +1772,54 @@ html, body {
 .liquid-group-card,
 .liquid-glass-card {
   border-radius: 24px;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.06);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.14), rgba(255,255,255,0.04) 40%, rgba(112,168,255,0.06) 72%, rgba(255,168,94,0.08) 100%),
+    rgba(255,255,255,0.04);
+  backdrop-filter: blur(18px) saturate(155%);
+  -webkit-backdrop-filter: blur(18px) saturate(155%);
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 16px 32px rgba(0,0,0,0.14);
 }
 .liquid-compose-card {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
   padding: 16px;
   text-align: left;
   cursor: pointer;
-  transition: transform 0.18s ease, border-color 0.22s ease, background 0.22s ease;
+  transition: transform 0.24s ease, border-color 0.32s ease, background 0.32s ease, box-shadow 0.32s ease;
+}
+.liquid-compose-card::before,
+.liquid-search-card::before,
+.liquid-group-card::before,
+.liquid-glass-card::before {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.06) 18%, transparent 42%),
+    radial-gradient(circle at 12% 10%, rgba(255,255,255,0.16), transparent 22%),
+    radial-gradient(circle at 84% 84%, rgba(255,168,94,0.14), transparent 24%);
+  pointer-events: none;
+}
+.liquid-compose-card > *,
+.liquid-search-card > *,
+.liquid-group-card > *,
+.liquid-glass-card > * {
+  position: relative;
+  z-index: 1;
 }
 .liquid-compose-card:hover,
 .liquid-conv-card:hover,
 .liquid-search-item:hover,
 .liquid-group-card:hover {
-  border-color: rgba(255,153,68,0.26);
-  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,185,128,0.28);
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.16), rgba(255,255,255,0.05) 40%, rgba(112,168,255,0.08) 72%, rgba(255,168,94,0.10) 100%),
+    rgba(255,255,255,0.06);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.14), 0 18px 36px rgba(0,0,0,0.18);
+  transform: translateY(-2px);
 }
 .liquid-compose-icon {
   width: 42px;
@@ -1708,8 +1905,14 @@ html, body {
   gap: 12px;
   padding: 12px;
   border-radius: 18px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.05);
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.10), rgba(255,255,255,0.03) 44%, rgba(255,168,94,0.05) 100%),
+    rgba(255,255,255,0.03);
+  backdrop-filter: blur(14px) saturate(145%);
+  -webkit-backdrop-filter: blur(14px) saturate(145%);
+  border: 1px solid rgba(255,255,255,0.07);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+  transition: transform 0.24s ease, border-color 0.28s ease, background 0.28s ease;
 }
 .liquid-search-item-icon,
 .liquid-avatar {
@@ -1719,11 +1922,16 @@ html, body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255,255,255,0.08);
+  background:
+    radial-gradient(circle at 32% 30%, rgba(255,255,255,0.18), transparent 28%),
+    linear-gradient(145deg, rgba(255,255,255,0.12), rgba(255,255,255,0.03) 48%, rgba(255,168,94,0.06) 100%),
+    rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
   color: var(--accent2);
   font-weight: 800;
   flex-shrink: 0;
   overflow: hidden;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
 }
 .liquid-avatar img,
 .liquid-search-item-icon img {
@@ -1755,11 +1963,14 @@ html, body {
 .liquid-chip-btn {
   padding: 10px 14px;
   border-radius: 16px;
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.08);
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.14), rgba(255,255,255,0.03) 50%, rgba(255,168,94,0.06) 100%),
+    rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.10);
   font-size: 12px;
   font-weight: 700;
   flex-shrink: 0;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
 }
 .liquid-chip-btn.primary {
   background: linear-gradient(135deg, rgba(255,119,16,0.92), rgba(255,153,68,0.96));
@@ -1771,8 +1982,11 @@ html, body {
   border-color: rgba(255,153,68,0.22);
 }
 .liquid-conv-card.active {
-  border-color: rgba(255,153,68,0.28);
-  background: rgba(255,153,68,0.08);
+  border-color: rgba(255,185,128,0.30);
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.16), rgba(255,168,94,0.10) 54%, rgba(255,119,16,0.08) 100%),
+    rgba(255,153,68,0.08);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.14), 0 18px 34px rgba(255,119,16,0.12);
 }
 .liquid-conv-badge {
   min-width: 20px;
@@ -1810,13 +2024,18 @@ html, body {
   max-width: min(76%, 520px);
   padding: 12px 14px;
   border-radius: 20px;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.05);
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.12), rgba(255,255,255,0.03) 42%, rgba(112,168,255,0.06) 100%),
+    rgba(255,255,255,0.04);
+  backdrop-filter: blur(14px) saturate(145%);
+  -webkit-backdrop-filter: blur(14px) saturate(145%);
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
 }
 .liquid-bubble.self {
   margin-left: auto;
-  background: linear-gradient(135deg, rgba(255,119,16,0.22), rgba(255,153,68,0.12));
-  border-color: rgba(255,153,68,0.18);
+  background: linear-gradient(135deg, rgba(255,119,16,0.24), rgba(255,153,68,0.14));
+  border-color: rgba(255,185,128,0.22);
 }
 .liquid-bubble-author {
   font-size: 11px;
@@ -1872,20 +2091,38 @@ html, body {
   left: 50%;
   bottom: calc(env(safe-area-inset-bottom) + 114px);
   transform: translateX(-50%) translateY(18px) scale(0.98);
+  overflow: hidden;
+  isolation: isolate;
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 12px;
   border-radius: 28px;
-  background: rgba(5, 7, 36, 0.74);
-  backdrop-filter: blur(30px) saturate(180%);
-  -webkit-backdrop-filter: blur(30px) saturate(180%);
-  border: 1px solid rgba(255,184,120,0.16);
-  box-shadow: 0 28px 70px rgba(0,0,0,0.42);
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.14), rgba(255,255,255,0.04) 38%, rgba(112,168,255,0.06) 70%, rgba(255,168,94,0.10) 100%),
+    rgba(5, 7, 36, 0.56);
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  border: 1px solid rgba(255,255,255,0.12);
+  box-shadow: 0 26px 64px rgba(0,0,0,0.34);
   z-index: 9550;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.24s ease, transform 0.28s cubic-bezier(0.22, 0.82, 0.24, 1);
+  transition: opacity 0.26s ease, transform 0.52s cubic-bezier(0.22, 0.82, 0.24, 1);
+}
+.liquid-nav-picker::before {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.22), rgba(255,255,255,0.06) 18%, transparent 44%),
+    radial-gradient(circle at 14% 10%, rgba(255,255,255,0.18), transparent 24%);
+  pointer-events: none;
+}
+.liquid-nav-picker > * {
+  position: relative;
+  z-index: 1;
 }
 .liquid-nav-picker.open {
   opacity: 1;
@@ -1905,8 +2142,10 @@ html, body {
 }
 .liquid-nav-option.active,
 .liquid-nav-option.preview {
-  background: rgba(255,119,16,0.16);
-  border-color: rgba(255,153,68,0.24);
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.16), rgba(255,168,94,0.10) 54%, rgba(255,119,16,0.08) 100%),
+    rgba(255,119,16,0.08);
+  border-color: rgba(255,185,128,0.24);
   color: var(--accent2);
 }
 .liquid-nav-option-icon {
@@ -1917,7 +2156,12 @@ html, body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255,255,255,0.06);
+  background:
+    radial-gradient(circle at 32% 30%, rgba(255,255,255,0.18), transparent 28%),
+    linear-gradient(145deg, rgba(255,255,255,0.12), rgba(255,255,255,0.03) 50%, rgba(255,168,94,0.06) 100%),
+    rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
 }
 .liquid-nav-option-title {
   font-size: 12px;
@@ -1966,6 +2210,10 @@ html, body {
   .liquid-center-title {
     font-size: 13px;
   }
+  .liquid-inline-send {
+    min-width: 66px;
+    padding: 0 14px;
+  }
   .liquid-action-btn {
     width: 42px;
     height: 42px;
@@ -1975,6 +2223,12 @@ html, body {
     width: min(94vw, 430px);
     justify-content: center;
     flex-wrap: wrap;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #liquidBar::after,
+  .liquid-surface::after {
+    animation: none;
   }
 }
 </style>
@@ -3266,6 +3520,7 @@ let communityRoleSyncTimer = null;
 let communityRoleSyncPromise = null;
 let liquidMode = 'hub';
 let liquidSurfaceMode = 'compose';
+let liquidSurfaceReturnMode = 'hub';
 let liquidLastScrollTop = 0;
 let liquidNavHoldTimer = null;
 let liquidNavHoldTriggered = false;
@@ -3476,6 +3731,45 @@ function getLiquidSurfaceCopy(mode) {
   };
 }
 
+function isLiquidSurfaceOpen() {
+  return document.getElementById('liquidSurface')?.classList.contains('open');
+}
+
+function getLiquidFallbackMode() {
+  return liquidChatState.activeConversationId ? 'messages' : 'hub';
+}
+
+function focusLiquidCenterInput() {
+  const input = document.getElementById('liquidCenterInput');
+  if (!input || input.disabled) return;
+  requestAnimationFrame(() => {
+    input.focus({ preventScroll: true });
+    const end = input.value.length;
+    if (typeof input.setSelectionRange === 'function') input.setSelectionRange(end, end);
+  });
+}
+
+function moveLiquidConversationToFront(conversationId = '') {
+  if (!conversationId) return;
+  const index = liquidChatState.conversations.findIndex(item => item.id === conversationId);
+  if (index <= 0) return;
+  const [active] = liquidChatState.conversations.splice(index, 1);
+  liquidChatState.conversations.unshift(active);
+}
+
+async function pinLiquidConversation(conversationId, options = {}) {
+  const { closeSurface = true, silent = false, focusInput = true } = options;
+  if (!conversationId) return;
+  liquidChatState.activeConversationId = conversationId;
+  moveLiquidConversationToFront(conversationId);
+  setLiquidMode('messages');
+  renderLiquidConversations();
+  renderLiquidThread();
+  if (closeSurface) closeLiquidSurface({ forceMode: 'messages' });
+  await loadLiquidMessages(conversationId, { silent });
+  if (focusInput) focusLiquidCenterInput();
+}
+
 function updateLiquidBar() {
   const root = document.getElementById('liquidBar');
   if (!root) return;
@@ -3533,6 +3827,13 @@ function updateLiquidBar() {
     messageBtn.dataset.count = String(messageCount);
   } else {
     delete messageBtn.dataset.count;
+  }
+
+  const activePageTop = document.querySelector('.page.active')?.scrollTop || 0;
+  if (isLiquidSurfaceOpen() || liquidMode === 'search' || liquidMode === 'compose') {
+    root.classList.remove('compact');
+  } else {
+    root.classList.toggle('compact', activePageTop > 44);
   }
 
   renderLiquidNavPicker();
@@ -3628,6 +3929,9 @@ function openLiquidSurface(mode = 'compose') {
     showToast('登录后可使用私信与群组能力', 'info');
     return;
   }
+  if (!isLiquidSurfaceOpen()) {
+    liquidSurfaceReturnMode = liquidMode === 'compose' ? getLiquidFallbackMode() : liquidMode;
+  }
   liquidSurfaceMode = mode;
   setLiquidMode(mode === 'compose' ? 'compose' : mode);
   const copy = getLiquidSurfaceCopy(mode);
@@ -3643,10 +3947,13 @@ function openLiquidSurface(mode = 'compose') {
   updateLiquidBar();
 }
 
-function closeLiquidSurface() {
+function closeLiquidSurface(options = {}) {
+  const { forceMode = '' } = options;
   document.getElementById('liquidSurfaceBackdrop')?.classList.remove('open');
   document.getElementById('liquidSurface')?.classList.remove('open');
-  if (liquidMode === 'compose') setLiquidMode(liquidChatState.activeConversationId ? 'messages' : 'hub');
+  const fallbackMode = getLiquidFallbackMode();
+  const nextMode = forceMode || liquidSurfaceReturnMode || fallbackMode;
+  setLiquidMode(nextMode === 'compose' ? fallbackMode : nextMode);
 }
 
 function renderLiquidUserCard(user, context = 'search') {
@@ -3666,7 +3973,7 @@ function renderLiquidUserCard(user, context = 'search') {
       </div>
       ${context === 'pick'
         ? `<button class="liquid-chip-btn ghost" onclick="toggleLiquidGroupMember('${escapeAttr(user.id)}')">移除</button>`
-        : `<button class="liquid-chip-btn primary" onclick="openLiquidUserChat('${escapeAttr(user.id)}')">私信</button>`}
+        : `<button class="liquid-chip-btn primary" onclick="openLiquidUserChat('${escapeAttr(user.id)}')">开始私聊</button>`}
     </div>
   `;
 }
@@ -3679,7 +3986,7 @@ function renderLiquidGroupCard(group) {
           <div class="liquid-item-title">${escapeHtml(group.title || '未命名群组')}</div>
           <div class="liquid-item-sub">${escapeHtml(group.description || '暂无群组介绍')}</div>
         </div>
-        <button class="liquid-chip-btn ${group.joined ? 'ghost' : 'primary'}" onclick="handleLiquidGroupAction('${escapeAttr(group.id)}')">${group.joined ? '打开' : '加入'}</button>
+        <button class="liquid-chip-btn ${group.joined ? 'ghost' : 'primary'}" onclick="handleLiquidGroupAction('${escapeAttr(group.id)}')">${group.joined ? '进入聊天' : '加入并进入'}</button>
       </div>
       <div class="liquid-group-stats">
         <span class="liquid-stat-chip">${Number(group.member_count || 0)} 位成员</span>
@@ -3741,7 +4048,7 @@ async function openLiquidUserChat(userId) {
     const d = await r.json();
     if (!d.ok) throw new Error(d.msg || '无法创建会话');
     await refreshLiquidConversations({ focusConversationId: d.conversation?.id || '' });
-    openLiquidSurface('messages');
+    await pinLiquidConversation(d.conversation?.id || liquidChatState.activeConversationId, { silent: true });
   } catch (error) {
     showToast(getUiErrorMessage(error, '开启私信失败'), 'error');
   }
@@ -3751,11 +4058,8 @@ async function handleLiquidGroupAction(groupId) {
   const current = liquidSearchState.groups.find(item => item.id === groupId);
   if (!current) return;
   if (current.joined) {
-    liquidSurfaceMode = 'messages';
-    openLiquidSurface('messages');
-    await refreshLiquidConversations();
-    const next = liquidChatState.conversations.find(item => item.id === groupId);
-    if (next) openLiquidConversation(groupId);
+    await refreshLiquidConversations({ focusConversationId: groupId });
+    await pinLiquidConversation(groupId, { silent: true });
     return;
   }
   if (!commUser) return openCommAuth();
@@ -3772,7 +4076,7 @@ async function handleLiquidGroupAction(groupId) {
     showToast('已加入群组', 'success');
     await loadLiquidDiscovery(liquidSearchState.query);
     await refreshLiquidConversations({ focusConversationId: groupId });
-    openLiquidSurface('messages');
+    await pinLiquidConversation(groupId, { silent: true });
   } catch (error) {
     showToast(getUiErrorMessage(error, '加入群组失败'), 'error');
   }
@@ -3808,6 +4112,7 @@ async function refreshLiquidConversations(options = {}) {
     } else if (liquidChatState.activeConversationId && !liquidChatState.conversations.some(item => item.id === liquidChatState.activeConversationId)) {
       liquidChatState.activeConversationId = liquidChatState.conversations[0]?.id || '';
     }
+    moveLiquidConversationToFront(liquidChatState.activeConversationId);
     renderLiquidConversations();
     if (liquidChatState.activeConversationId) {
       await loadLiquidMessages(liquidChatState.activeConversationId, { silent: true });
@@ -3845,11 +4150,7 @@ function renderLiquidConversations() {
 }
 
 async function openLiquidConversation(conversationId) {
-  liquidChatState.activeConversationId = conversationId;
-  setLiquidMode('messages');
-  renderLiquidConversations();
-  renderLiquidThread();
-  await loadLiquidMessages(conversationId);
+  await pinLiquidConversation(conversationId);
 }
 
 async function loadLiquidMessages(conversationId, options = {}) {
@@ -3937,9 +4238,14 @@ async function sendLiquidMessage() {
     liquidChatState.messages.push(d.message);
     active.last_message = d.message.content;
     active.last_message_at = d.message.created_at;
+    active.updated_at = d.message.created_at;
     active.last_sender_name = d.message.sender?.username || commUser?.username || '';
+    active.unread_count = 0;
+    moveLiquidConversationToFront(active.id);
     renderLiquidThread();
     renderLiquidConversations();
+    updateLiquidBar();
+    focusLiquidCenterInput();
   } catch (error) {
     input.value = content;
     showToast(getUiErrorMessage(error, '消息发送失败'), 'error');
@@ -3948,12 +4254,17 @@ async function sendLiquidMessage() {
 
 function handleLiquidInlineAction() {
   if (liquidMode === 'messages') {
+    if (!liquidChatState.activeConversationId) {
+      openLiquidSurface('messages');
+      return;
+    }
     sendLiquidMessage();
     return;
   }
   if (liquidMode === 'search') {
     openLiquidSurface('search');
     loadLiquidDiscovery(document.getElementById('liquidCenterInput')?.value || '');
+    focusLiquidCenterInput();
     return;
   }
   openLiquidSurface('compose');
@@ -4000,7 +4311,7 @@ async function seedLiquidGroupCandidates() {
       headers: authHeader ? { 'Authorization': authHeader } : undefined
     });
     const d = await r.json();
-    liquidGroupBuilder.candidates = (d.users || []).slice(0, 8);
+    liquidGroupBuilder.candidates = (d.users || []).filter(user => user.id !== commUser?.id).slice(0, 8);
     renderLiquidGroupBuilder();
   } catch (error) {
     const wrap = document.getElementById('liquidGroupMemberResults');
@@ -4016,7 +4327,7 @@ async function searchLiquidGroupMembers(query = '') {
       headers: authHeader ? { 'Authorization': authHeader } : undefined
     });
     const d = await r.json();
-    liquidGroupBuilder.candidates = (d.users || []).slice(0, 8);
+    liquidGroupBuilder.candidates = (d.users || []).filter(user => user.id !== commUser?.id).slice(0, 8);
     renderLiquidGroupBuilder();
   } catch (error) {}
 }
@@ -4072,7 +4383,7 @@ async function createLiquidGroup() {
     showToast('群组已创建', 'success');
     resetLiquidGroupBuilder();
     await refreshLiquidConversations({ focusConversationId: d.conversation_id || '' });
-    openLiquidSurface('messages');
+    await pinLiquidConversation(d.conversation_id || liquidChatState.activeConversationId, { silent: true });
   } catch (error) {
     showToast(getUiErrorMessage(error, '群组创建失败'), 'error');
   }
@@ -4086,10 +4397,26 @@ function attachLiquidScrollObservers() {
       const top = target.scrollTop || 0;
       const root = document.getElementById('liquidBar');
       if (!root) return;
-      if (top > liquidLastScrollTop + 18 && top > 28) root.classList.add('compact');
-      if (top < liquidLastScrollTop - 12 || top <= 12) root.classList.remove('compact');
+      if (isLiquidSurfaceOpen() || liquidMode === 'search' || liquidMode === 'compose') {
+        root.classList.remove('compact');
+        liquidLastScrollTop = top;
+        return;
+      }
+      root.classList.toggle('compact', top > 44);
       liquidLastScrollTop = top;
     }, { passive: true });
+  });
+}
+
+function attachLiquidInteractionShield() {
+  ['liquidBarDock', 'liquidBar', 'liquidSurface', 'liquidNavPicker', 'liquidSurfaceBackdrop'].forEach(id => {
+    const node = document.getElementById(id);
+    if (!node) return;
+    ['pointerdown', 'pointerup', 'touchstart', 'touchend', 'click'].forEach(type => {
+      node.addEventListener(type, event => {
+        event.stopPropagation();
+      });
+    });
   });
 }
 
@@ -4124,6 +4451,7 @@ function startLiquidChatPolling() {
 
 function initLiquidBar() {
   renderLiquidNavPicker();
+  attachLiquidInteractionShield();
   attachLiquidNavGesture();
   attachLiquidScrollObservers();
   attachLiquidInputEvents();
