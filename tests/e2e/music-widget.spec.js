@@ -19,6 +19,69 @@ function buildPlaylist() {
   ];
 }
 
+async function getAverageSearchSurfaceDiff(page, baselineShot, contrastShot, widgetBox, wrapBox) {
+  return page.evaluate(async ({ baselineBase64, contrastBase64, widgetBox, wrapBox }) => {
+    const decodeBitmap = async (base64) => {
+      const response = await fetch(`data:image/png;base64,${base64}`);
+      const blob = await response.blob();
+      return createImageBitmap(blob);
+    };
+
+    const [baselineBitmap, contrastBitmap] = await Promise.all([
+      decodeBitmap(baselineBase64),
+      decodeBitmap(contrastBase64)
+    ]);
+
+    const scaleX = baselineBitmap.width / widgetBox.width;
+    const scaleY = baselineBitmap.height / widgetBox.height;
+    const regionX = Math.min(
+      baselineBitmap.width - 1,
+      Math.max(0, Math.floor((wrapBox.x - widgetBox.x + 8) * scaleX))
+    );
+    const regionY = Math.min(
+      baselineBitmap.height - 1,
+      Math.max(0, Math.floor((wrapBox.y - widgetBox.y + 4) * scaleY))
+    );
+    const regionWidth = Math.max(
+      1,
+      Math.min(baselineBitmap.width - regionX, Math.ceil((wrapBox.width - 16) * scaleX))
+    );
+    const regionHeight = Math.max(
+      1,
+      Math.min(baselineBitmap.height - regionY, Math.ceil((wrapBox.height - 8) * scaleY))
+    );
+
+    const canvas = document.createElement('canvas');
+    canvas.width = baselineBitmap.width;
+    canvas.height = baselineBitmap.height;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) throw new Error('Failed to create canvas context');
+
+    ctx.drawImage(baselineBitmap, 0, 0);
+    const baselineData = ctx.getImageData(regionX, regionY, regionWidth, regionHeight).data;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(contrastBitmap, 0, 0);
+    const contrastData = ctx.getImageData(regionX, regionY, regionWidth, regionHeight).data;
+
+    let totalDiff = 0;
+    let pixelCount = 0;
+
+    for (let index = 0; index < baselineData.length; index += 4) {
+      totalDiff += Math.abs(baselineData[index] - contrastData[index]);
+      totalDiff += Math.abs(baselineData[index + 1] - contrastData[index + 1]);
+      totalDiff += Math.abs(baselineData[index + 2] - contrastData[index + 2]);
+      pixelCount += 1;
+    }
+
+    return totalDiff / Math.max(1, pixelCount * 3);
+  }, {
+    baselineBase64: baselineShot.toString('base64'),
+    contrastBase64: contrastShot.toString('base64'),
+    widgetBox,
+    wrapBox
+  });
+}
+
 test.beforeEach(async ({ page }) => {
   let playlist = buildPlaylist();
 
@@ -99,4 +162,52 @@ test('music widget list scrolls and filters tracks', async ({ page }) => {
 
   await page.locator('#mp-search').fill('not-found');
   await expect(page.locator('#mp-list .mp-empty')).toHaveText('没有匹配的歌曲');
+});
+
+test('music search surface does not darken over bright blocks', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('#mp').click();
+  await expect(page.locator('#mp')).toHaveClass(/open/);
+
+  await page.locator('#mpb-list').click();
+  await expect(page.locator('#mp-list-area')).toHaveClass(/show/);
+  await expect(page.locator('.mp-search-wrap')).toBeVisible();
+  await page.waitForTimeout(300);
+
+  const widget = page.locator('#mp');
+  const widgetBox = await widget.boundingBox();
+  const wrapBox = await page.locator('.mp-search-wrap').boundingBox();
+
+  if (!widgetBox || !wrapBox) throw new Error('Failed to capture music widget bounds');
+
+  const baselineShot = await widget.screenshot();
+
+  await page.evaluate(() => {
+    const target = document.getElementById('mp');
+    if (!target) return;
+    const rect = target.getBoundingClientRect();
+    let block = document.getElementById('mp-contrast-block');
+    if (!block) {
+      block = document.createElement('div');
+      block.id = 'mp-contrast-block';
+      document.body.appendChild(block);
+    }
+    Object.assign(block.style, {
+      position: 'fixed',
+      left: `${Math.floor(rect.left) - 8}px`,
+      top: `${Math.floor(rect.top) - 8}px`,
+      width: `${Math.ceil(rect.width) + 16}px`,
+      height: `${Math.ceil(rect.height) + 16}px`,
+      borderRadius: '26px',
+      background: '#ffffff',
+      zIndex: '10000',
+      pointerEvents: 'none'
+    });
+  });
+
+  await page.waitForTimeout(120);
+
+  const contrastShot = await widget.screenshot();
+  const averageDiff = await getAverageSearchSurfaceDiff(page, baselineShot, contrastShot, widgetBox, wrapBox);
+  expect(averageDiff).toBeLessThan(8);
 });
