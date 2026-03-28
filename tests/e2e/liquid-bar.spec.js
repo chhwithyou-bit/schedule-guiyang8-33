@@ -282,3 +282,39 @@ test('liquid bar compacts cleanly and keeps chat actions attached to the bottom 
 
   await page.screenshot({ path: testInfo.outputPath('liquid-group.png') });
 });
+
+test.describe('mobile liquid bar', () => {
+  test.use({
+    viewport: { width: 393, height: 852 },
+    hasTouch: true,
+    isMobile: true
+  });
+
+  test('touching the compact bar during ongoing scroll expands it and keeps it open', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForSelector('#liquidBar');
+    await page.waitForTimeout(1200);
+
+    await page.evaluate(() => {
+      const activePage = document.querySelector('.page.active');
+      if (activePage && !document.getElementById('debug-scroll-spacer-mobile')) {
+        const spacer = document.createElement('div');
+        spacer.id = 'debug-scroll-spacer-mobile';
+        spacer.style.height = '1800px';
+        spacer.style.pointerEvents = 'none';
+        activePage.appendChild(spacer);
+      }
+    });
+
+    await page.locator('.page.active').evaluate(node => { node.scrollTop = 520; });
+    await page.waitForTimeout(500);
+    await expect(page.locator('#liquidBar')).toHaveClass(/compact/);
+
+    const barBox = await page.locator('#liquidBar').boundingBox();
+    await page.touchscreen.tap(barBox.x + (barBox.width / 2), barBox.y + (barBox.height / 2));
+    await page.locator('.page.active').evaluate(node => { node.scrollTop = 660; });
+    await page.waitForTimeout(150);
+
+    await expect(page.locator('#liquidBar')).not.toHaveClass(/compact/);
+  });
+});
