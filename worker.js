@@ -127,9 +127,12 @@ async function listCommunityCacheMetas(env) {
   do {
     const page = await env.SCHEDULE_KV.list({ prefix: COMMUNITY_CACHE_META_PREFIX, cursor });
     cursor = page.list_complete ? undefined : page.cursor;
-    for (const key of page.keys || []) {
-      const value = await env.SCHEDULE_KV.get(key.name, { type: 'json' });
-      if (value && value.fileId) entries.push(value);
+    const keys = page.keys || [];
+    if (keys.length > 0) {
+      const results = await Promise.all(keys.map(key => env.SCHEDULE_KV.get(key.name, { type: 'json' })));
+      for (const value of results) {
+        if (value && value.fileId) entries.push(value);
+      }
     }
   } while (cursor);
   return entries;
