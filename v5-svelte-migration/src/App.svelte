@@ -42,30 +42,30 @@
     
     const tl = gsap.timeline();
 
-    // 1. Background focus & scale
+    // 1. Background focus
     tl.fromTo(mainContent, 
-      { filter: "blur(30px)", opacity: 0, scale: 0.95 },
-      { filter: "blur(0px)", opacity: 1, scale: 1, duration: 1.4, ease: "expo.out" }
+      { filter: "blur(20px)", opacity: 0 },
+      { filter: "blur(0px)", opacity: 1, duration: 1.4, ease: "expo.out" }
     );
 
     // 2. 3D Fly-in for main components (staggered)
     tl.from(".view-wrapper h1, .view-wrapper p, .view-wrapper article, .view-wrapper .schedule-view > div", {
-      z: -180,
-      y: 100,
-      rotateX: -15,
+      z: -100,
+      y: 40,
+      rotateX: -10,
       opacity: 0,
       duration: 1.6,
-      stagger: 0.08,
-      ease: "elastic.out(1, 0.75)"
-    }, "-=0.9");
+      stagger: 0.05,
+      ease: "elastic.out(1, 0.7)"
+    }, "-=1.2");
 
     // 3. Elements rising from water
     tl.from(".liquid-bar-dock", {
       y: 150,
       opacity: 0,
       duration: 1.2,
-      ease: "back.out(1.7)"
-    }, "-=1.2");
+      ease: "elastic.out(1, 0.7)"
+    }, "-=1.4");
 
     tl.from("header", {
       y: -80,
