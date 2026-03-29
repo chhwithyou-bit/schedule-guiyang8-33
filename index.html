@@ -2864,7 +2864,7 @@ html, body {
       </div>
     </div>
     <div class="header-actions">
-      <button class="admin-btn" onclick="openAdmin()">⚙️ 更新</button>
+      <button class="admin-btn" onclick="openAdmin()">更新</button>
     </div>
   </div>
 
@@ -2923,14 +2923,14 @@ html, body {
 
     <div class="modal">
       <button class="close-modal" onclick="closeAdmin()">×</button>
-      <div class="modal-title">📋 更新课表数据</div>
+      <div class="modal-title">更新课表数据</div>
       <div class="modal-sub">上传图片，AI 自动识别并更新对应数据</div>
       <div class="upload-section">
-        <div class="field-label">📸 选择要更新的表格类型</div>
+        <div class="field-label">选择要更新的表格类型</div>
         <div class="upload-tabs">
-          <button class="utab active" onclick="setTab('sj')" id="tab-sj">📝 三基测试表</button>
-          <button class="utab" onclick="setTab('ev')" id="tab-ev">🌙 晚自习表</button>
-          <button class="utab" onclick="setTab('sc')" id="tab-sc">📚 课程表</button>
+          <button class="utab active" onclick="setTab('sj')" id="tab-sj">三基测试表</button>
+          <button class="utab" onclick="setTab('ev')" id="tab-ev">晚自习表</button>
+          <button class="utab" onclick="setTab('sc')" id="tab-sc">课程表</button>
         </div>
         <div class="upload-area" id="uploadArea">
           <input type="file" accept="image/*" id="fileInput" onchange="handleFile(event)">
@@ -2939,10 +2939,10 @@ html, body {
         </div>
         <img class="preview-img" id="previewImg">
       </div>
-      <button class="parse-btn" id="parseBtn" onclick="parseImage()" disabled>🔍 识别图片内容</button>
+      <button class="parse-btn" id="parseBtn" onclick="parseImage()" disabled>识别图片内容</button>
       <div class="status-box" id="statusBox"></div>
       <div class="preview-section" id="previewSection">
-        <div class="preview-title">📋 识别结果预览（确认后保存）</div>
+        <div class="preview-title">识别结果预览（确认后保存）</div>
         <div class="preview-json" id="previewJson"></div>
         <div class="action-row">
           <button class="btn-cancel" onclick="cancelPreview()">✕ 重来</button>
@@ -2989,7 +2989,7 @@ html, body {
   <div class="header" style="border-bottom:1px solid var(--border);">
     <div class="header-main">
       <button class="ham-btn" onclick="openDrawer()" style="margin:0;"><span></span><span></span><span></span></button>
-      <div class="header-title" style="color:var(--accent2);font-size:18px;font-weight:700;">🔗 节点分享</div>
+      <div class="header-title" style="color:var(--accent2);font-size:18px;font-weight:700;">节点分享</div>
     </div>
   </div>
 
@@ -3050,7 +3050,7 @@ html, body {
       </div>
       <div id="nodes-user-list" style="display:flex;flex-direction:column;gap:9px;"></div>
       <div id="nodes-user-empty" style="text-align:center;padding:40px;color:var(--t3);display:none;">
-        <div style="font-size:40px;margin-bottom:10px;">📭</div>
+        <div style="font-size:40px;margin-bottom:10px;"></div>
         <div>暂无可用节点</div>
       </div>
       <div style="text-align:right;margin-top:20px;">
@@ -3060,7 +3060,7 @@ html, body {
 
     <div id="nodes-admin-panel" style="display:none;">
       <div style="background:var(--glass);backdrop-filter:blur(var(--glass-blur));border:1px solid var(--glass-border);border-radius:16px;padding:18px;margin-bottom:16px;">
-        <div style="font-size:14px;font-weight:700;color:var(--accent2);margin-bottom:13px;">📥 导入订阅链接</div>
+        <div style="font-size:14px;font-weight:700;color:var(--accent2);margin-bottom:13px;">导入订阅链接</div>
         <input id="admin-sub-url" type="text" placeholder="粘贴订阅链接..."
           style="width:100%;padding:11px 14px;background:rgba(2,0,41,0.7);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;outline:none;box-sizing:border-box;font-family:'Outfit','PingFang SC',sans-serif;">
         <button onclick="adminImportSub()"
@@ -3072,7 +3072,7 @@ html, body {
 
       <div style="background:var(--glass);backdrop-filter:blur(var(--glass-blur));border:1px solid var(--glass-border);border-radius:16px;padding:18px;margin-bottom:16px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:13px;">
-          <div style="font-size:14px;font-weight:700;color:var(--accent2);">📋 当前节点</div>
+          <div style="font-size:14px;font-weight:700;color:var(--accent2);">当前节点</div>
           <div style="display:flex;gap:8px;">
             <button onclick="adminDeleteSelected()" style="padding:6px 11px;background:rgba(224,80,80,0.15);border:1px solid rgba(224,80,80,0.3);border-radius:7px;color:#fca5a5;font-size:12px;cursor:pointer;font-family:'Outfit','PingFang SC',sans-serif;">删除选中</button>
             <button onclick="adminClearAll()" style="padding:6px 11px;background:rgba(180,20,20,0.12);border:1px solid rgba(180,20,20,0.25);border-radius:7px;color:#f87171;font-size:12px;cursor:pointer;font-family:'Outfit','PingFang SC',sans-serif;">清空全部</button>
@@ -3083,7 +3083,7 @@ html, body {
       </div>
 
       <div style="background:var(--glass);backdrop-filter:blur(var(--glass-blur));border:1px solid var(--glass-border);border-radius:16px;padding:18px;margin-bottom:16px;">
-        <div style="font-size:14px;font-weight:700;color:var(--accent2);margin-bottom:13px;">🔑 密码管理</div>
+        <div style="font-size:14px;font-weight:700;color:var(--accent2);margin-bottom:13px;">密码管理</div>
         <div style="font-size:12px;color:var(--t2);margin-bottom:7px;font-weight:600;">用户访问密码</div>
         <div style="display:flex;gap:8px;margin-bottom:13px;">
           <input id="admin-set-userpwd" type="text" placeholder="设置用户密码..."
@@ -3491,7 +3491,7 @@ function nodesLogout() {
 
 async function nodesLogin() {
   const pwd = document.getElementById('nodes-pwd-input').value.trim();
-  if (!pwd) { showToast('⚠️ 请输入密码', 'error'); return; }
+  if (!pwd) { showToast('请输入密码', 'error'); return; }
   const btn = document.querySelector('#nodes-login button');
   btn.textContent = '验证中...'; btn.disabled = true;
   try {
@@ -3515,7 +3515,7 @@ async function nodesLogin() {
 async function adminLogin() {
   const user = document.getElementById('admin-user-input').value.trim();
   const pwd = document.getElementById('admin-pwd-input').value.trim();
-  if (!user || !pwd) { showToast('⚠️ 请输入用户名和密码', 'error'); return; }
+  if (!user || !pwd) { showToast('请输入用户名和密码', 'error'); return; }
   const btn = document.querySelector('#nodes-admin-login button');
   btn.textContent = '验证中...';
   btn.disabled = true;
@@ -3573,7 +3573,7 @@ function nodesSelectAll() {
 async function nodesCopySelected() {
   const selected = [...document.querySelectorAll('#nodes-user-list input[type=checkbox]:checked')]
     .map(c => nodesAllNodes[+c.dataset.idx].raw);
-  if (!selected.length) { showToast('⚠️ 请先选择节点', 'error'); return; }
+  if (!selected.length) { showToast('请先选择节点', 'error'); return; }
   try {
     await navigator.clipboard.writeText(selected.join('\n'));
     showToast(`已复制 ${selected.length} 个节点`, 'success', 3000);
@@ -3597,8 +3597,8 @@ function renderAdminNodes() {
 
 async function adminImportSub() {
   const url = document.getElementById('admin-sub-url').value.trim();
-  if (!url) { showToast('⚠️ 请输入订阅链接', 'error'); return; }
-  showToast('⏳ 解析中...', 'info', 10000);
+  if (!url) { showToast('请输入订阅链接', 'error'); return; }
+  showToast('解析中...', 'info', 10000);
   try {
     const r = await fetch('/api/nodes', {
       method: 'POST',
@@ -3618,7 +3618,7 @@ async function adminImportSub() {
 async function adminDeleteSelected() {
   const idxs = [...document.querySelectorAll('#nodes-admin-list input[type=checkbox]:checked')]
     .map(c => +c.dataset.idx);
-  if (!idxs.length) { showToast('⚠️ 请先勾选要删除的节点', 'error'); return; }
+  if (!idxs.length) { showToast('请先勾选要删除的节点', 'error'); return; }
   try {
     const r = await fetch('/api/nodes', {
       method: 'POST',
@@ -3648,7 +3648,7 @@ async function adminClearAll() {
 
 async function adminSetUserPwd() {
   const pwd = document.getElementById('admin-set-userpwd').value.trim();
-  if (!pwd) { showToast('⚠️ 请输入新密码', 'error'); return; }
+  if (!pwd) { showToast('请输入新密码', 'error'); return; }
   try {
     const r = await fetch('/api/nodes', {
       method: 'POST',
@@ -3664,7 +3664,7 @@ async function adminSetUserPwd() {
 
 async function adminSetAdminPwd() {
   const newPwd = document.getElementById('admin-set-adminpwd').value.trim();
-  if (!newPwd) { showToast('⚠️ 请输入新密码', 'error'); return; }
+  if (!newPwd) { showToast('请输入新密码', 'error'); return; }
   try {
     const r = await fetch('/api/nodes', {
       method: 'POST',
@@ -3692,21 +3692,21 @@ async function adminSetAdminPwd() {
 
   <div style="padding:16px; max-width:800px; margin:0 auto;">
     <div class="glass-card" style="padding:20px; margin-bottom:20px;">
-      <div style="font-size:18px; font-weight:800; margin-bottom:16px; display:flex; align-items:center; gap:8px;">🗄️ 媒体缓存</div>
+      <div style="font-size:18px; font-weight:800; margin-bottom:16px; display:flex; align-items:center; gap:8px;">媒体缓存</div>
       <div id="admin-cache-stats">
         <div style="text-align:center; padding:20px; color:var(--t3);">加载中...</div>
       </div>
     </div>
 
     <div class="glass-card" style="padding:20px; margin-bottom:20px;">
-      <div style="font-size:18px; font-weight:800; margin-bottom:16px; display:flex; align-items:center; gap:8px;">🚩 待处理举报</div>
+      <div style="font-size:18px; font-weight:800; margin-bottom:16px; display:flex; align-items:center; gap:8px;">待处理举报</div>
       <div id="admin-reports-list" style="display:flex; flex-direction:column; gap:12px;">
         <div style="text-align:center; padding:20px; color:var(--t3);">加载中...</div>
       </div>
     </div>
 
     <div class="glass-card" style="padding:20px;">
-      <div style="font-size:18px; font-weight:800; margin-bottom:16px; display:flex; align-items:center; gap:8px;">👥 用户管理</div>
+      <div style="font-size:18px; font-weight:800; margin-bottom:16px; display:flex; align-items:center; gap:8px;">用户管理</div>
       <div class="admin-toolbar">
         <input id="admin-user-search" class="inp admin-search" placeholder="搜索用户名 / UID / 哈希" oninput="renderAdminUsers()">
       <div style="font-size:12px; color:var(--t3);">支持用户管理、密码重置、查看密码哈希和站点公告；仅 owner 可授权管理员</div>
@@ -5816,7 +5816,7 @@ function renderDriveBreadcrumb() {
 function renderDriveFiles() {
   const listEl = document.getElementById('drive-list');
   if (!driveFilesCache.length) {
-    listEl.innerHTML = '<div style="text-align: center; padding: 60px; color: var(--t3);"><div style="font-size: 40px; margin-bottom: 10px; opacity: 0.2;">📁</div>空空如也</div>';
+    listEl.innerHTML = '<div style="text-align: center; padding: 60px; color: var(--t3);"><div style="font-size: 40px; margin-bottom: 10px; opacity: 0.2;"></div>空空如也</div>';
     return;
   }
 
@@ -7270,7 +7270,7 @@ async function parseImage(){
     document.getElementById('previewSection').className='preview-section show';
     setStatus('识别成功！请检查下方结果，确认无误后点击保存。','ok');
   }catch(e){setStatus('识别失败：'+e.message,'err');}
-  finally{btn.disabled=false;btn.classList.remove('loading');btn.textContent='🔍 识别图片内容';}
+  finally{btn.disabled=false;btn.classList.remove('loading');btn.textContent='识别图片内容';}
 }
 async function confirmSave(){
   if(!parsedData)return;const btn=document.querySelector('.btn-confirm');btn.disabled=true;btn.textContent='保存中…';
