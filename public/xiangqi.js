@@ -561,10 +561,14 @@ function getRawValidMoves(board, piece) {
 
 window.initXiangqi = initXiangqi;
 window.undoXiangqiMove = undoXiangqiMove;
-window.setXiangqiBoardCount = setXiangqiBoardCount;
 window.setActiveBoard = setActiveBoard;
 window.fixXiangqiHeight = fixXiangqiHeight;
 
 document.addEventListener('DOMContentLoaded', () => {
-  if (document.getElementById('xiangqi-board-grid')) initXiangqi();
+  if (document.getElementById('xiangqi-board-grid')) {
+    initXiangqi();
+    document.querySelectorAll('#xiangqi-board-counts .seg-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => setXiangqiBoardCount(e.target.dataset.count));
+    });
+  }
 });
