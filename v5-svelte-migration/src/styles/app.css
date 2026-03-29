@@ -12,31 +12,31 @@
     --color-accent: #333;
   }
 
-  :root[data-theme="theme-a"] {
-    --color-primary: #6FC994;
+  :root[data-theme="theme-spring"] {
+    --color-primary: #85B581;
     --color-secondary: #96C7D7;
-    --color-bg: #f0f9f4;
-    --color-bg-rgb: 240, 249, 244;
+    --color-bg: #EAF4E8;
+    --color-bg-rgb: 234, 244, 232;
     --color-text: #1e3a2a;
-    --color-accent: #3dba70;
+    --color-accent: #598F56;
   }
 
-  :root[data-theme="theme-b"] {
-    --color-primary: #FAC7B7;
+  :root[data-theme="theme-summer"] {
+    --color-primary: #B29BCE;
     --color-secondary: #5D4F57;
-    --color-bg: #fdf6f3;
-    --color-bg-rgb: 253, 246, 243;
+    --color-bg: #F4F1F9;
+    --color-bg-rgb: 244, 241, 249;
     --color-text: #2a1f24;
-    --color-accent: #e89984;
+    --color-accent: #8E6FB8;
   }
 
-  :root[data-theme="theme-c"] {
-    --color-primary: #0F6059;
+  :root[data-theme="theme-autumn"] {
+    --color-primary: #D17F71;
     --color-secondary: #E27135;
-    --color-bg: #faf6f0;
-    --color-bg-rgb: 250, 246, 240;
+    --color-bg: #F9EDE9;
+    --color-bg-rgb: 249, 237, 233;
     --color-text: #0a3d38;
-    --color-accent: #c45b25;
+    --color-accent: #B85343;
   }
 
   /* Global typography reset matching the jiejoe.com minimalist aesthetic */

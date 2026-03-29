@@ -5,6 +5,9 @@
   import { activeTheme } from '../../stores/theme';
   import { onMount } from 'svelte';
   
+  let className = '';
+  export { className as class };
+
   let isExpanded = false;
   let dockRef: HTMLElement;
   let grabHandleRef: HTMLElement;
@@ -64,7 +67,7 @@
 -->
 <nav 
   bind:this={dockRef}
-  class="fixed bottom-0 left-0 right-0 z-[100] flex flex-col items-center pointer-events-none"
+  class="fixed bottom-0 left-0 right-0 z-[100] flex flex-col items-center pointer-events-none {className}"
 >
   <!-- Expanded Menu Panel -->
   {#if isExpanded}

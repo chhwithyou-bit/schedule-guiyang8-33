@@ -9,7 +9,6 @@
   let container: HTMLElement;
   let layers: HTMLElement[] = [];
   let isInitialLoad = true;
-  let timeline: gsap.core.Timeline;
 
   // Accessibility and performance check
   const prefersReducedMotion = typeof window !== 'undefined' 
@@ -29,8 +28,8 @@
   const cinematicTransition = (node: HTMLElement) => {
     if (prefersReducedMotion) return { duration: 0 };
     return {
-      duration: 1200, // Sync with GSAP timeline duration
-      tick: () => {} // Manual tick management via GSAP
+      duration: 1200, // Total sync duration for Svelte lifecycle
+      tick: () => {} 
     };
   };
 
@@ -39,19 +38,16 @@
    * Current page recedes into the background with blur
    */
   const runOutro = (node: HTMLElement) => {
-    if (prefersReducedMotion) return Promise.resolve();
+    if (prefersReducedMotion || !node) return;
     
-    return gsap.to(node, {
+    gsap.to(node, {
       scale: 0.92,
       y: 30,
       opacity: 0,
       filter: 'blur(15px)',
-      duration: 0.5,
+      duration: 0.6,
       ease: 'power2.inOut',
-      overwrite: true,
-      onComplete: () => {
-        // Prepare for cleanup if needed
-      }
+      overwrite: true
     });
   };
 
@@ -60,14 +56,10 @@
    * Staggered layers sweep in, then the new page floats up from "underwater"
    */
   const runIntro = (node: HTMLElement) => {
-    if (prefersReducedMotion) return;
+    if (prefersReducedMotion || !node) return;
 
-    // Kill existing timeline to prevent race conditions
-    if (timeline) timeline.kill();
-
-    timeline = gsap.timeline({
+    const tl = gsap.timeline({
       onComplete: () => {
-        // Critical Cleanup: Remove inline styles that might break layout (Sticky, Lenis, etc.)
         gsap.set(node, { clearProps: "all" });
       }
     });
@@ -82,7 +74,7 @@
     });
 
     // 2. STAGGERED CURTAIN SWEEP (Inwards)
-    timeline.fromTo(layers, 
+    tl.fromTo(layers, 
       { y: '100%' }, 
       { 
         y: '0%', 
@@ -93,7 +85,7 @@
     );
 
     // 3. CURTAIN SWEEP (Outwards)
-    timeline.to(layers, {
+    tl.to(layers, {
       y: '-100%',
       duration: 0.6,
       stagger: 0.05,
@@ -102,22 +94,18 @@
     }, "-=0.1");
 
     // 4. THE RISE: Float up to surface
-    timeline.to(node, {
+    tl.to(node, {
       scale: 1,
       opacity: 1,
       filter: 'blur(0px)',
       y: 0,
       duration: 0.8,
       ease: "power3.out",
-    }, "-=0.5"); // Overlap with curtain exit for fluidity
+    }, "-=0.5"); 
   };
 
   onMount(() => {
     isInitialLoad = false;
-  });
-
-  onDestroy(() => {
-    if (timeline) timeline.kill();
   });
 </script>
 
@@ -125,12 +113,11 @@
   {#key url}
     <!-- Svelte Key block ensures DOM is re-rendered on url change, triggering transitions -->
     <div 
-      bind:this={container}
       class="content-container"
       in:cinematicTransition
       out:cinematicTransition
-      on:introstart={() => runIntro(container)}
-      on:outrostart={() => runOutro(container)}
+      on:introstart={(e) => runIntro(e.currentTarget)}
+      on:outrostart={(e) => runOutro(e.currentTarget)}
     >
       <slot />
     </div>

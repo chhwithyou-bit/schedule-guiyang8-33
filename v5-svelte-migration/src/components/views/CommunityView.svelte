@@ -5,7 +5,7 @@
   import PostCard from './PostCard.svelte';
   import { syncStatus } from '../../stores/appState';
 
-  let posts = [];
+  let posts: any[] = [];
   let loading = true;
   let query = '';
 

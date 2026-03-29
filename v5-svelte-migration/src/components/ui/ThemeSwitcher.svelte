@@ -150,7 +150,7 @@
       opacity: 0,
       duration: 0.5,
       ease: "power2.inOut",
-      onComplete: () => gsap.set(inkWashNode, { scale: 0 })
+      onComplete: () => { gsap.set(inkWashNode, { scale: 0 }); }
     });
   }
 </script>

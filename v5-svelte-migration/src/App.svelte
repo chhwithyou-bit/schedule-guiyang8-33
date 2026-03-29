@@ -36,8 +36,9 @@
    * PHASE 3: THE ASSEMBLY
    * Hand-off animation once Preloader hits 100%
    */
-  function startAssembly() {
+  async function startAssembly() {
     isLoading = false;
+    await tick();
     
     const tl = gsap.timeline();
 
@@ -136,21 +137,21 @@
     --color-text: #000;
   }
 
-  :global([data-theme="theme-a"]) {
-    --color-primary: #6FC994;
-    --color-bg: #f0f9f4;
+  :global([data-theme="theme-spring"]) {
+    --color-primary: #85B581;
+    --color-bg: #EAF4E8;
     --color-text: #1a2e21;
   }
 
-  :global([data-theme="theme-b"]) {
-    --color-primary: #FAC7B7;
-    --color-bg: #fdf6f3;
+  :global([data-theme="theme-summer"]) {
+    --color-primary: #B29BCE;
+    --color-bg: #F4F1F9;
     --color-text: #2e1a1a;
   }
 
-  :global([data-theme="theme-c"]) {
-    --color-primary: #0F6059;
-    --color-bg: #faf6f0;
+  :global([data-theme="theme-autumn"]) {
+    --color-primary: #D17F71;
+    --color-bg: #F9EDE9;
     --color-text: #0a2e2b;
   }
   
