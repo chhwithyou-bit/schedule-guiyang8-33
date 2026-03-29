@@ -1,29 +1,22 @@
 import htmlContent from './index.html';
+import {
+  COMMUNITY_LEVEL_THRESHOLDS,
+  parseIdentityList,
+  isCommunityAdminRole,
+  isCommunityOwnerRole,
+  getCommunityLevelFromXp,
+  parsePositiveInt,
+  safeDecodeURIComponent
+} from './utils.mjs';
 
 const DEFAULT_ADMIN_USER = 'admin';
 const DEFAULT_ADMIN_PASS = 'admin888';
 const DEFAULT_COMMUNITY_OWNER_USERS = 'admin';
-const COMMUNITY_LEVEL_THRESHOLDS = [0, 10, 25, 45, 70, 100, 140, 190, 250, 325, 415, 520, 640, 780, 940, 1120, 1325, 1555, 1810, 2090];
 const COMMUNITY_CACHE_META_PREFIX = 'community_cache_meta:';
 const COMMUNITY_CACHE_SUMMARY_KEY = 'community_cache_summary';
 const DEFAULT_COMMUNITY_R2_CACHE_MAX_BYTES = 6 * 1024 * 1024 * 1024;
 const DEFAULT_COMMUNITY_R2_CACHE_MAX_ITEM_BYTES = 2 * 1024 * 1024;
 const DEFAULT_COMMUNITY_R2_CACHE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
-
-function parseIdentityList(value) {
-  return new Set(String(value || '')
-    .split(',')
-    .map(item => item.trim().toLowerCase())
-    .filter(Boolean));
-}
-
-function isCommunityAdminRole(role) {
-  return role === 'admin' || role === 'owner';
-}
-
-function isCommunityOwnerRole(role) {
-  return role === 'owner';
-}
 
 function normalizeCommunityRole(user, env) {
   const baseRole = String(user?.role || 'user').trim().toLowerCase();
@@ -42,25 +35,12 @@ function withCommunityRole(user, env) {
   return role === user.role ? user : { ...user, role };
 }
 
-function getCommunityLevelFromXp(xpValue) {
-  const xp = Math.max(0, Number(xpValue || 0));
-  for (let i = COMMUNITY_LEVEL_THRESHOLDS.length - 1; i >= 0; i -= 1) {
-    if (xp >= COMMUNITY_LEVEL_THRESHOLDS[i]) return i + 1;
-  }
-  return 1;
-}
-
 function withCommunityLevel(entity) {
   if (!entity || typeof entity !== 'object') return entity;
   const xp = Math.max(0, Number(entity.xp || 0));
   const level = getCommunityLevelFromXp(xp);
   if (entity.xp === xp && entity.level === level) return entity;
   return { ...entity, xp, level };
-}
-
-function parsePositiveInt(value, fallback) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
 }
 
 function getCommunityCacheConfig(env) {
@@ -498,14 +478,6 @@ function corsResp() {
   return new Response(null, {
     headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' },
   });
-}
-
-function safeDecodeURIComponent(value) {
-  try {
-    return decodeURIComponent(value);
-  } catch {
-    return value;
-  }
 }
 
 function encodeObjectKey(key) {
