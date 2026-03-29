@@ -91,30 +91,44 @@ html, body {
 .page {
   position: fixed;
   inset: 0;
-  transform: translate3d(32px, 0, 0) scale(0.985);
   opacity: 0;
   pointer-events: none;
-  transition: 
-    transform 0.68s cubic-bezier(0.23, 1, 0.32, 1), 
-    opacity 0.55s cubic-bezier(0.23, 1, 0.32, 1),
-    filter 0.55s ease;
   background: transparent;
   will-change: transform, opacity;
   z-index: 10;
-  filter: blur(4px);
 }
 .page.active {
-  transform: translate3d(0, 0, 0) scale(1);
-  opacity: 1;
+  animation: pageIn 0.68s cubic-bezier(0.23, 1, 0.32, 1) both;
   pointer-events: all;
-  filter: blur(0);
 }
 .page.behind {
-  transform: translate3d(-24px, 0, 0) scale(0.97);
-  opacity: 0;
+  animation: pageOut 0.55s cubic-bezier(0.23, 1, 0.32, 1) both;
   pointer-events: none;
 }
-
+@keyframes pageIn {
+  0% {
+    transform: translate3d(32px, 0, 0) scale(0.985);
+    opacity: 0;
+    filter: blur(4px);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+@keyframes pageOut {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 1;
+    filter: blur(0);
+  }
+  100% {
+    transform: translate3d(-24px, 0, 0) scale(0.97);
+    opacity: 0;
+    filter: blur(4px);
+  }
+}
 /* ===== STAGGER ENTRANCE (呼吸感渐入) ===== */
 @keyframes staggerIn {
   from { opacity: 0; transform: translate3d(0, 24px, 0); filter: blur(8px); }
@@ -2810,6 +2824,27 @@ html, body {
 </head>
 
 <body>
+
+<!-- Initial App Loader -->
+<div id="initial-app-loader" style="position:fixed; inset:0; z-index:999999; background:var(--bg); display:flex; flex-direction:column; align-items:center; justify-content:center; transition:opacity 0.7s cubic-bezier(0.25,1,0.5,1), transform 0.7s cubic-bezier(0.25,1,0.5,1), visibility 0.7s;">
+  <style>
+    @keyframes loader-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    @keyframes loader-pulse { 0%, 100% { opacity: 0.6; transform: scale(0.95); } 50% { opacity: 1; transform: scale(1); } }
+  </style>
+  <div style="width:64px; height:64px; border:3px solid rgba(255,119,16,0.1); border-top-color:var(--accent); border-radius:50%; animation:loader-spin 1s cubic-bezier(0.5, 0.1, 0.5, 0.9) infinite; margin-bottom:24px;"></div>
+  <div style="font-family:'Outfit','PingFang SC',sans-serif; font-size:14px; color:var(--accent); font-weight:700; letter-spacing:4px; animation:loader-pulse 2s ease-in-out infinite;">LOADING</div>
+</div>
+<script>
+  window.addEventListener('load', () => {
+    const loader = document.getElementById('initial-app-loader');
+    if(loader) {
+      loader.style.opacity = '0';
+      loader.style.transform = 'scale(1.05)';
+      loader.style.visibility = 'hidden';
+      setTimeout(() => loader.remove(), 700);
+    }
+  });
+</script>
 
 <canvas id="bg-canvas"></canvas>
 <div id="bg-img"></div>
