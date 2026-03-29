@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-primary: #111;
+    --color-secondary: #666;
+    --color-bg: #ffffff;
+    --color-bg-rgb: 255, 255, 255;
+    --color-text: #000000;
+    --color-accent: #333;
+  }
+
+  :root[data-theme="theme-a"] {
+    --color-primary: #6FC994;
+    --color-secondary: #96C7D7;
+    --color-bg: #f0f9f4;
+    --color-bg-rgb: 240, 249, 244;
+    --color-text: #1e3a2a;
+    --color-accent: #3dba70;
+  }
+
+  :root[data-theme="theme-b"] {
+    --color-primary: #FAC7B7;
+    --color-secondary: #5D4F57;
+    --color-bg: #fdf6f3;
+    --color-bg-rgb: 253, 246, 243;
+    --color-text: #2a1f24;
+    --color-accent: #e89984;
+  }
+
+  :root[data-theme="theme-c"] {
+    --color-primary: #0F6059;
+    --color-secondary: #E27135;
+    --color-bg: #faf6f0;
+    --color-bg-rgb: 250, 246, 240;
+    --color-text: #0a3d38;
+    --color-accent: #c45b25;
+  }
+
+  /* Global typography reset matching the jiejoe.com minimalist aesthetic */
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Respect reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
