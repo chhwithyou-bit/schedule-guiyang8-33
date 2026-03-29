@@ -953,7 +953,8 @@ html, body {
 .stat-lbl { font-size: 11px; color: var(--t3); }
 .admin-toolbar { display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap; margin-bottom:16px; }
 .admin-search { flex:1; min-width:220px; }
-.admin-user-card { padding:14px; display:flex; align-items:flex-start; gap:12px; font-size:13px; }
+.admin-user-card { padding:14px; display:flex; flex-direction:column; gap:0; font-size:13px; }
+.admin-user-info { display:flex; align-items:flex-start; gap:12px; width:100%; }
 .admin-user-meta { flex:1; min-width:0; }
 .admin-user-name { display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-weight:700; }
 .admin-user-sub { font-size:11px; color:var(--t3); margin-top:4px; line-height:1.5; word-break:break-all; }
@@ -2786,9 +2787,10 @@ html, body {
 .drive-item:hover { background: rgba(255,119,16,0.08); }
 .drive-item.selected { background: rgba(255,119,16,0.15); }
 .drive-item:active { transform: scale(0.95); transition: transform 0.1s; }
-.admin-user-card { margin-bottom: 12px; }
+.admin-user-card { margin-bottom: 12px; display: flex; flex-direction: column; gap: 0; }
+.admin-user-info { display: flex; align-items: flex-start; gap: 12px; width: 100%; }
 .admin-user-meta { flex: 1; min-width: 0; }
-.admin-user-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px; }
+.admin-user-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; width: 100%; gap: 8px; margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px; }
 .admin-action-btn { background: var(--s3); color: var(--t2); border: none; padding: 4px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; transition: all 0.2s; }
 .admin-action-btn:hover { background: var(--border); color: var(--t1); }
 .admin-action-btn.accent { background: rgba(255,119,16,0.1); color: var(--accent); }
@@ -5449,19 +5451,21 @@ function renderAdminUsers() {
     actions.push(`<button class="admin-action-btn admin" onclick="adminSetDriveQuota('${escapeAttr(u.id || '')}', ${u.drive_quota || 0})">分配网盘</button>`);
     return `
       <div class="glass-card admin-user-card">
-        <div style="width:36px; height:36px; border-radius:18px; background:var(--s3); display:flex; align-items:center; justify-content:center; font-weight:700; flex-shrink:0;">
-          ${u.avatar_url ? `<img src="${escapeAttr(u.avatar_url)}" style="width:100%;height:100%;border-radius:18px;object-fit:cover;" loading="lazy" decoding="async" referrerpolicy="no-referrer">` : safeInitial(u.username)}
-        </div>
-        <div class="admin-user-meta">
-          <div class="admin-user-name">
-            <span>${escapeHtml(u.username || '未知用户')}</span>
-            ${renderLevelBadge(u)}
-            ${renderTitleBadge(u)}
-            ${renderRoleBadge(u.role)}
+        <div class="admin-user-info">
+          <div style="width:36px; height:36px; border-radius:18px; background:var(--s3); display:flex; align-items:center; justify-content:center; font-weight:700; flex-shrink:0;">
+            ${u.avatar_url ? `<img src="${escapeAttr(u.avatar_url)}" style="width:100%;height:100%;border-radius:18px;object-fit:cover;" loading="lazy" decoding="async" referrerpolicy="no-referrer">` : safeInitial(u.username)}
           </div>
-          <div class="admin-user-sub">${escapeHtml(displayLevel(u))} | XP: ${u.xp || 0} | UID: ${escapeHtml(u.id || '')} | ${u.is_banned ? '<span style="color:#e05050;">已封禁</span>' : '正常'}</div>
-          <div class="admin-user-sub">密码哈希: <span class="badge hash">${escapeHtml(u.password_hash || '无')}</span></div>
-          <div class="admin-user-sub">网盘: ${formatBytes(u.drive_used || 0)} / ${formatBytes(u.drive_quota || 0)}</div>
+          <div class="admin-user-meta">
+            <div class="admin-user-name">
+              <span>${escapeHtml(u.username || '未知用户')}</span>
+              ${renderLevelBadge(u)}
+              ${renderTitleBadge(u)}
+              ${renderRoleBadge(u.role)}
+            </div>
+            <div class="admin-user-sub">${escapeHtml(displayLevel(u))} | XP: ${u.xp || 0} | UID: ${escapeHtml(u.id || '')} | ${u.is_banned ? '<span style="color:#e05050;">已封禁</span>' : '正常'}</div>
+            <div class="admin-user-sub">密码哈希: <span class="badge hash">${escapeHtml(u.password_hash || '无')}</span></div>
+            <div class="admin-user-sub">网盘: ${formatBytes(u.drive_used || 0)} / ${formatBytes(u.drive_quota || 0)}</div>
+          </div>
         </div>
         <div class="admin-user-actions">${actions.join('')}</div>
       </div>
