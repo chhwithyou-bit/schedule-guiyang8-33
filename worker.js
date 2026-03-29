@@ -310,6 +310,42 @@ function buildDirectConversationKey(userA, userB) {
   return [String(userA || '').trim(), String(userB || '').trim()].sort().join(':');
 }
 
+let driveSetupPromise = null;
+async function ensureDriveSchema(env) {
+  if (driveSetupPromise) return driveSetupPromise;
+  driveSetupPromise = (async () => {
+    await env.COMMUNITY_DB.batch([
+      env.COMMUNITY_DB.prepare(`
+        CREATE TABLE IF NOT EXISTS user_drive_stats (
+          user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          quota_bytes INTEGER DEFAULT 0,
+          used_bytes INTEGER DEFAULT 0,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `),
+      env.COMMUNITY_DB.prepare(`
+        CREATE TABLE IF NOT EXISTS drive_files (
+          id TEXT PRIMARY KEY,
+          user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          size INTEGER NOT NULL DEFAULT 0,
+          mime_type TEXT,
+          url TEXT,
+          parent_id TEXT,
+          is_folder INTEGER DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `),
+      env.COMMUNITY_DB.prepare("CREATE INDEX IF NOT EXISTS idx_drive_files_user ON drive_files(user_id, parent_id)")
+    ]);
+  })().catch(error => {
+    driveSetupPromise = null;
+    throw error;
+  });
+  return driveSetupPromise;
+}
+
 async function ensureCommunityMessagingSchema(env) {
   if (communityMessagingSetupPromise) return communityMessagingSetupPromise;
 
@@ -1171,6 +1207,119 @@ export default {
         return jsonResp({ ok: true, users, groups, query: q });
       }
 
+            if (url.pathname === '/api/community/drive/info' && request.method === 'GET') {
+        const user = await getAuth();
+        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+        await ensureDriveSchema(env);
+        const stats = await env.COMMUNITY_DB.prepare("SELECT quota_bytes, used_bytes FROM user_drive_stats WHERE user_id = ?").bind(user.id).first() || { quota_bytes: 0, used_bytes: 0 };
+        return jsonResp({ ok: true, stats });
+      }
+
+      if (url.pathname === '/api/community/drive/list' && request.method === 'GET') {
+        const user = await getAuth();
+        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+        await ensureDriveSchema(env);
+        const parentId = url.searchParams.get('parent_id') || null;
+        let query = "SELECT id, name, size, mime_type, url, parent_id, is_folder, created_at, updated_at FROM drive_files WHERE user_id = ?";
+        if (parentId) query += " AND parent_id = ?";
+        else query += " AND parent_id IS NULL";
+        query += " ORDER BY is_folder DESC, created_at DESC";
+        const stmt = parentId ? env.COMMUNITY_DB.prepare(query).bind(user.id, parentId) : env.COMMUNITY_DB.prepare(query).bind(user.id);
+        const files = await stmt.all();
+        return jsonResp({ ok: true, files: files.results || [] });
+      }
+
+      if (url.pathname === '/api/community/drive/mkdir' && request.method === 'POST') {
+        const user = await getAuth();
+        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+        await ensureDriveSchema(env);
+        const { name, parent_id } = await request.json();
+        const id = crypto.randomUUID();
+        await env.COMMUNITY_DB.prepare(
+          "INSERT INTO drive_files (id, user_id, name, parent_id, is_folder) VALUES (?, ?, ?, ?, 1)"
+        ).bind(id, user.id, name, parent_id || null).run();
+        return jsonResp({ ok: true, id });
+      }
+
+      if (url.pathname === '/api/community/drive/delete' && request.method === 'POST') {
+        const user = await getAuth();
+        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+        await ensureDriveSchema(env);
+        const { ids } = await request.json();
+        if (!ids || !ids.length) return jsonResp({ ok: true });
+        
+        let freedSpace = 0;
+        for (const id of ids) {
+          const file = await env.COMMUNITY_DB.prepare("SELECT size, url, is_folder FROM drive_files WHERE id = ? AND user_id = ?").bind(id, user.id).first();
+          if (file) {
+            if (!file.is_folder) {
+              freedSpace += file.size;
+              if (env.COMMUNITY_R2 && file.url) {
+                try {
+                   const fileId = extractCommunityMediaFileId(file.url);
+                   if (fileId) await env.COMMUNITY_R2.delete(fileId);
+                } catch(e){}
+              }
+            }
+            await env.COMMUNITY_DB.prepare("DELETE FROM drive_files WHERE id = ? AND user_id = ?").bind(id, user.id).run();
+          }
+        }
+        if (freedSpace > 0) {
+          await env.COMMUNITY_DB.prepare("UPDATE user_drive_stats SET used_bytes = MAX(0, used_bytes - ?) WHERE user_id = ?").bind(freedSpace, user.id).run();
+        }
+        return jsonResp({ ok: true });
+      }
+
+      if (url.pathname === '/api/community/drive/rename' && request.method === 'POST') {
+        const user = await getAuth();
+        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+        await ensureDriveSchema(env);
+        const { id, name } = await request.json();
+        await env.COMMUNITY_DB.prepare("UPDATE drive_files SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?").bind(name, id, user.id).run();
+        return jsonResp({ ok: true });
+      }
+
+      if (url.pathname === '/api/community/drive/upload' && request.method === 'POST') {
+        const user = await getAuth();
+        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+        await ensureDriveSchema(env);
+        
+        const stats = await env.COMMUNITY_DB.prepare("SELECT quota_bytes, used_bytes FROM user_drive_stats WHERE user_id = ?").bind(user.id).first() || { quota_bytes: 0, used_bytes: 0 };
+        const contentLength = Number(request.headers.get('content-length') || 0);
+        if (stats.used_bytes + contentLength > stats.quota_bytes) {
+           return jsonResp({ ok: false, msg: '空间不足' }, 403);
+        }
+        if (!env.COMMUNITY_R2) return jsonResp({ ok: false, msg: '存储未配置' }, 500);
+
+        try {
+          const formData = await request.formData();
+          const file = formData.get('file');
+          const parent_id = formData.get('parent_id') || null;
+          if (!file || !file.name) return jsonResp({ ok: false, msg: 'No file' }, 400);
+
+          const id = crypto.randomUUID();
+          const ext = file.name.split('.').pop() || 'bin';
+          const r2Key = `drive-${user.id}-${id}.${ext}`;
+          
+          await env.COMMUNITY_R2.put(r2Key, file.stream(), {
+            httpMetadata: { contentType: file.type || 'application/octet-stream' }
+          });
+          const fileUrl = `/api/community/media/${r2Key}`;
+          
+          await env.COMMUNITY_DB.prepare(
+            "INSERT INTO drive_files (id, user_id, name, size, mime_type, url, parent_id, is_folder) VALUES (?, ?, ?, ?, ?, ?, ?, 0)"
+          ).bind(id, user.id, file.name, file.size, file.type || '', fileUrl, parent_id).run();
+          
+          await env.COMMUNITY_DB.prepare(
+            "INSERT INTO user_drive_stats (user_id, quota_bytes, used_bytes) VALUES (?, 0, ?) ON CONFLICT(user_id) DO UPDATE SET used_bytes = used_bytes + excluded.used_bytes"
+          ).bind(user.id, file.size).run();
+          
+          return jsonResp({ ok: true, id, url: fileUrl });
+        } catch(e) {
+          return jsonResp({ ok: false, msg: 'Upload failed: ' + e.message }, 500);
+        }
+      }
+
       if (url.pathname === '/api/community/chats' && request.method === 'GET') {
         await ensureCommunityMessagingSchema(env);
         const user = await getAuth();
@@ -1754,7 +1903,8 @@ export default {
         const user = await getAuth();
         if (!user || !isCommunityAdminRole(user.role)) return jsonResp({ ok: false }, 403);
         const reports = await env.COMMUNITY_DB.prepare("SELECT * FROM reports WHERE status = 'pending' ORDER BY created_at DESC").all();
-        const users = await env.COMMUNITY_DB.prepare("SELECT id, username, role, level, xp, is_banned, created_at, avatar_url, password_hash FROM users ORDER BY created_at DESC").all();
+        await ensureDriveSchema(env);
+        const users = await env.COMMUNITY_DB.prepare("SELECT u.id, u.username, u.role, u.level, u.xp, u.is_banned, u.created_at, u.avatar_url, u.password_hash, COALESCE(ds.quota_bytes, 0) as drive_quota, COALESCE(ds.used_bytes, 0) as drive_used FROM users u LEFT JOIN user_drive_stats ds ON u.id = ds.user_id ORDER BY u.created_at DESC").all();
         const normalizedUsers = (users.results || []).map(row => ({
           ...withCommunityLevel(row),
           role: normalizeCommunityRole(row, env)
@@ -1788,6 +1938,15 @@ export default {
            if (targetIsPrivileged && !actorIsOwner) return jsonResp({ ok: false, msg: '只有 owner 可以重置管理员密码' }, 403);
            const passHash = await sha256Hex(new_password);
            await env.COMMUNITY_DB.prepare("UPDATE users SET password_hash = ? WHERE id = ?").bind(passHash, target_id).run();
+           return jsonResp({ ok: true });
+        }
+
+        if (action === 'set_drive_quota' && target_type === 'user') {
+           if (!targetUser) return jsonResp({ ok: false, msg: '用户不存在' }, 404);
+           await ensureDriveSchema(env);
+           const { quota_gb } = await request.json();
+           const quotaBytes = Number(quota_gb) * 1024 * 1024 * 1024;
+           await env.COMMUNITY_DB.prepare("INSERT INTO user_drive_stats (user_id, quota_bytes, used_bytes) VALUES (?, ?, 0) ON CONFLICT(user_id) DO UPDATE SET quota_bytes = excluded.quota_bytes").bind(target_id, quotaBytes).run();
            return jsonResp({ ok: true });
         }
 

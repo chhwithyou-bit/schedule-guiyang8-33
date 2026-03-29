@@ -103,3 +103,25 @@ CREATE INDEX IF NOT EXISTS idx_conversation_members_user
 
 CREATE INDEX IF NOT EXISTS idx_messages_conversation_created
     ON messages(conversation_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS user_drive_stats (
+    user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    quota_bytes INTEGER DEFAULT 0,
+    used_bytes INTEGER DEFAULT 0,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS drive_files (
+    id TEXT PRIMARY KEY,
+    user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    size INTEGER NOT NULL DEFAULT 0,
+    mime_type TEXT,
+    url TEXT,
+    parent_id TEXT,
+    is_folder INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_drive_files_user ON drive_files(user_id, parent_id);

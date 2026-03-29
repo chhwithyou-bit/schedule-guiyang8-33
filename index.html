@@ -2782,6 +2782,18 @@ html, body {
     flex-wrap: wrap;
   }
 }
+.drive-modal { animation: modalIn 0.5s cubic-bezier(0.23, 1, 0.32, 1) both; }
+.drive-item:hover { background: rgba(255,119,16,0.08); }
+.drive-item.selected { background: rgba(255,119,16,0.15); }
+.drive-item:active { transform: scale(0.95); transition: transform 0.1s; }
+.admin-user-card { margin-bottom: 12px; }
+.admin-user-meta { flex: 1; min-width: 0; }
+.admin-user-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px; }
+.admin-action-btn { background: var(--s3); color: var(--t2); border: none; padding: 4px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; transition: all 0.2s; }
+.admin-action-btn:hover { background: var(--border); color: var(--t1); }
+.admin-action-btn.accent { background: rgba(255,119,16,0.1); color: var(--accent); }
+.admin-action-btn.warn { background: rgba(224,80,80,0.1); color: #e05050; }
+.admin-action-btn.admin { background: rgba(74,144,226,0.1); color: #4a90e2; }
 </style>
 
 <link rel="stylesheet" href="xiangqi.css">
@@ -3790,9 +3802,16 @@ async function adminSetAdminPwd() {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
           </span>
           <div class="liquid-compose-title">搜索用户与群组</div>
-          <div class="liquid-compose-desc">从底栏直接搜人、搜群、加入群组，不必跳页。</div>
+          <div class="liquid-compose-desc">从底栏 直接搜人、搜群、加入群组，不必跳页。</div>
         </button>
-      </div>
+        <button class="liquid-compose-card" onclick="openDrive(); closeLiquidSurface();">
+          <span class="liquid-compose-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+          </span>
+          <div class="liquid-compose-title">我的网盘</div>
+          <div class="liquid-compose-desc">个人云存储空间，支持文件上传、管理及动态引用。</div>
+        </button>
+        </div>
 
       <div class="liquid-builder liquid-glass-card">
         <div class="liquid-column-head">
@@ -4062,9 +4081,54 @@ async function adminSetAdminPwd() {
       <input id="announcementDismiss" type="checkbox" style="accent-color:var(--accent);">
       <span>本公告不再弹出</span>
     </label>
-    <div class="action-row" style="margin-top:18px;">
-      <button class="btn-confirm" onclick="closeAnnouncementModal()" style="flex:1;">知道了</button>
+  </div>
+</div>
+
+<!-- Cloud Drive Modal -->
+<div class="modal-overlay" id="driveModal" style="z-index: 10002;">
+  <div class="glass-card drive-modal" style="width: 95%; max-width: 800px; height: 85vh; padding: 0; display: flex; flex-direction: column; overflow: hidden; border-radius: 24px; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+    <div class="drive-header" style="padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; background: rgba(255,255,255,0.02);">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div style="width: 36px; height: 36px; border-radius: 10px; background: rgba(255,119,16,0.1); color: var(--accent); display: flex; align-items: center; justify-content: center;">
+           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+        </div>
+        <div>
+          <div style="font-size: 16px; font-weight: 800;">我的网盘</div>
+          <div id="drive-usage-text" style="font-size: 11px; opacity: 0.6;">计算中...</div>
+        </div>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn s2" style="padding: 0 12px; height: 32px; font-size: 12px; border-radius: 10px;" onclick="document.getElementById('drive-upload-input').click()">上传文件</button>
+        <button class="btn s2" style="padding: 0 12px; height: 32px; font-size: 12px; border-radius: 10px;" onclick="createDriveFolder()">新建文件夹</button>
+        <button class="btn s2" style="width: 32px; height: 32px; border-radius: 10px; padding: 0;" onclick="closeDrive()">✕</button>
+      </div>
     </div>
+    
+    <div class="drive-toolbar" style="padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); font-size: 13px; background: rgba(0,0,0,0.1);">
+       <div id="drive-breadcrumb" style="display: flex; align-items: center; gap: 4px; overflow-x: auto; white-space: nowrap;">
+         <span style="cursor: pointer; color: var(--accent);" onclick="loadDriveList(null)">根目录</span>
+       </div>
+       <div style="display: flex; gap: 12px;">
+         <span id="drive-selection-status" style="opacity: 0.5; display: none;">已选择 0 项</span>
+         <button id="drive-delete-btn" style="color: #e05050; display: none;" onclick="deleteSelectedDriveItems()">删除</button>
+       </div>
+    </div>
+
+    <div id="drive-list" style="flex: 1; overflow-y: auto; padding: 10px;">
+       <div style="text-align: center; padding: 60px; color: var(--t3);">正在加载文件...</div>
+    </div>
+
+    <div class="drive-footer" style="padding: 12px 20px; border-top: 1px solid var(--border); background: rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: space-between; font-size: 12px;">
+       <div id="drive-quota-bar-wrap" style="flex: 1; margin-right: 20px;">
+         <div style="height: 6px; border-radius: 3px; background: var(--s3); overflow: hidden;">
+            <div id="drive-quota-bar" style="height: 100%; width: 0%; background: var(--accent); transition: width 0.3s;"></div>
+         </div>
+       </div>
+       <div style="white-space: nowrap; opacity: 0.7;">
+         提示：点击文件可复制链接或插入动态
+       </div>
+    </div>
+    <input type="file" id="drive-upload-input" style="display: none;" onchange="handleDriveUpload(event)">
   </div>
 </div>
 
@@ -5375,6 +5439,7 @@ function renderAdminUsers() {
           : `<button class="admin-action-btn warn" onclick="adminAction('ban_user', 'user', '${escapeAttr(u.id || '')}')">封禁</button>`
       );
     }
+    actions.push(`<button class="admin-action-btn admin" onclick="adminSetDriveQuota('${escapeAttr(u.id || '')}', ${u.drive_quota || 0})">分配网盘</button>`);
     return `
       <div class="glass-card admin-user-card">
         <div style="width:36px; height:36px; border-radius:18px; background:var(--s3); display:flex; align-items:center; justify-content:center; font-weight:700; flex-shrink:0;">
@@ -5389,6 +5454,7 @@ function renderAdminUsers() {
           </div>
           <div class="admin-user-sub">${escapeHtml(displayLevel(u))} | XP: ${u.xp || 0} | UID: ${escapeHtml(u.id || '')} | ${u.is_banned ? '<span style="color:#e05050;">已封禁</span>' : '正常'}</div>
           <div class="admin-user-sub">密码哈希: <span class="badge hash">${escapeHtml(u.password_hash || '无')}</span></div>
+          <div class="admin-user-sub">网盘: ${formatBytes(u.drive_used || 0)} / ${formatBytes(u.drive_quota || 0)}</div>
         </div>
         <div class="admin-user-actions">${actions.join('')}</div>
       </div>
@@ -5623,12 +5689,281 @@ async function resetUserPassword(userId, username) {
   } catch(e) { showToast('操作失败', 'error'); }
 }
 
+async function adminSetDriveQuota(userId, currentQuotaBytes) {
+  const currentGB = (currentQuotaBytes / (1024 * 1024 * 1024)).toFixed(2);
+  const val = prompt(`请输入要分配的存储额度 (单位: GB):`, currentGB);
+  if (val === null) return;
+  const gb = parseFloat(val);
+  if (isNaN(gb) || gb < 0) return showToast('请输入有效的数字', 'error');
+
+  try {
+    const authHeader = getCommAuthHeader();
+    if (!authHeader) return;
+    const r = await fetch('/api/community/admin/action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': authHeader },
+      body: JSON.stringify({ action: 'set_drive_quota', target_type: 'user', target_id: userId, quota_gb: gb })
+    });
+    const d = await r.json();
+    if (d.ok) {
+      showToast('分配成功', 'success');
+      loadAdminData();
+    } else { showToast(d.msg || '分配失败', 'error'); }
+  } catch(e) { showToast('网络错误', 'error'); }
+}
+
 function deleteReportedItem(type, id, reportId) { adminAction('delete_item', type, id, reportId); }
 
 function openCommAuth() { 
   document.getElementById('commAuthModal').classList.add('open'); 
 }
 function closeCommAuth() { document.getElementById('commAuthModal').classList.remove('open'); }
+
+let currentDrivePath = []; // Array of {id, name}
+let driveFilesCache = [];
+let driveSelectedIds = new Set();
+
+async function openDrive() {
+  const auth = getCommAuthHeader();
+  if (!auth) return showToast('请先登录', 'error');
+  document.getElementById('driveModal').classList.add('open');
+  loadDriveList(null);
+}
+
+function closeDrive() {
+  document.getElementById('driveModal').classList.remove('open');
+}
+
+async function loadDriveList(parentId = null, pathName = '根目录') {
+  const listEl = document.getElementById('drive-list');
+  const usageEl = document.getElementById('drive-usage-text');
+  const quotaBar = document.getElementById('drive-quota-bar');
+  
+  if (parentId === null) currentDrivePath = [];
+  else if (currentDrivePath.length > 0 && currentDrivePath[currentDrivePath.length-1].id === parentId) {
+     // stay
+  } else {
+     // check if already in path (backwards)
+     const idx = currentDrivePath.findIndex(p => p.id === parentId);
+     if (idx !== -1) currentDrivePath = currentDrivePath.slice(0, idx + 1);
+     else currentDrivePath.push({ id: parentId, name: pathName });
+  }
+
+  renderDriveBreadcrumb();
+  driveSelectedIds.clear();
+  updateDriveSelectionUI();
+
+  try {
+    const auth = getCommAuthHeader();
+    // 1. Load Info (Quota)
+    const infoR = await fetch('/api/community/drive/info', { headers: { 'Authorization': auth } });
+    const info = await infoR.json();
+    if (info.ok) {
+      const { quota_bytes, used_bytes } = info.stats;
+      usageEl.textContent = `${formatBytes(used_bytes)} / ${formatBytes(quota_bytes)}`;
+      const percent = quota_bytes > 0 ? (used_bytes / quota_bytes) * 100 : 0;
+      quotaBar.style.width = Math.min(100, percent) + '%';
+      if (percent > 90) quotaBar.style.background = '#e05050';
+      else quotaBar.style.background = 'var(--accent)';
+      window._driveQuota = info.stats;
+    }
+
+    // 2. Load Files
+    listEl.innerHTML = '<div style="text-align: center; padding: 60px; color: var(--t3);">正在读取文件...</div>';
+    const listR = await fetch(`/api/community/drive/list?parent_id=${parentId || ''}`, { headers: { 'Authorization': auth } });
+    const data = await listR.json();
+    if (data.ok) {
+      driveFilesCache = data.files || [];
+      renderDriveFiles();
+    } else {
+      listEl.innerHTML = `<div style="text-align: center; padding: 60px; color: #e05050;">${data.msg || '加载失败'}</div>`;
+    }
+  } catch (e) {
+    listEl.innerHTML = '<div style="text-align: center; padding: 60px; color: #e05050;">网络错误</div>';
+  }
+}
+
+function renderDriveBreadcrumb() {
+  const bc = document.getElementById('drive-breadcrumb');
+  let html = `<span style="cursor: pointer; color: var(--accent);" onclick="loadDriveList(null)">根目录</span>`;
+  currentDrivePath.forEach((p, i) => {
+    html += `<span style="opacity: 0.4;">/</span><span style="cursor: pointer; color: var(--accent);" onclick="loadDriveList('${p.id}', '${p.name}')">${escapeHtml(p.name)}</span>`;
+  });
+  bc.innerHTML = html;
+}
+
+function renderDriveFiles() {
+  const listEl = document.getElementById('drive-list');
+  if (!driveFilesCache.length) {
+    listEl.innerHTML = '<div style="text-align: center; padding: 60px; color: var(--t3);"><div style="font-size: 40px; margin-bottom: 10px; opacity: 0.2;">📁</div>空空如也</div>';
+    return;
+  }
+
+  listEl.innerHTML = `
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 12px;">
+      ${driveFilesCache.map(f => `
+        <div class="drive-item ${driveSelectedIds.has(f.id) ? 'selected' : ''}" 
+             style="display: flex; flex-direction: column; align-items: center; padding: 12px 8px; border-radius: 16px; cursor: pointer; transition: background 0.2s; position: relative;"
+             onclick="handleDriveItemClick(event, '${f.id}')"
+             oncontextmenu="handleDriveItemContext(event, '${f.id}')">
+          <div style="width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; margin-bottom: 8px;">
+            ${f.is_folder ? `
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="var(--accent)" style="opacity: 0.8;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+            ` : renderDriveFileIcon(f.mime_type, f.url)}
+          </div>
+          <div style="font-size: 12px; text-align: center; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 4px;" title="${escapeAttr(f.name)}">
+            ${escapeHtml(f.name)}
+          </div>
+          ${driveSelectedIds.has(f.id) ? `
+            <div style="position: absolute; top: 6px; right: 6px; width: 16px; height: 16px; border-radius: 8px; background: var(--accent); color: white; display: flex; align-items: center; justify-content: center; font-size: 10px;">✓</div>
+          ` : ''}
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderDriveFileIcon(mime, url) {
+  if (mime.startsWith('image/')) {
+    return `<img src="${escapeAttr(url)}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 6px; background: var(--s3);" loading="lazy">`;
+  }
+  // Default icons based on mime
+  let color = '#999';
+  if (mime.includes('pdf')) color = '#e05050';
+  if (mime.includes('word') || mime.includes('text')) color = '#4a90e2';
+  if (mime.includes('zip') || mime.includes('rar')) color = '#f5a623';
+  if (mime.includes('audio') || mime.includes('music')) color = '#9b59b6';
+  if (mime.includes('video')) color = '#2ecc71';
+
+  return `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>`;
+}
+
+function handleDriveItemClick(e, id) {
+  const file = driveFilesCache.find(f => f.id === id);
+  if (!file) return;
+
+  if (e.ctrlKey || e.metaKey || e.shiftKey) {
+    if (driveSelectedIds.has(id)) driveSelectedIds.delete(id);
+    else driveSelectedIds.add(id);
+    updateDriveSelectionUI();
+    renderDriveFiles();
+  } else {
+    if (file.is_folder) {
+      loadDriveList(file.id, file.name);
+    } else {
+      // For files: Copy URL or show actions
+      if (confirm(`文件: ${file.name}\\n\\n是否复制下载链接？`)) {
+         navigator.clipboard.writeText(window.location.origin + file.url);
+         showToast('链接已复制', 'success');
+      }
+    }
+  }
+}
+
+function handleDriveItemContext(e, id) {
+  e.preventDefault();
+  driveSelectedIds.clear();
+  driveSelectedIds.add(id);
+  updateDriveSelectionUI();
+  renderDriveFiles();
+}
+
+function updateDriveSelectionUI() {
+  const statusEl = document.getElementById('drive-selection-status');
+  const deleteBtn = document.getElementById('drive-delete-btn');
+  if (driveSelectedIds.size > 0) {
+    statusEl.style.display = 'block';
+    statusEl.textContent = `已选择 ${driveSelectedIds.size} 项`;
+    deleteBtn.style.display = 'block';
+  } else {
+    statusEl.style.display = 'none';
+    deleteBtn.style.display = 'none';
+  }
+}
+
+async function handleDriveUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  
+  const quota = window._driveQuota;
+  if (quota && quota.used_bytes + file.size > quota.quota_bytes) {
+    showToast('空间不足，无法上传', 'error');
+    return;
+  }
+
+  const btn = e.target.previousElementSibling; // The upload button
+  const oldText = btn.textContent;
+  btn.textContent = '正在上传...';
+  btn.disabled = true;
+
+  try {
+    const auth = getCommAuthHeader();
+    const formData = new FormData();
+    formData.append('file', file);
+    if (currentDrivePath.length > 0) {
+      formData.append('parent_id', currentDrivePath[currentDrivePath.length - 1].id);
+    }
+
+    const r = await fetch('/api/community/drive/upload', {
+      method: 'POST',
+      headers: { 'Authorization': auth },
+      body: formData
+    });
+    const d = await r.json();
+    if (d.ok) {
+      showToast('上传成功', 'success');
+      loadDriveList(currentDrivePath.length > 0 ? currentDrivePath[currentDrivePath.length - 1].id : null);
+    } else {
+      showToast(d.msg || '上传失败', 'error');
+    }
+  } catch (e) {
+    showToast('网络错误', 'error');
+  } finally {
+    btn.textContent = oldText;
+    btn.disabled = false;
+    e.target.value = '';
+  }
+}
+
+async function createDriveFolder() {
+  const name = prompt('请输入文件夹名称:');
+  if (!name) return;
+  try {
+    const auth = getCommAuthHeader();
+    const parent_id = currentDrivePath.length > 0 ? currentDrivePath[currentDrivePath.length-1].id : null;
+    const r = await fetch('/api/community/drive/mkdir', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': auth },
+      body: JSON.stringify({ name, parent_id })
+    });
+    if ((await r.json()).ok) {
+      showToast('创建成功', 'success');
+      loadDriveList(parent_id);
+    } else { showToast('创建失败', 'error'); }
+  } catch(e) { showToast('网络错误', 'error'); }
+}
+
+async function deleteSelectedDriveItems() {
+  if (!driveSelectedIds.size) return;
+  if (!confirm(`确定要删除选中的 ${driveSelectedIds.size} 项吗？`)) return;
+
+  try {
+    const auth = getCommAuthHeader();
+    const r = await fetch('/api/community/drive/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': auth },
+      body: JSON.stringify({ ids: Array.from(driveSelectedIds) })
+    });
+    if ((await r.json()).ok) {
+      showToast('已删除', 'success');
+      loadDriveList(currentDrivePath.length > 0 ? currentDrivePath[currentDrivePath.length - 1].id : null);
+    } else {
+      showToast('删除失败', 'error');
+    }
+  } catch (e) {
+    showToast('网络错误', 'error');
+  }
+}
 
 function formatContent(content) {
   if (!content) return '';
