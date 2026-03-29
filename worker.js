@@ -1934,7 +1934,7 @@ export default {
       if (url.pathname === '/api/community/admin/action' && request.method === 'POST') {
         const user = await getAuth();
         if (!user || !isCommunityAdminRole(user.role)) return jsonResp({ ok: false }, 403);
-        const { action, target_type, target_id, report_id, new_password, content } = await request.json();
+        const { action, target_type, target_id, report_id, new_password, content, quota_gb } = await request.json();
         const targetUser = target_type === 'user' && target_id
           ? withCommunityRole(await env.COMMUNITY_DB.prepare("SELECT * FROM users WHERE id = ?").bind(target_id).first(), env)
           : null;
@@ -1954,7 +1954,6 @@ export default {
         if (action === 'set_drive_quota' && target_type === 'user') {
            if (!targetUser) return jsonResp({ ok: false, msg: '用户不存在' }, 404);
            await ensureDriveSchema(env);
-           const { quota_gb } = await request.json();
            const quotaBytes = Number(quota_gb) * 1024 * 1024 * 1024;
            await env.COMMUNITY_DB.prepare("INSERT INTO user_drive_stats (user_id, quota_bytes, used_bytes) VALUES (?, ?, 0) ON CONFLICT(user_id) DO UPDATE SET quota_bytes = excluded.quota_bytes").bind(target_id, quotaBytes).run();
            return jsonResp({ ok: true });
