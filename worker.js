@@ -2090,7 +2090,7 @@ export default {
           failed: 0
         };
 
-        for (const fileId of fileIds) {
+        const preheatPromises = fileIds.map(async (fileId) => {
           try {
             const result = await preheatCommunityMediaFile(env, fileId);
             if (result.status === 'hit') stats.hit += 1;
@@ -2101,7 +2101,8 @@ export default {
           } catch (e) {
             stats.failed += 1;
           }
-        }
+        });
+        await Promise.all(preheatPromises);
 
         const summary = await getCommunityCacheSummary(env);
         const config = getCommunityCacheConfig(env);
