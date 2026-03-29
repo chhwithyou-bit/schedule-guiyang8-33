@@ -2090,17 +2090,21 @@ export default {
           failed: 0
         };
 
-        for (const fileId of fileIds) {
-          try {
-            const result = await preheatCommunityMediaFile(env, fileId);
-            if (result.status === 'hit') stats.hit += 1;
-            else if (result.status === 'cached') stats.cached += 1;
-            else if (result.status === 'skipped') stats.skipped += 1;
-            else if (result.status === 'missing') stats.missing += 1;
-            else stats.failed += 1;
-          } catch (e) {
-            stats.failed += 1;
-          }
+        const chunkSize = 10;
+        for (let i = 0; i < fileIds.length; i += chunkSize) {
+          const chunk = fileIds.slice(i, i + chunkSize);
+          await Promise.all(chunk.map(async (fileId) => {
+            try {
+              const result = await preheatCommunityMediaFile(env, fileId);
+              if (result.status === 'hit') stats.hit += 1;
+              else if (result.status === 'cached') stats.cached += 1;
+              else if (result.status === 'skipped') stats.skipped += 1;
+              else if (result.status === 'missing') stats.missing += 1;
+              else stats.failed += 1;
+            } catch (e) {
+              stats.failed += 1;
+            }
+          }));
         }
 
         const summary = await getCommunityCacheSummary(env);
