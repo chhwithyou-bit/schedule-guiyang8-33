@@ -654,12 +654,12 @@ html, body {
   box-shadow: 0 4px 16px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08);
   overflow: hidden; cursor: pointer; touch-action: none; user-select: none;
   transition:
-    width      1.08s cubic-bezier(0.2, 1.16, 0.24, 1),
-    height     1.08s cubic-bezier(0.2, 1.16, 0.24, 1),
-    left       1.08s cubic-bezier(0.2, 1.16, 0.24, 1),
-    top        1.08s cubic-bezier(0.2, 1.16, 0.24, 1),
-    border-radius 1.08s cubic-bezier(0.2, 1.16, 0.24, 1),
-    box-shadow 0.78s ease, border-color 0.56s ease;
+    width      0.62s cubic-bezier(0.2, 1.14, 0.24, 1),
+    height     0.62s cubic-bezier(0.2, 1.14, 0.24, 1),
+    left       0.62s cubic-bezier(0.2, 1.14, 0.24, 1),
+    top        0.62s cubic-bezier(0.2, 1.14, 0.24, 1),
+    border-radius 0.62s cubic-bezier(0.2, 1.14, 0.24, 1),
+    box-shadow 0.36s ease, border-color 0.24s ease;
   will-change: width, height, left, top, transform;
 }
 #mp:not(.open):active { transform: scale(0.92); transition: transform 0.1s; }
@@ -674,14 +674,14 @@ html, body {
 #mp-icon {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
-  transition: opacity 0.24s ease 0.08s, transform 0.4s cubic-bezier(0.2, 1.08, 0.28, 1);
+  transition: opacity 0.24s ease, transform 0.62s cubic-bezier(0.2, 1.14, 0.24, 1);
   pointer-events: none;
 }
 #mp-icon svg { width: 26px; height: 26px; display: block; }
 #mp.open #mp-icon {
   opacity: 0;
   transform: scale(0.5);
-  transition: opacity 0.24s ease 0.04s, transform 0.46s cubic-bezier(0.2, 1.08, 0.28, 1);
+  transition: opacity 0.24s ease, transform 0.62s cubic-bezier(0.2, 1.14, 0.24, 1);
 }
 #mp.playing #mp-icon svg, #mp.buffering #mp-icon svg { animation: ball-pulse 2s ease-in-out infinite; }
 #mp.buffering #mp-icon svg { animation-duration: 0.8s; }
@@ -696,15 +696,15 @@ html, body {
   transform-origin: top center;
   transition:
     opacity 0.24s ease,
-    transform 0.62s cubic-bezier(0.22, 1, 0.36, 1);
+    transform 0.62s cubic-bezier(0.2, 1.14, 0.24, 1);
 }
 #mp.open #mp-body {
   opacity: 1;
   pointer-events: all;
   transform: translate3d(0, 0, 0) scale(1);
   transition:
-    opacity 0.42s ease 0.34s,
-    transform 0.82s cubic-bezier(0.2, 1.12, 0.24, 1) 0.12s;
+    opacity 0.24s ease,
+    transform 0.62s cubic-bezier(0.2, 1.14, 0.24, 1);
 }
 #mp-header {
   display: flex; align-items: center; justify-content: space-between;
@@ -796,9 +796,9 @@ html, body {
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   transition:
-    max-height 0.64s cubic-bezier(0.2, 1.14, 0.24, 1),
+    max-height 0.62s cubic-bezier(0.2, 1.14, 0.24, 1),
     opacity 0.28s ease,
-    transform 0.64s cubic-bezier(0.2, 1.12, 0.24, 1),
+    transform 0.62s cubic-bezier(0.2, 1.14, 0.24, 1),
     border-top-width 0.18s ease;
 }
 .mp-list-area.show {
