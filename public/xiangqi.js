@@ -559,12 +559,30 @@ function getRawValidMoves(board, piece) {
   return moves;
 }
 
-window.initXiangqi = initXiangqi;
-window.undoXiangqiMove = undoXiangqiMove;
-window.setXiangqiBoardCount = setXiangqiBoardCount;
-window.setActiveBoard = setActiveBoard;
-window.fixXiangqiHeight = fixXiangqiHeight;
+if (typeof window !== 'undefined') {
+  window.initXiangqi = initXiangqi;
+  window.undoXiangqiMove = undoXiangqiMove;
+  window.setXiangqiBoardCount = setXiangqiBoardCount;
+  window.setActiveBoard = setActiveBoard;
+  window.fixXiangqiHeight = fixXiangqiHeight;
+}
 
-document.addEventListener('DOMContentLoaded', () => {
-  if (document.getElementById('xiangqi-board-grid')) initXiangqi();
-});
+if (typeof document !== 'undefined') {
+  document.addEventListener('DOMContentLoaded', () => {
+    if (document.getElementById('xiangqi-board-grid')) initXiangqi();
+  });
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    cloneInitialPieces,
+    createBoardState,
+    initialSetup,
+    getBoardState,
+    resetBoardState,
+    getValidMoves,
+    getRawValidMoves,
+    isCheck,
+    getPieceAt
+  };
+}
