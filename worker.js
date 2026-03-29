@@ -1,4 +1,5 @@
 import htmlContent from './index.html';
+import { safeDecodeURIComponent, extractCommunityMediaFileId, collectRecentCommunityMediaFileIds } from './utils.mjs';
 
 const DEFAULT_ADMIN_USER = 'admin';
 const DEFAULT_ADMIN_PASS = 'admin888';
@@ -209,19 +210,6 @@ async function cacheCommunityMedia(env, fileId, buffer, contentType, source = 'd
   return true;
 }
 
-function extractCommunityMediaFileId(mediaUrl) {
-  const raw = String(mediaUrl || '').trim();
-  if (!raw) return '';
-  try {
-    const parsed = new URL(raw, 'https://local.invalid');
-    const match = parsed.pathname.match(/\/api\/community\/media\/([^/?#]+)/);
-    return match ? safeDecodeURIComponent(match[1]) : '';
-  } catch {
-    const match = raw.match(/\/api\/community\/media\/([^/?#]+)/);
-    return match ? safeDecodeURIComponent(match[1]) : '';
-  }
-}
-
 async function preheatCommunityMediaFile(env, fileId) {
   if (!fileId) return { status: 'invalid' };
   if (!env.COMMUNITY_R2) return { status: 'disabled' };
@@ -245,40 +233,6 @@ async function preheatCommunityMediaFile(env, fileId) {
 
   await cacheCommunityMedia(env, fileId, buffer, contentType, 'admin-preheat');
   return { status: 'cached', byteSize: buffer.byteLength, contentType };
-}
-
-async function collectRecentCommunityMediaFileIds(env, limit = 24) {
-  const maxItems = Math.max(1, Math.min(80, Number(limit || 24)));
-  const postRows = await env.COMMUNITY_DB.prepare("SELECT media_json FROM posts ORDER BY created_at DESC LIMIT ?").bind(Math.max(maxItems * 2, 40)).all();
-  const userRows = await env.COMMUNITY_DB.prepare("SELECT avatar_url, background_url FROM users ORDER BY created_at DESC LIMIT ?").bind(Math.max(Math.ceil(maxItems / 2), 20)).all();
-  const ids = [];
-  const seen = new Set();
-
-  const pushUrl = (value) => {
-    const fileId = extractCommunityMediaFileId(value);
-    if (!fileId || seen.has(fileId)) return;
-    seen.add(fileId);
-    ids.push(fileId);
-  };
-
-  for (const row of postRows.results || []) {
-    try {
-      const items = JSON.parse(row.media_json || '[]');
-      for (const item of Array.isArray(items) ? items : []) {
-        pushUrl(item?.url);
-        if (ids.length >= maxItems) return ids;
-      }
-    } catch (e) {}
-  }
-
-  for (const row of userRows.results || []) {
-    pushUrl(row.avatar_url);
-    if (ids.length >= maxItems) return ids;
-    pushUrl(row.background_url);
-    if (ids.length >= maxItems) return ids;
-  }
-
-  return ids.slice(0, maxItems);
 }
 
 const DEFAULT_COMMUNITY_GROUPS = [
@@ -498,14 +452,6 @@ function corsResp() {
   return new Response(null, {
     headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' },
   });
-}
-
-function safeDecodeURIComponent(value) {
-  try {
-    return decodeURIComponent(value);
-  } catch {
-    return value;
-  }
 }
 
 function encodeObjectKey(key) {

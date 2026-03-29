@@ -4,6 +4,7 @@
   "scripts": {
     "dev": "wrangler dev",
     "dev:test": "wrangler dev --port 8787 --ip 127.0.0.1",
+    "test:unit": "node --test 'tests/unit/**/*.mjs'",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:install": "playwright install chromium"
