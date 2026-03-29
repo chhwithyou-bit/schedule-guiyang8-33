@@ -2162,7 +2162,7 @@ export default {
       }
     }
 
-    if (url.pathname.startsWith('/chess/') || url.pathname.match(/\.(js|css|png|jpg|ico)$/)) return env.ASSETS.fetch(request);
+    if (url.pathname.startsWith('/chess/') || url.pathname.startsWith('/assets/') || url.pathname.match(/\.(js|css|png|jpg|ico)$/)) return env.ASSETS.fetch(request);
     return new Response(htmlContent, { headers: { 'Content-Type': 'text/html;charset=UTF-8' } });
     }
     };

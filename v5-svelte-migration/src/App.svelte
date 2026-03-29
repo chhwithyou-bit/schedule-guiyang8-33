@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * 8Community V5 - Liquid Evolution
+   * Updated: 2026-03-29
+   */
   import { onMount, tick } from 'svelte';
   import { gsap } from 'gsap';
   import { ScrollTrigger } from 'gsap/dist/ScrollTrigger';
