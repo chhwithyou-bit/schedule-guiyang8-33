@@ -1,93 +1,185 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { gsap } from 'gsap';
+  import { CustomEase } from 'gsap/dist/CustomEase';
   import { activeTheme } from '../../stores/theme';
   import { themeInitialized } from '../../stores/appState';
 
-  let showPanel = false;
-  let overlayRef: HTMLElement;
-  let transitionCircleRef: HTMLElement;
-  let circleColor = '#111';
-
+  /**
+   * 🎨 Palette Definitions (The Color Palettes)
+   * Oriental Aesthetics & Natural Healing Textures
+   */
   const themes = [
-    { id: 'theme-default', name: 'Default', primary: '#111', bg: '#fff' },
-    { id: 'theme-a', name: 'Bamboo & Azure', primary: '#6FC994', bg: '#f0f9f4' },
-    { id: 'theme-b', name: 'Ink & Peach', primary: '#FAC7B7', bg: '#fdf6f3' },
-    { id: 'theme-c', name: 'Teal & Vermillion', primary: '#0F6059', bg: '#faf6f0' }
+    { id: 'theme-default', name: 'Cyber Dark', primary: '#f5efe0', bg: '#020029', accent: '#3a3d5e' },
+    { id: 'theme-spring', name: 'Spring Bamboo', primary: '#85B581', bg: '#EAF4E8', accent: '#598F56' },
+    { id: 'theme-summer', name: 'Summer Lilac', primary: '#B29BCE', bg: '#F4F1F9', accent: '#8E6FB8' },
+    { id: 'theme-autumn', name: 'Autumn Maple', primary: '#D17F71', bg: '#F9EDE9', accent: '#B85343' }
   ];
 
+  let showInitPanel = false;
+  let canvas: HTMLCanvasElement;
+  let ctx: CanvasRenderingContext2D;
+  let inkWashNode: HTMLElement;
+  let particles: Particle[] = [];
+  let animationFrame: number;
+
+  // Particle Kinematics for "The Spark"
+  class Particle {
+    x: number; y: number; vx: number; vy: number;
+    color: string; alpha: number; size: number; friction: number;
+
+    constructor(x: number, y: number, color: string) {
+      this.x = x; this.y = y;
+      const angle = Math.random() * Math.PI * 2;
+      const force = Math.random() * 8 + 4; 
+      this.vx = Math.cos(angle) * force;
+      this.vy = Math.sin(angle) * force;
+      this.color = color;
+      this.alpha = 1;
+      this.size = Math.random() * 3 + 1.5;
+      this.friction = 0.94; 
+    }
+
+    update() {
+      this.vx *= this.friction;
+      this.vy *= this.friction;
+      this.x += this.vx;
+      this.y += this.vy;
+      this.alpha -= 0.015; 
+    }
+
+    draw(ctx: CanvasRenderingContext2D) {
+      ctx.globalAlpha = Math.max(0, this.alpha);
+      ctx.fillStyle = this.color;
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  const handleGlobalRequest = (e: any) => {
+    handleThemeSwitch(e.detail.id, { clientX: e.detail.x, clientY: e.detail.y } as MouseEvent);
+  };
+
   onMount(() => {
-    // Check local storage for existing theme
-    const savedTheme = localStorage.getItem('siteTheme');
-    if (savedTheme) {
-      activeTheme.set(savedTheme);
+    gsap.registerPlugin(CustomEase);
+    CustomEase.create("inkOut", "M0,0,C0.25,1,0.5,1,1,1");
+    
+    ctx = canvas.getContext('2d')!;
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('request-theme-switch', handleGlobalRequest);
+
+    const saved = localStorage.getItem('siteTheme');
+    if (saved) {
+      activeTheme.set(saved);
       themeInitialized.set(true);
     } else {
-      // Show full-screen panel on first visit
-      showPanel = true;
+      showInitPanel = true;
     }
+
+    return () => {
+      window.removeEventListener('resize', resizeCanvas);
+      window.removeEventListener('request-theme-switch', handleGlobalRequest);
+      cancelAnimationFrame(animationFrame);
+    };
   });
 
-  async function applyTheme(themeObj: typeof themes[0]) {
-    circleColor = themeObj.primary;
-    
-    // Circle Expand Transition
-    await gsap.fromTo(transitionCircleRef,
-      { scale: 0, opacity: 1 },
-      { scale: 3, duration: 0.3, ease: 'power2.inOut' }
-    );
-
-    // Apply CSS Variables implicitly by updating active theme
-    activeTheme.set(themeObj.id);
-    localStorage.setItem('siteTheme', themeObj.id);
-    
-    if (showPanel) {
-      // Fade out panel if it was the first visit
-      gsap.to(overlayRef, { opacity: 0, duration: 0.3, onComplete: () => {
-        showPanel = false;
-        themeInitialized.set(true);
-      }});
+  function resizeCanvas() {
+    if (canvas) {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
     }
+  }
 
-    // Circle Collapse Transition
-    gsap.to(transitionCircleRef, {
-      scale: 0, duration: 0.3, ease: 'power2.inOut', delay: 0.1
+  function renderParticles() {
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    particles = particles.filter(p => p.alpha > 0);
+    particles.forEach(p => {
+      p.update();
+      p.draw(ctx);
+    });
+    if (particles.length > 0) {
+      animationFrame = requestAnimationFrame(renderParticles);
+    }
+  }
+
+  export async function handleThemeSwitch(themeId: string, event?: MouseEvent | { clientX: number, clientY: number }) {
+    const target = themes.find(t => t.id === themeId);
+    if (!target) return;
+
+    const originX = event ? event.clientX : window.innerWidth / 2;
+    const originY = event ? event.clientY : window.innerHeight / 2;
+
+    const distX = Math.max(originX, window.innerWidth - originX);
+    const distY = Math.max(originY, window.innerHeight - originY);
+    const radius = Math.hypot(distX, distY);
+
+    particles = Array.from({ length: 40 }, () => new Particle(originX, originY, target.primary));
+    cancelAnimationFrame(animationFrame);
+    renderParticles();
+
+    const tl = gsap.timeline();
+    
+    gsap.set(inkWashNode, {
+      x: originX,
+      y: originY,
+      width: 0,
+      height: 0,
+      backgroundColor: target.bg,
+      color: target.bg, 
+      opacity: 1,
+      scale: 0
+    });
+
+    tl.to(inkWashNode, {
+      scale: (radius * 2) / 100, 
+      duration: 0.7,
+      ease: "inkOut"
+    });
+
+    tl.add(() => {
+      activeTheme.set(target.id);
+      localStorage.setItem('siteTheme', target.id);
+      themeInitialized.set(true);
+      showInitPanel = false;
+    }, "-=0.1");
+
+    tl.to(inkWashNode, {
+      opacity: 0,
+      duration: 0.5,
+      ease: "power2.inOut",
+      onComplete: () => gsap.set(inkWashNode, { scale: 0 })
     });
   }
 </script>
 
-<!-- Persistent Compact Switcher (Top Right) -->
-{#if $themeInitialized && !showPanel}
-  <div class="fixed top-5 right-5 z-[8000] flex gap-2 p-2 bg-white/50 dark:bg-black/50 backdrop-blur-md rounded-full shadow-sm">
-    {#each themes as theme}
-      <button 
-        class="w-6 h-6 rounded-full border-2 transition-transform hover:scale-125"
-        style="background-color: {theme.primary}; border-color: {$activeTheme === theme.id ? theme.bg : 'transparent'};"
-        on:click={() => applyTheme(theme)}
-        aria-label="Switch to {theme.name}"
-      ></button>
-    {/each}
-  </div>
-{/if}
+<canvas bind:this={canvas} class="fixed inset-0 z-[10001] pointer-events-none"></canvas>
 
-<!-- First Visit Full-screen Panel -->
-{#if showPanel}
-  <div 
-    bind:this={overlayRef}
-    class="fixed inset-0 z-[9500] flex items-center justify-center bg-black/85 backdrop-blur-xl"
-  >
-    <div class="bg-white/10 p-8 rounded-3xl shadow-2xl max-w-lg w-full text-center text-white border border-white/20">
-      <h2 class="text-3xl font-black mb-2 tracking-tighter">Choose Your Vibe</h2>
-      <p class="text-white/60 mb-8 font-medium">Select a color palette to begin your experience.</p>
+<div 
+  bind:this={inkWashNode} 
+  class="fixed z-[10000] rounded-full pointer-events-none blur-edge"
+  style="width: 100px; height: 100px; margin-left: -50px; margin-top: -50px;"
+></div>
+
+{#if showInitPanel}
+  <div class="fixed inset-0 z-[10002] flex items-center justify-center bg-black/60 backdrop-blur-3xl overflow-hidden p-6">
+    <div class="max-w-2xl w-full text-center">
+      <h2 class="text-5xl font-black text-white mb-4 tracking-tighter uppercase leading-none">Pick Your Aura</h2>
+      <p class="text-white/40 mb-12 font-medium tracking-widest uppercase text-[10px]">Select a visual frequency to begin.</p>
       
-      <div class="grid grid-cols-2 gap-4">
+      <div class="grid grid-cols-2 gap-6">
         {#each themes as theme}
           <button 
-            class="flex flex-col items-center p-4 rounded-2xl hover:bg-white/10 transition-colors group"
-            on:click={() => applyTheme(theme)}
+            on:click={(e) => handleThemeSwitch(theme.id, e)}
+            class="group relative aspect-video rounded-[40px] overflow-hidden border border-white/5 transition-all duration-500 hover:scale-[1.03] hover:border-white/20 active:scale-95"
           >
-            <div class="w-16 h-16 rounded-full mb-3 shadow-inner group-hover:scale-110 transition-transform" style="background-color: {theme.primary}; border: 4px solid {theme.bg}"></div>
-            <span class="font-bold text-sm tracking-wide">{theme.name}</span>
+            <div class="absolute inset-0 transition-transform duration-1000 group-hover:scale-110" style="background-color: {theme.bg};"></div>
+            <div class="relative h-full flex flex-col items-center justify-center">
+              <div class="w-14 h-14 rounded-full shadow-2xl mb-4 transition-transform duration-500 group-hover:translate-y-[-8px]" style="background-color: {theme.primary}; border: 4px solid {theme.accent};"></div>
+              <span class="text-[10px] font-black uppercase tracking-widest" style="color: {theme.primary};">{theme.name}</span>
+            </div>
           </button>
         {/each}
       </div>
@@ -95,14 +187,14 @@
   </div>
 {/if}
 
-<!-- Thematic Circle Transition Overlay -->
-<!-- scale-0 by default, scaled via GSAP -->
-<div 
-  bind:this={transitionCircleRef}
-  class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150vw] h-[150vw] rounded-full z-[9900] pointer-events-none scale-0"
-  style="background-color: {circleColor};"
-></div>
-
 <style>
-  /* Ensure no pointer events interrupt while transition circle is expanding */
+  .blur-edge {
+    box-shadow: 0 0 160px 80px currentColor; 
+    filter: contrast(120%) brightness(1.05);
+    will-change: transform, opacity;
+  }
+
+  h2 {
+    font-family: 'Outfit', 'PingFang SC', sans-serif;
+  }
 </style>

@@ -2,6 +2,7 @@
   import { slide, fade } from 'svelte/transition';
   import { currentView } from '../../stores/appState';
   import { openModal } from '../../stores/modalState';
+  import { activeTheme } from '../../stores/theme';
   import { onMount } from 'svelte';
   
   let isExpanded = false;
@@ -15,6 +16,13 @@
     { id: 'nodes', label: 'Nodes' }
   ];
 
+  const themes = [
+    { id: 'theme-default', color: '#020029' },
+    { id: 'theme-spring', color: '#85B581' },
+    { id: 'theme-summer', color: '#B29BCE' },
+    { id: 'theme-autumn', color: '#D17F71' }
+  ];
+
   function toggleLiquidBar() {
     isExpanded = !isExpanded;
   }
@@ -22,6 +30,13 @@
   function handleNav(id: string) {
     currentView.set(id);
     isExpanded = false;
+  }
+
+  function requestTheme(id: string, e: MouseEvent) {
+    // Dispatch a custom event that ThemeSwitcher will listen to
+    window.dispatchEvent(new CustomEvent('request-theme-switch', { 
+      detail: { id, x: e.clientX, y: e.clientY } 
+    }));
   }
 
   // Handle gesture conflicts: enlarge hit area & prioritize tap, fallback to swipe
@@ -79,6 +94,18 @@
           >
             {view.label}
           </button>
+        {/each}
+      </div>
+
+      <!-- Theme Selection Integration -->
+      <div class="flex gap-4 mt-6">
+        {#each themes as t}
+          <button 
+            class="w-8 h-8 rounded-full border-2 transition-transform hover:scale-125 {$activeTheme === t.id ? 'border-[var(--color-primary)]' : 'border-transparent'}"
+            style="background-color: {t.color};"
+            on:click={(e) => requestTheme(t.id, e)}
+            aria-label="Switch to {t.id}"
+          ></button>
         {/each}
       </div>
 
