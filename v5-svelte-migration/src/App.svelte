@@ -131,26 +131,29 @@
   }
   
   :global(:root) {
-    --color-primary: #111;
-    --color-accent: #ff7710;
-    --color-bg: #fff;
-    --color-text: #000;
+    --color-primary: #f5efe0;
+    --color-accent: #3a3d5e;
+    --color-bg: #020029;
+    --color-text: #f5efe0;
   }
 
   :global([data-theme="theme-spring"]) {
     --color-primary: #85B581;
+    --color-accent: #598F56;
     --color-bg: #EAF4E8;
     --color-text: #1a2e21;
   }
 
   :global([data-theme="theme-summer"]) {
     --color-primary: #B29BCE;
+    --color-accent: #8E6FB8;
     --color-bg: #F4F1F9;
     --color-text: #2e1a1a;
   }
 
   :global([data-theme="theme-autumn"]) {
     --color-primary: #D17F71;
+    --color-accent: #B85343;
     --color-bg: #F9EDE9;
     --color-text: #0a2e2b;
   }
