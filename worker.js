@@ -1110,9 +1110,20 @@ export default {
       };
 
       const addNotify = async (userId, type, fromUserId, targetId) => {
-        if (userId === fromUserId) return;
-        await env.COMMUNITY_DB.prepare("INSERT INTO notifications (id, user_id, type, from_user_id, target_id) VALUES (?, ?, ?, ?, ?)")
-          .bind(crypto.randomUUID(), userId, type, fromUserId, targetId).run();
+        const userIds = Array.isArray(userId) ? userId : [userId];
+        const validIds = userIds.filter(id => id !== fromUserId);
+        if (validIds.length === 0) return;
+
+        const statements = validIds.map(id =>
+          env.COMMUNITY_DB.prepare("INSERT INTO notifications (id, user_id, type, from_user_id, target_id) VALUES (?, ?, ?, ?, ?)")
+            .bind(crypto.randomUUID(), id, type, fromUserId, targetId)
+        );
+
+        if (statements.length === 1) {
+          await statements[0].run();
+        } else {
+          await env.COMMUNITY_DB.batch(statements);
+        }
       };
 
       if (url.pathname === '/api/community/discovery' && request.method === 'GET') {
@@ -1470,8 +1481,9 @@ export default {
             FROM conversation_members
             WHERE conversation_id = ? AND user_id != ?
           `).bind(conversationId, user.id).all();
-          for (const row of peerRows.results || []) {
-            await addNotify(row.user_id, 'message', user.id, conversationId);
+          const targetIds = (peerRows.results || []).map(row => row.user_id);
+          if (targetIds.length > 0) {
+            await addNotify(targetIds, 'message', user.id, conversationId);
           }
         }
 
