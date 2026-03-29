@@ -1249,19 +1249,26 @@ export default {
         if (!ids || !ids.length) return jsonResp({ ok: true });
         
         let freedSpace = 0;
-        for (const id of ids) {
-          const file = await env.COMMUNITY_DB.prepare("SELECT size, url, is_folder FROM drive_files WHERE id = ? AND user_id = ?").bind(id, user.id).first();
-          if (file) {
-            if (!file.is_folder) {
-              freedSpace += file.size;
-              if (env.COMMUNITY_R2 && file.url) {
-                try {
-                   const fileId = extractCommunityMediaFileId(file.url);
-                   if (fileId) await env.COMMUNITY_R2.delete(fileId);
-                } catch(e){}
+        const chunkSize = 50;
+        for (let i = 0; i < ids.length; i += chunkSize) {
+          const chunk = ids.slice(i, i + chunkSize);
+          const placeholders = chunk.map(() => '?').join(',');
+
+          const files = await env.COMMUNITY_DB.prepare(`SELECT id, size, url, is_folder FROM drive_files WHERE user_id = ? AND id IN (${placeholders})`).bind(user.id, ...chunk).all();
+
+          if (files && files.results && files.results.length > 0) {
+            for (const file of files.results) {
+              if (!file.is_folder) {
+                freedSpace += file.size;
+                if (env.COMMUNITY_R2 && file.url) {
+                  try {
+                     const fileId = extractCommunityMediaFileId(file.url);
+                     if (fileId) await env.COMMUNITY_R2.delete(fileId);
+                  } catch(e){}
+                }
               }
             }
-            await env.COMMUNITY_DB.prepare("DELETE FROM drive_files WHERE id = ? AND user_id = ?").bind(id, user.id).run();
+            await env.COMMUNITY_DB.prepare(`DELETE FROM drive_files WHERE user_id = ? AND id IN (${placeholders})`).bind(user.id, ...chunk).run();
           }
         }
         if (freedSpace > 0) {
