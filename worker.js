@@ -306,10 +306,6 @@ const DEFAULT_COMMUNITY_GROUPS = [
 
 let communityMessagingSetupPromise = null;
 
-function buildDirectConversationKey(userA, userB) {
-  return [String(userA || '').trim(), String(userB || '').trim()].sort().join(':');
-}
-
 let driveSetupPromise = null;
 async function ensureDriveSchema(env) {
   if (driveSetupPromise) return driveSetupPromise;
@@ -1341,7 +1337,7 @@ export default {
         const targetUser = await env.COMMUNITY_DB.prepare("SELECT id FROM users WHERE id = ? AND is_banned = 0").bind(targetId).first();
         if (!targetUser) return jsonResp({ ok: false, msg: '用户不存在' }, 404);
 
-        const directKey = buildDirectConversationKey(user.id, targetId);
+        const directKey = [String(user.id || '').trim(), String(targetId || '').trim()].sort().join(':');
         let conversation = await env.COMMUNITY_DB.prepare("SELECT * FROM conversations WHERE direct_key = ? LIMIT 1").bind(directKey).first();
 
         if (!conversation) {
