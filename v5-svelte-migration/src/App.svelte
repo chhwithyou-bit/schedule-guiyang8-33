@@ -10,7 +10,9 @@
   import LoadingScreen from './components/ui/LoadingScreen.svelte';
   import ThemeSwitcher from './components/ui/ThemeSwitcher.svelte';
   import Header from './components/layout/Header.svelte';
+  import PageTransition from './components/layout/PageTransition.svelte';
   import LiquidBar from './components/layout/LiquidBar.svelte';
+  import MusicPlayer from './components/layout/MusicPlayer.svelte';
 
   import ScheduleView from './components/views/ScheduleView.svelte';
   import CommunityView from './components/views/CommunityView.svelte';
@@ -20,7 +22,6 @@
 
   let lenis: Lenis;
   let viewContainer: HTMLElement;
-  let curtainBlock: HTMLElement;
   let isTransitioning = false;
 
   const viewMap: Record<string, any> = {
@@ -33,11 +34,8 @@
     // Initialize smooth scrolling with Lenis
     lenis = new Lenis({
       duration: 1.2,
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), // Exponential out
-      orientation: 'vertical',
-      gestureOrientation: 'vertical',
-      smoothWheel: true,
-      wheelMultiplier: 1
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), 
+      smoothWheel: true
     });
 
     function raf(time: number) {
@@ -47,89 +45,61 @@
     }
     requestAnimationFrame(raf);
 
-    // Sync GSAP with Lenis
-    gsap.ticker.add((time) => {
-      lenis.raf(time * 1000);
-    });
-    gsap.ticker.lagSmoothing(0);
-
     return () => {
       lenis.destroy();
-      gsap.ticker.remove(lenis.raf);
     };
   });
-
-  // Handle curtain wipe view transitions
-  $: if ($currentView) {
-    if ($themeInitialized && !isTransitioning) {
-      triggerCurtainWipe();
-    }
-  }
-
-  async function triggerCurtainWipe() {
-    isTransitioning = true;
-    
-    // 1. Color block sweeps in from left
-    await gsap.fromTo(curtainBlock, 
-      { scaleX: 0, transformOrigin: 'left center' }, 
-      { scaleX: 1, duration: 0.2, ease: 'power2.inOut' }
-    );
-    
-    // 2. Await tick for Svelte DOM to theoretically update, though store bindings handle it
-    await tick();
-    window.scrollTo(0, 0); // Reset scroll on view change
-
-    // 3. Block sweeps out to right
-    gsap.to(curtainBlock, { 
-      scaleX: 0, 
-      transformOrigin: 'right center', 
-      duration: 0.3, 
-      ease: 'power2.inOut',
-      onComplete: () => { isTransitioning = false; }
-    });
-  }
 </script>
 
-<svelte:head>
-  <!-- FOUC prevention logic injected in root index.html, handled here logically via activeTheme store -->
-</svelte:head>
-
-<div class="app-container font-sans bg-[var(--color-bg)] text-[var(--color-text)] min-h-screen transition-colors duration-300 relative" data-theme={$activeTheme}>
-  
+<div 
+  class="app-container font-sans bg-[var(--color-bg)] text-[var(--color-text)] min-h-screen transition-colors duration-500 relative selection:bg-[var(--color-primary)] selection:text-white" 
+  data-theme={$activeTheme}
+>
   {#if !$themeInitialized}
     <LoadingScreen />
   {:else}
     <CustomCursor />
     <Header />
     <ThemeSwitcher />
-
-    <!-- Main View Content wrapped in accessible main tag -->
-    <main bind:this={viewContainer} class="view-wrapper pt-24 pb-32 px-4 md:px-12 w-full max-w-7xl mx-auto min-h-screen">
-      <!-- Svelte Dynamic Component rendering -->
-      <svelte:component this={viewMap[$currentView]} />
+    
+    <main bind:this={viewContainer} class="view-wrapper pt-32 pb-40 px-6 md:px-12 w-full max-w-7xl mx-auto">
+      <PageTransition url={$currentView}>
+        <svelte:component this={viewMap[$currentView]} />
+      </PageTransition>
     </main>
 
+    <MusicPlayer />
     <LiquidBar />
   {/if}
-
-  <!-- Global Curtain Wipe Element for Page Transitions -->
-  <div bind:this={curtainBlock} class="fixed inset-0 z-[9000] bg-[var(--color-primary)] scale-x-0 origin-left pointer-events-none"></div>
 </div>
 
 <style>
-  /* Global Resets & Typography overrides for jiejoe.com style minimalism */
   :global(:root) {
     --color-primary: #111;
+    --color-accent: #ff7710;
     --color-bg: #fff;
     --color-text: #000;
   }
-  
-  /* Prevent scroll bleed globally when a modal class is added to body */
-  :global(body.modal-open) {
-    overflow: hidden !important;
+
+  :global([data-theme="theme-a"]) {
+    --color-primary: #6FC994;
+    --color-bg: #f0f9f4;
+    --color-text: #1a2e21;
+  }
+
+  :global([data-theme="theme-b"]) {
+    --color-primary: #FAC7B7;
+    --color-bg: #fdf6f3;
+    --color-text: #2e1a1a;
+  }
+
+  :global([data-theme="theme-c"]) {
+    --color-primary: #0F6059;
+    --color-bg: #faf6f0;
+    --color-text: #0a2e2b;
   }
   
-  .app-container {
-    overflow-x: hidden;
+  :global(body.modal-open) {
+    overflow: hidden !important;
   }
 </style>

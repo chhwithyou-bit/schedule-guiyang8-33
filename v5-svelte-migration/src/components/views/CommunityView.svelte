@@ -1,37 +1,77 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { gsap } from 'gsap';
-  
-  let headlineRef: HTMLElement;
-  let textRef: HTMLElement;
-  
-  onMount(() => {
-    gsap.from([headlineRef, textRef], {
-      y: 60,
-      opacity: 0,
-      duration: 0.8,
-      stagger: 0.2,
-      ease: 'power3.out'
-    });
+  import { fade, fly } from 'svelte/transition';
+  import AnimatedHeading from '../ui/AnimatedHeading.svelte';
+  import PostCard from './PostCard.svelte';
+  import { syncStatus } from '../../stores/appState';
+
+  let posts = [];
+  let loading = true;
+  let query = '';
+
+  onMount(async () => {
+    await fetchPosts();
   });
+
+  async function fetchPosts() {
+    loading = true;
+    try {
+      let url = '/api/community/posts?';
+      if (query) url += `q=${encodeURIComponent(query)}&`;
+      
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.ok) {
+        posts = data.posts;
+      }
+    } catch (e) {
+      console.error('Failed to fetch posts', e);
+    } finally {
+      loading = false;
+    }
+  }
+
+  function handleSearch(e: Event) {
+    e.preventDefault();
+    fetchPosts();
+  }
 </script>
 
 <div class="community-view">
-  <h1 bind:this={headlineRef} class="text-[10vw] leading-none font-black tracking-tighter mb-8 uppercase">
-    Community
-  </h1>
-  
-  <p bind:this={textRef} class="text-xl max-w-2xl font-medium opacity-80 mb-12">
-    The social hub. The previous `#comm-post-fab` has been gracefully migrated to the central Liquid Bar.
-  </p>
-
-  <div class="space-y-6">
-    <!-- Preserved community posts rendering logic goes here -->
-    {#each [1, 2, 3] as item}
-      <article class="p-8 rounded-3xl bg-[var(--color-bg)] border-2 border-neutral-100 dark:border-neutral-800 shadow-sm hover:shadow-xl transition-shadow duration-300">
-        <h2 class="text-2xl font-bold mb-4">Community Post {item}</h2>
-        <p class="opacity-70">Preserved original content and API fetching will populate these articles.</p>
-      </article>
-    {/each}
+  <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+    <AnimatedHeading text="Community Hub" className="text-[10vw] md:text-[8vw]" />
+    
+    <form on:submit={handleSearch} class="relative w-full md:max-w-xs">
+      <input 
+        type="text" 
+        bind:value={query}
+        placeholder="Search stories..."
+        class="w-full px-6 py-4 rounded-2xl bg-neutral-100 dark:bg-neutral-900 border-none focus:ring-2 focus:ring-[var(--color-primary)] transition-all font-medium"
+      />
+      <button type="submit" class="absolute right-4 top-1/2 -translate-y-1/2 opacity-30 hover:opacity-100 transition-opacity">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      </button>
+    </form>
   </div>
+
+  {#if loading}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {#each Array(6) as _}
+        <div class="h-80 rounded-[32px] bg-neutral-100 dark:bg-neutral-900 animate-pulse"></div>
+      {/each}
+    </div>
+  {:else if posts.length > 0}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {#each posts as post (post.id)}
+        <div in:fly={{ y: 20, duration: 500 }}>
+          <PostCard {post} />
+        </div>
+      {/each}
+    </div>
+  {:else}
+    <div class="py-32 text-center" in:fade>
+      <div class="text-6xl mb-4">empty_state</div>
+      <p class="text-xl font-bold opacity-30 uppercase tracking-widest">No stories found here.</p>
+    </div>
+  {/if}
 </div>
