@@ -453,9 +453,120 @@ function getValidMoves(board, piece) {
   return validMoves;
 }
 
+function getGeneralMoves(board, piece, addMoveIfValid, moves) {
+  const { x, y, team } = piece;
+  const minX = 3;
+  const maxX = 5;
+  const minY = team === 'black' ? 0 : 7;
+  const maxY = team === 'black' ? 2 : 9;
+  [[0, 1], [0, -1], [1, 0], [-1, 0]].forEach(([dx, dy]) => {
+    const nx = x + dx;
+    const ny = y + dy;
+    if (nx >= minX && nx <= maxX && ny >= minY && ny <= maxY) addMoveIfValid(nx, ny);
+  });
+  let ny = team === 'black' ? y + 1 : y - 1;
+  while (ny >= 0 && ny < BOARD_H) {
+    const target = getPieceAt(board, x, ny);
+    if (target) {
+      if ((team === 'black' && target.type === '帥') || (team === 'red' && target.type === '將')) moves.push({ x, y: ny });
+      break;
+    }
+    ny += team === 'black' ? 1 : -1;
+  }
+}
+
+function getAdvisorMoves(board, piece, addMoveIfValid) {
+  const { x, y, team } = piece;
+  const minX = 3;
+  const maxX = 5;
+  const minY = team === 'black' ? 0 : 7;
+  const maxY = team === 'black' ? 2 : 9;
+  [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(([dx, dy]) => {
+    const nx = x + dx;
+    const ny = y + dy;
+    if (nx >= minX && nx <= maxX && ny >= minY && ny <= maxY) addMoveIfValid(nx, ny);
+  });
+}
+
+function getElephantMoves(board, piece, addMoveIfValid) {
+  const { x, y, team } = piece;
+  const minY = team === 'black' ? 0 : 5;
+  const maxY = team === 'black' ? 4 : 9;
+  [[2, 2], [2, -2], [-2, 2], [-2, -2]].forEach(([dx, dy]) => {
+    const nx = x + dx;
+    const ny = y + dy;
+    const ex = x + dx / 2;
+    const ey = y + dy / 2;
+    if (nx >= 0 && nx < BOARD_W && ny >= minY && ny <= maxY && !getPieceAt(board, ex, ey)) addMoveIfValid(nx, ny);
+  });
+}
+
+function getHorseMoves(board, piece, addMoveIfValid) {
+  const { x, y } = piece;
+  [[1, 2], [1, -2], [-1, 2], [-1, -2], [2, 1], [2, -1], [-2, 1], [-2, -1]].forEach(([dx, dy]) => {
+    const nx = x + dx;
+    const ny = y + dy;
+    const bx = x + (Math.abs(dx) === 2 ? dx / 2 : 0);
+    const by = y + (Math.abs(dy) === 2 ? dy / 2 : 0);
+    if (!getPieceAt(board, bx, by)) addMoveIfValid(nx, ny);
+  });
+}
+
+function getChariotMoves(board, piece, moves) {
+  const { x, y, team } = piece;
+  [[0, 1], [0, -1], [1, 0], [-1, 0]].forEach(([dx, dy]) => {
+    let nx = x + dx;
+    let ny = y + dy;
+    while (nx >= 0 && nx < BOARD_W && ny >= 0 && ny < BOARD_H) {
+      const target = getPieceAt(board, nx, ny);
+      if (!target) {
+        moves.push({ x: nx, y: ny });
+      } else {
+        if (target.team !== team) moves.push({ x: nx, y: ny });
+        break;
+      }
+      nx += dx;
+      ny += dy;
+    }
+  });
+}
+
+function getCannonMoves(board, piece, moves) {
+  const { x, y, team } = piece;
+  [[0, 1], [0, -1], [1, 0], [-1, 0]].forEach(([dx, dy]) => {
+    let nx = x + dx;
+    let ny = y + dy;
+    let passedPiece = false;
+    while (nx >= 0 && nx < BOARD_W && ny >= 0 && ny < BOARD_H) {
+      const target = getPieceAt(board, nx, ny);
+      if (!target) {
+        if (!passedPiece) moves.push({ x: nx, y: ny });
+      } else if (!passedPiece) {
+        passedPiece = true;
+      } else {
+        if (target.team !== team) moves.push({ x: nx, y: ny });
+        break;
+      }
+      nx += dx;
+      ny += dy;
+    }
+  });
+}
+
+function getSoldierMoves(board, piece, addMoveIfValid) {
+  const { x, y, team } = piece;
+  const dir = team === 'black' ? 1 : -1;
+  const crossedRiver = team === 'black' ? y >= 5 : y <= 4;
+  addMoveIfValid(x, y + dir);
+  if (crossedRiver) {
+    addMoveIfValid(x - 1, y);
+    addMoveIfValid(x + 1, y);
+  }
+}
+
 function getRawValidMoves(board, piece) {
   let moves = [];
-  const { x, y, type, team } = piece;
+  const { type, team } = piece;
 
   const addMoveIfValid = (nx, ny) => {
     if (nx >= 0 && nx < BOARD_W && ny >= 0 && ny < BOARD_H) {
@@ -464,97 +575,13 @@ function getRawValidMoves(board, piece) {
     }
   };
 
-  if (type === '將' || type === '帥') {
-    const minX = 3;
-    const maxX = 5;
-    const minY = team === 'black' ? 0 : 7;
-    const maxY = team === 'black' ? 2 : 9;
-    [[0, 1], [0, -1], [1, 0], [-1, 0]].forEach(([dx, dy]) => {
-      const nx = x + dx;
-      const ny = y + dy;
-      if (nx >= minX && nx <= maxX && ny >= minY && ny <= maxY) addMoveIfValid(nx, ny);
-    });
-    let ny = team === 'black' ? y + 1 : y - 1;
-    while (ny >= 0 && ny < BOARD_H) {
-      const target = getPieceAt(board, x, ny);
-      if (target) {
-        if ((team === 'black' && target.type === '帥') || (team === 'red' && target.type === '將')) moves.push({ x, y: ny });
-        break;
-      }
-      ny += team === 'black' ? 1 : -1;
-    }
-  } else if (type === '士' || type === '仕') {
-    const minX = 3;
-    const maxX = 5;
-    const minY = team === 'black' ? 0 : 7;
-    const maxY = team === 'black' ? 2 : 9;
-    [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(([dx, dy]) => {
-      const nx = x + dx;
-      const ny = y + dy;
-      if (nx >= minX && nx <= maxX && ny >= minY && ny <= maxY) addMoveIfValid(nx, ny);
-    });
-  } else if (type === '象' || type === '相') {
-    const minY = team === 'black' ? 0 : 5;
-    const maxY = team === 'black' ? 4 : 9;
-    [[2, 2], [2, -2], [-2, 2], [-2, -2]].forEach(([dx, dy]) => {
-      const nx = x + dx;
-      const ny = y + dy;
-      const ex = x + dx / 2;
-      const ey = y + dy / 2;
-      if (nx >= 0 && nx < BOARD_W && ny >= minY && ny <= maxY && !getPieceAt(board, ex, ey)) addMoveIfValid(nx, ny);
-    });
-  } else if (type === '馬' || type === '傌') {
-    [[1, 2], [1, -2], [-1, 2], [-1, -2], [2, 1], [2, -1], [-2, 1], [-2, -1]].forEach(([dx, dy]) => {
-      const nx = x + dx;
-      const ny = y + dy;
-      const bx = x + (Math.abs(dx) === 2 ? dx / 2 : 0);
-      const by = y + (Math.abs(dy) === 2 ? dy / 2 : 0);
-      if (!getPieceAt(board, bx, by)) addMoveIfValid(nx, ny);
-    });
-  } else if (type === '車' || type === '俥') {
-    [[0, 1], [0, -1], [1, 0], [-1, 0]].forEach(([dx, dy]) => {
-      let nx = x + dx;
-      let ny = y + dy;
-      while (nx >= 0 && nx < BOARD_W && ny >= 0 && ny < BOARD_H) {
-        const target = getPieceAt(board, nx, ny);
-        if (!target) {
-          moves.push({ x: nx, y: ny });
-        } else {
-          if (target.team !== team) moves.push({ x: nx, y: ny });
-          break;
-        }
-        nx += dx;
-        ny += dy;
-      }
-    });
-  } else if (type === '炮' || type === '砲') {
-    [[0, 1], [0, -1], [1, 0], [-1, 0]].forEach(([dx, dy]) => {
-      let nx = x + dx;
-      let ny = y + dy;
-      let passedPiece = false;
-      while (nx >= 0 && nx < BOARD_W && ny >= 0 && ny < BOARD_H) {
-        const target = getPieceAt(board, nx, ny);
-        if (!target) {
-          if (!passedPiece) moves.push({ x: nx, y: ny });
-        } else if (!passedPiece) {
-          passedPiece = true;
-        } else {
-          if (target.team !== team) moves.push({ x: nx, y: ny });
-          break;
-        }
-        nx += dx;
-        ny += dy;
-      }
-    });
-  } else if (type === '卒' || type === '兵') {
-    const dir = team === 'black' ? 1 : -1;
-    const crossedRiver = team === 'black' ? y >= 5 : y <= 4;
-    addMoveIfValid(x, y + dir);
-    if (crossedRiver) {
-      addMoveIfValid(x - 1, y);
-      addMoveIfValid(x + 1, y);
-    }
-  }
+  if (type === '將' || type === '帥') getGeneralMoves(board, piece, addMoveIfValid, moves);
+  else if (type === '士' || type === '仕') getAdvisorMoves(board, piece, addMoveIfValid);
+  else if (type === '象' || type === '相') getElephantMoves(board, piece, addMoveIfValid);
+  else if (type === '馬' || type === '傌') getHorseMoves(board, piece, addMoveIfValid);
+  else if (type === '車' || type === '俥') getChariotMoves(board, piece, moves);
+  else if (type === '炮' || type === '砲') getCannonMoves(board, piece, moves);
+  else if (type === '卒' || type === '兵') getSoldierMoves(board, piece, addMoveIfValid);
 
   return moves;
 }
