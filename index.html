@@ -7314,12 +7314,16 @@ scheduleInit();
 
     const MAX_ITEMS = 5;
     function listViewportHeight(){
-      const searchH = searchEl ? searchEl.closest('.mp-search-wrap').offsetHeight : 0;
+      const searchWrap = searchEl ? searchEl.closest('.mp-search-wrap') : null;
+      const searchH = searchWrap ? searchWrap.offsetHeight : 0;
+      const searchMargin = 14; // margin: 8px 10px 6px -> 14px total vertical
       const addH = $('mp-add').classList.contains('show') ? $('mp-add').offsetHeight : 0;
       const sampleItem = listEl.querySelector('.mp-li');
       const itemH = sampleItem ? sampleItem.offsetHeight : 32;
-      const visibleRows = Math.min(Math.max(getFilteredList().length, 1), MAX_ITEMS);
-      return searchH + (visibleRows * itemH) + addH;
+      const rowCount = getFilteredList().length;
+      const visibleRows = Math.min(Math.max(rowCount, 1), MAX_ITEMS);
+      // Include margins and border-top (1px)
+      return searchH + searchMargin + (visibleRows * (itemH || 32)) + addH + 2;
     }
     function resizeCard(withList){
       if(!open) return;
@@ -7327,7 +7331,9 @@ scheduleInit();
       const bh = window._mpBaseH || 0;
       let targetH = bh;
       if(withList){
-        const visibleListH = Math.min(listArea.scrollHeight, listViewportHeight());
+        const vh = listViewportHeight();
+        // Use the calculated height primarily to avoid stale scrollHeight issues during transitions
+        const visibleListH = vh;
         listArea.style.maxHeight = visibleListH + 'px';
         targetH = bh + visibleListH;
       } else {
@@ -7484,6 +7490,11 @@ scheduleInit();
   searchEl.addEventListener('input', e=>{
     searchQuery = e.target.value || '';
     render();
+    if(window._mpResizeCard && window._mpListOpen && window._mpListOpen()){
+      requestAnimationFrame(() => window._mpResizeCard(true));
+    }
+  });
+  searchEl.addEventListener('focus', () => {
     if(window._mpResizeCard && window._mpListOpen && window._mpListOpen()){
       requestAnimationFrame(() => window._mpResizeCard(true));
     }
