@@ -1,9 +1,9 @@
 import htmlContent from './index.html';
+import { getCommunityLevelFromXp, COMMUNITY_LEVEL_THRESHOLDS } from './utils.mjs';
 
 const DEFAULT_ADMIN_USER = 'admin';
 const DEFAULT_ADMIN_PASS = 'admin888';
 const DEFAULT_COMMUNITY_OWNER_USERS = 'admin';
-const COMMUNITY_LEVEL_THRESHOLDS = [0, 10, 25, 45, 70, 100, 140, 190, 250, 325, 415, 520, 640, 780, 940, 1120, 1325, 1555, 1810, 2090];
 const COMMUNITY_CACHE_META_PREFIX = 'community_cache_meta:';
 const COMMUNITY_CACHE_SUMMARY_KEY = 'community_cache_summary';
 const DEFAULT_COMMUNITY_R2_CACHE_MAX_BYTES = 6 * 1024 * 1024 * 1024;
@@ -40,14 +40,6 @@ function withCommunityRole(user, env) {
   if (!user) return null;
   const role = normalizeCommunityRole(user, env);
   return role === user.role ? user : { ...user, role };
-}
-
-function getCommunityLevelFromXp(xpValue) {
-  const xp = Math.max(0, Number(xpValue || 0));
-  for (let i = COMMUNITY_LEVEL_THRESHOLDS.length - 1; i >= 0; i -= 1) {
-    if (xp >= COMMUNITY_LEVEL_THRESHOLDS[i]) return i + 1;
-  }
-  return 1;
 }
 
 function withCommunityLevel(entity) {
