@@ -1959,14 +1959,16 @@ export default {
       if (url.pathname === '/api/community/admin/action' && request.method === 'POST') {
         const user = await getAuth();
         if (!user || !isCommunityAdminRole(user.role)) return jsonResp({ ok: false }, 403);
-        const { action, target_type, target_id, report_id, new_password, content, quota_gb } = await request.json();
+        const body = await request.json();
+        const { action, target_type, target_id, report_id, new_password, content, quota_gb } = body;
         const targetUser = target_type === 'user' && target_id
+
           ? withCommunityRole(await env.COMMUNITY_DB.prepare("SELECT * FROM users WHERE id = ?").bind(target_id).first(), env)
           : null;
         const actorIsOwner = isCommunityOwnerRole(user.role);
         const targetIsPrivileged = isCommunityAdminRole(targetUser?.role);
         const targetIsOwner = isCommunityOwnerRole(targetUser?.role);
-        
+
         if (action === 'reset_password' && target_type === 'user') {
            if (!targetUser) return jsonResp({ ok: false, msg: '用户不存在' }, 404);
            if (targetIsOwner) return jsonResp({ ok: false, msg: '不能重置 owner 账号密码' }, 403);
@@ -1983,7 +1985,6 @@ export default {
            await env.COMMUNITY_DB.prepare("INSERT INTO user_drive_stats (user_id, quota_bytes, used_bytes) VALUES (?, ?, 0) ON CONFLICT(user_id) DO UPDATE SET quota_bytes = excluded.quota_bytes").bind(target_id, quotaBytes).run();
            return jsonResp({ ok: true });
         }
-
         if (action === 'delete_item') {
           if (target_type === 'post') await env.COMMUNITY_DB.prepare("DELETE FROM posts WHERE id = ?").bind(target_id).run();
           if (target_type === 'comment') await env.COMMUNITY_DB.prepare("DELETE FROM comments WHERE id = ?").bind(target_id).run();
