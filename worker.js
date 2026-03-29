@@ -103,16 +103,22 @@ async function setCommunityCacheMeta(env, fileId, meta) {
   }));
 }
 
-async function deleteCommunityCacheEntry(env, fileId, meta = null) {
+async function deleteCommunityCacheEntry(env, fileId, meta = null, skipSummaryUpdate = false) {
   if (!env.COMMUNITY_R2) return;
-  const existingMeta = meta || await getCommunityCacheMeta(env, fileId);
-  await env.COMMUNITY_R2.delete(fileId);
-  await env.SCHEDULE_KV.delete(`${COMMUNITY_CACHE_META_PREFIX}${fileId}`);
-  const summary = await getCommunityCacheSummary(env);
-  await setCommunityCacheSummary(env, {
-    totalBytes: Math.max(0, Number(summary.totalBytes || 0) - Number(existingMeta?.byteSize || 0)),
-    itemCount: Math.max(0, Number(summary.itemCount || 0) - (existingMeta ? 1 : 0)),
-  });
+  const existingMeta = meta || (!skipSummaryUpdate ? await getCommunityCacheMeta(env, fileId) : null);
+
+  await Promise.all([
+    env.COMMUNITY_R2.delete(fileId),
+    env.SCHEDULE_KV.delete(`${COMMUNITY_CACHE_META_PREFIX}${fileId}`)
+  ]);
+
+  if (!skipSummaryUpdate) {
+    const summary = await getCommunityCacheSummary(env);
+    await setCommunityCacheSummary(env, {
+      totalBytes: Math.max(0, Number(summary.totalBytes || 0) - Number(existingMeta?.byteSize || 0)),
+      itemCount: Math.max(0, Number(summary.itemCount || 0) - (existingMeta ? 1 : 0)),
+    });
+  }
 }
 
 async function listCommunityCacheMetas(env) {
@@ -136,29 +142,41 @@ async function pruneCommunityCache(env, bytesNeeded = 0) {
   const allEntries = await listCommunityCacheMetas(env);
   let entries = allEntries.filter(Boolean);
 
+  const entriesToDelete = [];
+  const entriesToKeep = [];
+
   for (const entry of entries) {
     const lastAccessAt = Date.parse(entry.lastAccessAt || entry.createdAt || 0);
     if (lastAccessAt && now - lastAccessAt > config.maxAgeMs) {
-      await deleteCommunityCacheEntry(env, entry.fileId, entry);
+      entriesToDelete.push(entry);
+    } else {
+      entriesToKeep.push(entry);
     }
   }
 
-  entries = (await listCommunityCacheMetas(env)).sort((a, b) => {
+  entriesToKeep.sort((a, b) => {
     const aTime = Date.parse(a.lastAccessAt || a.createdAt || 0) || 0;
     const bTime = Date.parse(b.lastAccessAt || b.createdAt || 0) || 0;
     return aTime - bTime;
   });
 
-  let totalBytes = entries.reduce((sum, entry) => sum + Number(entry.byteSize || 0), 0);
-  while (entries.length && totalBytes + bytesNeeded > config.maxBytes) {
-    const victim = entries.shift();
+  let totalBytes = entriesToKeep.reduce((sum, entry) => sum + Number(entry.byteSize || 0), 0);
+  while (entriesToKeep.length && totalBytes + bytesNeeded > config.maxBytes) {
+    const victim = entriesToKeep.shift();
     totalBytes -= Number(victim?.byteSize || 0);
-    await deleteCommunityCacheEntry(env, victim.fileId, victim);
+    entriesToDelete.push(victim);
+  }
+
+  // Batch delete using Promise.all in chunks to avoid hitting limits
+  const BATCH_SIZE = 50;
+  for (let i = 0; i < entriesToDelete.length; i += BATCH_SIZE) {
+    const batch = entriesToDelete.slice(i, i + BATCH_SIZE);
+    await Promise.all(batch.map(entry => deleteCommunityCacheEntry(env, entry.fileId, entry, true)));
   }
 
   await setCommunityCacheSummary(env, {
     totalBytes: Math.max(0, totalBytes),
-    itemCount: entries.length,
+    itemCount: entriesToKeep.length,
   });
 }
 
