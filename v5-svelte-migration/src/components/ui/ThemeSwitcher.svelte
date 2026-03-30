@@ -228,12 +228,12 @@
 </script>
 
 <!-- The Spark Canvas Engine -->
-<canvas bind:this={canvas} class="fixed inset-0 z-[1000005] pointer-events-none"></canvas>
+<canvas bind:this={canvas} class="fixed inset-0 z-[1000012] pointer-events-none"></canvas>
 
 <!-- The Ink Wash Mask -->
 <div 
   bind:this={inkWashNode} 
-  class="fixed top-0 left-0 z-[1000009] rounded-full pointer-events-none blur-edge"
+  class="fixed top-0 left-0 z-[1000011] rounded-full pointer-events-none blur-edge"
   style="width: 100px; height: 100px; margin-left: -50px; margin-top: -50px; display: none; background-color: currentColor;"
 ></div>
 

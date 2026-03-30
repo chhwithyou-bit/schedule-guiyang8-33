@@ -134,9 +134,11 @@
     width: 100%;
     min-height: 100vh;
     overflow: hidden; /* Prevent overflow during scale-up/down */
+    display: grid;
   }
 
   .content-container {
+    grid-area: 1 / 1;
     width: 100%;
     will-change: transform, opacity;
     backface-visibility: hidden; /* Hardware acceleration */
