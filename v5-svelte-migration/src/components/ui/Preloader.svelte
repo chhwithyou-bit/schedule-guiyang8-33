@@ -22,6 +22,7 @@
    */
   
   onMount(() => {
+    gsap.fromTo(container, { opacity: 0 }, { opacity: 1, duration: 0.8, ease: "power2.out" });
     startInitialCounter();
   });
 
@@ -127,6 +128,26 @@
   }
 </script>
 
+<svg class="fixed w-0 h-0 overflow-hidden pointer-events-none" aria-hidden="true">
+  <filter id="liquid-glass-awakening">
+    <feTurbulence 
+      bind:this={turbRef}
+      type="fractalNoise" 
+      baseFrequency="0" 
+      numOctaves="2" 
+      result="noise" 
+    />
+    <feDisplacementMap 
+      bind:this={dispRef}
+      in="SourceGraphic" 
+      in2="noise" 
+      scale="0" 
+      xChannelSelector="R" 
+      yChannelSelector="G" 
+    />
+  </filter>
+</svg>
+
 <div bind:this={container} class="preloader-overlay">
   <div bind:this={numberContainer} class="counter-container">
     <div class="digit-glitch font-mono">
@@ -134,26 +155,6 @@
     </div>
     <div class="liquid-aura"></div>
   </div>
-
-  <svg class="absolute w-0 h-0 overflow-hidden" aria-hidden="true">
-    <filter id="liquid-glass-awakening">
-      <feTurbulence 
-        bind:this={turbRef}
-        type="fractalNoise" 
-        baseFrequency="0" 
-        numOctaves="2" 
-        result="noise" 
-      />
-      <feDisplacementMap 
-        bind:this={dispRef}
-        in="SourceGraphic" 
-        in2="noise" 
-        scale="0" 
-        xChannelSelector="R" 
-        yChannelSelector="G" 
-      />
-    </filter>
-  </svg>
 </div>
 
 <style>
