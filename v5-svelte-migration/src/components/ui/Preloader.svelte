@@ -182,7 +182,7 @@
     opacity: 0;
     animation: simple-fade-in 0.8s ease-out forwards;
     /* Temporarily disabled filter to troubleshoot black screen issue on mobile */
-    /* filter: url(#liquid-glass-awakening); */
+    filter: url(#liquid-glass-awakening);
     will-change: transform, opacity;
   }
 

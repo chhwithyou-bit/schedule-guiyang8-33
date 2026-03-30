@@ -1,0 +1,10 @@
+--- v5-svelte-migration/src/components/ui/ThemeSwitcher.svelte
++++ v5-svelte-migration/src/components/ui/ThemeSwitcher.svelte
+@@ -216,7 +216,7 @@
+ <!-- The Ink Wash Mask -->
+ <div
+   bind:this={inkWashNode}
+-  class="fixed top-0 left-0 z-[1000004] rounded-full pointer-events-none blur-edge"
++  class="fixed top-0 left-0 z-[1000009] rounded-full pointer-events-none blur-edge"
+   style="width: 100px; height: 100px; margin-left: -50px; margin-top: -50px; display: none; background-color: currentColor;"
+ ></div>
