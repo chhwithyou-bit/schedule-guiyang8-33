@@ -260,14 +260,7 @@
 {/if}
 
 <style>
-  /*
-   * Feathering effect for the Ink Wash
-   * Creates a massive box-shadow of the current currentColor (target.bg)
-   * which gives a fuzzy "water spread" edge instead of a hard geometry.
-   */
   .blur-edge {
-    box-shadow: 0 0 160px 80px currentColor; 
-    filter: contrast(120%) brightness(1.05);
     will-change: transform, opacity;
   }
 

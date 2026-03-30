@@ -64,19 +64,16 @@
 
       // 1. Background focus
       tl.fromTo(mainContent, 
-        { filter: "blur(20px)", opacity: 0 },
-        { filter: "blur(0px)", opacity: 1, duration: 1.4, ease: "expo.out" }
+        { opacity: 0 },
+        { opacity: 1, duration: 1.4, ease: "expo.out" }
       );
 
-      // 2. 3D Fly-in for main components (staggered)
-      tl.from(".view-wrapper h1, .view-wrapper p, .view-wrapper article, .view-wrapper .schedule-view > div", {
-        z: -100,
+      // 2. 3D Fly-in for main components
+      tl.from(".view-wrapper", {
         y: 40,
-        rotateX: -10,
         opacity: 0,
         duration: 1.6,
-        stagger: 0.05,
-        ease: "elastic.out(1, 0.7)"
+        ease: "power3.out"
       }, "-=1.2");
 
       // 3. Elements rising from water
@@ -178,8 +175,6 @@
 
 <style>
   .main-content-assembly {
-    transform-style: preserve-3d;
-    will-change: filter, transform, opacity;
     /* Add a transition so the opacity change is smooth even if GSAP is not used */
     transition: opacity 1.4s ease-out;
   }

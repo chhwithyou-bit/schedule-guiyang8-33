@@ -44,7 +44,6 @@
       scale: 0.92,
       y: 30,
       opacity: 0,
-      filter: 'blur(15px)',
       duration: 0.6,
       ease: 'power2.inOut',
       overwrite: true
@@ -68,9 +67,8 @@
     gsap.set(node, { 
       scale: 1.08, 
       opacity: 0, 
-      filter: 'blur(20px)', 
       y: -20,
-      willChange: 'transform, filter, opacity'
+      willChange: 'transform, opacity'
     });
 
     // 2. STAGGERED CURTAIN SWEEP (Inwards)
@@ -97,7 +95,6 @@
     tl.to(node, {
       scale: 1,
       opacity: 1,
-      filter: 'blur(0px)',
       y: 0,
       duration: 0.8,
       ease: "power3.out",
@@ -141,7 +138,7 @@
 
   .content-container {
     width: 100%;
-    will-change: transform, filter, opacity;
+    will-change: transform, opacity;
     backface-visibility: hidden; /* Hardware acceleration */
   }
 
