@@ -22,7 +22,6 @@
    */
   
   onMount(() => {
-    gsap.fromTo(container, { opacity: 0 }, { opacity: 1, duration: 0.8, ease: "power2.out" });
     startInitialCounter();
   });
 
@@ -31,23 +30,28 @@
   }
 
   function startInitialCounter() {
-    counterTl = gsap.timeline();
+    try {
+      counterTl = gsap.timeline();
 
-    // Fast climb to 60%
-    counterTl.to(progress, {
-      value: 60,
-      duration: 0.8,
-      ease: "power2.out",
-      onUpdate: updateDisplay
-    });
+      // Fast climb to 60%
+      counterTl.to(progress, {
+        value: 60,
+        duration: 0.8,
+        ease: "power2.out",
+        onUpdate: updateDisplay
+      });
 
-    // Slow crawl from 60 to 99%
-    counterTl.to(progress, {
-      value: 99,
-      duration: 4.0,
-      ease: "power1.inOut",
-      onUpdate: updateDisplay
-    });
+      // Slow crawl from 60 to 99%
+      counterTl.to(progress, {
+        value: 99,
+        duration: 4.0,
+        ease: "power1.inOut",
+        onUpdate: updateDisplay
+      });
+    } catch (e) {
+      console.warn('Initial counter failed, skipping to completion check:', e);
+      displayValue = "99";
+    }
   }
 
   function updateDisplay() {
@@ -60,71 +64,78 @@
     
     // If the counter is still running, fast-forward it
     if (counterTl) {
-      counterTl.kill();
+      try { counterTl.kill(); } catch (e) {}
     }
 
     await tick();
 
-    const tl = gsap.timeline({
-      onComplete: () => {
-        dispatch('complete');
-      }
-    });
-
-    // 1. Zoom to 100%
-    tl.to(progress, {
-      value: 100,
-      duration: 0.3,
-      ease: "power2.out",
-      onUpdate: () => {
-        displayValue = "100";
-      }
-    });
-
-    tl.to({}, { duration: 0.2 }); // Hold
-
-    // 2. Burst Phase
-    // Defensive check for refs which might be missing in some edge cases
-    if (turbRef && dispRef) {
-      const freq = { valX: 0, valY: 0 };
-      tl.to(freq, {
-        valX: 0.04,
-        valY: 0.01,
-        duration: 0.8,
-        ease: "power2.in",
-        onUpdate: () => {
-          if (turbRef) turbRef.setAttribute("baseFrequency", `${freq.valX} ${freq.valY}`);
+    try {
+      const tl = gsap.timeline({
+        onComplete: () => {
+          dispatch('complete');
         }
-      }, "burst");
+      });
 
-      tl.to(dispRef, {
-        attr: { scale: 180 },
-        duration: 0.8,
-        ease: "power2.in"
-      }, "burst");
-    }
+      // 1. Zoom to 100%
+      tl.to(progress, {
+        value: 100,
+        duration: 0.3,
+        ease: "power2.out",
+        onUpdate: () => {
+          displayValue = "100";
+        }
+      });
 
-    tl.to(numberContainer, {
-      scale: 0,
-      opacity: 0,
-      duration: 0.4,
-      ease: "back.in(1.7)"
-    }, "burst");
+      tl.to({}, { duration: 0.2 }); // Hold
 
-    // 3. Final Vanish
-    tl.to(container, {
-      opacity: 0,
-      scale: 1.1,
-      duration: 0.6,
-      ease: "power3.inOut"
-    }, "burst+=0.5");
-
-    // Cleanup
-    tl.add(() => {
+      // 2. Burst Phase
+      // Defensive check for refs which might be missing in some edge cases
       if (turbRef && dispRef) {
-        gsap.set([turbRef, dispRef], { attr: { baseFrequency: "0", scale: "0" } });
+        const freq = { valX: 0, valY: 0 };
+        tl.to(freq, {
+          valX: 0.04,
+          valY: 0.01,
+          duration: 0.8,
+          ease: "power2.in",
+          onUpdate: () => {
+            if (turbRef) turbRef.setAttribute("baseFrequency", `${freq.valX} ${freq.valY}`);
+          }
+        }, "burst");
+
+        tl.to(dispRef, {
+          attr: { scale: 180 },
+          duration: 0.8,
+          ease: "power2.in"
+        }, "burst");
       }
-    });
+
+      tl.to(numberContainer, {
+        scale: 0,
+        opacity: 0,
+        duration: 0.4,
+        ease: "back.in(1.7)"
+      }, "burst");
+
+      // 3. Final Vanish
+      tl.to(container, {
+        opacity: 0,
+        scale: 1.1,
+        duration: 0.6,
+        ease: "power3.inOut"
+      }, "burst+=0.5");
+
+      // Cleanup
+      tl.add(() => {
+        if (turbRef && dispRef) {
+          try {
+            gsap.set([turbRef, dispRef], { attr: { baseFrequency: "0", scale: "0" } });
+          } catch (e) {}
+        }
+      });
+    } catch (e) {
+      console.error('Preloader completion animation failed:', e);
+      dispatch('complete');
+    }
   }
 </script>
 
@@ -167,8 +178,16 @@
     align-items: center;
     justify-content: center;
     overflow: hidden;
-    filter: url(#liquid-glass-awakening);
-    will-change: filter, transform, opacity;
+    /* Use CSS for initial visibility to be safe */
+    opacity: 0;
+    animation: simple-fade-in 0.8s ease-out forwards;
+    /* Temporarily disabled filter to troubleshoot black screen issue on mobile */
+    /* filter: url(#liquid-glass-awakening); */
+    will-change: transform, opacity;
+  }
+
+  @keyframes simple-fade-in {
+    to { opacity: 1; }
   }
 
   .preloader-overlay::after {

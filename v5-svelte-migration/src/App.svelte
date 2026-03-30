@@ -5,7 +5,7 @@
    */
   import { onMount, tick } from 'svelte';
   import { gsap } from 'gsap';
-  import { ScrollTrigger } from 'gsap/ScrollTrigger';
+  import { ScrollTrigger } from 'gsap/dist/ScrollTrigger';
   import Lenis from '@studio-freight/lenis';
   import { currentView, themeInitialized } from './stores/appState';
   import { activeTheme } from './stores/theme';
@@ -32,7 +32,7 @@
   try {
     gsap.registerPlugin(ScrollTrigger);
   } catch (e) {
-    console.error('GSAP ScrollTrigger registration failed:', e);
+    console.warn('GSAP ScrollTrigger registration failed:', e);
   }
 
   let lenis: Lenis;
@@ -57,39 +57,46 @@
     isLoading = false;
     await tick();
     
-    const tl = gsap.timeline();
+    if (!mainContent) return;
 
-    // 1. Background focus
-    tl.fromTo(mainContent, 
-      { filter: "blur(20px)", opacity: 0 },
-      { filter: "blur(0px)", opacity: 1, duration: 1.4, ease: "expo.out" }
-    );
+    try {
+      const tl = gsap.timeline();
 
-    // 2. 3D Fly-in for main components (staggered)
-    tl.from(".view-wrapper h1, .view-wrapper p, .view-wrapper article, .view-wrapper .schedule-view > div", {
-      z: -100,
-      y: 40,
-      rotateX: -10,
-      opacity: 0,
-      duration: 1.6,
-      stagger: 0.05,
-      ease: "elastic.out(1, 0.7)"
-    }, "-=1.2");
+      // 1. Background focus
+      tl.fromTo(mainContent, 
+        { filter: "blur(20px)", opacity: 0 },
+        { filter: "blur(0px)", opacity: 1, duration: 1.4, ease: "expo.out" }
+      );
 
-    // 3. Elements rising from water
-    tl.from(".liquid-bar-dock", {
-      y: 150,
-      opacity: 0,
-      duration: 1.2,
-      ease: "elastic.out(1, 0.7)"
-    }, "-=1.4");
+      // 2. 3D Fly-in for main components (staggered)
+      tl.from(".view-wrapper h1, .view-wrapper p, .view-wrapper article, .view-wrapper .schedule-view > div", {
+        z: -100,
+        y: 40,
+        rotateX: -10,
+        opacity: 0,
+        duration: 1.6,
+        stagger: 0.05,
+        ease: "elastic.out(1, 0.7)"
+      }, "-=1.2");
 
-    tl.from("header", {
-      y: -80,
-      opacity: 0,
-      duration: 1.0,
-      ease: "power3.out"
-    }, "-=1.4");
+      // 3. Elements rising from water
+      tl.from(".liquid-bar-dock", {
+        y: 150,
+        opacity: 0,
+        duration: 1.2,
+        ease: "elastic.out(1, 0.7)"
+      }, "-=1.4");
+
+      tl.from("header", {
+        y: -80,
+        opacity: 0,
+        duration: 1.0,
+        ease: "power3.out"
+      }, "-=1.4");
+    } catch (e) {
+      console.error('Assembly animation failed, forcing visibility:', e);
+      if (mainContent) mainContent.style.opacity = '1';
+    }
   }
 
   onMount(() => {
@@ -119,12 +126,14 @@
       };
       requestAnimationFrame(raf);
     } catch (e) {
-      console.error('Lenis initialization failed:', e);
+      console.warn('Lenis initialization failed:', e);
     }
 
     return () => {
       clearTimeout(failSafe);
-      if (lenis) lenis.destroy();
+      if (lenis) {
+        try { lenis.destroy(); } catch(e) {}
+      }
     };
   });
 </script>
@@ -171,6 +180,8 @@
   .main-content-assembly {
     transform-style: preserve-3d;
     will-change: filter, transform, opacity;
+    /* Add a transition so the opacity change is smooth even if GSAP is not used */
+    transition: opacity 1.4s ease-out;
   }
   
   :global(:root) {

@@ -231,21 +231,21 @@
 <div 
   bind:this={inkWashNode} 
   class="fixed top-0 left-0 z-[1000004] rounded-full pointer-events-none blur-edge"
-  style="width: 100px; height: 100px; margin-left: -50px; margin-top: -50px; display: none;"
+  style="width: 100px; height: 100px; margin-left: -50px; margin-top: -50px; display: none; background-color: currentColor;"
 ></div>
 
 <!-- Initial Access Palette Picker -->
 {#if showInitPanel}
-  <div class="fixed inset-0 z-[1000002] flex items-center justify-center bg-[#020029] overflow-hidden p-6">
-    <div class="max-w-2xl w-full text-center">
-      <h2 class="text-4xl md:text-5xl font-black text-white mb-4 tracking-tighter uppercase leading-none">Pick Your Aura</h2>
-      <p class="text-white/40 mb-8 md:mb-12 font-medium tracking-widest uppercase text-[10px]">Select a visual frequency to begin.</p>
+  <div class="fixed inset-0 z-[1000010] flex items-center justify-center bg-[#020029] overflow-y-auto p-6">
+    <div class="max-w-2xl w-full text-center py-12">
+      <h2 class="text-4xl md:text-5xl font-black text-[#f5efe0] mb-4 tracking-tighter uppercase leading-none">Pick Your Aura</h2>
+      <p class="text-[#f5efe0]/40 mb-8 md:mb-12 font-medium tracking-widest uppercase text-[10px]">Select a visual frequency to begin.</p>
       
       <div class="grid grid-cols-2 gap-4 md:gap-6">
         {#each themes as theme}
           <button 
             on:click={(e) => handleThemeSwitch(theme.id, e, true)}
-            class="group relative aspect-video rounded-2xl md:rounded-[40px] overflow-hidden border border-white/5 transition-all duration-500 hover:scale-[1.03] hover:border-white/20 active:scale-95"
+            class="group relative aspect-video rounded-2xl md:rounded-[40px] overflow-hidden border border-white/10 transition-all duration-500 hover:scale-[1.03] hover:border-white/20 active:scale-95 bg-white/5"
           >
             <div class="absolute inset-0 transition-transform duration-1000 group-hover:scale-110" style="background-color: {theme.bg};"></div>
             <div class="relative h-full flex flex-col items-center justify-center">
