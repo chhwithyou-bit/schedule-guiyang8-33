@@ -5,7 +5,7 @@
    */
   import { onMount, tick } from 'svelte';
   import { gsap } from 'gsap';
-  import { ScrollTrigger } from 'gsap/dist/ScrollTrigger';
+  import { ScrollTrigger } from 'gsap/ScrollTrigger';
   import Lenis from '@studio-freight/lenis';
   import { currentView, themeInitialized } from './stores/appState';
   import { activeTheme } from './stores/theme';
@@ -29,7 +29,11 @@
   import XiangqiView from './components/views/XiangqiView.svelte';
   import AdminView from './components/views/AdminView.svelte';
 
-  gsap.registerPlugin(ScrollTrigger);
+  try {
+    gsap.registerPlugin(ScrollTrigger);
+  } catch (e) {
+    console.error('GSAP ScrollTrigger registration failed:', e);
+  }
 
   let lenis: Lenis;
   let viewContainer: HTMLElement;
@@ -89,22 +93,38 @@
   }
 
   onMount(() => {
-    // Initialize smooth scrolling with Lenis
-    lenis = new Lenis({
-      duration: 1.2,
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), 
-      smoothWheel: true
-    });
+    // Fail-safe: Force show app after 5 seconds if stuck
+    const failSafe = setTimeout(() => {
+      if (isLoading) {
+        console.warn('App stuck loading, triggering fail-safe...');
+        themeInitialized.set(true);
+        startAssembly();
+      }
+    }, 5000);
 
-    function raf(time: number) {
-      lenis.raf(time);
-      ScrollTrigger.update();
+    try {
+      // Initialize smooth scrolling with Lenis
+      lenis = new Lenis({
+        duration: 1.2,
+        easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), 
+        smoothWheel: true
+      });
+
+      const raf = (time: number) => {
+        if (lenis) {
+          lenis.raf(time);
+          ScrollTrigger.update();
+          requestAnimationFrame(raf);
+        }
+      };
       requestAnimationFrame(raf);
+    } catch (e) {
+      console.error('Lenis initialization failed:', e);
     }
-    requestAnimationFrame(raf);
 
     return () => {
-      lenis.destroy();
+      clearTimeout(failSafe);
+      if (lenis) lenis.destroy();
     };
   });
 </script>

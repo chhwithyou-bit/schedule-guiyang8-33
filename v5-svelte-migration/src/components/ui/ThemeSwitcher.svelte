@@ -79,21 +79,30 @@
   };
 
   onMount(() => {
-    gsap.registerPlugin(CustomEase);
-    CustomEase.create("custom", "M0,0,C0.25,1,0.5,1,1,1");
+    try {
+      gsap.registerPlugin(CustomEase);
+      CustomEase.create("custom", "M0,0,C0.25,1,0.5,1,1,1");
+    } catch (e) {
+      console.warn('GSAP CustomEase registration failed, using fallback ease', e);
+    }
     
     ctx = canvas.getContext('2d')!;
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
     window.addEventListener('request-theme-switch', handleGlobalRequest);
 
-    const saved = localStorage.getItem('siteTheme');
-    if (saved) {
-      activeTheme.set(saved);
-      document.documentElement.setAttribute('data-theme', saved);
-      themeInitialized.set(true);
-    } else {
-      showInitPanel = true;
+    try {
+      const saved = localStorage.getItem('siteTheme');
+      if (saved) {
+        activeTheme.set(saved);
+        document.documentElement.setAttribute('data-theme', saved);
+        themeInitialized.set(true);
+      } else {
+        showInitPanel = true;
+      }
+    } catch (e) {
+      console.error('LocalStorage access failed:', e);
+      showInitPanel = true; // Fallback to show picker if possible
     }
 
     return () => {
@@ -227,7 +236,7 @@
 
 <!-- Initial Access Palette Picker -->
 {#if showInitPanel}
-  <div class="fixed inset-0 z-[1000002] flex items-center justify-center bg-black/60 backdrop-blur-3xl overflow-hidden p-6">
+  <div class="fixed inset-0 z-[1000002] flex items-center justify-center bg-[#020029] overflow-hidden p-6">
     <div class="max-w-2xl w-full text-center">
       <h2 class="text-4xl md:text-5xl font-black text-white mb-4 tracking-tighter uppercase leading-none">Pick Your Aura</h2>
       <p class="text-white/40 mb-8 md:mb-12 font-medium tracking-widest uppercase text-[10px]">Select a visual frequency to begin.</p>
