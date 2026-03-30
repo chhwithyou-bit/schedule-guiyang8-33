@@ -10,7 +10,24 @@
   let container: HTMLElement;
   let numberContainer: HTMLElement;
 
+  import { themeInitialized } from '../../stores/appState';
+  let isReadyToAnimate = false;
+
+  import { tick } from 'svelte';
+
+  $: if ($themeInitialized && !isReadyToAnimate) {
+     isReadyToAnimate = true;
+     tick().then(startAnimation);
+  }
+
   onMount(() => {
+    if ($themeInitialized && !isReadyToAnimate) {
+       isReadyToAnimate = true;
+       startAnimation();
+    }
+  });
+
+  function startAnimation() {
     const tl = gsap.timeline({
       onComplete: () => {
         dispatch('complete');
@@ -78,7 +95,7 @@
 
     // Cleanup: Reset filter attributes to prevent performance drag after loading
     tl.set([turbRef, dispRef], { attr: { baseFrequency: "0", scale: "0" } });
-  });
+  }
 </script>
 
 <div bind:this={container} class="preloader-overlay">

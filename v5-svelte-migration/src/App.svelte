@@ -114,17 +114,21 @@
   data-theme={$activeTheme}
   style="perspective: 1200px;"
 >
+  <!-- ThemeSwitcher rendered first to manage initial theme setup -->
+  <ThemeSwitcher />
+
+  <!-- The Preloader must always be mounted initially so it can track theme initialization via its own internal logic -->
   {#if isLoading}
     <Preloader on:complete={startAssembly} />
   {/if}
 
+  <!-- Only show content when fully loaded and theme is ready -->
   <div 
     bind:this={mainContent} 
-    class="main-content-assembly {isLoading ? 'opacity-0' : 'opacity-100'}"
+    class="main-content-assembly {(isLoading || !$themeInitialized) ? 'opacity-0' : 'opacity-100'}"
   >
     <CustomCursor />
     <Header />
-    <ThemeSwitcher />
     
     <main bind:this={viewContainer} class="view-wrapper pt-32 pb-40 px-6 md:px-12 w-full max-w-7xl mx-auto">
       <PageTransition url={$currentView}>

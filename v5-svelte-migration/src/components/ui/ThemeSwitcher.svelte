@@ -188,8 +188,18 @@
       activeTheme.set(target.id);
       document.documentElement.setAttribute('data-theme', target.id);
       localStorage.setItem('siteTheme', target.id);
-      themeInitialized.set(true);
-      showInitPanel = false; // Hide init panel if it was showing
+
+      if (showInitPanel) {
+        showInitPanel = false;
+        // Ensure Preloader components and App components have a chance to sync
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            themeInitialized.set(true);
+          });
+        });
+      } else {
+        themeInitialized.set(true);
+      }
     }, 0.5); // After 500ms when screen is fully masked
 
     // Fade out mask over 300ms
