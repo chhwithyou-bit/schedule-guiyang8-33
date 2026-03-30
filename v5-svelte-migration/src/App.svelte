@@ -9,6 +9,7 @@
   import Lenis from '@studio-freight/lenis';
   import { currentView, themeInitialized } from './stores/appState';
   import { activeTheme } from './stores/theme';
+  import { activeModal } from './stores/modalState';
 
   import CustomCursor from './components/ui/CustomCursor.svelte';
   import Preloader from './components/ui/Preloader.svelte';
@@ -18,9 +19,15 @@
   import LiquidBar from './components/layout/LiquidBar.svelte';
   import MusicPlayer from './components/layout/MusicPlayer.svelte';
 
+  // Modals
+  import AuthModal from './components/modals/AuthModal.svelte';
+  import PostModal from './components/modals/PostModal.svelte';
+
   import ScheduleView from './components/views/ScheduleView.svelte';
   import CommunityView from './components/views/CommunityView.svelte';
   import NodesView from './components/views/NodesView.svelte';
+  import XiangqiView from './components/views/XiangqiView.svelte';
+  import AdminView from './components/views/AdminView.svelte';
 
   gsap.registerPlugin(ScrollTrigger);
 
@@ -33,7 +40,9 @@
   const viewMap: Record<string, any> = {
     schedule: ScheduleView,
     community: CommunityView,
-    nodes: NodesView
+    nodes: NodesView,
+    xiangqi: XiangqiView,
+    admin: AdminView
   };
 
   /**
@@ -126,6 +135,12 @@
     <MusicPlayer />
     <LiquidBar class="liquid-bar-dock" />
   </div>
+
+  {#if $activeModal === 'auth'}
+    <AuthModal />
+  {:else if $activeModal === 'comm-post'}
+    <PostModal />
+  {/if}
 </div>
 
 <style>
