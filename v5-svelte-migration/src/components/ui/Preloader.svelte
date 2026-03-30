@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { onMount, createEventDispatcher } from 'svelte';
+  import { onMount, createEventDispatcher, tick } from 'svelte';
   import { gsap } from 'gsap';
+  import { themeInitialized } from '../../stores/appState';
 
   const dispatch = createEventDispatcher();
   let progress = { value: 0 };
@@ -10,82 +11,106 @@
   let container: HTMLElement;
   let numberContainer: HTMLElement;
 
-  import { themeInitialized } from '../../stores/appState';
-  let isReadyToAnimate = false;
+  let counterTl: gsap.core.Timeline;
+  let isFinishing = false;
 
-  import { tick } from 'svelte';
-
-  $: if ($themeInitialized && !isReadyToAnimate) {
-     isReadyToAnimate = true;
-     tick().then(startAnimation);
-  }
-
+  /**
+   * REVOLUTIONARY LOADING STRATEGY
+   * 1. Start counter immediately on mount to provide instant feedback.
+   * 2. Slow down/wait at 99% if theme is not yet picked.
+   * 3. Resume and burst once theme is confirmed.
+   */
+  
   onMount(() => {
-    if ($themeInitialized && !isReadyToAnimate) {
-       isReadyToAnimate = true;
-       startAnimation();
-    }
+    startInitialCounter();
   });
 
-  function startAnimation() {
+  $: if ($themeInitialized && !isFinishing) {
+    completeLoading();
+  }
+
+  function startInitialCounter() {
+    counterTl = gsap.timeline();
+
+    // Fast climb to 60%
+    counterTl.to(progress, {
+      value: 60,
+      duration: 0.8,
+      ease: "power2.out",
+      onUpdate: updateDisplay
+    });
+
+    // Slow crawl from 60 to 99%
+    counterTl.to(progress, {
+      value: 99,
+      duration: 4.0,
+      ease: "power1.inOut",
+      onUpdate: updateDisplay
+    });
+  }
+
+  function updateDisplay() {
+    const val = Math.floor(progress.value);
+    displayValue = val < 10 ? `0${val}` : `${val}`;
+  }
+
+  async function completeLoading() {
+    isFinishing = true;
+    
+    // If the counter is still running, fast-forward it
+    if (counterTl) {
+      counterTl.kill();
+    }
+
+    await tick();
+
     const tl = gsap.timeline({
       onComplete: () => {
         dispatch('complete');
       }
     });
 
-    // 1. Loading Phase: Digital Scramble/Counter (0 to 99)
-    tl.to(progress, {
-      value: 99,
-      duration: 2.0,
-      ease: "power1.inOut",
-      onUpdate: () => {
-        const val = Math.floor(progress.value);
-        displayValue = val < 10 ? `0${val}` : `${val}`;
-      }
-    });
-
-    // 2. Reach 100%, hold for 200ms
+    // 1. Zoom to 100%
     tl.to(progress, {
       value: 100,
-      duration: 0.2,
-      ease: "none",
+      duration: 0.3,
+      ease: "power2.out",
       onUpdate: () => {
         displayValue = "100";
       }
     });
 
-    tl.to({}, { duration: 0.2 }); // Hold for 200ms
+    tl.to({}, { duration: 0.2 }); // Hold
 
-    // 3. Liquid Burst Phase: Warping the space and vanishing number
-    // We animate the baseFrequency and scale of the SVG filter
+    // 2. Burst Phase
+    // Defensive check for refs which might be missing in some edge cases
+    if (turbRef && dispRef) {
+      const freq = { valX: 0, valY: 0 };
+      tl.to(freq, {
+        valX: 0.04,
+        valY: 0.01,
+        duration: 0.8,
+        ease: "power2.in",
+        onUpdate: () => {
+          if (turbRef) turbRef.setAttribute("baseFrequency", `${freq.valX} ${freq.valY}`);
+        }
+      }, "burst");
 
-    // proxy object to cleanly animate two values for baseFrequency
-    const freq = { valX: 0, valY: 0 };
-    tl.to(freq, {
-      valX: 0.04,
-      valY: 0.01,
-      duration: 0.8,
-      ease: "power2.in",
-      onUpdate: () => {
-        turbRef.setAttribute("baseFrequency", `${freq.valX} ${freq.valY}`);
-      }
-    }, "burst");
-
-    tl.to(dispRef, {
-      attr: { scale: 180 },
-      duration: 0.8,
-      ease: "power2.in"
-    }, "burst");
+      tl.to(dispRef, {
+        attr: { scale: 180 },
+        duration: 0.8,
+        ease: "power2.in"
+      }, "burst");
+    }
 
     tl.to(numberContainer, {
       scale: 0,
       opacity: 0,
-      duration: 0.3,
+      duration: 0.4,
       ease: "back.in(1.7)"
     }, "burst");
 
-    // 4. Dissolve Phase
+    // 3. Final Vanish
     tl.to(container, {
       opacity: 0,
       scale: 1.1,
@@ -93,21 +118,23 @@
       ease: "power3.inOut"
     }, "burst+=0.5");
 
-    // Cleanup: Reset filter attributes to prevent performance drag after loading
-    tl.set([turbRef, dispRef], { attr: { baseFrequency: "0", scale: "0" } });
+    // Cleanup
+    tl.add(() => {
+      if (turbRef && dispRef) {
+        gsap.set([turbRef, dispRef], { attr: { baseFrequency: "0", scale: "0" } });
+      }
+    });
   }
 </script>
 
 <div bind:this={container} class="preloader-overlay">
-  <!-- Visual Center -->
   <div bind:this={numberContainer} class="counter-container">
-    <div class="digit-glitch font-mono" data-text={displayValue}>
+    <div class="digit-glitch font-mono">
       {displayValue}<span class="unit">%</span>
     </div>
     <div class="liquid-aura"></div>
   </div>
 
-  <!-- SVG Filter Magic: The engine of the Liquid Warp effect -->
   <svg class="absolute w-0 h-0 overflow-hidden" aria-hidden="true">
     <filter id="liquid-glass-awakening">
       <feTurbulence 
@@ -139,12 +166,10 @@
     align-items: center;
     justify-content: center;
     overflow: hidden;
-    /* Apply the SVG displacement filter for the awakening warp */
     filter: url(#liquid-glass-awakening);
     will-change: filter, transform, opacity;
   }
 
-  /* Subliminal noise texture for depth */
   .preloader-overlay::after {
     content: '';
     position: absolute;
@@ -192,5 +217,19 @@
   @keyframes aura-pulse {
     0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.1; }
     50% { transform: translate(-50%, -50%) scale(1.3); opacity: 0.22; }
+  }
+
+  /* Responsive Adjustments */
+  @media (max-width: 768px) {
+    .digit-glitch {
+      font-size: 25vw;
+    }
+    .unit {
+      font-size: 8vw;
+    }
+    .liquid-aura {
+      width: 60vw;
+      height: 60vw;
+    }
   }
 </style>

@@ -216,32 +216,32 @@
 </script>
 
 <!-- The Spark Canvas Engine -->
-<canvas bind:this={canvas} class="fixed inset-0 z-[10005] pointer-events-none"></canvas>
+<canvas bind:this={canvas} class="fixed inset-0 z-[1000005] pointer-events-none"></canvas>
 
 <!-- The Ink Wash Mask -->
 <div 
   bind:this={inkWashNode} 
-  class="fixed top-0 left-0 z-[10004] rounded-full pointer-events-none blur-edge"
+  class="fixed top-0 left-0 z-[1000004] rounded-full pointer-events-none blur-edge"
   style="width: 100px; height: 100px; margin-left: -50px; margin-top: -50px; display: none;"
 ></div>
 
 <!-- Initial Access Palette Picker -->
 {#if showInitPanel}
-  <div class="fixed inset-0 z-[10002] flex items-center justify-center bg-black/60 backdrop-blur-3xl overflow-hidden p-6">
+  <div class="fixed inset-0 z-[1000002] flex items-center justify-center bg-black/60 backdrop-blur-3xl overflow-hidden p-6">
     <div class="max-w-2xl w-full text-center">
-      <h2 class="text-5xl font-black text-white mb-4 tracking-tighter uppercase leading-none">Pick Your Aura</h2>
-      <p class="text-white/40 mb-12 font-medium tracking-widest uppercase text-[10px]">Select a visual frequency to begin.</p>
+      <h2 class="text-4xl md:text-5xl font-black text-white mb-4 tracking-tighter uppercase leading-none">Pick Your Aura</h2>
+      <p class="text-white/40 mb-8 md:mb-12 font-medium tracking-widest uppercase text-[10px]">Select a visual frequency to begin.</p>
       
-      <div class="grid grid-cols-2 gap-6">
+      <div class="grid grid-cols-2 gap-4 md:gap-6">
         {#each themes as theme}
           <button 
             on:click={(e) => handleThemeSwitch(theme.id, e, true)}
-            class="group relative aspect-video rounded-[40px] overflow-hidden border border-white/5 transition-all duration-500 hover:scale-[1.03] hover:border-white/20 active:scale-95"
+            class="group relative aspect-video rounded-2xl md:rounded-[40px] overflow-hidden border border-white/5 transition-all duration-500 hover:scale-[1.03] hover:border-white/20 active:scale-95"
           >
             <div class="absolute inset-0 transition-transform duration-1000 group-hover:scale-110" style="background-color: {theme.bg};"></div>
             <div class="relative h-full flex flex-col items-center justify-center">
-              <div class="w-14 h-14 rounded-full shadow-2xl mb-4 transition-transform duration-500 group-hover:translate-y-[-8px]" style="background-color: {theme.primary}; border: 4px solid {theme.accent};"></div>
-              <span class="text-[10px] font-black uppercase tracking-widest" style="color: {theme.primary};">{theme.name}</span>
+              <div class="w-10 h-10 md:w-14 md:h-14 rounded-full shadow-2xl mb-2 md:mb-4 transition-transform duration-500 group-hover:translate-y-[-8px]" style="background-color: {theme.primary}; border: 3px md:border-[4px] solid {theme.accent};"></div>
+              <span class="text-[8px] md:text-[10px] font-black uppercase tracking-widest" style="color: {theme.primary};">{theme.name}</span>
             </div>
           </button>
         {/each}
