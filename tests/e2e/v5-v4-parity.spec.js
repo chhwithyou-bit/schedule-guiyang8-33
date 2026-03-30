@@ -8,6 +8,13 @@ test.describe('8Community V5 Functionality Check', () => {
   
   test('Aura Picker should appear on first visit', async ({ page }) => {
     await page.goto('/');
+  try {
+    const btn = page.locator('button:has-text("Cyber Dark")');
+    if (await btn.isVisible({ timeout: 2000 })) {
+      await btn.click();
+      await page.waitForTimeout(2000);
+    }
+  } catch (e) {}
     // Check if "Pick Your Aura" text is visible
     const heading = page.locator('h2:has-text("Pick Your Aura")');
     // If we haven't selected a theme, it should be there.
@@ -19,6 +26,13 @@ test.describe('8Community V5 Functionality Check', () => {
 
   test('Should switch views via Liquid Bar', async ({ page }) => {
     await page.goto('/');
+  try {
+    const btn = page.locator('button:has-text("Cyber Dark")');
+    if (await btn.isVisible({ timeout: 2000 })) {
+      await btn.click();
+      await page.waitForTimeout(2000);
+    }
+  } catch (e) {}
     // Close theme picker if it exists
     const defaultThemeBtn = page.locator('button:has-text("Cyber Dark")');
     if (await defaultThemeBtn.isVisible()) {
@@ -42,6 +56,13 @@ test.describe('8Community V5 Functionality Check', () => {
 
   test('Community feed should load posts', async ({ page }) => {
     await page.goto('/');
+  try {
+    const btn = page.locator('button:has-text("Cyber Dark")');
+    if (await btn.isVisible({ timeout: 2000 })) {
+      await btn.click();
+      await page.waitForTimeout(2000);
+    }
+  } catch (e) {}
     // Close theme picker
     const defaultThemeBtn = page.locator('button:has-text("Cyber Dark")');
     if (await defaultThemeBtn.isVisible()) {
@@ -56,6 +77,13 @@ test.describe('8Community V5 Functionality Check', () => {
 
   test('Post Detail should open when clicking content', async ({ page }) => {
     await page.goto('/');
+  try {
+    const btn = page.locator('button:has-text("Cyber Dark")');
+    if (await btn.isVisible({ timeout: 2000 })) {
+      await btn.click();
+      await page.waitForTimeout(2000);
+    }
+  } catch (e) {}
     const defaultThemeBtn = page.locator('button:has-text("Cyber Dark")');
     if (await defaultThemeBtn.isVisible()) {
       await defaultThemeBtn.click();

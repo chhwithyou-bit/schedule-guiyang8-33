@@ -133,6 +133,13 @@ test.beforeEach(async ({ page }) => {
 
 test('music widget list scrolls and filters tracks', async ({ page }) => {
   await page.goto('/');
+  try {
+    const btn = page.locator('button:has-text("Cyber Dark")');
+    if (await btn.isVisible({ timeout: 2000 })) {
+      await btn.click();
+      await page.waitForTimeout(2000);
+    }
+  } catch (e) {}
   await expect(page.locator('#mp-name')).toHaveText('Aurora Echo');
 
   await page.locator('#mp').click();
@@ -166,6 +173,13 @@ test('music widget list scrolls and filters tracks', async ({ page }) => {
 
 test('music search surface does not darken over bright blocks', async ({ page }) => {
   await page.goto('/');
+  try {
+    const btn = page.locator('button:has-text("Cyber Dark")');
+    if (await btn.isVisible({ timeout: 2000 })) {
+      await btn.click();
+      await page.waitForTimeout(2000);
+    }
+  } catch (e) {}
   await page.locator('#mp').click();
   await expect(page.locator('#mp')).toHaveClass(/open/);
 
