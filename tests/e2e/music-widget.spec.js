@@ -225,3 +225,35 @@ test('music search surface does not darken over bright blocks', async ({ page })
   const averageDiff = await getAverageSearchSurfaceDiff(page, baselineShot, contrastShot, widgetBox, wrapBox);
   expect(averageDiff).toBeLessThan(8);
 });
+
+test('music widget can be dragged with the handle', async ({ page }) => {
+  await page.goto('/');
+  try {
+    const btn = page.locator('button:has-text("Cyber Dark")');
+    if (await btn.isVisible({ timeout: 2000 })) {
+      await btn.click();
+      await page.waitForTimeout(2000);
+    }
+  } catch (e) {}
+
+  const widget = page.locator('#mp');
+  await widget.click();
+  await expect(widget).toHaveClass(/open/);
+
+  const before = await widget.boundingBox();
+  const handle = page.locator('#mp-drag-handle');
+  const handleBox = await handle.boundingBox();
+
+  if (!before || !handleBox) throw new Error('Failed to capture widget bounds before drag');
+
+  await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(handleBox.x + handleBox.width / 2 + 120, handleBox.y + handleBox.height / 2 - 80, { steps: 10 });
+  await page.mouse.up();
+
+  const after = await widget.boundingBox();
+  if (!after) throw new Error('Failed to capture widget bounds after drag');
+
+  expect(Math.abs(after.x - before.x)).toBeGreaterThan(40);
+  expect(Math.abs(after.y - before.y)).toBeGreaterThan(20);
+});

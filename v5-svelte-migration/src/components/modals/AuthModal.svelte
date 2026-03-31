@@ -1,7 +1,8 @@
 <script lang="ts">
   import { fade, fly } from 'svelte/transition';
   import { closeModal } from '../../stores/modalState';
-  import { user, isAuthenticated } from '../../stores/appState';
+  import { user, isAuthenticated, isAdmin } from '../../stores/appState';
+  import { persistCommunitySession } from '../../lib/communityApi';
 
   let isRegister = false;
   let username = '';
@@ -10,7 +11,8 @@
   let error = '';
 
   async function handleSubmit() {
-    if (!username || !password) return;
+    const normalizedUsername = username.trim();
+    if (!normalizedUsername || !password) return;
     loading = true;
     error = '';
 
@@ -20,7 +22,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: isRegister ? 'register' : 'login',
-          username,
+          username: normalizedUsername,
           password
         })
       });
@@ -28,7 +30,8 @@
       if (data.ok) {
         user.set(data.user);
         isAuthenticated.set(true);
-        localStorage.setItem('commUser', JSON.stringify(data.user));
+        isAdmin.set(data.user?.role === 'admin' || data.user?.role === 'owner');
+        persistCommunitySession(data.user);
         closeModal();
       } else {
         error = data.msg || 'Auth failed';

@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { fade, fly } from 'svelte/transition';
   import { selectedProfile, isAuthenticated, user } from '../../stores/appState';
   import { openModal } from '../../stores/modalState';
   import PostCard from './PostCard.svelte';
+  import { communityFetch } from '../../lib/communityApi';
 
   let posts: any[] = [];
   let loading = true;
@@ -19,7 +19,7 @@
   async function fetchProfileData() {
     if (!$selectedProfile) return;
     try {
-      const res = await fetch(`/api/community/profile?id=${$selectedProfile.id || $selectedProfile.user_id}`);
+      const res = await communityFetch(`/api/community/profile?id=${$selectedProfile.id || $selectedProfile.user_id}`);
       const data = await res.json();
       if (data.ok) {
         selectedProfile.set(data.user);
@@ -36,7 +36,7 @@
     if (!$selectedProfile) return;
     loading = true;
     try {
-      const res = await fetch(`/api/community/posts?userId=${$selectedProfile.id || $selectedProfile.user_id}`);
+      const res = await communityFetch(`/api/community/posts?userId=${$selectedProfile.id || $selectedProfile.user_id}`);
       const data = await res.json();
       if (data.ok) {
         posts = data.posts;
@@ -54,7 +54,7 @@
       return;
     }
     try {
-      const res = await fetch('/api/community/follow', {
+      const res = await communityFetch('/api/community/follow', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ following_id: $selectedProfile.id || $selectedProfile.user_id })

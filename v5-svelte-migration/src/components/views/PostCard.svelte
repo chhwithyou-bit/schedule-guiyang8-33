@@ -1,6 +1,7 @@
 <script lang="ts">
   import { selectedPost, isAuthenticated, selectedProfile } from '../../stores/appState';
   import { openModal } from '../../stores/modalState';
+  import { communityFetch } from '../../lib/communityApi';
 
   export let post: any;
   let isLiking = false;
@@ -48,7 +49,7 @@
 
     isLiking = true;
     try {
-      const res = await fetch('/api/community/like', {
+      const res = await communityFetch('/api/community/like', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ post_id: post.id })

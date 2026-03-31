@@ -1,8 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { fade, fly } from 'svelte/transition';
-  import { isAdmin } from '../../stores/appState';
   import AnimatedHeading from '../ui/AnimatedHeading.svelte';
+  import { communityFetch } from '../../lib/communityApi';
 
   let reports: any[] = [];
   let users: any[] = [];
@@ -17,7 +16,7 @@
   async function fetchAdminData() {
     loading = true;
     try {
-      const res = await fetch('/api/community/admin/data');
+      const res = await communityFetch('/api/community/admin/data');
       const data = await res.json();
       if (data.ok) {
         reports = data.reports;
@@ -34,7 +33,7 @@
   async function handleAction(action: string, target_type: string, target_id: string, extra: any = {}) {
     if (!confirm(`Confirm admin action: ${action}?`)) return;
     try {
-      const res = await fetch('/api/community/admin/action', {
+      const res = await communityFetch('/api/community/admin/action', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action, target_type, target_id, ...extra })

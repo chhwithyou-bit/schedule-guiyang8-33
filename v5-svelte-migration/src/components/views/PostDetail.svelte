@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { fade, fly } from 'svelte/transition';
   import { selectedPost, isAuthenticated, selectedProfile } from '../../stores/appState';
   import { openModal } from '../../stores/modalState';
+  import { communityFetch } from '../../lib/communityApi';
 
   let comments: any[] = [];
   let loading = true;
@@ -26,7 +26,7 @@
     if (!$selectedPost) return;
     loading = true;
     try {
-      const res = await fetch(`/api/community/comments?postId=${$selectedPost.id}`);
+      const res = await communityFetch(`/api/community/comments?postId=${$selectedPost.id}`);
       const data = await res.json();
       if (data.ok) {
         comments = data.comments;
@@ -47,7 +47,7 @@
 
     submitting = true;
     try {
-      const res = await fetch('/api/community/comments', {
+      const res = await communityFetch('/api/community/comments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -3,10 +3,12 @@
   import { closeModal } from '../../stores/modalState';
   import { user, isAuthenticated } from '../../stores/appState';
   import { openModal } from '../../stores/modalState';
+  import { communityFetch } from '../../lib/communityApi';
 
   let content = '';
   let media: any[] = [];
   let loading = false;
+  let error = '';
   let fileInput: HTMLInputElement;
 
   async function handleFileUpload(e: Event) {
@@ -14,9 +16,10 @@
     if (!files || files.length === 0) return;
 
     loading = true;
+    error = '';
     for (const file of Array.from(files)) {
       try {
-        const res = await fetch('/api/community/upload', {
+        const res = await communityFetch('/api/community/upload', {
           method: 'POST',
           body: file,
           headers: { 'Content-Type': file.type }
@@ -24,9 +27,12 @@
         const data = await res.json();
         if (data.ok) {
           media = [...media, { type: 'image', url: data.url, fileId: data.fileId }];
+        } else {
+          error = data.msg || 'Upload failed.';
         }
       } catch (err) {
         console.error('Upload failed', err);
+        error = 'Upload failed.';
       }
     }
     loading = false;
@@ -40,8 +46,9 @@
     }
 
     loading = true;
+    error = '';
     try {
-      const res = await fetch('/api/community/posts', {
+      const res = await communityFetch('/api/community/posts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -56,9 +63,12 @@
         closeModal();
         // Trigger a refresh event or update a store
         window.dispatchEvent(new CustomEvent('post-created'));
+      } else {
+        error = data.msg || 'Post failed.';
       }
     } catch (err) {
       console.error('Post failed', err);
+      error = 'Post failed.';
     } finally {
       loading = false;
     }
@@ -66,6 +76,10 @@
 
   function removeMedia(index: number) {
     media = media.filter((_, i) => i !== index);
+  }
+
+  function openFilePicker() {
+    fileInput?.click();
   }
 </script>
 
@@ -95,6 +109,21 @@
         class="w-full h-40 px-6 py-6 rounded-3xl bg-neutral-100 dark:bg-neutral-900 border-none focus:ring-2 focus:ring-[var(--color-primary)] transition-all font-medium text-lg resize-none mb-6"
       ></textarea>
 
+      <div class="mb-6 rounded-[28px] border border-white/10 bg-white/5 p-5">
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <p class="text-sm font-black uppercase tracking-[0.24em] opacity-60">Post Composer</p>
+            <p class="mt-2 text-sm opacity-70">
+              {$isAuthenticated ? `Posting as ${$user?.username || 'community member'}` : '登录后可发帖并上传图片。'}
+            </p>
+          </div>
+          <div class="text-right">
+            <p class="text-2xl font-black tracking-tight">{content.trim().length}</p>
+            <p class="text-[10px] font-black uppercase tracking-[0.22em] opacity-35">Characters</p>
+          </div>
+        </div>
+      </div>
+
       {#if media.length > 0}
         <div class="grid grid-cols-4 gap-4 mb-6">
           {#each media as item, i}
@@ -111,10 +140,16 @@
         </div>
       {/if}
 
+      {#if error}
+        <p class="mb-6 rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-200">
+          {error}
+        </p>
+      {/if}
+
       <div class="flex items-center justify-between">
         <div class="flex gap-4">
           <button 
-            on:click={() => fileInput.click()}
+            on:click={openFilePicker}
             class="w-14 h-14 flex items-center justify-center rounded-2xl bg-neutral-100 dark:bg-neutral-900 hover:scale-110 active:scale-95 transition-all text-xl"
             title="Add Image"
           >
@@ -135,7 +170,7 @@
           disabled={loading || (!content.trim() && media.length === 0)}
           class="px-10 py-5 bg-[var(--color-primary)] text-white font-black text-lg rounded-2xl shadow-lg hover:scale-[1.05] active:scale-95 transition-all disabled:opacity-30 disabled:hover:scale-100"
         >
-          {loading ? 'UPLOADING...' : 'POST FLOW'}
+          {loading ? 'SENDING...' : 'POST FLOW'}
         </button>
       </div>
     </div>
