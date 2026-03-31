@@ -34,10 +34,10 @@
         persistCommunitySession(data.user);
         closeModal();
       } else {
-        error = data.msg || 'Auth failed';
+        error = data.msg || '登录没成功，再试一次。';
       }
     } catch (e: any) {
-      error = e.message;
+      error = e.message || '现在连不上，稍后再试。';
     } finally {
       loading = false;
     }
@@ -58,31 +58,31 @@
   >
     <div class="relative z-10">
       <h2 class="text-4xl font-black tracking-tighter mb-2 uppercase">
-        {isRegister ? 'Join Us' : 'Welcome Back'}
+        {isRegister ? '来这里安个家' : '回来就好'}
       </h2>
       <p class="text-sm opacity-40 font-bold uppercase tracking-widest mb-8">
-        {isRegister ? 'Create your visual identity' : 'Sign in to your frequency'}
+        {isRegister ? '起个名字，就能开始发帖聊天。' : '登上账号，继续刚才的内容。'}
       </p>
 
       <form on:submit|preventDefault={handleSubmit} class="space-y-4">
         <div>
-          <label class="block text-[10px] font-black uppercase tracking-widest opacity-30 mb-2 ml-4" for="username">Username</label>
+          <label class="block text-[10px] font-black uppercase tracking-widest opacity-30 mb-2 ml-4" for="username">用户名</label>
           <input 
             id="username"
             type="text" 
             bind:value={username}
-            placeholder="Identity"
+            placeholder="想让大家怎么叫你"
             class="w-full px-6 py-4 rounded-2xl bg-neutral-100 dark:bg-neutral-900 border-none focus:ring-2 focus:ring-[var(--color-primary)] transition-all font-bold"
           />
         </div>
 
         <div>
-          <label class="block text-[10px] font-black uppercase tracking-widest opacity-30 mb-2 ml-4" for="password">Password</label>
+          <label class="block text-[10px] font-black uppercase tracking-widest opacity-30 mb-2 ml-4" for="password">密码</label>
           <input 
             id="password"
             type="password" 
             bind:value={password}
-            placeholder="Passcode"
+            placeholder="输一个你记得住的"
             class="w-full px-6 py-4 rounded-2xl bg-neutral-100 dark:bg-neutral-900 border-none focus:ring-2 focus:ring-[var(--color-primary)] transition-all font-bold"
           />
         </div>
@@ -96,7 +96,7 @@
           disabled={loading}
           class="w-full py-5 bg-[var(--color-primary)] text-white font-black text-lg rounded-2xl shadow-lg hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
         >
-          {loading ? 'Processing...' : (isRegister ? 'REGISTER' : 'LOGIN')}
+          {loading ? '正在处理…' : (isRegister ? '注册并进入' : '登录')}
         </button>
       </form>
 
@@ -105,7 +105,7 @@
           on:click={() => isRegister = !isRegister}
           class="text-[10px] font-black uppercase tracking-widest opacity-30 hover:opacity-100 transition-opacity"
         >
-          {isRegister ? 'Already have an identity? Login' : 'Need a new frequency? Register'}
+          {isRegister ? '已经有账号了，直接登录' : '还没有账号？现在注册'}
         </button>
       </div>
     </div>

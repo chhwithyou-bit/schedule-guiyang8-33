@@ -17,7 +17,7 @@
 
   async function fetchSchedule() {
     try {
-      syncStatus.set('Syncing...');
+      syncStatus.set('正在同步…');
       const res = await fetch('/api/schedule');
       if (!res.ok) throw new Error('Fetch failed');
       const data = await res.json();
@@ -26,10 +26,10 @@
         schedule.set(data.S || []);
         eveningSelfStudy.set(data.EV || {});
         sanjiTests.set(data.SJ || {});
-        syncStatus.set(`Synced · ${new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`);
+        syncStatus.set(`刚刚更新 · ${new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`);
       }
     } catch (e) {
-      syncStatus.set('Offline Mode');
+      syncStatus.set('离线显示');
     }
   }
 
@@ -73,7 +73,7 @@
 
 <div class="schedule-view pb-20">
   <div class="flex items-end justify-between mb-8">
-    <AnimatedHeading text="Schedule" className="text-[12vw] leading-none" />
+    <AnimatedHeading text="课程安排" className="text-[12vw] leading-none" />
     <div class="text-[10px] font-black opacity-20 uppercase tracking-[0.3em] pb-2">
       {$syncStatus}
     </div>
@@ -98,7 +98,7 @@
     <!-- Sanji Card -->
     <div class="p-8 rounded-[40px] bg-[var(--color-primary)] text-white shadow-2xl relative overflow-hidden group">
       <div class="relative z-10">
-        <h3 class="text-white/40 font-black uppercase tracking-[0.2em] text-[10px] mb-2">Sanji Test</h3>
+        <h3 class="text-white/40 font-black uppercase tracking-[0.2em] text-[10px] mb-2">今日考试</h3>
         <p class="text-4xl font-black leading-tight tracking-tighter">
           {getSanjiForToday() || '今日无测试'}
         </p>
@@ -109,7 +109,7 @@
     <!-- Evening Study Card -->
     <div class="p-8 rounded-[40px] bg-neutral-100 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-900 shadow-sm flex flex-col justify-between">
       <div>
-        <h3 class="opacity-30 font-black uppercase tracking-[0.2em] text-[10px] mb-4">Evening Flow</h3>
+        <h3 class="opacity-30 font-black uppercase tracking-[0.2em] text-[10px] mb-4">晚自习安排</h3>
         <div class="space-y-3">
           <div class="flex items-center justify-between">
             <span class="text-xs font-bold opacity-40">一段晚自习</span>
@@ -128,7 +128,7 @@
   <!-- Course List -->
   <div class="mt-12 space-y-3">
     <div class="flex items-center justify-between px-4 mb-6">
-      <h3 class="text-xs font-black uppercase tracking-[0.3em] opacity-30">Full Day Timeline</h3>
+      <h3 class="text-xs font-black uppercase tracking-[0.3em] opacity-30">今天怎么排</h3>
       <div class="w-12 h-0.5 bg-[var(--color-primary)] opacity-20 rounded-full"></div>
     </div>
 
@@ -152,14 +152,14 @@
               </div>
               <div class="flex-1 truncate">
                 <p class="text-lg font-bold tracking-tight truncate">{slot.s || '—'}</p>
-                <p class="text-[10px] font-bold opacity-30 uppercase tracking-widest">{slot.t || 'Unassigned'}</p>
+                <p class="text-[10px] font-bold opacity-30 uppercase tracking-widest">{slot.t || '暂未安排老师'}</p>
               </div>
             </div>
 
             <!-- Tag -->
             <div class="hidden sm:block">
               <span class="px-3 py-1.5 rounded-full bg-neutral-50 dark:bg-neutral-900/50 text-[9px] font-black uppercase tracking-widest opacity-30">
-                {slot.k === 'x' ? 'Elective' : 'Core'}
+                {slot.k === 'x' ? '选修' : '必修'}
               </span>
             </div>
           </div>
@@ -167,7 +167,7 @@
       {/each}
     {:else}
       <div class="py-32 text-center opacity-10 font-black text-6xl uppercase tracking-tighter italic">
-        Loading...
+        稍等一下…
       </div>
     {/if}
   </div>

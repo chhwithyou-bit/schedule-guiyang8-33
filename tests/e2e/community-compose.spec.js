@@ -92,13 +92,13 @@ test('community composer is visible and posts with auth headers', async ({ page 
     }
   } catch (e) {}
 
-  await expect(page.locator('button:has-text("Write Post")')).toBeVisible();
-  await page.locator('button:has-text("Write Post")').click();
+  await expect(page.locator('button:has-text("发一条")')).toBeVisible();
+  await page.locator('button:has-text("发一条")').click();
 
-  const composer = page.locator('textarea[placeholder="What\'s your visual status?"]');
+  const composer = page.locator('textarea[placeholder="今天想说什么，直接写下来。"]');
   await expect(composer).toBeVisible();
   await composer.fill('Playwright composer smoke test');
-  await page.locator('button:has-text("POST FLOW")').click();
+  await page.getByRole('button', { name: '发出去', exact: true }).click();
 
   await expect(page.locator('article')).toContainText('Playwright composer smoke test');
   await expect.poll(() => page.evaluate(() => window.didSeeComposeAuth())).toBe(true);

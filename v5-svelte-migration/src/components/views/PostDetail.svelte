@@ -93,7 +93,7 @@
       <button on:click={close} class="p-2 -ml-2 opacity-40 hover:opacity-100 transition-opacity">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
       </button>
-      <h2 class="text-xl font-black uppercase tracking-tighter">Story Flow</h2>
+      <h2 class="text-xl font-black uppercase tracking-tighter">这条内容</h2>
       <div class="w-10"></div>
     </header>
 
@@ -119,7 +119,7 @@
               <!-- svelte-ignore a11y-no-static-element-interactions -->
               <span on:click={() => handleProfileClick($selectedPost)} class="font-black text-lg tracking-tight cursor-pointer hover:text-[var(--color-primary)] transition-colors">{$selectedPost.username}</span>
               {#if $selectedPost.role === 'admin'}
-                <span class="px-1.5 py-0.5 rounded-md bg-[var(--color-primary)] text-[10px] text-white font-black uppercase tracking-widest">Admin</span>
+                <span class="px-1.5 py-0.5 rounded-md bg-[var(--color-primary)] text-[10px] text-white font-black uppercase tracking-widest">管理员</span>
               {/if}
             </div>
             <p class="text-xs font-bold opacity-30 uppercase tracking-widest">
@@ -149,7 +149,7 @@
         <!-- Comments Section -->
         <div class="border-t border-neutral-100 dark:border-neutral-900 pt-12 pb-32">
           <h3 class="text-2xl font-black uppercase tracking-tighter mb-8 flex items-center gap-3">
-            Comments
+            留言
             <span class="text-sm opacity-30 font-bold">({$selectedPost.comment_count || 0})</span>
           </h3>
 
@@ -199,7 +199,7 @@
             </div>
           {:else}
             <div class="py-12 text-center opacity-20 font-black uppercase tracking-widest text-sm">
-              No resonance yet.
+              还没人留言。
             </div>
           {/if}
         </div>
@@ -212,7 +212,7 @@
         <input 
           type="text" 
           bind:value={newComment}
-          placeholder="Share your resonance..."
+          placeholder="想回一句什么，就写在这里。"
           class="flex-1 px-6 py-4 rounded-2xl bg-neutral-100 dark:bg-neutral-900 border-none focus:ring-2 focus:ring-[var(--color-primary)] transition-all font-bold"
           on:keydown={(e) => e.key === 'Enter' && handleComment()}
         />

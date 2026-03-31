@@ -71,14 +71,14 @@
 <div class="community-view">
   <section class="mb-10 grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(22rem,0.95fr)] xl:items-end">
     <div>
-      <AnimatedHeading text="Community Hub" className="text-[10vw] md:text-[8vw]" />
+      <AnimatedHeading text="社区广场" className="text-[10vw] md:text-[8vw]" />
       <p class="mt-4 max-w-2xl text-sm font-medium leading-7 opacity-70 md:text-base">
-        把近况、照片、进度和碎片想法直接发出来。社区页现在提供固定的发帖入口，不再藏在底部折叠菜单里。
+        近况、照片、碎碎念都可以直接发。入口就放在这里，不用再去底部菜单里翻。
       </p>
       <div class="mt-5 flex flex-wrap gap-3">
-        <span class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[11px] font-black uppercase tracking-[0.2em] opacity-70">Live Feed</span>
-        <span class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[11px] font-black uppercase tracking-[0.2em] opacity-70">Images Ready</span>
-        <span class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[11px] font-black uppercase tracking-[0.2em] opacity-70">Searchable</span>
+        <span class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[11px] font-black uppercase tracking-[0.2em] opacity-70">发近况</span>
+        <span class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[11px] font-black uppercase tracking-[0.2em] opacity-70">带图片</span>
+        <span class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[11px] font-black uppercase tracking-[0.2em] opacity-70">能搜索</span>
       </div>
     </div>
 
@@ -100,18 +100,18 @@
 
         <div class="min-w-0 flex-1">
           <p class="text-xs font-black uppercase tracking-[0.22em] opacity-40">
-            {$isAuthenticated ? `Posting as ${$user?.username || 'member'}` : 'Community Composer'}
+            {$isAuthenticated ? `${$user?.username || '你'} 正准备发帖` : '先登录，再来发一条'}
           </p>
           <p class="mt-1 text-lg font-black tracking-tight">
-            {$isAuthenticated ? '写一条新帖子，或者顺手发几张图。' : '先登录，再把近况发到社区里。'}
+            {$isAuthenticated ? '今天发生了什么，直接写下来。' : '登录之后，就能把近况发到社区里。'}
           </p>
           <p class="mt-2 text-sm font-medium opacity-60">
-            {$isAuthenticated ? '支持文字和图片，发布后会立即刷新帖子流。' : '登录后可直接打开发帖面板。'}
+            {$isAuthenticated ? '文字和图片都行，发出去之后页面会立刻刷新。' : '登录后点一下就能打开发帖面板。'}
           </p>
         </div>
 
         <div class="hidden rounded-full border border-white/10 px-4 py-2 text-[11px] font-black uppercase tracking-[0.2em] opacity-70 md:block">
-          {$isAuthenticated ? 'Open Composer' : 'Login First'}
+          {$isAuthenticated ? '去发帖' : '先登录'}
         </div>
       </button>
 
@@ -121,14 +121,14 @@
           on:click={openComposer}
           class="rounded-full bg-[var(--color-primary)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105"
         >
-          {$isAuthenticated ? 'Write Post' : 'Login To Post'}
+          {$isAuthenticated ? '发一条' : '登录后发帖'}
         </button>
         <button
           type="button"
           on:click={fetchPosts}
           class="rounded-full border border-white/10 bg-white/5 px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105"
         >
-          Refresh Feed
+          刷新动态
         </button>
       </div>
     </div>
@@ -138,7 +138,7 @@
     <section class="mb-10 rounded-[32px] border border-white/10 bg-[rgba(255,255,255,0.05)] px-6 py-5 shadow-2xl backdrop-blur-xl">
       <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
-          <p class="text-[10px] font-black uppercase tracking-[0.28em] opacity-35">Community Broadcast</p>
+          <p class="text-[10px] font-black uppercase tracking-[0.28em] opacity-35">站内公告</p>
           <p class="mt-2 max-w-3xl text-sm font-medium leading-7 opacity-80 md:text-base">
             {announcement.content}
           </p>
@@ -154,9 +154,9 @@
 
   <div class="mb-12 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
     <div>
-      <p class="text-[10px] font-black uppercase tracking-[0.28em] opacity-35">Story Stream</p>
+      <p class="text-[10px] font-black uppercase tracking-[0.28em] opacity-35">最新动态</p>
       <p class="mt-2 text-sm font-medium opacity-60">
-        {loading ? '同步帖子流...' : `当前加载 ${posts.length} 条帖子`}
+        {loading ? '正在同步大家刚发的内容…' : `现在一共看得到 ${posts.length} 条动态`}
       </p>
     </div>
 
@@ -164,7 +164,7 @@
       <input 
         type="text" 
         bind:value={query}
-        placeholder="Search stories..."
+        placeholder="搜帖子内容..."
         class="w-full px-6 py-4 rounded-2xl bg-neutral-100 dark:bg-neutral-900 border-none focus:ring-2 focus:ring-[var(--color-primary)] transition-all font-medium"
       />
       <button type="submit" class="absolute right-4 top-1/2 -translate-y-1/2 opacity-30 hover:opacity-100 transition-opacity">
@@ -189,14 +189,14 @@
     </div>
   {:else}
     <div class="py-32 text-center" in:fade>
-      <div class="text-6xl mb-4">empty_state</div>
-      <p class="text-xl font-bold opacity-30 uppercase tracking-widest">No stories found here.</p>
+      <div class="text-6xl mb-4">· · ·</div>
+      <p class="text-xl font-bold opacity-30 uppercase tracking-widest">这里还没有你想看的内容。</p>
       <button
         type="button"
         on:click={openComposer}
         class="mt-8 rounded-full bg-[var(--color-primary)] px-6 py-3 text-xs font-black uppercase tracking-[0.22em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105"
       >
-        {$isAuthenticated ? 'Post The First Story' : 'Login To Post'}
+        {$isAuthenticated ? '那就先发第一条' : '登录后发帖'}
       </button>
     </div>
   {/if}

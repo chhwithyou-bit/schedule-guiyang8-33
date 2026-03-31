@@ -83,7 +83,7 @@
       <div class="flex items-center gap-1.5 flex-wrap">
         <span class="font-bold text-sm tracking-tight truncate">{post.username || 'Anonymous'}</span>
         {#if post.role === 'admin'}
-          <span class="px-1.5 py-0.5 rounded-md bg-[var(--color-primary)] text-[9px] text-white font-black uppercase tracking-widest">Admin</span>
+          <span class="px-1.5 py-0.5 rounded-md bg-[var(--color-primary)] text-[9px] text-white font-black uppercase tracking-widest">管理员</span>
         {/if}
       </div>
       <p class="text-[10px] font-medium opacity-30 uppercase tracking-wider">{dateStr}</p>

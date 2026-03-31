@@ -720,7 +720,7 @@ function mergeMusicPlaylist(env, storedList, bucketObjects, requestOrigin, reque
       const fallbackName = safeDecodeURIComponent(obj.key.replace(/\.[^/.]+$/, '')) || '未知';
       return {
         name: (saved && String(saved.name || '').trim()) || fallbackName,
-        artist: saved && typeof saved.artist === 'string' ? saved.artist : 'R2 Drive',
+        artist: saved && typeof saved.artist === 'string' ? saved.artist : '云端歌单',
         url: buildMusicTrackUrl(env, obj.key, requestOrigin),
       };
     })
@@ -831,7 +831,7 @@ async function uploadToDrive(env, fileBuffer, fileName, mimeType, retry = true) 
   }
 
   const data = await resp.json();
-  if (!resp.ok) throw new Error(data.error ? data.error.message : 'Upload Failed');
+  if (!resp.ok) throw new Error(data.error ? data.error.message : '上传失败');
   return data;
 }
 
@@ -1192,7 +1192,7 @@ export default {
         if (!objectKey) return jsonResp({ ok: false, msg: 'Missing music object key' }, 400);
 
         const object = await env.MUSIC_BUCKET.get(objectKey);
-        if (!object) return jsonResp({ ok: false, msg: 'Track not found' }, 404);
+        if (!object) return jsonResp({ ok: false, msg: '找不到这首歌' }, 404);
 
         const headers = new Headers({
           'Access-Control-Allow-Origin': '*',
@@ -1374,7 +1374,7 @@ export default {
 
             if (url.pathname === '/api/community/drive/info' && request.method === 'GET') {
         const user = await getAuth();
-        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+        if (!user) return jsonResp({ ok: false, msg: '请先登录' }, 401);
         await ensureDriveSchema(env);
         const stats = await env.COMMUNITY_DB.prepare("SELECT quota_bytes, used_bytes FROM user_drive_stats WHERE user_id = ?").bind(user.id).first() || { quota_bytes: 0, used_bytes: 0 };
         return jsonResp({ ok: true, stats });
@@ -1382,7 +1382,7 @@ export default {
 
       if (url.pathname === '/api/community/drive/list' && request.method === 'GET') {
         const user = await getAuth();
-        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+        if (!user) return jsonResp({ ok: false, msg: '请先登录' }, 401);
         await ensureDriveSchema(env);
         const parentId = url.searchParams.get('parent_id') || null;
         let query = "SELECT id, name, size, mime_type, url, parent_id, is_folder, created_at, updated_at FROM drive_files WHERE user_id = ?";
@@ -1396,7 +1396,7 @@ export default {
 
       if (url.pathname === '/api/community/drive/mkdir' && request.method === 'POST') {
         const user = await getAuth();
-        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+        if (!user) return jsonResp({ ok: false, msg: '请先登录' }, 401);
         await ensureDriveSchema(env);
         const { name, parent_id } = await request.json();
         const id = crypto.randomUUID();
@@ -1408,7 +1408,7 @@ export default {
 
       if (url.pathname === '/api/community/drive/delete' && request.method === 'POST') {
         const user = await getAuth();
-        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+        if (!user) return jsonResp({ ok: false, msg: '请先登录' }, 401);
         await ensureDriveSchema(env);
         const { ids } = await request.json();
         if (!ids || !ids.length) return jsonResp({ ok: true });
@@ -1450,7 +1450,7 @@ export default {
 
       if (url.pathname === '/api/community/drive/rename' && request.method === 'POST') {
         const user = await getAuth();
-        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+        if (!user) return jsonResp({ ok: false, msg: '请先登录' }, 401);
         await ensureDriveSchema(env);
         const { id, name } = await request.json();
         await env.COMMUNITY_DB.prepare("UPDATE drive_files SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?").bind(name, id, user.id).run();
@@ -1459,7 +1459,7 @@ export default {
 
       if (url.pathname === '/api/community/drive/upload' && request.method === 'POST') {
         const user = await getAuth();
-        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+        if (!user) return jsonResp({ ok: false, msg: '请先登录' }, 401);
         await ensureDriveSchema(env);
         
         const stats = await env.COMMUNITY_DB.prepare("SELECT quota_bytes, used_bytes FROM user_drive_stats WHERE user_id = ?").bind(user.id).first() || { quota_bytes: 0, used_bytes: 0 };
@@ -1473,7 +1473,7 @@ export default {
           const formData = await request.formData();
           const file = formData.get('file');
           const parent_id = formData.get('parent_id') || null;
-          if (!file || !file.name) return jsonResp({ ok: false, msg: 'No file' }, 400);
+          if (!file || !file.name) return jsonResp({ ok: false, msg: '没有收到文件' }, 400);
 
           const id = crypto.randomUUID();
           const ext = file.name.split('.').pop() || 'bin';
@@ -1494,14 +1494,14 @@ export default {
           
           return jsonResp({ ok: true, id, url: fileUrl });
         } catch(e) {
-          return jsonResp({ ok: false, msg: 'Upload failed: ' + e.message }, 500);
+          return jsonResp({ ok: false, msg: '上传失败：' + e.message }, 500);
         }
       }
 
       if (url.pathname === '/api/community/chats' && request.method === 'GET') {
         await ensureCommunityMessagingSchema(env);
         const user = await getAuth();
-        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+        if (!user) return jsonResp({ ok: false, msg: '请先登录' }, 401);
         const conversations = await listUserConversations(env, user.id);
         const unread_total = conversations.reduce((sum, item) => sum + Number(item?.unread_count || 0), 0);
         return jsonResp({ ok: true, conversations, unread_total });
@@ -1510,7 +1510,7 @@ export default {
       if (url.pathname === '/api/community/chats/direct' && request.method === 'POST') {
         await ensureCommunityMessagingSchema(env);
         const user = await getAuth();
-        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+        if (!user) return jsonResp({ ok: false, msg: '请先登录' }, 401);
 
         const { target_user_id } = await request.json();
         const targetId = String(target_user_id || '').trim();
@@ -1556,7 +1556,7 @@ export default {
       if (url.pathname === '/api/community/chats/messages' && request.method === 'GET') {
         await ensureCommunityMessagingSchema(env);
         const user = await getAuth();
-        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+        if (!user) return jsonResp({ ok: false, msg: '请先登录' }, 401);
 
         const conversationId = String(url.searchParams.get('conversation_id') || '').trim();
         if (!conversationId) return jsonResp({ ok: false, msg: '缺少会话 ID' }, 400);
@@ -1613,7 +1613,7 @@ export default {
       if (url.pathname === '/api/community/chats/messages' && request.method === 'POST') {
         await ensureCommunityMessagingSchema(env);
         const user = await getAuth();
-        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+        if (!user) return jsonResp({ ok: false, msg: '请先登录' }, 401);
 
         const { conversation_id, content, meta } = await request.json();
         const conversationId = String(conversation_id || '').trim();
@@ -1677,7 +1677,7 @@ export default {
       if (url.pathname === '/api/community/groups' && request.method === 'POST') {
         await ensureCommunityMessagingSchema(env);
         const user = await getAuth();
-        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+        if (!user) return jsonResp({ ok: false, msg: '请先登录' }, 401);
 
         const body = await request.json();
         const title = String(body.title || '').trim();
@@ -1717,7 +1717,7 @@ export default {
       if (url.pathname === '/api/community/groups/join' && request.method === 'POST') {
         await ensureCommunityMessagingSchema(env);
         const user = await getAuth();
-        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+        if (!user) return jsonResp({ ok: false, msg: '请先登录' }, 401);
 
         const { conversation_id } = await request.json();
         const conversationId = String(conversation_id || '').trim();
@@ -1938,7 +1938,7 @@ export default {
         }
         if (request.method === 'POST') {
           const user = await getAuth();
-          if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+          if (!user) return jsonResp({ ok: false, msg: '请先登录' }, 401);
           const { content, media, repost_id } = await request.json();
           const postId = crypto.randomUUID();
           await env.COMMUNITY_DB.prepare("INSERT INTO posts (id, user_id, content, media_json, type, repost_id) VALUES (?, ?, ?, ?, ?, ?)")
@@ -1953,11 +1953,11 @@ export default {
         }
         if (request.method === 'DELETE') {
           const user = await getAuth();
-          if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+          if (!user) return jsonResp({ ok: false, msg: '请先登录' }, 401);
           const postId = url.searchParams.get('id');
           const post = await env.COMMUNITY_DB.prepare("SELECT user_id FROM posts WHERE id = ?").bind(postId).first();
           if (!post) return jsonResp({ ok: false, msg: 'Not found' }, 404);
-          if (post.user_id !== user.id && !isCommunityAdminRole(user.role)) return jsonResp({ ok: false, msg: 'Forbidden' }, 403);
+          if (post.user_id !== user.id && !isCommunityAdminRole(user.role)) return jsonResp({ ok: false, msg: '没有权限' }, 403);
           await env.COMMUNITY_DB.prepare("DELETE FROM posts WHERE id = ?").bind(postId).run();
           return jsonResp({ ok: true });
         }
@@ -1965,7 +1965,7 @@ export default {
 
       if (url.pathname === '/api/community/like' && request.method === 'POST') {
         const user = await getAuth();
-        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+        if (!user) return jsonResp({ ok: false, msg: '请先登录' }, 401);
         const { post_id } = await request.json();
         const post = await env.COMMUNITY_DB.prepare("SELECT user_id FROM posts WHERE id = ?").bind(post_id).first();
         if (!post) return jsonResp({ ok: false }, 404);
@@ -1982,7 +1982,7 @@ export default {
 
       if (url.pathname === '/api/community/follow' && request.method === 'POST') {
         const user = await getAuth();
-        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+        if (!user) return jsonResp({ ok: false, msg: '请先登录' }, 401);
         const { following_id } = await request.json();
         try {
           await env.COMMUNITY_DB.prepare("INSERT INTO follows (follower_id, following_id) VALUES (?, ?)").bind(user.id, following_id).run();
@@ -2165,7 +2165,7 @@ export default {
 
       if (url.pathname === '/api/community/upload' && request.method === 'POST') {
         const user = await getAuth();
-        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+        if (!user) return jsonResp({ ok: false, msg: '请先登录' }, 401);
         const buffer = await request.arrayBuffer();
         const contentType = request.headers.get('content-type') || 'image/jpeg';
         try {
@@ -2217,7 +2217,7 @@ export default {
         // 2. 缓存未命中，从 Drive 读取
         try {
           const drive = await getFromDrive(env, fileId);
-          if (!drive.ok) throw new Error("Drive file not found");
+          if (!drive.ok) throw new Error("云端文件不存在");
           const contentType = drive.headers.get('content-type') || 'image/jpeg';
           const buf = await drive.arrayBuffer();
 

@@ -146,27 +146,27 @@
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-12">
           <div class="flex-1">
             <div class="flex items-center gap-3 mb-2">
-              <h1 class="text-4xl font-black tracking-tighter uppercase">{$selectedProfile.username}</h1>
+              <h1 class="text-4xl font-black tracking-tighter">{$selectedProfile.username}</h1>
               {#if $selectedProfile.role === 'admin'}
-                <span class="px-2 py-1 rounded-lg bg-[var(--color-primary)] text-[10px] text-white font-black uppercase tracking-widest">Admin</span>
+                <span class="px-2 py-1 rounded-lg bg-[var(--color-primary)] text-[10px] text-white font-black uppercase tracking-widest">管理员</span>
               {/if}
             </div>
             <p class="text-sm font-bold opacity-30 uppercase tracking-[0.2em] mb-4">
               LV.{$selectedProfile.level || 1} · XP.{$selectedProfile.xp || 0}
             </p>
             <p class="text-base font-medium opacity-60 leading-relaxed max-w-xl">
-              {$selectedProfile.signature || 'No frequency description available.'}
+              {$selectedProfile.signature || '这个人还没写自我介绍。'}
             </p>
           </div>
 
           <div class="flex flex-wrap items-center gap-6">
             <div class="text-center">
               <p class="text-2xl font-black tracking-tighter">{followingCount}</p>
-              <p class="text-[10px] font-black opacity-30 uppercase tracking-widest">Following</p>
+              <p class="text-[10px] font-black opacity-30 uppercase tracking-widest">关注中</p>
             </div>
             <div class="text-center">
               <p class="text-2xl font-black tracking-tighter">{followerCount}</p>
-              <p class="text-[10px] font-black opacity-30 uppercase tracking-widest">Followers</p>
+              <p class="text-[10px] font-black opacity-30 uppercase tracking-widest">关注者</p>
             </div>
             
             {#if $user && $user.id !== ($selectedProfile.id || $selectedProfile.user_id)}
@@ -175,14 +175,14 @@
                   on:click={startDirectChat}
                   class="px-8 py-4 rounded-2xl border border-white/10 bg-white/5 font-black text-sm tracking-widest uppercase transition-all hover:scale-105"
                 >
-                  Start Chat
+                  打个招呼
                 </button>
                 <button 
                   on:click={toggleFollow}
                   class="px-8 py-4 rounded-2xl font-black text-sm tracking-widest uppercase transition-all
                          {isFollowing ? 'bg-neutral-100 dark:bg-neutral-900 opacity-60' : 'bg-[var(--color-primary)] text-white shadow-lg scale-105'}"
                 >
-                  {isFollowing ? 'Unfollow' : 'Follow Flow'}
+                  {isFollowing ? '取消关注' : '关注一下'}
                 </button>
               </div>
             {/if}
@@ -192,7 +192,7 @@
         <!-- Post Feed -->
         <div class="space-y-8">
           <h3 class="text-xl font-black uppercase tracking-tighter border-b border-neutral-100 dark:border-neutral-900 pb-4 mb-8">
-            Published Stories
+            发过的内容
             <span class="ml-2 text-sm opacity-30">({posts.length})</span>
           </h3>
 
@@ -210,7 +210,7 @@
             </div>
           {:else}
             <div class="py-24 text-center opacity-20 font-black uppercase tracking-widest text-sm">
-              Silence is golden.
+              这里暂时还没有公开内容。
             </div>
           {/if}
         </div>

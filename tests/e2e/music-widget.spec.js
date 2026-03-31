@@ -168,7 +168,7 @@ test('music widget list scrolls and filters tracks', async ({ page }) => {
   await expect(page.locator('#mp-list')).toContainText('Night Pulse');
 
   await page.locator('#mp-search').fill('not-found');
-  await expect(page.locator('#mp-list .mp-empty')).toHaveText('没有匹配的歌曲');
+  await expect(page.locator('#mp-list .mp-empty')).toHaveText('这次没搜到，换个词试试');
 });
 
 test('music search surface does not darken over bright blocks', async ({ page }) => {
@@ -248,12 +248,12 @@ test('music widget can be dragged with the handle', async ({ page }) => {
 
   await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
   await page.mouse.down();
-  await page.mouse.move(handleBox.x + handleBox.width / 2 + 120, handleBox.y + handleBox.height / 2 - 80, { steps: 10 });
+  await page.mouse.move(handleBox.x + handleBox.width / 2 - 160, handleBox.y + handleBox.height / 2 - 80, { steps: 10 });
   await page.mouse.up();
 
   const after = await widget.boundingBox();
   if (!after) throw new Error('Failed to capture widget bounds after drag');
 
-  expect(Math.abs(after.x - before.x)).toBeGreaterThan(40);
+  expect(Math.abs(after.x - before.x)).toBeGreaterThan(80);
   expect(Math.abs(after.y - before.y)).toBeGreaterThan(20);
 });

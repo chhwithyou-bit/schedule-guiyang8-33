@@ -14,12 +14,14 @@
   let startY = 0;
 
   $: views = [
-    { id: 'community', label: 'Community' },
-    { id: 'schedule', label: 'Schedule' },
-    { id: 'xiangqi', label: 'Chess' },
-    { id: 'nodes', label: 'Nodes' },
-    ...($isAdmin ? [{ id: 'admin', label: 'Admin Hub' }] : [])
+    { id: 'community', label: '社区' },
+    { id: 'schedule', label: '课表' },
+    { id: 'xiangqi', label: '象棋' },
+    { id: 'nodes', label: '节点' },
+    ...($isAdmin ? [{ id: 'admin', label: '管理' }] : [])
   ];
+
+  $: currentViewLabel = views.find((view) => view.id === $currentView)?.label || '菜单';
 
   const themes = [
     { id: 'theme-default', color: '#020029' },
@@ -108,7 +110,7 @@
           class="w-full rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-sm font-black uppercase tracking-[0.2em] transition-transform hover:scale-[1.01]"
           on:click={() => openModal('community-console')}
         >
-          {$currentView === 'community' ? 'Open Console' : 'User Console'}
+          {$currentView === 'community' ? '打开控制台' : '打开个人面板'}
         </button>
       </div>
 
@@ -131,7 +133,7 @@
             class="w-full py-4 bg-[var(--color-accent)] text-white font-black text-lg rounded-2xl shadow-lg hover:scale-105 active:scale-95 transition-transform"
             on:click={() => openModal('comm-post')}
           >
-            + New Post
+            + 发一条
           </button>
         </div>
       {/if}
@@ -152,7 +154,7 @@
           <span class="w-full h-0.5 bg-white rounded-full"></span>
           <span class="w-full h-0.5 bg-white rounded-full"></span>
         </span>
-        <span class="font-bold tracking-wider text-sm uppercase">{$currentView}</span>
+        <span class="font-bold tracking-wider text-sm uppercase">{currentViewLabel}</span>
       </button>
     </div>
   {/if}

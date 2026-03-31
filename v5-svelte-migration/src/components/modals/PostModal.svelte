@@ -28,11 +28,11 @@
         if (data.ok) {
           media = [...media, { type: 'image', url: data.url, fileId: data.fileId }];
         } else {
-          error = data.msg || 'Upload failed.';
+          error = data.msg || '图片没传上去，再试一次。';
         }
       } catch (err) {
         console.error('Upload failed', err);
-        error = 'Upload failed.';
+        error = '图片没传上去，再试一次。';
       }
     }
     loading = false;
@@ -64,11 +64,11 @@
         // Trigger a refresh event or update a store
         window.dispatchEvent(new CustomEvent('post-created'));
       } else {
-        error = data.msg || 'Post failed.';
+        error = data.msg || '这条动态没有发出去。';
       }
     } catch (err) {
       console.error('Post failed', err);
-      error = 'Post failed.';
+      error = '这条动态没有发出去。';
     } finally {
       loading = false;
     }
@@ -97,7 +97,7 @@
   >
     <div class="relative z-10">
       <div class="flex items-center justify-between mb-8">
-        <h2 class="text-3xl font-black tracking-tighter uppercase">New Frequency</h2>
+        <h2 class="text-3xl font-black tracking-tighter uppercase">发点近况</h2>
         <button on:click={closeModal} class="p-2 opacity-20 hover:opacity-100 transition-opacity">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
@@ -105,21 +105,21 @@
 
       <textarea 
         bind:value={content}
-        placeholder="What's your visual status?"
+        placeholder="今天想说什么，直接写下来。"
         class="w-full h-40 px-6 py-6 rounded-3xl bg-neutral-100 dark:bg-neutral-900 border-none focus:ring-2 focus:ring-[var(--color-primary)] transition-all font-medium text-lg resize-none mb-6"
       ></textarea>
 
       <div class="mb-6 rounded-[28px] border border-white/10 bg-white/5 p-5">
         <div class="flex items-center justify-between gap-4">
           <div>
-            <p class="text-sm font-black uppercase tracking-[0.24em] opacity-60">Post Composer</p>
+            <p class="text-sm font-black uppercase tracking-[0.24em] opacity-60">发帖面板</p>
             <p class="mt-2 text-sm opacity-70">
-              {$isAuthenticated ? `Posting as ${$user?.username || 'community member'}` : '登录后可发帖并上传图片。'}
+              {$isAuthenticated ? `现在是 ${$user?.username || '你'} 在发帖。` : '登录后就能发帖，也能顺手传图。'}
             </p>
           </div>
           <div class="text-right">
             <p class="text-2xl font-black tracking-tight">{content.trim().length}</p>
-            <p class="text-[10px] font-black uppercase tracking-[0.22em] opacity-35">Characters</p>
+            <p class="text-[10px] font-black uppercase tracking-[0.22em] opacity-35">字数</p>
           </div>
         </div>
       </div>
@@ -151,7 +151,7 @@
           <button 
             on:click={openFilePicker}
             class="w-14 h-14 flex items-center justify-center rounded-2xl bg-neutral-100 dark:bg-neutral-900 hover:scale-110 active:scale-95 transition-all text-xl"
-            title="Add Image"
+            title="加图片"
           >
             🖼️
           </button>
@@ -170,7 +170,7 @@
           disabled={loading || (!content.trim() && media.length === 0)}
           class="px-10 py-5 bg-[var(--color-primary)] text-white font-black text-lg rounded-2xl shadow-lg hover:scale-[1.05] active:scale-95 transition-all disabled:opacity-30 disabled:hover:scale-100"
         >
-          {loading ? 'SENDING...' : 'POST FLOW'}
+          {loading ? '正在发出…' : '发出去'}
         </button>
       </div>
     </div>

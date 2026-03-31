@@ -31,7 +31,7 @@
   }
 
   async function handleAction(action: string, target_type: string, target_id: string, extra: any = {}) {
-    if (!confirm(`Confirm admin action: ${action}?`)) return;
+    if (!confirm(`确认执行这项管理操作吗？\n${action}`)) return;
     try {
       const res = await communityFetch('/api/community/admin/action', {
         method: 'POST',
@@ -40,13 +40,13 @@
       });
       const data = await res.json();
       if (data.ok) {
-        alert('Action successful');
+        alert('操作已完成。');
         fetchAdminData();
       } else {
-        alert('Action failed: ' + data.msg);
+        alert('操作没成功：' + data.msg);
       }
     } catch (e: any) {
-      alert('Error: ' + e.message);
+      alert('发生错误：' + e.message);
     }
   }
 
@@ -62,16 +62,16 @@
 
 <div class="admin-view pb-40">
   <div class="flex items-end justify-between mb-12">
-    <AnimatedHeading text="Admin Hub" className="text-[12vw]" />
+    <AnimatedHeading text="管理后台" className="text-[12vw]" />
     <div class="flex gap-2 mb-2">
-      <button on:click={() => activeTab = 'reports'} class="px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all {activeTab === 'reports' ? 'bg-[var(--color-primary)] text-white shadow-xl' : 'bg-neutral-100 dark:bg-neutral-900 opacity-40'}">Reports</button>
-      <button on:click={() => activeTab = 'users'} class="px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all {activeTab === 'users' ? 'bg-[var(--color-primary)] text-white shadow-xl' : 'bg-neutral-100 dark:bg-neutral-900 opacity-40'}">Users</button>
-      <button on:click={() => activeTab = 'announcement'} class="px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all {activeTab === 'announcement' ? 'bg-[var(--color-primary)] text-white shadow-xl' : 'bg-neutral-100 dark:bg-neutral-900 opacity-40'}">Notice</button>
+      <button on:click={() => activeTab = 'reports'} class="px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all {activeTab === 'reports' ? 'bg-[var(--color-primary)] text-white shadow-xl' : 'bg-neutral-100 dark:bg-neutral-900 opacity-40'}">举报</button>
+      <button on:click={() => activeTab = 'users'} class="px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all {activeTab === 'users' ? 'bg-[var(--color-primary)] text-white shadow-xl' : 'bg-neutral-100 dark:bg-neutral-900 opacity-40'}">用户</button>
+      <button on:click={() => activeTab = 'announcement'} class="px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all {activeTab === 'announcement' ? 'bg-[var(--color-primary)] text-white shadow-xl' : 'bg-neutral-100 dark:bg-neutral-900 opacity-40'}">公告</button>
     </div>
   </div>
 
   {#if loading}
-    <div class="py-20 text-center opacity-20 font-black text-4xl uppercase tracking-tighter italic">Loading Data...</div>
+    <div class="py-20 text-center opacity-20 font-black text-4xl uppercase tracking-tighter italic">正在加载…</div>
   {:else}
     <div class="space-y-6">
       {#if activeTab === 'reports'}
@@ -79,17 +79,17 @@
           {#each reports as r}
             <div class="p-8 rounded-[40px] bg-white dark:bg-neutral-950 border border-neutral-100 dark:border-neutral-900 shadow-sm flex items-center justify-between">
               <div>
-                <p class="text-[10px] font-black uppercase tracking-widest opacity-30 mb-1">{r.target_type} ID: {r.target_id}</p>
-                <p class="text-xl font-bold tracking-tight mb-2">Reason: {r.reason}</p>
-                <p class="text-xs font-medium opacity-40">Reported by: {r.user_id}</p>
+                <p class="text-[10px] font-black uppercase tracking-widest opacity-30 mb-1">{r.target_type} · {r.target_id}</p>
+                <p class="text-xl font-bold tracking-tight mb-2">举报原因：{r.reason}</p>
+                <p class="text-xs font-medium opacity-40">提交人：{r.user_id}</p>
               </div>
               <div class="flex gap-2">
-                <button on:click={() => handleAction('delete_item', r.target_type, r.target_id, { report_id: r.id })} class="px-6 py-3 rounded-xl bg-red-500 text-white font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-transform">Delete Item</button>
-                <button on:click={() => handleAction('resolve_report', 'report', r.id)} class="px-6 py-3 rounded-xl bg-neutral-100 dark:bg-neutral-800 font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-transform">Dismiss</button>
+                <button on:click={() => handleAction('delete_item', r.target_type, r.target_id, { report_id: r.id })} class="px-6 py-3 rounded-xl bg-red-500 text-white font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-transform">删除内容</button>
+                <button on:click={() => handleAction('resolve_report', 'report', r.id)} class="px-6 py-3 rounded-xl bg-neutral-100 dark:bg-neutral-800 font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-transform">处理完成</button>
               </div>
             </div>
           {:else}
-            <div class="py-20 text-center opacity-20 font-black text-sm uppercase tracking-widest">No pending reports.</div>
+            <div class="py-20 text-center opacity-20 font-black text-sm uppercase tracking-widest">现在没有待处理举报。</div>
           {/each}
         </div>
 
@@ -103,23 +103,23 @@
                 </div>
                 <div class="flex-1">
                   <h4 class="font-black text-lg">{u.username} <span class="text-[10px] opacity-30 ml-2 font-mono uppercase tracking-widest">{u.role}</span></h4>
-                  <p class="text-[10px] font-bold opacity-30 uppercase tracking-widest">Disk: {formatSize(u.drive_used)} / {formatSize(u.drive_quota)}</p>
+                  <p class="text-[10px] font-bold opacity-30 uppercase tracking-widest">网盘：{formatSize(u.drive_used)} / {formatSize(u.drive_quota)}</p>
                 </div>
                 <div class="flex items-center gap-2">
                   {#if u.is_banned}
-                    <button on:click={() => handleAction('unban_user', 'user', u.id)} class="text-[10px] font-black text-green-500 uppercase tracking-widest">Unban</button>
+                    <button on:click={() => handleAction('unban_user', 'user', u.id)} class="text-[10px] font-black text-green-500 uppercase tracking-widest">解除封禁</button>
                   {:else}
-                    <button on:click={() => handleAction('ban_user', 'user', u.id)} class="text-[10px] font-black text-red-500 uppercase tracking-widest">Ban</button>
+                    <button on:click={() => handleAction('ban_user', 'user', u.id)} class="text-[10px] font-black text-red-500 uppercase tracking-widest">封禁</button>
                   {/if}
                 </div>
               </div>
               <div class="grid grid-cols-2 gap-2">
-                <button on:click={() => { const p = prompt('New Password:'); if(p) handleAction('reset_password', 'user', u.id, { new_password: p }) }} class="py-3 rounded-xl bg-neutral-100 dark:bg-neutral-900 text-[9px] font-black uppercase tracking-widest">Reset Pass</button>
-                <button on:click={() => { const q = prompt('Quota in GB:'); if(q) handleAction('set_drive_quota', 'user', u.id, { quota_gb: q }) }} class="py-3 rounded-xl bg-neutral-100 dark:bg-neutral-900 text-[9px] font-black uppercase tracking-widest">Set Quota</button>
+                <button on:click={() => { const p = prompt('输入新密码'); if(p) handleAction('reset_password', 'user', u.id, { new_password: p }) }} class="py-3 rounded-xl bg-neutral-100 dark:bg-neutral-900 text-[9px] font-black uppercase tracking-widest">重置密码</button>
+                <button on:click={() => { const q = prompt('输入新的网盘配额，单位 GB'); if(q) handleAction('set_drive_quota', 'user', u.id, { quota_gb: q }) }} class="py-3 rounded-xl bg-neutral-100 dark:bg-neutral-900 text-[9px] font-black uppercase tracking-widest">修改配额</button>
                 {#if u.role === 'user'}
-                  <button on:click={() => handleAction('grant_admin', 'user', u.id)} class="py-3 rounded-xl bg-[var(--color-primary)] text-white text-[9px] font-black uppercase tracking-widest col-span-2">Grant Admin</button>
+                  <button on:click={() => handleAction('grant_admin', 'user', u.id)} class="py-3 rounded-xl bg-[var(--color-primary)] text-white text-[9px] font-black uppercase tracking-widest col-span-2">设为管理员</button>
                 {:else if u.role === 'admin'}
-                  <button on:click={() => handleAction('revoke_admin', 'user', u.id)} class="py-3 rounded-xl bg-neutral-200 dark:bg-neutral-800 text-[9px] font-black uppercase tracking-widest col-span-2">Revoke Admin</button>
+                  <button on:click={() => handleAction('revoke_admin', 'user', u.id)} class="py-3 rounded-xl bg-neutral-200 dark:bg-neutral-800 text-[9px] font-black uppercase tracking-widest col-span-2">撤掉管理员</button>
                 {/if}
               </div>
             </div>
@@ -128,19 +128,19 @@
 
       {:else if activeTab === 'announcement'}
         <div class="p-10 rounded-[48px] bg-white dark:bg-neutral-950 border border-neutral-100 dark:border-neutral-900 shadow-sm max-w-2xl mx-auto">
-          <h3 class="text-2xl font-black uppercase tracking-tighter mb-8">Broadcast System</h3>
+          <h3 class="text-2xl font-black uppercase tracking-tighter mb-8">站内公告</h3>
           <textarea 
             bind:value={announcement.content} 
-            placeholder="Type global announcement..."
+            placeholder="想告诉全站什么，就写在这里。"
             class="w-full h-48 p-6 rounded-3xl bg-neutral-100 dark:bg-neutral-900 border-none focus:ring-2 focus:ring-[var(--color-primary)] transition-all font-bold resize-none mb-6"
           ></textarea>
           <button 
             on:click={updateAnnouncement}
             class="w-full py-5 bg-[var(--color-primary)] text-white font-black text-lg rounded-2xl shadow-lg hover:scale-[1.02] active:scale-95 transition-all"
           >
-            UPDATE BROADCAST
+            更新公告
           </button>
-          <p class="text-center mt-6 text-[10px] font-bold opacity-20 uppercase tracking-widest">Last updated: {announcement.updatedAt || 'Never'}</p>
+          <p class="text-center mt-6 text-[10px] font-bold opacity-20 uppercase tracking-widest">上次更新：{announcement.updatedAt || '还没有更新过'}</p>
         </div>
       {/if}
     </div>

@@ -40,18 +40,18 @@ test.describe('8Community V5 Functionality Check', () => {
     }
 
     // Locate the Liquid Bar button
-    const navBtn = page.locator('button:has-text("COMMUNITY")');
+    const navBtn = page.locator('button:has-text("社区")');
     await expect(navBtn).toBeVisible();
 
     await navBtn.click();
     
     // Check for "Schedule" option
-    const scheduleBtn = page.locator('button:has-text("Schedule")');
+    const scheduleBtn = page.locator('button:has-text("课表")');
     await expect(scheduleBtn).toBeVisible();
     await scheduleBtn.click();
 
     // Verify Schedule view is active
-    await expect(page.locator('h1:has-text("Schedule")')).toBeVisible();
+    await expect(page.locator('h1:has-text("课程安排")')).toBeVisible();
   });
 
   test('Community feed should load posts', async ({ page }) => {
@@ -93,6 +93,6 @@ test.describe('8Community V5 Functionality Check', () => {
     await firstPostContent.click();
 
     // Verify detail view heading
-    await expect(page.locator('h2:has-text("Story Flow")')).toBeVisible();
+    await expect(page.locator('h2:has-text("这条内容")')).toBeVisible();
   });
 });

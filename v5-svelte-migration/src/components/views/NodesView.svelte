@@ -52,11 +52,11 @@
         users = Array.isArray(data.users) ? data.users : [];
         groups = Array.isArray(data.groups) ? data.groups : [];
       } else {
-        errorMessage = data.msg || 'Discovery failed to load.';
+        errorMessage = data.msg || '这里一时没刷出来，稍后再试。';
       }
     } catch (e) {
       console.error('Failed to fetch discovery data', e);
-      errorMessage = 'Discovery failed to load.';
+      errorMessage = '这里一时没刷出来，稍后再试。';
     } finally {
       loading = false;
     }
@@ -93,11 +93,11 @@
         groups = groups.map((item) => item.id === group.id ? { ...item, joined: true } : item);
         infoMessage = `已加入 ${group.title}`;
       } else {
-        errorMessage = data.msg || 'Failed to join group.';
+        errorMessage = data.msg || '加入群组没成功，再点一次试试。';
       }
     } catch (e) {
       console.error('Failed to join group', e);
-      errorMessage = 'Failed to join group.';
+      errorMessage = '加入群组没成功，再点一次试试。';
     } finally {
       joiningGroupId = '';
     }
@@ -107,9 +107,9 @@
 <div class="nodes-view pb-32">
   <div class="mb-10 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
     <div>
-      <AnimatedHeading text="Discover Nodes" className="text-[10vw] md:text-[8vw]" />
+      <AnimatedHeading text="找人和群" className="text-[10vw] md:text-[8vw]" />
       <p class="mt-4 max-w-3xl text-sm font-medium leading-7 opacity-70 md:text-base">
-        这个页面现在直接接社区发现接口，不再只是静态占位卡片。你可以搜索人和群组，并从这里直接进入资料页或加入群组。
+        这里直接连着社区发现接口。想找谁、想进哪个群，都可以从这里开始，不用绕路。
       </p>
     </div>
 
@@ -117,7 +117,7 @@
       <input
         bind:value={query}
         type="text"
-        placeholder="Search people or groups..."
+        placeholder="搜人名或群名..."
         class="w-full rounded-2xl bg-neutral-100 px-6 py-4 font-medium text-neutral-900 transition-all focus:ring-2 focus:ring-[var(--color-primary)] dark:bg-neutral-900 dark:text-neutral-100"
       />
       <button type="submit" class="absolute right-4 top-1/2 -translate-y-1/2 opacity-30 transition-opacity hover:opacity-100">
@@ -142,10 +142,10 @@
     <section class="rounded-[40px] border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur-xl">
       <div class="mb-6 flex items-center justify-between">
         <div>
-          <p class="text-[10px] font-black uppercase tracking-[0.28em] opacity-35">People Nodes</p>
+          <p class="text-[10px] font-black uppercase tracking-[0.28em] opacity-35">看看这些人</p>
           <h3 class="mt-2 text-2xl font-black tracking-tight">推荐用户</h3>
         </div>
-        <p class="text-[10px] font-black uppercase tracking-[0.22em] opacity-35">{users.length} users</p>
+        <p class="text-[10px] font-black uppercase tracking-[0.22em] opacity-35">{users.length} 位</p>
       </div>
 
       {#if loading}
@@ -191,7 +191,7 @@
                 on:click={() => openProfile(user)}
                 class="rounded-full bg-[var(--color-primary)] px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105"
               >
-                View
+                看看主页
               </button>
             </article>
           {/each}
@@ -206,10 +206,10 @@
     <section class="rounded-[40px] border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur-xl">
       <div class="mb-6 flex items-center justify-between">
         <div>
-          <p class="text-[10px] font-black uppercase tracking-[0.28em] opacity-35">Group Nodes</p>
+          <p class="text-[10px] font-black uppercase tracking-[0.28em] opacity-35">也许你会想进</p>
           <h3 class="mt-2 text-2xl font-black tracking-tight">推荐群组</h3>
         </div>
-        <p class="text-[10px] font-black uppercase tracking-[0.22em] opacity-35">{groups.length} groups</p>
+        <p class="text-[10px] font-black uppercase tracking-[0.22em] opacity-35">{groups.length} 个</p>
       </div>
 
       {#if loading}
@@ -233,13 +233,13 @@
                   </p>
                 </div>
                 <div class="rounded-full border border-white/10 px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] opacity-55">
-                  {group.member_count || 0} members
+                  {group.member_count || 0} 人
                 </div>
               </div>
 
               <div class="mt-5 flex items-center justify-between gap-4">
                 <p class="text-[10px] font-black uppercase tracking-[0.2em] opacity-35">
-                  {group.joined ? 'joined' : 'available'}
+                  {group.joined ? '已经在里面了' : '现在可以加入'}
                 </p>
                 <button
                   type="button"
@@ -247,7 +247,7 @@
                   on:click={() => joinGroup(group)}
                   class="rounded-full px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform disabled:cursor-default disabled:opacity-40 {group.joined ? 'border border-white/10 bg-white/5' : 'bg-[var(--color-primary)] text-[var(--color-bg)] shadow-lg hover:scale-105'}"
                 >
-                  {group.joined ? 'Joined' : joiningGroupId === group.id ? 'Joining...' : 'Join Group'}
+                  {group.joined ? '已加入' : joiningGroupId === group.id ? '正在加入…' : '加入这个群'}
                 </button>
               </div>
             </article>

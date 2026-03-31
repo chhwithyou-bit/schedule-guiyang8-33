@@ -131,29 +131,29 @@ test('community console restores account, chat, and drive surfaces', async ({ pa
     }
   } catch (e) {}
 
-  await page.locator('nav button:has-text("community")').click();
-  await page.locator('button:has-text("Open Console")').click();
-  await expect(page.getByText('Community Console', { exact: true })).toBeVisible();
+  await page.locator('nav button:has-text("社区")').click();
+  await page.locator('button:has-text("打开控制台")').click();
+  await expect(page.getByText('个人面板', { exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'debugger' })).toBeVisible();
 
   await page.locator('textarea').fill('after save');
-  await page.locator('button:has-text("Save Profile")').click();
-  await expect(page.locator('text=Profile updated.')).toBeVisible();
+  await page.locator('button:has-text("保存资料")').click();
+  await expect(page.locator('text=资料已经保存好了。')).toBeVisible();
 
-  await page.locator('button:has-text("Chats")').click();
+  await page.locator('button:has-text("聊天")').click();
   await expect(page.getByRole('heading', { name: 'General Lounge' })).toBeVisible();
   await expect(page.locator('article').filter({ hasText: '欢迎回来' }).first()).toBeVisible();
-  await page.locator('input[placeholder="Write a message..."]').fill('console smoke test');
-  await page.locator('button:has-text("Send")').click();
+  await page.locator('input[placeholder="说点什么…"]').fill('console smoke test');
+  await page.locator('button:has-text("发送")').click();
   await expect(page.locator('article').filter({ hasText: 'console smoke test' }).last()).toBeVisible();
 
-  await page.locator('button:has-text("Groups")').click();
-  await expect(page.locator('article').filter({ hasText: 'General Lounge' }).filter({ hasText: '4 members' }).first()).toBeVisible();
+  await page.locator('button:has-text("群组")').click();
+  await expect(page.locator('article').filter({ hasText: 'General Lounge' }).filter({ hasText: '4 人' }).first()).toBeVisible();
 
-  await page.locator('button:has-text("Drive")').click();
+  await page.locator('button:has-text("网盘")').click();
   await expect(page.locator('text=notes.txt')).toBeVisible();
   await expect(page.locator('text=Assets')).toBeVisible();
 
-  await page.locator('button:has-text("Alerts")').click();
-  await expect(page.locator('text=Alice sent you a message')).toBeVisible();
+  await page.locator('button:has-text("提醒")').click();
+  await expect(page.locator('text=Alice 给你发来一条消息')).toBeVisible();
 });

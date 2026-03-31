@@ -114,7 +114,7 @@ test('community feed stays scrollable and shows live announcement', async ({ pag
   await page.goto('/');
   await settleTheme(page);
 
-  await expect(page.locator('button:has-text("Write Post")')).toBeVisible();
+  await expect(page.locator('button:has-text("发一条")')).toBeVisible();
   await expect(page.locator('text=Broadcast channel is live.')).toBeVisible();
 
   const metrics = await page.evaluate(() => {
@@ -154,14 +154,14 @@ test('nodes view loads discovery results and can join groups', async ({ page }) 
   await page.goto('/');
   await settleTheme(page);
 
-  await page.locator('nav button:has-text("community")').click();
-  await page.locator('nav button:has-text("Nodes")').click();
+  await page.locator('nav button:has-text("社区")').click();
+  await page.locator('nav button:has-text("节点")').click();
 
-  await expect(page.locator('text=Discover Nodes')).toBeVisible();
+  await expect(page.locator('text=找人和群')).toBeVisible();
   await expect(page.locator('text=Atlas')).toBeVisible();
   await expect(page.locator('text=Layout Lab')).toBeVisible();
 
-  await page.locator('button:has-text("Join Group")').first().click();
+  await page.locator('button:has-text("加入这个群")').first().click();
   await expect(page.locator('text=已加入 Layout Lab')).toBeVisible();
-  await expect(page.locator('button:has-text("Joined")').first()).toBeVisible();
+  await expect(page.locator('button:has-text("已加入")').first()).toBeVisible();
 });

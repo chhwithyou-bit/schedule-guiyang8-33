@@ -63,11 +63,11 @@
   };
 
   const tabs: Array<{ id: TabId; label: string }> = [
-    { id: 'account', label: 'Account' },
-    { id: 'chats', label: 'Chats' },
-    { id: 'groups', label: 'Groups' },
-    { id: 'drive', label: 'Drive' },
-    { id: 'notifications', label: 'Alerts' }
+    { id: 'account', label: '账号' },
+    { id: 'chats', label: '聊天' },
+    { id: 'groups', label: '群组' },
+    { id: 'drive', label: '网盘' },
+    { id: 'notifications', label: '提醒' }
   ];
 
   let activeTab: TabId = 'account';
@@ -102,7 +102,7 @@
   let driveStats: DriveStats = { quota_bytes: 0, used_bytes: 0 };
   let driveUsagePercent = 0;
   let driveItems: DriveItem[] = [];
-  let drivePath: Array<{ id: string | null; name: string }> = [{ id: null, name: 'Root' }];
+  let drivePath: Array<{ id: string | null; name: string }> = [{ id: null, name: '根目录' }];
   let loadingDrive = false;
   let driveError = '';
   let uploadingDrive = false;
@@ -137,7 +137,7 @@
     messages = [];
     driveItems = [];
     notifications = [];
-    drivePath = [{ id: null, name: 'Root' }];
+    drivePath = [{ id: null, name: '根目录' }];
   }
 
   function requireAuth(message: string) {
@@ -194,7 +194,7 @@
       const res = await communityFetch('/api/community/chats');
       const data = await res.json();
       if (!data.ok) {
-        chatError = data.msg || 'Chat list failed to load.';
+        chatError = data.msg || '会话列表没加载出来。';
         return;
       }
 
@@ -215,7 +215,7 @@
       }
     } catch (error) {
       console.error('Failed to load chats', error);
-      chatError = 'Chat list failed to load.';
+      chatError = '会话列表没加载出来。';
     } finally {
       loadingChats = false;
     }
@@ -230,7 +230,7 @@
       const res = await communityFetch(`/api/community/chats/messages?conversation_id=${encodeURIComponent(conversationId)}`);
       const data = await res.json();
       if (!data.ok) {
-        chatError = data.msg || 'Messages failed to load.';
+        chatError = data.msg || '消息没加载出来。';
         return;
       }
 
@@ -245,7 +245,7 @@
       });
     } catch (error) {
       console.error('Failed to load messages', error);
-      chatError = 'Messages failed to load.';
+      chatError = '消息没加载出来。';
     } finally {
       loadingMessages = false;
     }
@@ -273,7 +273,7 @@
       });
       const data = await res.json();
       if (!data.ok) {
-        chatError = data.msg || 'Message failed to send.';
+        chatError = data.msg || '消息没发出去。';
         return;
       }
 
@@ -283,7 +283,7 @@
           ? {
               ...item,
               last_message: content,
-              last_sender_name: $user?.username || 'You',
+              last_sender_name: $user?.username || '我',
               last_message_at: data.message?.created_at
             }
           : item
@@ -291,7 +291,7 @@
       messageDraft = '';
     } catch (error) {
       console.error('Failed to send message', error);
-      chatError = 'Message failed to send.';
+      chatError = '消息没发出去。';
     } finally {
       sendingMessage = false;
     }
@@ -306,11 +306,11 @@
       if (data.ok) {
         driveStats = data.stats || { quota_bytes: 0, used_bytes: 0 };
       } else {
-        driveError = data.msg || 'Drive info failed to load.';
+        driveError = data.msg || '网盘信息没加载出来。';
       }
     } catch (error) {
       console.error('Failed to load drive info', error);
-      driveError = 'Drive info failed to load.';
+      driveError = '网盘信息没加载出来。';
     }
   }
 
@@ -324,13 +324,13 @@
       const res = await communityFetch(`/api/community/drive/list${query}`);
       const data = await res.json();
       if (!data.ok) {
-        driveError = data.msg || 'Drive list failed to load.';
+        driveError = data.msg || '这个目录没加载出来。';
         return;
       }
       driveItems = Array.isArray(data.files) ? data.files : [];
     } catch (error) {
       console.error('Failed to load drive list', error);
-      driveError = 'Drive list failed to load.';
+      driveError = '这个目录没加载出来。';
     } finally {
       loadingDrive = false;
     }
@@ -352,7 +352,7 @@
       return;
     }
 
-    const name = prompt('Folder name');
+    const name = prompt('新文件夹叫什么？');
     if (!name || !name.trim()) return;
 
     try {
@@ -366,18 +366,18 @@
       });
       const data = await res.json();
       if (!data.ok) {
-        driveError = data.msg || 'Folder creation failed.';
+        driveError = data.msg || '文件夹没建成功。';
         return;
       }
       await loadDriveList();
     } catch (error) {
       console.error('Failed to create folder', error);
-      driveError = 'Folder creation failed.';
+      driveError = '文件夹没建成功。';
     }
   }
 
   async function renameDriveItem(item: DriveItem) {
-    const nextName = prompt('Rename item', item.name);
+    const nextName = prompt('改成什么名字？', item.name);
     if (!nextName || !nextName.trim() || nextName.trim() === item.name) return;
 
     try {
@@ -388,18 +388,18 @@
       });
       const data = await res.json();
       if (!data.ok) {
-        driveError = data.msg || 'Rename failed.';
+        driveError = data.msg || '改名没成功。';
         return;
       }
       await loadDriveList();
     } catch (error) {
       console.error('Failed to rename drive item', error);
-      driveError = 'Rename failed.';
+      driveError = '改名没成功。';
     }
   }
 
   async function deleteDriveItem(item: DriveItem) {
-    if (!confirm(`Delete ${item.name}?`)) return;
+    if (!confirm(`确定删除“${item.name}”吗？`)) return;
 
     try {
       const res = await communityFetch('/api/community/drive/delete', {
@@ -409,13 +409,13 @@
       });
       const data = await res.json();
       if (!data.ok) {
-        driveError = data.msg || 'Delete failed.';
+        driveError = data.msg || '删除没成功。';
         return;
       }
       await Promise.allSettled([loadDriveInfo(), loadDriveList()]);
     } catch (error) {
       console.error('Failed to delete drive item', error);
-      driveError = 'Delete failed.';
+      driveError = '删除没成功。';
     }
   }
 
@@ -444,13 +444,13 @@
       });
       const data = await res.json();
       if (!data.ok) {
-        driveError = data.msg || 'Upload failed.';
+        driveError = data.msg || '文件没传上去。';
         return;
       }
       await Promise.allSettled([loadDriveInfo(), loadDriveList()]);
     } catch (error) {
       console.error('Failed to upload drive file', error);
-      driveError = 'Upload failed.';
+      driveError = '文件没传上去。';
     } finally {
       uploadingDrive = false;
       input.value = '';
@@ -466,13 +466,13 @@
       const res = await communityFetch('/api/community/notifications');
       const data = await res.json();
       if (!data.ok) {
-        notificationError = data.msg || 'Alerts failed to load.';
+        notificationError = data.msg || '提醒没加载出来。';
         return;
       }
       notifications = Array.isArray(data.notifications) ? data.notifications : [];
     } catch (error) {
       console.error('Failed to load notifications', error);
-      notificationError = 'Alerts failed to load.';
+      notificationError = '提醒没加载出来。';
     } finally {
       loadingNotifications = false;
     }
@@ -494,7 +494,7 @@
       });
       const data = await res.json();
       if (!data.ok) {
-        profileMessage = data.msg || 'Profile save failed.';
+        profileMessage = data.msg || '资料没保存成功。';
         return;
       }
 
@@ -504,10 +504,10 @@
       };
       user.set(nextUser);
       persistCommunitySession(nextUser);
-      profileMessage = 'Profile updated.';
+      profileMessage = '资料已经保存好了。';
     } catch (error) {
       console.error('Failed to save profile', error);
-      profileMessage = 'Profile save failed.';
+      profileMessage = '资料没保存成功。';
     } finally {
       savingProfile = false;
     }
@@ -562,18 +562,18 @@
       });
       const data = await res.json();
       if (!data.ok) {
-        groupMessage = data.msg || 'Group creation failed.';
+        groupMessage = data.msg || '群组没建成功。';
         return;
       }
 
       groupForm = { title: '', description: '' };
-      groupMessage = 'Group created.';
+      groupMessage = '群已经建好了。';
       await loadChats();
       activeTab = 'groups';
       setCommunityConsoleState({ tab: 'groups', conversationId: data.conversation_id || '' });
     } catch (error) {
       console.error('Failed to create group', error);
-      groupMessage = 'Group creation failed.';
+      groupMessage = '群组没建成功。';
     } finally {
       creatingGroup = false;
     }
@@ -607,13 +607,27 @@
 
   function formatNotification(type: string) {
     const map: Record<string, string> = {
-      like: 'liked your post',
-      follow: 'followed you',
-      repost: 'reposted your story',
-      comment: 'commented on your post',
-      message: 'sent you a message'
+      like: '赞了你的帖子',
+      follow: '关注了你',
+      repost: '转发了你的动态',
+      comment: '评论了你的帖子',
+      message: '给你发来一条消息'
     };
     return map[type] || type;
+  }
+
+  function formatRoleLabel(role?: string) {
+    const map: Record<string, string> = {
+      owner: '站长',
+      admin: '管理员',
+      member: '成员',
+      user: '成员'
+    };
+    return map[String(role || '').toLowerCase()] || role || '成员';
+  }
+
+  function formatConversationKind(kind?: string) {
+    return kind === 'group' ? '群聊' : '私聊';
   }
 
   function openNodesView() {
@@ -645,8 +659,8 @@
   >
     <header class="flex items-center justify-between gap-4 border-b border-white/10 px-5 py-4 md:px-6">
       <div>
-        <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">Community Console</p>
-        <h2 class="mt-1 text-2xl font-black tracking-tight">用户 / 聊天 / 网盘</h2>
+        <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">个人面板</p>
+        <h2 class="mt-1 text-2xl font-black tracking-tight">账号 / 聊天 / 网盘</h2>
       </div>
 
       <div class="flex items-center gap-3">
@@ -656,7 +670,7 @@
           </div>
         {/if}
         <button type="button" class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={handleClose}>
-          Close
+          关闭
         </button>
       </div>
     </header>
@@ -685,11 +699,11 @@
 
         <div class="mt-4 flex flex-wrap gap-2">
           <button type="button" class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={openNodesView}>
-            Discover
+            去发现页
           </button>
           {#if $isAuthenticated}
             <button type="button" class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={openMyProfile}>
-              My Profile
+              我的主页
             </button>
           {/if}
         </div>
@@ -700,17 +714,17 @@
           <div class="space-y-6">
             {#if !$isAuthenticated}
               <section class="rounded-[32px] border border-white/10 bg-white/5 p-6 shadow-xl">
-                <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">Account Required</p>
+                <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">先登录一下</p>
                 <h3 class="mt-3 text-3xl font-black tracking-tight">登录入口已经恢复</h3>
                 <p class="mt-3 max-w-2xl text-sm font-medium leading-7 opacity-70">
                   现在这里会固定显示账号入口。登录后，聊天会话、群组、网盘和个人资料编辑都会在同一个面板里可见。
                 </p>
                 <div class="mt-5 flex flex-wrap gap-3">
                   <button type="button" class="rounded-full bg-[var(--color-primary)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105" on:click={openAuth}>
-                    Login / Register
+                    登录 / 注册
                   </button>
                   <button type="button" class="rounded-full border border-white/10 bg-white/5 px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105" on:click={openNodesView}>
-                    Browse Nodes
+                    去逛逛发现页
                   </button>
                 </div>
               </section>
@@ -729,35 +743,35 @@
                     <div class="min-w-0 flex-1">
                       <h3 class="truncate text-3xl font-black tracking-tight">{$user?.username}</h3>
                       <p class="mt-1 text-[10px] font-black uppercase tracking-[0.24em] opacity-35">
-                        {$user?.role || 'user'} · LV.{$user?.level || 1} · XP.{$user?.xp || 0}
+                        {formatRoleLabel($user?.role)} · LV.{$user?.level || 1} · XP.{$user?.xp || 0}
                       </p>
                     </div>
                   </div>
 
                   <div class="mt-6 grid gap-4 md:grid-cols-3">
                     <label class="block">
-                      <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35">Signature</span>
+                      <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35">个性签名</span>
                       <textarea bind:value={profileForm.signature} class="h-28 w-full rounded-[22px] border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium outline-none transition-colors focus:border-[var(--color-primary)]"></textarea>
                     </label>
                     <label class="block">
-                      <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35">Avatar Url</span>
+                      <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35">头像链接</span>
                       <input bind:value={profileForm.avatar_url} type="text" class="w-full rounded-[22px] border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium outline-none transition-colors focus:border-[var(--color-primary)]" />
                     </label>
                     <label class="block">
-                      <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35">Background Url</span>
+                      <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35">背景图链接</span>
                       <input bind:value={profileForm.background_url} type="text" class="w-full rounded-[22px] border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium outline-none transition-colors focus:border-[var(--color-primary)]" />
                     </label>
                   </div>
 
                   <div class="mt-5 flex flex-wrap gap-3">
                     <button type="button" class="rounded-full bg-[var(--color-primary)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105 disabled:opacity-50" on:click={saveProfile} disabled={savingProfile}>
-                      {savingProfile ? 'Saving...' : 'Save Profile'}
+                      {savingProfile ? '正在保存…' : '保存资料'}
                     </button>
                     <button type="button" class="rounded-full border border-white/10 bg-white/5 px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105" on:click={openMyProfile}>
-                      Open Profile
+                      打开主页
                     </button>
                     <button type="button" class="rounded-full border border-red-400/20 bg-red-500/10 px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-red-200 transition-transform hover:scale-105" on:click={logout}>
-                      Logout
+                      退出登录
                     </button>
                   </div>
 
@@ -767,26 +781,26 @@
                 </div>
 
                 <div class="rounded-[32px] border border-white/10 bg-white/5 p-6 shadow-xl">
-                  <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">Quick Status</p>
+                  <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">现在的情况</p>
                   <div class="mt-4 grid gap-4 md:grid-cols-2">
                     <div class="rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.04)] p-4">
-                      <p class="text-[10px] font-black uppercase tracking-[0.2em] opacity-35">Conversations</p>
+                      <p class="text-[10px] font-black uppercase tracking-[0.2em] opacity-35">会话</p>
                       <p class="mt-2 text-2xl font-black tracking-tight">{conversations.length}</p>
                       <p class="mt-1 text-sm font-medium opacity-65">私聊和群组会话会统一汇总到这里。</p>
                     </div>
                     <div class="rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.04)] p-4">
-                      <p class="text-[10px] font-black uppercase tracking-[0.2em] opacity-35">Groups</p>
+                      <p class="text-[10px] font-black uppercase tracking-[0.2em] opacity-35">群组</p>
                       <p class="mt-2 text-2xl font-black tracking-tight">{groupConversations.length}</p>
                       <p class="mt-1 text-sm font-medium opacity-65">旧版加入过的群组现在能在控制台里直接打开。</p>
                     </div>
                     <div class="rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.04)] p-4">
-                      <p class="text-[10px] font-black uppercase tracking-[0.2em] opacity-35">Drive Usage</p>
+                      <p class="text-[10px] font-black uppercase tracking-[0.2em] opacity-35">网盘占用</p>
                       <p class="mt-2 text-2xl font-black tracking-tight">{formatBytes(driveStats.used_bytes || 0)}</p>
                       <p class="mt-1 text-sm font-medium opacity-65">总配额 {formatBytes(driveStats.quota_bytes || 0)}</p>
                     </div>
                     <div class="rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.04)] p-4">
-                      <p class="text-[10px] font-black uppercase tracking-[0.2em] opacity-35">Role</p>
-                      <p class="mt-2 text-2xl font-black tracking-tight">{$isAdmin ? 'Admin' : 'Member'}</p>
+                      <p class="text-[10px] font-black uppercase tracking-[0.2em] opacity-35">身份</p>
+                      <p class="mt-2 text-2xl font-black tracking-tight">{$isAdmin ? '管理员' : '普通成员'}</p>
                       <p class="mt-1 text-sm font-medium opacity-65">账号入口和资料面板已经恢复为固定 UI。</p>
                     </div>
                   </div>
@@ -801,7 +815,7 @@
             <div class="rounded-[32px] border border-white/10 bg-white/5 p-6 shadow-xl">
               <p class="text-sm font-bold opacity-70">{authPrompt || '登录后才能查看聊天和群组会话。'}</p>
               <button type="button" class="mt-4 rounded-full bg-[var(--color-primary)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105" on:click={openAuth}>
-                Login First
+                先去登录
               </button>
             </div>
           {:else}
@@ -809,12 +823,12 @@
               <section class="rounded-[32px] border border-white/10 bg-white/5 p-4 shadow-xl">
                 <div class="mb-4 flex items-center justify-between">
                   <div>
-                    <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">Conversations</p>
-                    <h3 class="mt-1 text-xl font-black tracking-tight">{conversations.length} active</h3>
-                    <p class="mt-1 text-xs font-medium opacity-55">{directConversations.length} direct · {groupConversations.length} groups</p>
+                    <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">会话列表</p>
+                    <h3 class="mt-1 text-xl font-black tracking-tight">共 {conversations.length} 个会话</h3>
+                    <p class="mt-1 text-xs font-medium opacity-55">{directConversations.length} 个私聊 · {groupConversations.length} 个群聊</p>
                   </div>
                   <button type="button" class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={loadChats}>
-                    Refresh
+                    刷新
                   </button>
                 </div>
 
@@ -848,14 +862,14 @@
                               <span class="rounded-full bg-[var(--color-primary)] px-2 py-1 text-[10px] font-black text-[var(--color-bg)]">{item.unread_count}</span>
                             {/if}
                           </div>
-                          <p class="mt-1 truncate text-xs font-medium opacity-55">{item.last_sender_name ? `${item.last_sender_name}: ` : ''}{item.last_message || item.description || 'No messages yet.'}</p>
-                          <p class="mt-2 text-[10px] font-black uppercase tracking-[0.18em] opacity-30">{item.kind}</p>
+                          <p class="mt-1 truncate text-xs font-medium opacity-55">{item.last_sender_name ? `${item.last_sender_name}: ` : ''}{item.last_message || item.description || '还没有消息。'}</p>
+                          <p class="mt-2 text-[10px] font-black uppercase tracking-[0.18em] opacity-30">{formatConversationKind(item.kind)}</p>
                         </div>
                       </button>
                     {/each}
                   {:else}
                     <div class="rounded-[24px] border border-white/10 bg-white/5 px-4 py-10 text-center text-sm font-bold opacity-50">
-                      还没有会话。先去 Discover 页加群，或者从用户资料页开始私聊。
+                      还没有会话。先去发现页加个群，或者去别人的主页打个招呼。
                     </div>
                   {/if}
                 </div>
@@ -863,8 +877,8 @@
 
               <section class="flex min-h-0 flex-col rounded-[32px] border border-white/10 bg-white/5 p-4 shadow-xl">
                 <div class="mb-4 border-b border-white/10 pb-4">
-                  <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">Thread</p>
-                  <h3 class="mt-1 text-2xl font-black tracking-tight">{selectedConversation?.title || 'Select a conversation'}</h3>
+                  <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">当前会话</p>
+                  <h3 class="mt-1 text-2xl font-black tracking-tight">{selectedConversation?.title || '先选一个会话'}</h3>
                   {#if selectedConversation}
                     <p class="mt-2 text-sm font-medium opacity-65">{selectedConversation.description || '会话详情会在这里显示。'}</p>
                   {/if}
@@ -882,7 +896,7 @@
                       {#each messages as message (message.id)}
                         <article class="rounded-[20px] border border-white/10 bg-white/5 px-4 py-3">
                           <div class="flex items-center justify-between gap-4">
-                            <p class="text-sm font-black">{message.sender?.username || 'System'}</p>
+                            <p class="text-sm font-black">{message.sender?.username || '系统'}</p>
                             <p class="text-[10px] font-black uppercase tracking-[0.18em] opacity-30">{formatDate(message.created_at)}</p>
                           </div>
                           <p class="mt-2 whitespace-pre-wrap text-sm font-medium leading-7 opacity-80">{message.content}</p>
@@ -900,7 +914,7 @@
                   <input
                     bind:value={messageDraft}
                     type="text"
-                    placeholder={selectedConversation ? 'Write a message...' : 'Pick a conversation first'}
+                    placeholder={selectedConversation ? '说点什么…' : '先选一个会话'}
                     disabled={!selectedConversation || sendingMessage}
                     on:keydown={(event) => event.key === 'Enter' && sendMessage()}
                     class="min-w-0 flex-1 rounded-[20px] border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium outline-none transition-colors focus:border-[var(--color-primary)] disabled:opacity-40"
@@ -911,7 +925,7 @@
                     class="rounded-[20px] bg-[var(--color-primary)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105 disabled:cursor-default disabled:opacity-40"
                     on:click={sendMessage}
                   >
-                    Send
+                    发送
                   </button>
                 </div>
               </section>
@@ -924,13 +938,13 @@
             <div class="rounded-[32px] border border-white/10 bg-white/5 p-6 shadow-xl">
               <p class="text-sm font-bold opacity-70">{authPrompt || '登录后才能查看和创建群组。'}</p>
               <button type="button" class="mt-4 rounded-full bg-[var(--color-primary)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105" on:click={openAuth}>
-                Login First
+                先去登录
               </button>
             </div>
           {:else}
             <div class="grid gap-5 xl:grid-cols-[minmax(22rem,0.9fr)_minmax(0,1.1fr)]">
               <section class="rounded-[32px] border border-white/10 bg-white/5 p-6 shadow-xl">
-                <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">Create Group</p>
+                <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">建一个新群</p>
                 <h3 class="mt-2 text-3xl font-black tracking-tight">群组入口已经补回来了</h3>
                 <p class="mt-3 text-sm font-medium leading-7 opacity-70">
                   这里直接接后端群组接口。你可以新建群组，也可以从右侧打开之前已经加入的会话。
@@ -938,21 +952,21 @@
 
                 <div class="mt-5 space-y-4">
                   <label class="block">
-                    <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35">Title</span>
+                    <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35">群名</span>
                     <input bind:value={groupForm.title} type="text" maxlength="42" class="w-full rounded-[22px] border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium outline-none transition-colors focus:border-[var(--color-primary)]" />
                   </label>
                   <label class="block">
-                    <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35">Description</span>
+                    <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35">群介绍</span>
                     <textarea bind:value={groupForm.description} class="h-32 w-full rounded-[22px] border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium outline-none transition-colors focus:border-[var(--color-primary)]"></textarea>
                   </label>
                 </div>
 
                 <div class="mt-5 flex flex-wrap gap-3">
                   <button type="button" class="rounded-full bg-[var(--color-primary)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105 disabled:opacity-50" on:click={createGroup} disabled={creatingGroup}>
-                    {creatingGroup ? 'Creating...' : 'Create Group'}
+                    {creatingGroup ? '正在创建…' : '创建群聊'}
                   </button>
                   <button type="button" class="rounded-full border border-white/10 bg-white/5 px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105" on:click={openNodesView}>
-                    Discover More
+                    去发现页看看
                   </button>
                 </div>
 
@@ -964,11 +978,11 @@
               <section class="rounded-[32px] border border-white/10 bg-white/5 p-6 shadow-xl">
                 <div class="mb-4 flex items-center justify-between gap-4">
                   <div>
-                    <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">Joined Groups</p>
-                    <h3 class="mt-1 text-2xl font-black tracking-tight">{groupConversations.length} groups</h3>
+                    <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">我加入的群</p>
+                    <h3 class="mt-1 text-2xl font-black tracking-tight">共 {groupConversations.length} 个群</h3>
                   </div>
                   <button type="button" class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={loadChats}>
-                    Refresh
+                    刷新
                   </button>
                 </div>
 
@@ -984,22 +998,22 @@
                           <div class="min-w-0">
                             <div class="flex flex-wrap items-center gap-3">
                               <h4 class="truncate text-lg font-black tracking-tight">{item.title}</h4>
-                              <span class="rounded-full border border-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] opacity-60">{item.member_count || 0} members</span>
+                              <span class="rounded-full border border-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] opacity-60">{item.member_count || 0} 人</span>
                             </div>
                             <p class="mt-2 text-sm font-medium leading-7 opacity-70">{item.description || item.last_message || '这个群组还没有介绍。'}</p>
                             <p class="mt-3 text-[10px] font-black uppercase tracking-[0.18em] opacity-35">
-                              {item.last_message_at ? `Last active ${formatDate(item.last_message_at)}` : 'No activity yet'}
+                              {item.last_message_at ? `最近活跃于 ${formatDate(item.last_message_at)}` : '暂时还没人说话'}
                             </p>
                           </div>
                           <button type="button" class="rounded-full bg-[var(--color-primary)] px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105" on:click={() => openConversation(item.id)}>
-                            Open Thread
+                            打开会话
                           </button>
                         </div>
                       </article>
                     {/each}
                   {:else}
                     <div class="rounded-[24px] border border-white/10 bg-white/5 px-4 py-10 text-center text-sm font-bold opacity-50">
-                      还没有已加入的群组。你可以先在这里建群，或者去 Discover 页加入群组。
+                      还没有已加入的群。你可以先在这里建一个，或者去发现页加群。
                     </div>
                   {/if}
                 </div>
@@ -1013,7 +1027,7 @@
             <div class="rounded-[32px] border border-white/10 bg-white/5 p-6 shadow-xl">
               <p class="text-sm font-bold opacity-70">{authPrompt || '登录后才能访问网盘。'}</p>
               <button type="button" class="mt-4 rounded-full bg-[var(--color-primary)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105" on:click={openAuth}>
-                Login First
+                先去登录
               </button>
             </div>
           {:else}
@@ -1021,21 +1035,21 @@
               <section class="rounded-[32px] border border-white/10 bg-white/5 p-6 shadow-xl">
                 <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div>
-                    <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">Drive Status</p>
+                    <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">网盘情况</p>
                     <h3 class="mt-2 text-3xl font-black tracking-tight">{formatBytes(driveStats.used_bytes || 0)} / {formatBytes(driveStats.quota_bytes || 0)}</h3>
                     <p class="mt-2 text-sm font-medium opacity-65">旧网盘接口已接回前端，这里可以直接浏览、上传、重命名和删除。</p>
                   </div>
 
                   <div class="flex flex-wrap gap-3">
                     <label class="cursor-pointer rounded-full bg-[var(--color-primary)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105">
-                      {uploadingDrive ? 'Uploading...' : 'Upload File'}
+                      {uploadingDrive ? '上传中…' : '上传文件'}
                       <input type="file" class="hidden" disabled={uploadingDrive} on:change={handleDriveUpload} />
                     </label>
                     <button type="button" class="rounded-full border border-white/10 bg-white/5 px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105" on:click={createFolder}>
-                      New Folder
+                      新建文件夹
                     </button>
                     <button type="button" class="rounded-full border border-white/10 bg-white/5 px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105" on:click={() => Promise.allSettled([loadDriveInfo(), loadDriveList()])}>
-                      Refresh
+                      刷新
                     </button>
                   </div>
                 </div>
@@ -1044,7 +1058,7 @@
                   <div class="h-3 overflow-hidden rounded-full bg-white/10">
                     <div class="h-full rounded-full bg-[var(--color-primary)] transition-[width] duration-300" style="width: {driveUsagePercent}%"></div>
                   </div>
-                  <p class="mt-2 text-[10px] font-black uppercase tracking-[0.18em] opacity-35">{driveUsagePercent}% used</p>
+                  <p class="mt-2 text-[10px] font-black uppercase tracking-[0.18em] opacity-35">已用 {driveUsagePercent}%</p>
                 </div>
               </section>
 
@@ -1077,7 +1091,7 @@
                             <div class="min-w-0">
                               <p class="truncate text-sm font-black">{item.name}</p>
                               <p class="mt-1 text-[10px] font-black uppercase tracking-[0.18em] opacity-35">
-                                {item.is_folder ? 'folder' : item.mime_type || 'file'} {#if !item.is_folder}· {formatBytes(item.size || 0)}{/if}
+                                {item.is_folder ? '文件夹' : item.mime_type || '文件'} {#if !item.is_folder}· {formatBytes(item.size || 0)}{/if}
                               </p>
                             </div>
                           </div>
@@ -1086,18 +1100,18 @@
                         <div class="flex flex-wrap gap-2">
                           {#if item.is_folder}
                             <button type="button" class="rounded-full bg-[var(--color-primary)] px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105" on:click={() => enterFolder(item)}>
-                              Open
+                              打开
                             </button>
                           {:else if item.url}
                             <a href={item.url} target="_blank" rel="noreferrer" class="rounded-full bg-[var(--color-primary)] px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105">
-                              Open
+                              打开
                             </a>
                           {/if}
                           <button type="button" class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={() => renameDriveItem(item)}>
-                            Rename
+                            改名
                           </button>
                           <button type="button" class="rounded-full border border-red-400/20 bg-red-500/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-red-200 transition-transform hover:scale-105" on:click={() => deleteDriveItem(item)}>
-                            Delete
+                            删除
                           </button>
                         </div>
                       </article>
@@ -1118,18 +1132,18 @@
             <div class="rounded-[32px] border border-white/10 bg-white/5 p-6 shadow-xl">
               <p class="text-sm font-bold opacity-70">{authPrompt || '登录后才能查看通知。'}</p>
               <button type="button" class="mt-4 rounded-full bg-[var(--color-primary)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105" on:click={openAuth}>
-                Login First
+                先去登录
               </button>
             </div>
           {:else}
             <section class="rounded-[32px] border border-white/10 bg-white/5 p-6 shadow-xl">
               <div class="mb-4 flex items-center justify-between gap-4">
                 <div>
-                  <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">Notifications</p>
-                  <h3 class="mt-1 text-2xl font-black tracking-tight">{notifications.length} updates</h3>
+                  <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">提醒</p>
+                  <h3 class="mt-1 text-2xl font-black tracking-tight">{notifications.length} 条更新</h3>
                 </div>
                 <button type="button" class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={loadNotifications}>
-                  Refresh
+                  刷新
                 </button>
               </div>
 
@@ -1146,7 +1160,7 @@
                   {#each notifications as item (item.id)}
                     <article class="rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.04)] px-4 py-4">
                       <div class="flex items-center justify-between gap-4">
-                        <p class="text-sm font-black">{item.username || 'System'} {formatNotification(item.type)}</p>
+                        <p class="text-sm font-black">{item.username || '系统'} {formatNotification(item.type)}</p>
                         <p class="text-[10px] font-black uppercase tracking-[0.18em] opacity-30">{formatDate(item.created_at)}</p>
                       </div>
                     </article>
