@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { fade, fly } from 'svelte/transition';
   import { onMount, tick } from 'svelte';
 
   type Track = {
@@ -8,6 +9,9 @@
     cover?: string | null;
   };
 
+  type PanelEdge = 'left' | 'right';
+  type PanelVerticalEdge = 'top' | 'bottom';
+
   const FALLBACK_TRACK: Track = {
     name: '正在找歌',
     artist: '稍等一下，马上就好',
@@ -16,7 +20,8 @@
   };
   const PANEL_MARGIN = 12;
   const CLOSED_PANEL_SIZE_REM = 3.75;
-  const OPEN_PANEL_WIDTH_REM = 21.5;
+  const OPEN_PANEL_WIDTH_REM = 18.75;
+  const OPEN_PANEL_HEIGHT_ESTIMATE_REM = 24.875;
   const PANEL_RESYNC_DELAY_MS = 340;
 
   let audioEl: HTMLAudioElement;
@@ -36,16 +41,25 @@
   let lastBoundUrl = '';
   let filteredTracks: Track[] = [];
   let currentTrack: Track = FALLBACK_TRACK;
-  let queuePreview: Track[] = [];
 
   let panelLeft = 24;
   let panelTop = 24;
+  let dockLeft = 24;
+  let dockTop = 24;
+  let panelOriginX: PanelEdge = 'right';
+  let panelOriginY: PanelVerticalEdge = 'bottom';
   let panelReady = false;
   let isDraggingWidget = false;
   let dragPointerId: number | null = null;
   let dragCaptureEl: HTMLElement | null = null;
   let dragOffsetX = 0;
   let dragOffsetY = 0;
+  let dragStartX = 0;
+  let dragStartY = 0;
+  let dragStartPanelLeft = 0;
+  let dragStartPanelTop = 0;
+  let dragStartDockLeft = 0;
+  let dragStartDockTop = 0;
   let dragMoved = false;
   let panelResyncTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -57,20 +71,21 @@
 
   $: currentTrack = playlist[currentIndex] || getFallbackTrack();
 
-  $: queuePreview = playlist
-    .filter((_, index) => index !== currentIndex)
-    .slice(0, 3);
-
   $: if (audioEl && currentTrack.url && currentTrack.url !== lastBoundUrl) {
     bindTrackToAudio(currentTrack.url);
   }
 
+  $: openMotionX = panelOriginX === 'right' ? 28 : -28;
+  $: openMotionY = panelOriginY === 'bottom' ? 18 : -18;
+  $: panelOriginXPercent = panelOriginX === 'right' ? '100%' : '0%';
+  $: panelOriginYPercent = panelOriginY === 'bottom' ? '100%' : '0%';
+
   onMount(() => {
     void loadPlaylist();
-    void syncPanelPosition({ reset: true });
+    void initializePanelPosition();
 
     const handleResize = () => {
-      clampPanelToViewport();
+      void syncPanelPosition({ preserveOrigin: true });
     };
 
     window.addEventListener('resize', handleResize);
@@ -180,27 +195,58 @@
   }
 
   async function togglePlayer() {
+    clearPanelResyncTimer();
+
     if (dragMoved) {
       dragMoved = false;
       return;
     }
 
-    isOpen = !isOpen;
+    if (!isOpen) {
+      syncClosedStateFromViewport();
+      const closedWidth = getClosedPanelSize();
+      const closedHeight = getClosedPanelHeight();
+      resolvePanelOrigins(panelLeft, panelTop, closedWidth, closedHeight);
+      syncDockFromPanel(closedWidth, closedHeight);
+      const preservedDock = { left: dockLeft, top: dockTop };
+      isOpen = true;
+      await syncOpenPanelFromDock(preservedDock);
+      return;
+    }
+
+    isOpen = false;
 
     if (!isOpen) {
       isListOpen = false;
       search = '';
     }
 
-    await syncPanelPosition({ preserveTop: isOpen });
+    await syncPanelPosition({ preserveOrigin: true });
   }
 
   async function collapsePlayer(event: Event) {
     event.stopPropagation();
+    clearPanelResyncTimer();
     isOpen = false;
     isListOpen = false;
     search = '';
-    await syncPanelPosition();
+    await syncPanelPosition({ preserveOrigin: true });
+  }
+
+  function handleHandleClick(event: MouseEvent) {
+    event.stopPropagation();
+
+    if (dragMoved) {
+      dragMoved = false;
+      return;
+    }
+
+    if (isOpen) {
+      void collapsePlayer(event);
+      return;
+    }
+
+    void togglePlayer();
   }
 
   async function playCurrent() {
@@ -269,9 +315,22 @@
 
   async function toggleList(event: Event) {
     event.stopPropagation();
-    if (!isOpen) isOpen = true;
+    clearPanelResyncTimer();
+    if (!isOpen) {
+      syncClosedStateFromViewport();
+      const closedWidth = getClosedPanelSize();
+      const closedHeight = getClosedPanelHeight();
+      resolvePanelOrigins(panelLeft, panelTop, closedWidth, closedHeight);
+      syncDockFromPanel(closedWidth, closedHeight);
+      const preservedDock = { left: dockLeft, top: dockTop };
+      isOpen = true;
+      await syncOpenPanelFromDock(preservedDock);
+      isListOpen = !isListOpen;
+      await syncPanelPosition({ preserveOrigin: true });
+      return;
+    }
     isListOpen = !isListOpen;
-    await syncPanelPosition({ preserveTop: true });
+    await syncPanelPosition({ preserveOrigin: true });
   }
 
   function handleTimeUpdate() {
@@ -309,28 +368,63 @@
     progress = duration > 0 ? (targetValue / duration) * 100 : 0;
   }
 
-  async function syncPanelPosition(options: { reset?: boolean; preserveTop?: boolean } = {}) {
-    await tick();
-    if (!widgetEl || typeof window === 'undefined') return;
+  function beginDragging(clientX: number, clientY: number, target: HTMLElement, pointerId?: number) {
+    clearPanelResyncTimer();
 
-    const { reset = false, preserveTop = false } = options;
+    dragPointerId = typeof pointerId === 'number' ? pointerId : null;
+    dragCaptureEl = target;
+    dragOffsetX = clientX - panelLeft;
+    dragOffsetY = clientY - panelTop;
+    dragStartX = clientX;
+    dragStartY = clientY;
+    dragStartPanelLeft = panelLeft;
+    dragStartPanelTop = panelTop;
+    dragStartDockLeft = dockLeft;
+    dragStartDockTop = dockTop;
+    dragMoved = false;
+    isDraggingWidget = true;
+
+    if (typeof pointerId === 'number') {
+      dragCaptureEl?.setPointerCapture(pointerId);
+    }
+  }
+
+  async function syncPanelPosition(options: { reset?: boolean; preserveOrigin?: boolean; resync?: boolean } = {}) {
+    await tick();
+    if (typeof window === 'undefined') return;
+
+    const { reset = false, preserveOrigin = false, resync = true } = options;
     const { width, height } = getPanelDimensions();
 
     if (!panelReady || reset) {
-      panelLeft = getDockedPanelLeft(width);
-      panelTop = getDockedPanelTop(height);
+      dockLeft = getDefaultDockLeft();
+      dockTop = getDefaultDockTop();
       panelReady = true;
-    } else if (isOpen) {
-      panelLeft = Math.min(panelLeft, getDockedPanelLeft(width));
     }
 
-    if (preserveTop) {
-      clampPanelHorizontally(width);
-    } else {
-      clampPanelToViewport(width, height);
+    if (!preserveOrigin) {
+      resolvePanelOrigins();
     }
 
-    schedulePanelResync();
+    clampDockToViewport(width, height);
+    if (resync) {
+      schedulePanelResync();
+    }
+  }
+
+  async function syncOpenPanelFromDock(preservedDock = { left: dockLeft, top: dockTop }) {
+    await tick();
+    dockLeft = preservedDock.left;
+    dockTop = preservedDock.top;
+    const width = getPreferredPanelWidth(true);
+    const height = getEstimatedOpenPanelHeight();
+    clampDockToViewport(width, height);
+    clearPanelResyncTimer();
+  }
+
+  async function initializePanelPosition() {
+    await tick();
+    await syncPanelPosition({ reset: true, preserveOrigin: true, resync: false });
   }
 
   function getRootFontSize() {
@@ -339,44 +433,102 @@
     return Number.isFinite(rootFontSize) ? rootFontSize : 16;
   }
 
-  function getPreferredPanelWidth() {
+  function getClosedPanelSize() {
+    return CLOSED_PANEL_SIZE_REM * getRootFontSize();
+  }
+
+  function getClosedPanelHeight() {
+    return getClosedPanelSize() + 2;
+  }
+
+  function getPreferredPanelWidth(open = isOpen) {
     const rootFontSize = getRootFontSize();
-    const compactWidth = CLOSED_PANEL_SIZE_REM * rootFontSize;
-    if (!isOpen || typeof window === 'undefined') return compactWidth;
+    const compactWidth = getClosedPanelSize();
+    if (!open || typeof window === 'undefined') return compactWidth;
     return Math.min(OPEN_PANEL_WIDTH_REM * rootFontSize, window.innerWidth - 24);
   }
 
-  function getPanelDockInset() {
-    if (typeof window === 'undefined') return 24;
-    if (!isOpen) return 24;
-    return Math.min(88, Math.max(40, Math.round(window.innerWidth * 0.05)));
+  function getEstimatedOpenPanelHeight() {
+    return OPEN_PANEL_HEIGHT_ESTIMATE_REM * getRootFontSize();
   }
 
-  function getDockedPanelLeft(width: number) {
-    if (typeof window === 'undefined') return PANEL_MARGIN;
-    return Math.max(PANEL_MARGIN, window.innerWidth - width - getPanelDockInset());
+  function syncClosedStateFromViewport() {
+    if (!widgetEl || isOpen) return;
+
+    const rect = widgetEl.getBoundingClientRect();
+    const computed = getComputedStyle(widgetEl);
+    const nextLeft = Number.isFinite(rect.left) ? rect.left : Number.parseFloat(computed.left || '');
+    const nextTop = Number.isFinite(rect.top) ? rect.top : Number.parseFloat(computed.top || '');
+
+    if (Number.isFinite(nextLeft)) {
+      panelLeft = nextLeft;
+    }
+
+    if (Number.isFinite(nextTop)) {
+      panelTop = nextTop;
+    }
   }
 
-  function getDockedPanelTop(height: number) {
+  function getDefaultDockLeft() {
     if (typeof window === 'undefined') return PANEL_MARGIN;
-    return Math.max(PANEL_MARGIN, window.innerHeight - height - 24);
+    const size = getClosedPanelSize();
+    return Math.max(PANEL_MARGIN, window.innerWidth - size - 24);
+  }
+
+  function getDefaultDockTop() {
+    if (typeof window === 'undefined') return PANEL_MARGIN;
+    const size = getClosedPanelSize();
+    return Math.max(PANEL_MARGIN, window.innerHeight - size - 24);
+  }
+
+  function resolvePanelOrigins(
+    referenceLeft = panelLeft,
+    referenceTop = panelTop,
+    referenceWidth = getPanelDimensions().width,
+    referenceHeight = getPanelDimensions().height
+  ) {
+    if (typeof window === 'undefined') return;
+    panelOriginX = referenceLeft + referenceWidth / 2 >= window.innerWidth / 2 ? 'right' : 'left';
+    panelOriginY = referenceTop + referenceHeight / 2 >= window.innerHeight / 2 ? 'bottom' : 'top';
+  }
+
+  function getAnchoredPanelPosition(width: number, height: number) {
+    const size = getClosedPanelSize();
+
+    return {
+      left: panelOriginX === 'right' ? dockLeft + size - width : dockLeft,
+      top: panelOriginY === 'bottom' ? dockTop + size - height : dockTop
+    };
   }
 
   function getPanelDimensions() {
+    const closedWidth = getClosedPanelSize();
+    const closedHeight = getClosedPanelHeight();
+
+    if (!isOpen) {
+      return {
+        width: closedWidth,
+        height: closedHeight
+      };
+    }
+
     if (!widgetEl) {
       return {
-        width: getPreferredPanelWidth(),
-        height: CLOSED_PANEL_SIZE_REM * getRootFontSize()
+        width: getPreferredPanelWidth(true),
+        height: closedHeight
       };
     }
 
     const rect = widgetEl.getBoundingClientRect();
-    const fallbackSize = CLOSED_PANEL_SIZE_REM * getRootFontSize();
 
     return {
-      width: Math.max(rect.width || 0, getPreferredPanelWidth()),
-      height: Math.max(rect.height || 0, fallbackSize)
+      width: Math.max(rect.width || 0, getPreferredPanelWidth(true)),
+      height: Math.max(rect.height || 0, closedHeight)
     };
+  }
+
+  function clamp(value: number, min: number, max: number) {
+    return Math.min(Math.max(value, min), max);
   }
 
   function clearPanelResyncTimer() {
@@ -391,60 +543,109 @@
     panelResyncTimer = window.setTimeout(() => {
       panelResyncTimer = null;
       if (isDraggingWidget) return;
-      clampPanelToViewport();
+      void syncPanelPosition({ preserveOrigin: true, resync: false });
     }, PANEL_RESYNC_DELAY_MS);
   }
 
-  function clampPanelToViewport(width = getPanelDimensions().width, height = getPanelDimensions().height) {
-    if (!widgetEl || typeof window === 'undefined') return;
+  function clampDockToViewport(width = getPanelDimensions().width, height = getPanelDimensions().height) {
+    if (typeof window === 'undefined') return;
+
+    const closedSize = getClosedPanelSize();
+    const minDockLeft = panelOriginX === 'right' ? PANEL_MARGIN + width - closedSize : PANEL_MARGIN;
+    const maxDockLeft = panelOriginX === 'right'
+      ? window.innerWidth - closedSize - PANEL_MARGIN
+      : window.innerWidth - width - PANEL_MARGIN;
+    const minDockTop = panelOriginY === 'bottom' ? PANEL_MARGIN + height - closedSize : PANEL_MARGIN;
+    const maxDockTop = panelOriginY === 'bottom'
+      ? window.innerHeight - closedSize - PANEL_MARGIN
+      : window.innerHeight - height - PANEL_MARGIN;
+
+    dockLeft = clamp(dockLeft, minDockLeft, Math.max(minDockLeft, maxDockLeft));
+    dockTop = clamp(dockTop, minDockTop, Math.max(minDockTop, maxDockTop));
+
+    const anchored = getAnchoredPanelPosition(width, height);
+    panelLeft = anchored.left;
+    panelTop = anchored.top;
+  }
+
+  function clampActualPanelPosition(nextLeft: number, nextTop: number, width: number, height: number) {
+    if (typeof window === 'undefined') {
+      return { left: nextLeft, top: nextTop };
+    }
 
     const maxLeft = Math.max(PANEL_MARGIN, window.innerWidth - width - PANEL_MARGIN);
     const maxTop = Math.max(PANEL_MARGIN, window.innerHeight - height - PANEL_MARGIN);
 
-    panelLeft = Math.min(maxLeft, Math.max(PANEL_MARGIN, panelLeft));
-    panelTop = Math.min(maxTop, Math.max(PANEL_MARGIN, panelTop));
+    return {
+      left: clamp(nextLeft, PANEL_MARGIN, maxLeft),
+      top: clamp(nextTop, PANEL_MARGIN, maxTop)
+    };
   }
 
-  function clampPanelHorizontally(width = getPanelDimensions().width) {
-    if (!widgetEl || typeof window === 'undefined') return;
-    const maxLeft = Math.max(PANEL_MARGIN, window.innerWidth - width - PANEL_MARGIN);
-    panelLeft = Math.min(maxLeft, Math.max(PANEL_MARGIN, panelLeft));
+  function syncDockFromPanel(width: number, height: number) {
+    const closedSize = getClosedPanelSize();
+    dockLeft = panelOriginX === 'right' ? panelLeft + width - closedSize : panelLeft;
+    dockTop = panelOriginY === 'bottom' ? panelTop + height - closedSize : panelTop;
   }
 
   function handleDragPointerDown(event: PointerEvent) {
-    if (!widgetEl) return;
+    if (!widgetEl || !isOpen) return;
+    if (event.button !== 0) return;
     event.preventDefault();
     event.stopPropagation();
-    clearPanelResyncTimer();
+    beginDragging(event.clientX, event.clientY, event.currentTarget as HTMLElement, event.pointerId);
+  }
 
-    dragPointerId = event.pointerId;
-    dragCaptureEl = event.currentTarget as HTMLElement;
-    dragOffsetX = event.clientX - panelLeft;
-    dragOffsetY = event.clientY - panelTop;
-    dragMoved = false;
-    isDraggingWidget = true;
-
-    dragCaptureEl?.setPointerCapture(event.pointerId);
+  function handleDragMouseDown(event: MouseEvent) {
+    if (!widgetEl || !isOpen || isDraggingWidget || event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    beginDragging(event.clientX, event.clientY, event.currentTarget as HTMLElement);
   }
 
   function handleDragPointerMove(event: PointerEvent) {
     if (!isDraggingWidget || event.pointerId !== dragPointerId) return;
     event.preventDefault();
 
-    const nextLeft = event.clientX - dragOffsetX;
-    const nextTop = event.clientY - dragOffsetY;
-
-    if (Math.abs(nextLeft - panelLeft) + Math.abs(nextTop - panelTop) > 2) {
-      dragMoved = true;
+    const totalTravel = Math.abs(event.clientX - dragStartX) + Math.abs(event.clientY - dragStartY);
+    if (!dragMoved && totalTravel <= 6) {
+      return;
     }
 
-    panelLeft = nextLeft;
-    panelTop = nextTop;
-    clampPanelToViewport();
+    const { width, height } = getPanelDimensions();
+    const nextLeft = event.clientX - dragOffsetX;
+    const nextTop = event.clientY - dragOffsetY;
+    const nextPosition = clampActualPanelPosition(nextLeft, nextTop, width, height);
+
+    dragMoved = true;
+
+    panelLeft = nextPosition.left;
+    panelTop = nextPosition.top;
+    syncDockFromPanel(width, height);
   }
 
-  function finishDragging(event?: PointerEvent) {
-    if (event && dragPointerId !== null && event.pointerId !== dragPointerId) return;
+  function handleDragMouseMove(event: MouseEvent) {
+    if (!isDraggingWidget || dragPointerId !== null) return;
+
+    const totalTravel = Math.abs(event.clientX - dragStartX) + Math.abs(event.clientY - dragStartY);
+    if (!dragMoved && totalTravel <= 6) {
+      return;
+    }
+
+    const { width, height } = getPanelDimensions();
+    const nextLeft = event.clientX - dragOffsetX;
+    const nextTop = event.clientY - dragOffsetY;
+    const nextPosition = clampActualPanelPosition(nextLeft, nextTop, width, height);
+
+    dragMoved = true;
+
+    panelLeft = nextPosition.left;
+    panelTop = nextPosition.top;
+    syncDockFromPanel(width, height);
+  }
+
+  function finishDragging(event?: PointerEvent | MouseEvent) {
+    if (event && 'pointerId' in event && dragPointerId !== null && event.pointerId !== dragPointerId) return;
 
     if (dragCaptureEl && dragPointerId !== null) {
       try {
@@ -455,6 +656,21 @@
     dragPointerId = null;
     dragCaptureEl = null;
     isDraggingWidget = false;
+
+    if (!dragMoved) {
+      panelLeft = dragStartPanelLeft;
+      panelTop = dragStartPanelTop;
+      dockLeft = dragStartDockLeft;
+      dockTop = dragStartDockTop;
+    }
+
+    if (dragMoved) {
+      const { width, height } = getPanelDimensions();
+      resolvePanelOrigins(panelLeft, panelTop, width, height);
+      syncDockFromPanel(width, height);
+    }
+
+    schedulePanelResync();
   }
 
   function formatTime(value: number) {
@@ -487,6 +703,8 @@
   on:pointermove={handleDragPointerMove}
   on:pointerup={finishDragging}
   on:pointercancel={finishDragging}
+  on:mousemove={handleDragMouseMove}
+  on:mouseup={finishDragging}
 />
 
 <audio
@@ -504,32 +722,42 @@
   id="mp"
   class:open={isOpen}
   class:dragging={isDraggingWidget}
-  class="fixed z-[10050] overflow-visible transition-[left,top,width,height,box-shadow] duration-300 ease-[cubic-bezier(0.2,1.14,0.24,1)]"
-  style="left: {panelLeft}px; top: {panelTop}px; width: {isOpen ? 'min(21.5rem, calc(100vw - 1.5rem))' : '3.75rem'};"
+  data-origin-x={panelOriginX}
+  data-origin-y={panelOriginY}
+  class="fixed z-[10050] overflow-visible transition-[left,top,width,height,box-shadow,transform] duration-[380ms] ease-[cubic-bezier(0.22,1,0.36,1)]"
+  style="left: {panelLeft}px; top: {panelTop}px; width: {isOpen ? 'min(18.75rem, calc(100vw - 1rem))' : '3.75rem'}; --mp-open-x: {openMotionX}px; --mp-open-y: {openMotionY}px; --mp-origin-x: {panelOriginXPercent}; --mp-origin-y: {panelOriginYPercent};"
   on:click={() => !isOpen && togglePlayer()}
   on:keydown={(event) => !isOpen && event.key === 'Enter' && togglePlayer()}
   role="button"
   tabindex="0"
 >
-  <button
-    id="mp-drag-handle"
-    class:open={isOpen}
-    class="mp-drag-handle"
-    type="button"
-    aria-label="Drag music player"
-    on:pointerdown={handleDragPointerDown}
-  >
-    <span></span>
-    <span></span>
-    <span></span>
-  </button>
+  {#if isOpen}
+    <button
+      id="mp-drag-handle"
+      class:open={isOpen}
+      class="mp-drag-handle"
+      type="button"
+      aria-label="Drag music player"
+      on:click={handleHandleClick}
+      on:mousedown={handleDragMouseDown}
+      on:pointerdown={handleDragPointerDown}
+      on:pointermove={handleDragPointerMove}
+      on:pointerup={finishDragging}
+      on:pointercancel={finishDragging}
+    >
+      <span></span>
+      <span></span>
+      <span></span>
+      <small class="mp-drag-label">拖动 / 收起</small>
+    </button>
+  {/if}
 
   <div class="mp-shell {isOpen ? 'open' : 'closed'}">
     <div class="mp-main">
       <p id="mp-name" class="mp-sr-only">{currentTrack.name}</p>
 
       {#if !isOpen}
-        <div class="mp-closed">
+        <div class="mp-closed" in:fade|local={{ duration: 160 }}>
           <div class="mp-badge">
             {#if currentTrack.cover}
               <img src={currentTrack.cover} alt={currentTrack.name} class="h-full w-full object-cover" />
@@ -543,11 +771,11 @@
           </div>
         </div>
       {:else}
-        <div class="mp-content">
+        <div class="mp-content" in:fly|local={{ x: openMotionX, y: openMotionY, duration: 320 }}>
           <div class="mp-topline">
             <div>
               <p class="mp-kicker">随手听歌</p>
-              <p class="mp-topline-copy">想拖动的话，按住上面那条就行。</p>
+              <p class="mp-topline-copy">按住上面的横杆，整块都能拖着走。</p>
             </div>
 
             <button class="mp-icon-btn mp-collapse-btn" on:click={collapsePlayer} aria-label="收起播放器">
@@ -578,26 +806,6 @@
             </div>
           </section>
 
-          {#if !isListOpen && queuePreview.length > 0}
-            <div class="mp-queue-panel">
-              <div class="mp-list-toolbar compact">
-                <p>接下来想听</p>
-                <p>点一下就切过去</p>
-              </div>
-              <div class="mp-queue-strip">
-                {#each queuePreview as track}
-                  <button
-                    type="button"
-                    class="mp-queue-chip"
-                    on:click={(event) => handleTrackSelect(playlist.findIndex((item) => item.url === track.url), event)}
-                  >
-                    {track.name}
-                  </button>
-                {/each}
-              </div>
-            </div>
-          {/if}
-
           <div class="mp-progress-card">
             <div class="mp-progress-wrap">
               <div class="mp-progress-bar">
@@ -623,25 +831,33 @@
           </div>
 
           <div class="mp-actions">
-            <button class="mp-icon-btn" on:click={playPrevious} aria-label="上一首">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM18.5 6.2v11.6c0 .8-.9 1.3-1.6.8L9 12.8c-.6-.4-.6-1.3 0-1.7l7.9-5.7c.7-.5 1.6 0 1.6.8z"></path></svg>
-            </button>
+            <span class="mp-actions-balance" aria-hidden="true"></span>
 
-            <button class="mp-icon-btn mp-play-btn" on:click={togglePlay} aria-label={isPlaying ? '暂停播放' : '开始播放'}>
-              {#if isPlaying}
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
-              {:else}
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-              {/if}
-            </button>
+            <div class="mp-transport">
+              <button class="mp-icon-btn" on:click={playPrevious} aria-label="上一首">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM18.5 6.2v11.6c0 .8-.9 1.3-1.6.8L9 12.8c-.6-.4-.6-1.3 0-1.7l7.9-5.7c.7-.5 1.6 0 1.6.8z"></path></svg>
+              </button>
 
-            <button class="mp-icon-btn" on:click={playNext} aria-label="下一首">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM5.5 6.2v11.6c0 .8.9 1.3 1.6.8l7.9-5.8c.6-.4.6-1.3 0-1.7L7.1 5.4c-.7-.5-1.6 0-1.6.8z"></path></svg>
-            </button>
+              <button class="mp-icon-btn mp-play-btn" on:click={togglePlay} aria-label={isPlaying ? '暂停播放' : '开始播放'}>
+                {#if isPlaying}
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+                {:else}
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                {/if}
+              </button>
 
-            <button id="mpb-list" class="mp-icon-btn mp-list-btn" on:click={toggleList} aria-label={isListOpen ? '收起歌单' : '打开歌单'}>
+              <button class="mp-icon-btn" on:click={playNext} aria-label="下一首">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM5.5 6.2v11.6c0 .8.9 1.3 1.6.8l7.9-5.8c.6-.4.6-1.3 0-1.7L7.1 5.4c-.7-.5-1.6 0-1.6.8z"></path></svg>
+              </button>
+            </div>
+
+            <button
+              id="mpb-list"
+              class="mp-icon-btn mp-list-btn {isListOpen ? 'is-open' : ''}"
+              on:click={toggleList}
+              aria-label={isListOpen ? '收起歌单' : '打开歌单'}
+            >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M8 6h12"></path><path d="M8 12h12"></path><path d="M8 18h12"></path><circle cx="4" cy="6" r="1"></circle><circle cx="4" cy="12" r="1"></circle><circle cx="4" cy="18" r="1"></circle></svg>
-              <span>{isListOpen ? '收起歌单' : '看看歌单'}</span>
             </button>
           </div>
 
@@ -654,7 +870,7 @@
           {/if}
 
           <div class="mp-list-toolbar">
-            <p class="text-[10px] font-black tracking-[0.08em] opacity-52">想换哪首</p>
+            <p class="text-[10px] font-black tracking-[0.08em] opacity-52">全部曲目</p>
             <p class="text-[10px] font-black tracking-[0.08em] opacity-45">一共 {filteredTracks.length} 首</p>
           </div>
 
@@ -701,6 +917,10 @@
 
 <style>
   #mp {
+    --mp-open-x: 0px;
+    --mp-open-y: 0px;
+    --mp-origin-x: 100%;
+    --mp-origin-y: 100%;
     border-radius: 999px;
     outline: none;
   }
@@ -763,13 +983,16 @@
   }
 
   .mp-drag-handle.open {
-    top: 0.45rem;
-    left: 50%;
-    width: 4.25rem;
-    height: 1.15rem;
-    transform: translateX(-50%);
+    top: 0.55rem;
+    left: 0.6rem;
+    right: 3.25rem;
+    width: auto;
+    height: 1.55rem;
+    transform: none;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.04);
+    justify-content: flex-start;
+    padding: 0 0.8rem;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
     color: rgba(245, 239, 224, 0.5);
   }
 
@@ -777,12 +1000,43 @@
     opacity: 0.8;
   }
 
+  .mp-drag-label {
+    display: block;
+    margin-left: 0.42rem;
+    font-size: 0.56rem;
+    font-weight: 900;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
   .mp-shell {
+    position: relative;
+    overflow: hidden;
     background: rgba(var(--color-bg-rgb), 0.985);
     color: var(--color-text);
     backdrop-filter: blur(22px);
     border: 1px solid rgba(245, 239, 224, 0.12);
     box-shadow: var(--shadow-xl-token);
+    transform-origin: var(--mp-origin-x) var(--mp-origin-y);
+    transition: border-radius 0.34s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.34s ease, border-color 0.34s ease, background 0.34s ease;
+  }
+
+  .mp-shell::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.14), transparent 40%),
+      linear-gradient(135deg, rgba(255, 255, 255, 0.12), transparent 38%);
+    opacity: 0;
+    pointer-events: none;
+    transform: translate3d(calc(var(--mp-open-x) * -0.45), calc(var(--mp-open-y) * -0.35), 0);
+    transition: opacity 0.32s ease, transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  #mp.open .mp-shell::after {
+    opacity: 0.92;
+    transform: translate3d(0, 0, 0);
   }
 
   .mp-shell.closed {
@@ -823,13 +1077,14 @@
   }
 
   .mp-badge.large {
-    height: 5.5rem;
-    width: 5.5rem;
-    border-radius: 24px;
+    height: 4.75rem;
+    width: 4.75rem;
+    border-radius: 20px;
   }
 
   .mp-content {
-    padding: 1.65rem 0.75rem 0.75rem;
+    padding: 2.35rem 0.62rem 0.62rem;
+    will-change: transform, opacity;
   }
 
   .mp-topline {
@@ -848,7 +1103,7 @@
 
   .mp-topline-copy {
     margin-top: 0.18rem;
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     font-weight: 600;
     opacity: 0.54;
   }
@@ -860,11 +1115,11 @@
 
   .mp-hero {
     display: grid;
-    grid-template-columns: 5.5rem minmax(0, 1fr);
-    gap: 0.9rem;
-    margin-top: 0.9rem;
-    padding: 0.95rem;
-    border-radius: 26px;
+    grid-template-columns: 4.75rem minmax(0, 1fr);
+    gap: 0.72rem;
+    margin-top: 0.72rem;
+    padding: 0.78rem;
+    border-radius: 22px;
     background:
       radial-gradient(circle at top right, rgba(255, 255, 255, 0.16), transparent 44%),
       linear-gradient(135deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.03));
@@ -873,18 +1128,7 @@
 
   .mp-cover-card {
     position: relative;
-    box-shadow: 0 18px 34px rgba(var(--shadow-rgb), 0.18);
-  }
-
-  .mp-cover-card::after {
-    content: '';
-    position: absolute;
-    inset: auto 0.55rem -0.55rem;
-    height: 0.65rem;
-    border-radius: 999px;
-    background: rgba(var(--shadow-rgb), 0.2);
-    filter: blur(10px);
-    z-index: -1;
+    box-shadow: 0 14px 28px rgba(var(--shadow-rgb), 0.16);
   }
 
   .mp-hero-copy {
@@ -903,33 +1147,33 @@
 
   .mp-track-title {
     margin-top: 0.26rem;
-    font-size: 1.08rem;
+    font-size: 0.98rem;
     line-height: 1.1;
     font-weight: 900;
     letter-spacing: -0.03em;
   }
 
   .mp-track-artist {
-    margin-top: 0.32rem;
-    font-size: 0.76rem;
+    margin-top: 0.24rem;
+    font-size: 0.72rem;
     font-weight: 800;
     opacity: 0.68;
   }
 
   .mp-hero-note {
-    margin-top: 0.42rem;
-    font-size: 0.76rem;
-    line-height: 1.45;
+    margin-top: 0.3rem;
+    font-size: 0.7rem;
+    line-height: 1.42;
     font-weight: 600;
     opacity: 0.62;
   }
 
   .mp-meta-row {
-    margin-top: 0.65rem;
+    margin-top: 0.52rem;
     display: flex;
     flex-wrap: wrap;
-    gap: 0.45rem;
-    font-size: 0.62rem;
+    gap: 0.35rem;
+    font-size: 0.58rem;
     font-weight: 800;
     letter-spacing: 0.08em;
     opacity: 0.68;
@@ -942,37 +1186,10 @@
     padding: 0.32rem 0.55rem;
   }
 
-  .mp-queue-panel {
-    margin-top: 0.85rem;
-    padding: 0.8rem;
-    border-radius: 22px;
-    border: 1px solid rgba(245, 239, 224, 0.1);
-    background: rgba(255, 255, 255, 0.04);
-  }
-
-  .mp-queue-strip {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.45rem;
-    margin-top: 0.55rem;
-  }
-
-  .mp-queue-chip {
-    border-radius: 999px;
-    border: 1px solid rgba(245, 239, 224, 0.12);
-    background: rgba(255, 255, 255, 0.05);
-    padding: 0.45rem 0.75rem;
-    font-size: 0.66rem;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: inherit;
-  }
-
   .mp-progress-card {
-    margin-top: 0.85rem;
-    padding: 0.85rem 0.9rem;
-    border-radius: 22px;
+    margin-top: 0.72rem;
+    padding: 0.75rem 0.8rem;
+    border-radius: 20px;
     border: 1px solid rgba(245, 239, 224, 0.1);
     background: rgba(255, 255, 255, 0.035);
   }
@@ -1005,27 +1222,38 @@
   }
 
   .mp-time-row {
-    margin-top: 0.45rem;
+    margin-top: 0.38rem;
     display: flex;
     justify-content: space-between;
-    font-size: 0.65rem;
+    font-size: 0.62rem;
     font-weight: 700;
     letter-spacing: 0.04em;
     opacity: 0.62;
   }
 
   .mp-actions {
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
     align-items: center;
-    gap: 0.38rem;
-    margin-top: 0.9rem;
-    flex-wrap: nowrap;
+    gap: 0.62rem;
+    margin-top: 0.8rem;
+  }
+
+  .mp-actions-balance {
+    justify-self: stretch;
+  }
+
+  .mp-transport {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
   }
 
   .mp-icon-btn {
     display: inline-flex;
-    height: 2.35rem;
-    min-width: 2.35rem;
+    height: 2.2rem;
+    min-width: 2.2rem;
     align-items: center;
     justify-content: center;
     gap: 0.35rem;
@@ -1042,6 +1270,8 @@
   }
 
   .mp-play-btn {
+    height: 2.7rem;
+    min-width: 2.7rem;
     background: var(--color-primary);
     color: var(--color-bg);
     border-color: transparent;
@@ -1049,16 +1279,18 @@
   }
 
   .mp-list-btn {
-    margin-left: auto;
-    padding: 0 0.9rem;
-    font-size: 0.62rem;
-    font-weight: 900;
-    letter-spacing: 0.08em;
+    justify-self: end;
+    padding: 0;
+  }
+
+  .mp-list-btn.is-open {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(245, 239, 224, 0.24);
   }
 
   .mp-status {
-    margin-top: 0.7rem;
-    font-size: 0.7rem;
+    margin-top: 0.62rem;
+    font-size: 0.66rem;
     font-weight: 700;
     line-height: 1.45;
     opacity: 0.68;
@@ -1073,31 +1305,37 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-top: 0.9rem;
-  }
-
-  .mp-list-toolbar.compact {
-    margin-top: 0;
+    margin-top: 0.75rem;
   }
 
   #mp-list-area {
     max-height: 0;
     overflow: hidden;
     opacity: 0;
-    transition: max-height 0.28s ease, opacity 0.22s ease, margin-top 0.22s ease;
+    margin-top: 0;
+    padding-right: 0.05rem;
+    pointer-events: none;
+    transform: translate3d(calc(var(--mp-open-x) * 0.16), calc(var(--mp-open-y) * 0.16), 0) scale(0.97);
+    transition: max-height 0.32s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.22s ease, transform 0.32s cubic-bezier(0.22, 1, 0.36, 1), margin-top 0.22s ease;
   }
 
   #mp-list-area.show {
-    max-height: 21rem;
+    max-height: 18rem;
     overflow: auto;
     opacity: 1;
-    margin-top: 0.65rem;
+    margin-top: 0.58rem;
+    padding: 0.55rem;
+    pointer-events: auto;
+    transform: translate3d(0, 0, 0) scale(1);
+    background: rgb(var(--color-bg-rgb));
+    border: 1px solid rgba(245, 239, 224, 0.08);
+    border-radius: 20px;
   }
 
   .mp-search-wrap {
     border: 1px solid rgba(245, 239, 224, 0.12);
     border-radius: 18px;
-    background: rgba(var(--color-bg-rgb), 0.995);
+    background: rgb(var(--color-bg-rgb));
     padding: 0.45rem 0.75rem;
   }
 
@@ -1116,7 +1354,7 @@
   }
 
   .mp-list {
-    margin-top: 0.7rem;
+    margin-top: 0.58rem;
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
@@ -1188,7 +1426,7 @@
 
   @media (max-width: 768px) {
     .mp-content {
-      padding: 1.45rem 0.5rem 0.5rem;
+      padding: 2.2rem 0.5rem 0.5rem;
     }
 
     .mp-hero {
@@ -1201,13 +1439,11 @@
     }
 
     .mp-actions {
-      flex-wrap: wrap;
+      grid-template-columns: 1fr auto;
     }
 
-    .mp-list-btn {
-      margin-left: 0;
-      width: 100%;
-      justify-content: center;
+    .mp-actions-balance {
+      display: none;
     }
   }
 </style>

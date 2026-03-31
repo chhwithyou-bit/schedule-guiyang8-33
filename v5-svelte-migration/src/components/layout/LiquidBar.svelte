@@ -116,6 +116,7 @@
 
 <nav
   bind:this={dockRef}
+  id="liquidBar"
   class="liquid-anchor fixed left-4 top-[5.35rem] z-[5100] pointer-events-none select-none md:left-8 md:top-[6.1rem] {className}"
   aria-label="快速导航"
 >
