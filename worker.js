@@ -317,7 +317,99 @@ const DEFAULT_COMMUNITY_GROUPS = [
   }
 ];
 
+let communityCoreSchemaPromise = null;
 let communityMessagingSetupPromise = null;
+
+async function ensureCommunityCoreSchema(env) {
+  if (communityCoreSchemaPromise) return communityCoreSchemaPromise;
+
+  communityCoreSchemaPromise = (async () => {
+    await env.COMMUNITY_DB.batch([
+      env.COMMUNITY_DB.prepare(`
+        CREATE TABLE IF NOT EXISTS users (
+          id TEXT PRIMARY KEY,
+          username TEXT UNIQUE NOT NULL,
+          password_hash TEXT NOT NULL,
+          role TEXT DEFAULT 'user',
+          avatar_url TEXT,
+          signature TEXT,
+          background_url TEXT,
+          xp INTEGER DEFAULT 0,
+          level INTEGER DEFAULT 1,
+          is_banned INTEGER DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `),
+      env.COMMUNITY_DB.prepare(`
+        CREATE TABLE IF NOT EXISTS posts (
+          id TEXT PRIMARY KEY,
+          user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+          content TEXT,
+          media_json TEXT,
+          type TEXT DEFAULT 'post',
+          repost_id TEXT REFERENCES posts(id) ON DELETE SET NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `),
+      env.COMMUNITY_DB.prepare(`
+        CREATE TABLE IF NOT EXISTS comments (
+          id TEXT PRIMARY KEY,
+          post_id TEXT REFERENCES posts(id) ON DELETE CASCADE,
+          user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+          parent_id TEXT REFERENCES comments(id) ON DELETE CASCADE,
+          content TEXT NOT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `),
+      env.COMMUNITY_DB.prepare(`
+        CREATE TABLE IF NOT EXISTS likes (
+          post_id TEXT REFERENCES posts(id) ON DELETE CASCADE,
+          user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY(post_id, user_id)
+        )
+      `),
+      env.COMMUNITY_DB.prepare(`
+        CREATE TABLE IF NOT EXISTS follows (
+          follower_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+          following_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY(follower_id, following_id)
+        )
+      `),
+      env.COMMUNITY_DB.prepare(`
+        CREATE TABLE IF NOT EXISTS notifications (
+          id TEXT PRIMARY KEY,
+          user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+          type TEXT NOT NULL,
+          from_user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+          target_id TEXT,
+          is_read INTEGER DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `),
+      env.COMMUNITY_DB.prepare(`
+        CREATE TABLE IF NOT EXISTS reports (
+          id TEXT PRIMARY KEY,
+          user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+          target_type TEXT NOT NULL,
+          target_id TEXT NOT NULL,
+          reason TEXT,
+          status TEXT DEFAULT 'pending',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `),
+      env.COMMUNITY_DB.prepare("CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts(created_at DESC)"),
+      env.COMMUNITY_DB.prepare("CREATE INDEX IF NOT EXISTS idx_comments_post_created ON comments(post_id, created_at DESC)"),
+      env.COMMUNITY_DB.prepare("CREATE INDEX IF NOT EXISTS idx_notifications_user_created ON notifications(user_id, created_at DESC)")
+    ]);
+  })().catch(error => {
+    communityCoreSchemaPromise = null;
+    throw error;
+  });
+
+  return communityCoreSchemaPromise;
+}
 
 function buildDirectConversationKey(userA, userB) {
   return [String(userA || '').trim(), String(userB || '').trim()].sort().join(':');
@@ -327,6 +419,7 @@ let driveSetupPromise = null;
 async function ensureDriveSchema(env) {
   if (driveSetupPromise) return driveSetupPromise;
   driveSetupPromise = (async () => {
+    await ensureCommunityCoreSchema(env);
     await env.COMMUNITY_DB.batch([
       env.COMMUNITY_DB.prepare(`
         CREATE TABLE IF NOT EXISTS user_drive_stats (
@@ -363,6 +456,7 @@ async function ensureCommunityMessagingSchema(env) {
   if (communityMessagingSetupPromise) return communityMessagingSetupPromise;
 
   communityMessagingSetupPromise = (async () => {
+    await ensureCommunityCoreSchema(env);
     await env.COMMUNITY_DB.batch([
       env.COMMUNITY_DB.prepare(`
         CREATE TABLE IF NOT EXISTS conversations (
@@ -533,9 +627,25 @@ function getMusicPublicBaseUrl(env) {
   return String(env.MUSIC_PUBLIC_BASE_URL || DEFAULT_MUSIC_PUBLIC_BASE_URL).replace(/\/+$/, '');
 }
 
+function buildMusicProxyUrl(requestOrigin, key) {
+  const base = String(requestOrigin || '').replace(/\/+$/, '');
+  const encodedKey = encodeObjectKey(key);
+  return encodedKey ? `${base}/api/music/file/${encodedKey}` : `${base}/api/music`;
+}
+
 function buildMusicPublicUrl(env, key) {
   const encodedKey = encodeObjectKey(key);
   return encodedKey ? `${getMusicPublicBaseUrl(env)}/${encodedKey}` : getMusicPublicBaseUrl(env);
+}
+
+function buildMusicTrackUrl(env, key, requestOrigin) {
+  const normalizedKey = String(key || '').trim();
+  if (!normalizedKey) return requestOrigin ? `${String(requestOrigin).replace(/\/+$/, '')}/api/music` : getMusicPublicBaseUrl(env);
+  return requestOrigin ? buildMusicProxyUrl(requestOrigin, normalizedKey) : buildMusicPublicUrl(env, normalizedKey);
+}
+
+function isSupportedMusicObjectKey(key) {
+  return /\.(mp3|wav|m4a|aac|ogg|oga|flac|webm)$/i.test(String(key || '').trim());
 }
 
 function extractMusicObjectKey(trackUrl) {
@@ -544,13 +654,21 @@ function extractMusicObjectKey(trackUrl) {
 
   try {
     const parsed = new URL(rawUrl);
+    const proxyMatch = parsed.pathname.match(/^\/api\/music\/file\/(.+)$/);
+    if (proxyMatch) {
+      return safeDecodeURIComponent(proxyMatch[1]);
+    }
     return safeDecodeURIComponent(parsed.pathname.replace(/^\/+/, ''));
   } catch {
+    const proxyMatch = rawUrl.match(/^\/?api\/music\/file\/(.+)$/);
+    if (proxyMatch) {
+      return safeDecodeURIComponent(proxyMatch[1]);
+    }
     return safeDecodeURIComponent(rawUrl.replace(/^\/+/, ''));
   }
 }
 
-function normalizeMusicTrack(env, track, requestHost) {
+function normalizeMusicTrack(env, track, requestOrigin, requestHost) {
   if (!track || typeof track !== 'object') return track;
   const next = { ...track };
   const rawUrl = String(track.url || '').trim();
@@ -566,18 +684,18 @@ function normalizeMusicTrack(env, track, requestHost) {
     ].filter(Boolean));
 
     if (legacyHosts.has(parsed.hostname)) {
-      const objectKey = parsed.pathname.replace(/^\/+/, '');
-      if (objectKey) next.url = buildMusicPublicUrl(env, objectKey);
+      const objectKey = extractMusicObjectKey(parsed.toString());
+      if (objectKey && objectKey !== 'playlist.json') next.url = buildMusicTrackUrl(env, objectKey, requestOrigin);
     }
   } catch {
     const objectKey = rawUrl.replace(/^\/+/, '');
-    if (objectKey) next.url = buildMusicPublicUrl(env, objectKey);
+    if (objectKey && objectKey !== 'playlist.json') next.url = buildMusicTrackUrl(env, objectKey, requestOrigin);
   }
 
   return next;
 }
 
-function mergeMusicPlaylist(env, storedList, bucketObjects) {
+function mergeMusicPlaylist(env, storedList, bucketObjects, requestOrigin, requestHost) {
   const savedTracks = Array.isArray(storedList) ? storedList.filter(track => track && typeof track === 'object') : [];
   const savedByKey = new Map();
   const savedOrder = new Map();
@@ -596,14 +714,14 @@ function mergeMusicPlaylist(env, storedList, bucketObjects) {
   });
 
   const mergedBucketTracks = bucketObjects
-    .filter(obj => obj.key.toLowerCase().endsWith('.mp3'))
+    .filter(obj => isSupportedMusicObjectKey(obj.key))
     .map(obj => {
       const saved = savedByKey.get(obj.key);
       const fallbackName = safeDecodeURIComponent(obj.key.replace(/\.[^/.]+$/, '')) || '未知';
       return {
         name: (saved && String(saved.name || '').trim()) || fallbackName,
         artist: saved && typeof saved.artist === 'string' ? saved.artist : 'R2 Drive',
-        url: buildMusicPublicUrl(env, obj.key),
+        url: buildMusicTrackUrl(env, obj.key, requestOrigin),
       };
     })
     .sort((a, b) => {
@@ -616,7 +734,7 @@ function mergeMusicPlaylist(env, storedList, bucketObjects) {
     });
 
   const normalizedExternalTracks = externalTracks
-    .map(track => normalizeMusicTrack(env, track, ''))
+    .map(track => normalizeMusicTrack(env, track, requestOrigin, requestHost))
     .filter(track => track && String(track.url || '').trim());
 
   return [...mergedBucketTracks, ...normalizedExternalTracks];
@@ -1068,6 +1186,27 @@ export default {
       }
     }
 
+    if (url.pathname.startsWith('/api/music/file/') && request.method === 'GET') {
+      try {
+        const objectKey = safeDecodeURIComponent(url.pathname.replace(/^\/api\/music\/file\//, ''));
+        if (!objectKey) return jsonResp({ ok: false, msg: 'Missing music object key' }, 400);
+
+        const object = await env.MUSIC_BUCKET.get(objectKey);
+        if (!object) return jsonResp({ ok: false, msg: 'Track not found' }, 404);
+
+        const headers = new Headers({
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'public, max-age=3600',
+          'Accept-Ranges': 'bytes',
+          'Content-Type': object.httpMetadata?.contentType || 'audio/mpeg'
+        });
+
+        return new Response(object.body, { headers });
+      } catch (e) {
+        return jsonResp({ ok: false, msg: e.message }, 500);
+      }
+    }
+
     if (url.pathname === '/api/music') {
       if (request.method === 'GET') {
         try {
@@ -1079,7 +1218,7 @@ export default {
           }
 
           const listed = await env.MUSIC_BUCKET.list();
-          const list = mergeMusicPlaylist(env, storedList, listed.objects || []);
+          const list = mergeMusicPlaylist(env, storedList, listed.objects || [], url.origin, url.host);
           return jsonResp(list);
         } catch (e) { return jsonResp({ ok: false, msg: e.message }, 500); }
       }
@@ -1097,6 +1236,8 @@ export default {
     }
 
     if (url.pathname.startsWith('/api/community/')) {
+      await ensureCommunityCoreSchema(env);
+
       const getAuth = async () => {
         const auth = request.headers.get('Authorization') || '';
         if (!auth.startsWith('Bearer ')) return null;

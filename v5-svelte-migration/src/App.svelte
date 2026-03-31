@@ -36,9 +36,7 @@
   }
 
   let lenis: Lenis;
-  let viewContainer: HTMLElement;
   let mainContent: HTMLElement;
-  let isTransitioning = false;
   let isLoading = true;
 
   const viewMap: Record<string, any> = {
@@ -138,7 +136,6 @@
 <div 
   class="app-container font-sans bg-[var(--color-bg)] text-[var(--color-text)] min-h-screen relative selection:bg-[var(--color-primary)] selection:text-white" 
   data-theme={$activeTheme}
-  style="perspective: 1200px;"
 >
   <!-- ThemeSwitcher rendered first to manage initial theme setup -->
   <ThemeSwitcher />
@@ -153,18 +150,19 @@
     bind:this={mainContent} 
     class="main-content-assembly {(isLoading || !$themeInitialized) ? 'opacity-0' : 'opacity-100'}"
   >
-    <CustomCursor />
-    <Header />
-    
-    <main bind:this={viewContainer} class="view-wrapper pt-32 pb-40 px-6 md:px-12 w-full max-w-7xl mx-auto">
+    <main class="view-wrapper pt-32 pb-40 px-6 md:px-12 w-full max-w-7xl mx-auto">
       <PageTransition url={$currentView}>
         <svelte:component this={viewMap[$currentView]} />
       </PageTransition>
     </main>
+  </div>
 
+  {#if !isLoading && $themeInitialized}
+    <CustomCursor />
+    <Header />
     <MusicPlayer />
     <LiquidBar class="liquid-bar-dock" />
-  </div>
+  {/if}
 
   {#if $activeModal === 'auth'}
     <AuthModal />

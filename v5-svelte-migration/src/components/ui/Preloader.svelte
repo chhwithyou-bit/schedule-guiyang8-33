@@ -13,6 +13,11 @@
 
   let counterTl: gsap.core.Timeline;
   let isFinishing = false;
+  let mountedAt = 0;
+  let isMounted = false;
+  let completionTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const MIN_VISIBLE_MS = 1400;
 
   /**
    * REVOLUTIONARY LOADING STRATEGY
@@ -22,11 +27,26 @@
    */
   
   onMount(() => {
+    isMounted = true;
+    mountedAt = performance.now();
     startInitialCounter();
+
+    if ($themeInitialized && !isFinishing) {
+      scheduleCompletion();
+    }
+
+    return () => {
+      if (completionTimer) {
+        clearTimeout(completionTimer);
+      }
+      if (counterTl) {
+        try { counterTl.kill(); } catch (e) {}
+      }
+    };
   });
 
-  $: if ($themeInitialized && !isFinishing) {
-    completeLoading();
+  $: if (isMounted && $themeInitialized && !isFinishing) {
+    scheduleCompletion();
   }
 
   function startInitialCounter() {
@@ -59,8 +79,25 @@
     displayValue = val < 10 ? `0${val}` : `${val}`;
   }
 
+  function scheduleCompletion() {
+    if (completionTimer || isFinishing) return;
+
+    const elapsed = performance.now() - mountedAt;
+    const delay = Math.max(0, MIN_VISIBLE_MS - elapsed);
+
+    completionTimer = setTimeout(() => {
+      completionTimer = null;
+      completeLoading();
+    }, delay);
+  }
+
   async function completeLoading() {
     isFinishing = true;
+
+    if (completionTimer) {
+      clearTimeout(completionTimer);
+      completionTimer = null;
+    }
     
     // If the counter is still running, fast-forward it
     if (counterTl) {

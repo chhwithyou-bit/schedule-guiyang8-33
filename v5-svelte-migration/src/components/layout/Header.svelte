@@ -1,8 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { fade, fly } from 'svelte/transition';
 
-  import { user, isAuthenticated, isAdmin } from '../../stores/appState';
+  import { user, isAuthenticated, isAdmin, selectedProfile } from '../../stores/appState';
   import { openModal } from '../../stores/modalState';
 
   let y = 0;
@@ -22,10 +21,16 @@
     }
 
     // Basic scroll hide/show logic
-    window.addEventListener('scroll', () => {
+    const handleScroll = () => {
       isVisible = y < lastY || y < 60;
       lastY = y;
-    });
+    };
+
+    window.addEventListener('scroll', handleScroll);
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
   });
 </script>
 
@@ -48,9 +53,7 @@
     <div class="flex items-center gap-6">
       {#if $isAuthenticated}
         <button 
-          on:click={() => {
-            import('../../stores/appState').then(m => m.selectedProfile.set($user))
-          }}
+          on:click={() => selectedProfile.set($user)}
           class="w-10 h-10 flex items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 hover:scale-110 transition-transform overflow-hidden shadow-sm"
         >
           {#if $user.avatar_url}
