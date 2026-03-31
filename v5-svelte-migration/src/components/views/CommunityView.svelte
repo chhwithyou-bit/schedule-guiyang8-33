@@ -12,9 +12,11 @@
   let posts: any[] = [];
   let loading = true;
   let query = '';
+  let announcement: { content?: string; updatedAt?: string } | null = null;
 
   onMount(() => {
     fetchPosts();
+    fetchAnnouncement();
     window.addEventListener('post-created', fetchPosts);
     return () => {
       window.removeEventListener('post-created', fetchPosts);
@@ -42,6 +44,18 @@
   function handleSearch(e: Event) {
     e.preventDefault();
     fetchPosts();
+  }
+
+  async function fetchAnnouncement() {
+    try {
+      const res = await communityFetch('/api/community/announcement');
+      const data = await res.json();
+      if (data.ok) {
+        announcement = data.announcement;
+      }
+    } catch (e) {
+      console.error('Failed to fetch announcement', e);
+    }
   }
 
   function openComposer() {
@@ -119,6 +133,24 @@
       </div>
     </div>
   </section>
+
+  {#if announcement?.content}
+    <section class="mb-10 rounded-[32px] border border-white/10 bg-[rgba(255,255,255,0.05)] px-6 py-5 shadow-2xl backdrop-blur-xl">
+      <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <p class="text-[10px] font-black uppercase tracking-[0.28em] opacity-35">Community Broadcast</p>
+          <p class="mt-2 max-w-3xl text-sm font-medium leading-7 opacity-80 md:text-base">
+            {announcement.content}
+          </p>
+        </div>
+        {#if announcement.updatedAt}
+          <p class="text-[10px] font-black uppercase tracking-[0.22em] opacity-30">
+            {new Date(announcement.updatedAt).toLocaleString('zh-CN')}
+          </p>
+        {/if}
+      </div>
+    </section>
+  {/if}
 
   <div class="mb-12 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
     <div>

@@ -14,6 +14,10 @@
     url: '',
     cover: null
   };
+  const PANEL_MARGIN = 12;
+  const CLOSED_PANEL_SIZE_REM = 3.75;
+  const OPEN_PANEL_WIDTH_REM = 21.5;
+  const PANEL_RESYNC_DELAY_MS = 340;
 
   let audioEl: HTMLAudioElement;
   let widgetEl: HTMLDivElement;
@@ -43,6 +47,7 @@
   let dragOffsetX = 0;
   let dragOffsetY = 0;
   let dragMoved = false;
+  let panelResyncTimer: ReturnType<typeof setTimeout> | null = null;
 
   $: filteredTracks = playlist.filter((track) => {
     const needle = search.trim().toLowerCase();
@@ -72,6 +77,7 @@
 
     return () => {
       window.removeEventListener('resize', handleResize);
+      clearPanelResyncTimer();
 
       if (audioEl) {
         audioEl.pause();
@@ -307,30 +313,97 @@
     await tick();
     if (!widgetEl || typeof window === 'undefined') return;
 
+    const { width, height } = getPanelDimensions();
+
     if (!panelReady || reset) {
-      panelLeft = Math.min(24, Math.max(12, window.innerWidth - widgetEl.offsetWidth - 12));
-      panelTop = Math.max(12, window.innerHeight - widgetEl.offsetHeight - 24);
+      panelLeft = getDockedPanelLeft(width);
+      panelTop = getDockedPanelTop(height);
       panelReady = true;
+    } else if (isOpen) {
+      panelLeft = Math.min(panelLeft, getDockedPanelLeft(width));
     }
 
-    clampPanelToViewport();
+    clampPanelToViewport(width, height);
+    schedulePanelResync();
   }
 
-  function clampPanelToViewport() {
+  function getRootFontSize() {
+    if (typeof window === 'undefined') return 16;
+    const rootFontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize || '16');
+    return Number.isFinite(rootFontSize) ? rootFontSize : 16;
+  }
+
+  function getPreferredPanelWidth() {
+    const rootFontSize = getRootFontSize();
+    const compactWidth = CLOSED_PANEL_SIZE_REM * rootFontSize;
+    if (!isOpen || typeof window === 'undefined') return compactWidth;
+    return Math.min(OPEN_PANEL_WIDTH_REM * rootFontSize, window.innerWidth - 24);
+  }
+
+  function getPanelDockInset() {
+    if (typeof window === 'undefined') return 24;
+    if (!isOpen) return 24;
+    return Math.min(88, Math.max(40, Math.round(window.innerWidth * 0.05)));
+  }
+
+  function getDockedPanelLeft(width: number) {
+    if (typeof window === 'undefined') return PANEL_MARGIN;
+    return Math.max(PANEL_MARGIN, window.innerWidth - width - getPanelDockInset());
+  }
+
+  function getDockedPanelTop(height: number) {
+    if (typeof window === 'undefined') return PANEL_MARGIN;
+    return Math.max(PANEL_MARGIN, window.innerHeight - height - 24);
+  }
+
+  function getPanelDimensions() {
+    if (!widgetEl) {
+      return {
+        width: getPreferredPanelWidth(),
+        height: CLOSED_PANEL_SIZE_REM * getRootFontSize()
+      };
+    }
+
+    const rect = widgetEl.getBoundingClientRect();
+    const fallbackSize = CLOSED_PANEL_SIZE_REM * getRootFontSize();
+
+    return {
+      width: Math.max(rect.width || 0, getPreferredPanelWidth()),
+      height: Math.max(rect.height || 0, fallbackSize)
+    };
+  }
+
+  function clearPanelResyncTimer() {
+    if (panelResyncTimer === null) return;
+    clearTimeout(panelResyncTimer);
+    panelResyncTimer = null;
+  }
+
+  function schedulePanelResync() {
+    if (typeof window === 'undefined') return;
+    clearPanelResyncTimer();
+    panelResyncTimer = window.setTimeout(() => {
+      panelResyncTimer = null;
+      if (isDraggingWidget) return;
+      clampPanelToViewport();
+    }, PANEL_RESYNC_DELAY_MS);
+  }
+
+  function clampPanelToViewport(width = getPanelDimensions().width, height = getPanelDimensions().height) {
     if (!widgetEl || typeof window === 'undefined') return;
 
-    const margin = 12;
-    const maxLeft = Math.max(margin, window.innerWidth - widgetEl.offsetWidth - margin);
-    const maxTop = Math.max(margin, window.innerHeight - widgetEl.offsetHeight - margin);
+    const maxLeft = Math.max(PANEL_MARGIN, window.innerWidth - width - PANEL_MARGIN);
+    const maxTop = Math.max(PANEL_MARGIN, window.innerHeight - height - PANEL_MARGIN);
 
-    panelLeft = Math.min(maxLeft, Math.max(margin, panelLeft));
-    panelTop = Math.min(maxTop, Math.max(margin, panelTop));
+    panelLeft = Math.min(maxLeft, Math.max(PANEL_MARGIN, panelLeft));
+    panelTop = Math.min(maxTop, Math.max(PANEL_MARGIN, panelTop));
   }
 
   function handleDragPointerDown(event: PointerEvent) {
     if (!widgetEl) return;
     event.preventDefault();
     event.stopPropagation();
+    clearPanelResyncTimer();
 
     dragPointerId = event.pointerId;
     dragCaptureEl = event.currentTarget as HTMLElement;
@@ -402,8 +475,8 @@
   id="mp"
   class:open={isOpen}
   class:dragging={isDraggingWidget}
-  class="fixed z-[10050] overflow-visible border shadow-2xl transition-[width,height,box-shadow] duration-300 ease-[cubic-bezier(0.2,1.14,0.24,1)]"
-  style="left: {panelLeft}px; top: {panelTop}px; width: {isOpen ? 'min(24rem, calc(100vw - 1.5rem))' : '3.75rem'};"
+  class="fixed z-[10050] overflow-visible transition-[width,height,box-shadow] duration-300 ease-[cubic-bezier(0.2,1.14,0.24,1)]"
+  style="left: {panelLeft}px; top: {panelTop}px; width: {isOpen ? 'min(21.5rem, calc(100vw - 1.5rem))' : '3.75rem'};"
   on:click={() => !isOpen && togglePlayer()}
   on:keydown={(event) => !isOpen && event.key === 'Enter' && togglePlayer()}
   role="button"
@@ -416,7 +489,6 @@
     type="button"
     aria-label="Drag music player"
     on:pointerdown={handleDragPointerDown}
-    on:click|stopPropagation
   >
     <span></span>
     <span></span>
@@ -584,10 +656,6 @@
 </div>
 
 <style>
-  #mp {
-    border-color: rgba(245, 239, 224, 0.12);
-  }
-
   #mp.dragging {
     box-shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
   }
@@ -606,21 +674,21 @@
 
   .mp-drag-handle {
     position: absolute;
-    top: -0.72rem;
-    left: 50%;
+    top: 0;
+    left: 0;
     display: flex;
     gap: 0.18rem;
     align-items: center;
     justify-content: center;
-    width: 3.2rem;
-    height: 1.2rem;
-    border: 1px solid rgba(245, 239, 224, 0.12);
-    border-radius: 999px;
-    background: rgba(var(--color-bg-rgb), 0.98);
-    color: rgba(245, 239, 224, 0.55);
-    transform: translateX(-50%);
+    width: 100%;
+    height: 100%;
+    border: none;
+    border-radius: inherit;
+    background: transparent;
+    color: transparent;
     cursor: grab;
     touch-action: none;
+    z-index: 5;
   }
 
   .mp-drag-handle:active {
@@ -628,21 +696,33 @@
   }
 
   .mp-drag-handle span {
-    width: 0.28rem;
-    height: 0.28rem;
+    width: 0.36rem;
+    height: 0.12rem;
     border-radius: 999px;
     background: currentColor;
-    opacity: 0.72;
+    opacity: 0;
   }
 
   .mp-drag-handle.open {
-    width: 3.8rem;
+    top: 0.45rem;
+    left: 50%;
+    width: 4.25rem;
+    height: 1.15rem;
+    transform: translateX(-50%);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(245, 239, 224, 0.5);
+  }
+
+  .mp-drag-handle.open span {
+    opacity: 0.8;
   }
 
   .mp-shell {
     background: rgba(var(--color-bg-rgb), 0.985);
     color: var(--color-text);
     backdrop-filter: blur(22px);
+    border: 1px solid rgba(245, 239, 224, 0.12);
   }
 
   .mp-shell.closed {
@@ -687,7 +767,7 @@
   }
 
   .mp-content {
-    padding: 0.55rem;
+    padding: 1.6rem 0.65rem 0.65rem;
   }
 
   .mp-topline {
@@ -942,7 +1022,7 @@
 
   @media (max-width: 768px) {
     .mp-content {
-      padding: 0.45rem;
+      padding: 1.45rem 0.5rem 0.5rem;
     }
 
     .mp-topline {
