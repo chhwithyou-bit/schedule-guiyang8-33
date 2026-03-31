@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { fade, fly } from 'svelte/transition';
-  import AnimatedHeading from '../ui/AnimatedHeading.svelte';
+  import CommunityWordmark from '../ui/CommunityWordmark.svelte';
   import PostCard from './PostCard.svelte';
   import PostDetail from './PostDetail.svelte';
   import ProfileView from './ProfileView.svelte';
@@ -71,14 +71,16 @@
 <div class="community-view">
   <section class="mb-10 grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(22rem,0.95fr)] xl:items-end">
     <div>
-      <AnimatedHeading text="社区广场" className="text-[10vw] md:text-[8vw]" />
+      <h1 class="sr-only">8community</h1>
+      <p class="text-[10px] font-black uppercase tracking-[0.32em] opacity-35">正在发生</p>
+      <CommunityWordmark class="mt-3 max-w-[min(56rem,100%)]" />
       <p class="mt-4 max-w-2xl text-sm font-medium leading-7 opacity-70 md:text-base">
-        近况、照片、碎碎念都可以直接发。入口就放在这里，不用再去底部菜单里翻。
+        近况、照片、碎碎念都能直接发。入口已经提到上面，抬手就能写，不用再去底下翻。
       </p>
       <div class="mt-5 flex flex-wrap gap-3">
-        <span class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[11px] font-black uppercase tracking-[0.2em] opacity-70">发近况</span>
-        <span class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[11px] font-black uppercase tracking-[0.2em] opacity-70">带图片</span>
-        <span class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[11px] font-black uppercase tracking-[0.2em] opacity-70">能搜索</span>
+        <span class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[11px] font-black uppercase tracking-[0.2em] opacity-70">说近况</span>
+        <span class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[11px] font-black uppercase tracking-[0.2em] opacity-70">挂图片</span>
+        <span class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[11px] font-black uppercase tracking-[0.2em] opacity-70">找得到</span>
       </div>
     </div>
 

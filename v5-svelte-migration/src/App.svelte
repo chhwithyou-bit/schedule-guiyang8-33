@@ -77,10 +77,14 @@
 
       // 3. Elements rising from water
       tl.from(".liquid-bar-dock", {
-        y: 150,
+        x: -56,
+        y: -28,
+        scale: 0.88,
+        rotate: -5,
         opacity: 0,
-        duration: 1.2,
-        ease: "elastic.out(1, 0.7)"
+        duration: 1.15,
+        ease: "expo.out",
+        transformOrigin: "top left"
       }, "-=1.4");
 
       tl.from("header", {
@@ -151,7 +155,7 @@
     bind:this={mainContent} 
     class="main-content-assembly {(isLoading || !$themeInitialized) ? 'opacity-0' : 'opacity-100'}"
   >
-    <main class="view-wrapper pt-32 pb-40 px-6 md:px-12 w-full max-w-7xl mx-auto">
+    <main class="view-wrapper pt-40 pb-40 px-6 md:px-12 md:pt-44 w-full max-w-7xl mx-auto">
       <PageTransition url={$currentView}>
         <svelte:component this={viewMap[$currentView]} />
       </PageTransition>
