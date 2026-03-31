@@ -4,12 +4,21 @@
 
 @layer base {
   :root {
-    --color-primary: #111;
-    --color-secondary: #666;
-    --color-bg: #ffffff;
-    --color-bg-rgb: 255, 255, 255;
-    --color-text: #000000;
-    --color-accent: #333;
+    --color-primary: #f5efe0;
+    --color-secondary: #6FC994;
+    --color-bg: #020029;
+    --color-bg-rgb: 2, 0, 41;
+    --color-text: #f5efe0;
+    --color-accent: #3a3d5e;
+  }
+
+  :root[data-theme="theme-default"] {
+    --color-primary: #f5efe0;
+    --color-secondary: #6FC994;
+    --color-bg: #020029;
+    --color-bg-rgb: 2, 0, 41;
+    --color-text: #f5efe0;
+    --color-accent: #3a3d5e;
   }
 
   :root[data-theme="theme-spring"] {

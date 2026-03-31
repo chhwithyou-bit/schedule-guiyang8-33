@@ -11,8 +11,8 @@
   let loading = true;
   let query = '';
 
-  onMount(async () => {
-    await fetchPosts();
+  onMount(() => {
+    fetchPosts();
     window.addEventListener('post-created', fetchPosts);
     return () => {
       window.removeEventListener('post-created', fetchPosts);
