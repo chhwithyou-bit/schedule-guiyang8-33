@@ -67,7 +67,7 @@
 
   onMount(() => {
     void loadPlaylist();
-    void syncPanelPosition(true);
+    void syncPanelPosition({ reset: true });
 
     const handleResize = () => {
       clampPanelToViewport();
@@ -192,7 +192,7 @@
       search = '';
     }
 
-    await syncPanelPosition();
+    await syncPanelPosition({ preserveTop: isOpen });
   }
 
   async function collapsePlayer(event: Event) {
@@ -271,7 +271,7 @@
     event.stopPropagation();
     if (!isOpen) isOpen = true;
     isListOpen = !isListOpen;
-    await syncPanelPosition();
+    await syncPanelPosition({ preserveTop: true });
   }
 
   function handleTimeUpdate() {
@@ -309,10 +309,11 @@
     progress = duration > 0 ? (targetValue / duration) * 100 : 0;
   }
 
-  async function syncPanelPosition(reset = false) {
+  async function syncPanelPosition(options: { reset?: boolean; preserveTop?: boolean } = {}) {
     await tick();
     if (!widgetEl || typeof window === 'undefined') return;
 
+    const { reset = false, preserveTop = false } = options;
     const { width, height } = getPanelDimensions();
 
     if (!panelReady || reset) {
@@ -323,7 +324,12 @@
       panelLeft = Math.min(panelLeft, getDockedPanelLeft(width));
     }
 
-    clampPanelToViewport(width, height);
+    if (preserveTop) {
+      clampPanelHorizontally(width);
+    } else {
+      clampPanelToViewport(width, height);
+    }
+
     schedulePanelResync();
   }
 
@@ -397,6 +403,12 @@
 
     panelLeft = Math.min(maxLeft, Math.max(PANEL_MARGIN, panelLeft));
     panelTop = Math.min(maxTop, Math.max(PANEL_MARGIN, panelTop));
+  }
+
+  function clampPanelHorizontally(width = getPanelDimensions().width) {
+    if (!widgetEl || typeof window === 'undefined') return;
+    const maxLeft = Math.max(PANEL_MARGIN, window.innerWidth - width - PANEL_MARGIN);
+    panelLeft = Math.min(maxLeft, Math.max(PANEL_MARGIN, panelLeft));
   }
 
   function handleDragPointerDown(event: PointerEvent) {
@@ -475,7 +487,7 @@
   id="mp"
   class:open={isOpen}
   class:dragging={isDraggingWidget}
-  class="fixed z-[10050] overflow-visible transition-[width,height,box-shadow] duration-300 ease-[cubic-bezier(0.2,1.14,0.24,1)]"
+  class="fixed z-[10050] overflow-visible transition-[left,top,width,height,box-shadow] duration-300 ease-[cubic-bezier(0.2,1.14,0.24,1)]"
   style="left: {panelLeft}px; top: {panelTop}px; width: {isOpen ? 'min(21.5rem, calc(100vw - 1.5rem))' : '3.75rem'};"
   on:click={() => !isOpen && togglePlayer()}
   on:keydown={(event) => !isOpen && event.key === 'Enter' && togglePlayer()}
@@ -656,8 +668,23 @@
 </div>
 
 <style>
+  #mp {
+    border-radius: 999px;
+    outline: none;
+  }
+
+  #mp.open {
+    border-radius: 30px;
+  }
+
+  #mp:focus,
+  #mp:focus-visible {
+    outline: none;
+  }
+
   #mp.dragging {
-    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
+    box-shadow: var(--shadow-float-token);
+    transition-duration: 0s;
   }
 
   .mp-sr-only {

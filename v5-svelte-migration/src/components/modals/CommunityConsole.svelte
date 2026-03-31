@@ -1,0 +1,1166 @@
+<script lang="ts">
+  import { fade, fly } from 'svelte/transition';
+  import { closeModal, openModal } from '../../stores/modalState';
+  import { currentView, isAdmin, isAuthenticated, selectedProfile, user } from '../../stores/appState';
+  import { communityFetch, persistCommunitySession } from '../../lib/communityApi';
+  import { communityConsoleState, resetCommunityConsoleState, setCommunityConsoleState } from '../../stores/communityConsoleState';
+
+  type TabId = 'account' | 'chats' | 'groups' | 'drive' | 'notifications';
+
+  type Conversation = {
+    id: string;
+    kind: 'direct' | 'group';
+    title: string;
+    description?: string;
+    avatar_url?: string;
+    unread_count?: number;
+    last_message?: string;
+    last_sender_name?: string;
+    last_message_at?: string;
+    member_count?: number;
+  };
+
+  type Message = {
+    id: string;
+    conversation_id: string;
+    sender_id?: string;
+    content: string;
+    created_at?: string;
+    sender?: {
+      id?: string;
+      username?: string;
+      avatar_url?: string;
+      role?: string;
+      level?: number;
+      xp?: number;
+    } | null;
+  };
+
+  type DriveItem = {
+    id: string;
+    name: string;
+    size?: number;
+    mime_type?: string;
+    url?: string;
+    parent_id?: string | null;
+    is_folder?: number | boolean;
+    created_at?: string;
+    updated_at?: string;
+  };
+
+  type DriveStats = {
+    quota_bytes?: number;
+    used_bytes?: number;
+  };
+
+  type NotificationItem = {
+    id: string;
+    type: string;
+    target_id?: string | null;
+    created_at?: string;
+    username?: string;
+    avatar_url?: string;
+  };
+
+  const tabs: Array<{ id: TabId; label: string }> = [
+    { id: 'account', label: 'Account' },
+    { id: 'chats', label: 'Chats' },
+    { id: 'groups', label: 'Groups' },
+    { id: 'drive', label: 'Drive' },
+    { id: 'notifications', label: 'Alerts' }
+  ];
+
+  let activeTab: TabId = 'account';
+  let authPrompt = '';
+
+  let profileForm = {
+    signature: '',
+    avatar_url: '',
+    background_url: ''
+  };
+  let savingProfile = false;
+  let profileMessage = '';
+  let groupForm = {
+    title: '',
+    description: ''
+  };
+  let creatingGroup = false;
+  let groupMessage = '';
+
+  let conversations: Conversation[] = [];
+  let selectedConversationId = '';
+  let selectedConversation: Conversation | null = null;
+  let groupConversations: Conversation[] = [];
+  let directConversations: Conversation[] = [];
+  let messages: Message[] = [];
+  let loadingChats = false;
+  let loadingMessages = false;
+  let chatError = '';
+  let messageDraft = '';
+  let sendingMessage = false;
+
+  let driveStats: DriveStats = { quota_bytes: 0, used_bytes: 0 };
+  let driveUsagePercent = 0;
+  let driveItems: DriveItem[] = [];
+  let drivePath: Array<{ id: string | null; name: string }> = [{ id: null, name: 'Root' }];
+  let loadingDrive = false;
+  let driveError = '';
+  let uploadingDrive = false;
+
+  let notifications: NotificationItem[] = [];
+  let loadingNotifications = false;
+  let notificationError = '';
+
+  let initializedForUserId = '';
+
+  $: if ($user) {
+    profileForm = {
+      signature: $user.signature || '',
+      avatar_url: $user.avatar_url || '',
+      background_url: $user.background_url || ''
+    };
+  }
+
+  $: if ($isAuthenticated && $user?.id && initializedForUserId !== $user.id) {
+    initializedForUserId = $user.id;
+    void bootstrapConsole();
+  }
+
+  $: if ($communityConsoleState.tab && activeTab !== $communityConsoleState.tab) {
+    activeTab = $communityConsoleState.tab;
+  }
+
+  $: if (!$isAuthenticated) {
+    initializedForUserId = '';
+    conversations = [];
+    selectedConversationId = '';
+    messages = [];
+    driveItems = [];
+    notifications = [];
+    drivePath = [{ id: null, name: 'Root' }];
+  }
+
+  function requireAuth(message: string) {
+    authPrompt = message;
+    activeTab = 'account';
+    setCommunityConsoleState({ tab: 'account', conversationId: '' });
+  }
+
+  async function bootstrapConsole() {
+    await Promise.allSettled([
+      loadChats(),
+      loadDriveInfo(),
+      loadDriveList(),
+      loadNotifications()
+    ]);
+
+    if ($communityConsoleState.conversationId) {
+      await loadMessages($communityConsoleState.conversationId, $communityConsoleState.tab === 'chats');
+    }
+  }
+
+  async function switchTab(tab: TabId) {
+    if (!$isAuthenticated && tab !== 'account') {
+      requireAuth('登录后才能查看这一块。');
+      return;
+    }
+
+    activeTab = tab;
+    setCommunityConsoleState({ tab, conversationId: selectedConversationId });
+
+    if (tab === 'chats' && conversations.length === 0 && !loadingChats) {
+      await loadChats();
+    }
+
+    if (tab === 'groups' && conversations.length === 0 && !loadingChats) {
+      await loadChats();
+    }
+
+    if (tab === 'drive' && driveItems.length === 0 && !loadingDrive) {
+      await Promise.allSettled([loadDriveInfo(), loadDriveList()]);
+    }
+
+    if (tab === 'notifications' && notifications.length === 0 && !loadingNotifications) {
+      await loadNotifications();
+    }
+  }
+
+  async function loadChats() {
+    if (!$isAuthenticated) return;
+    loadingChats = true;
+    chatError = '';
+
+    try {
+      const res = await communityFetch('/api/community/chats');
+      const data = await res.json();
+      if (!data.ok) {
+        chatError = data.msg || 'Chat list failed to load.';
+        return;
+      }
+
+      conversations = Array.isArray(data.conversations) ? data.conversations : [];
+
+      if (!selectedConversationId && conversations[0]?.id) {
+        selectedConversationId = conversations[0].id;
+        await loadMessages(selectedConversationId, false);
+      } else if (selectedConversationId) {
+        const stillExists = conversations.find((item) => item.id === selectedConversationId);
+        if (stillExists) {
+          await loadMessages(selectedConversationId, false);
+        } else {
+          selectedConversationId = '';
+          messages = [];
+          setCommunityConsoleState({ conversationId: '' });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load chats', error);
+      chatError = 'Chat list failed to load.';
+    } finally {
+      loadingChats = false;
+    }
+  }
+
+  async function loadMessages(conversationId: string, activateTab = true) {
+    if (!$isAuthenticated || !conversationId) return;
+    loadingMessages = true;
+    chatError = '';
+
+    try {
+      const res = await communityFetch(`/api/community/chats/messages?conversation_id=${encodeURIComponent(conversationId)}`);
+      const data = await res.json();
+      if (!data.ok) {
+        chatError = data.msg || 'Messages failed to load.';
+        return;
+      }
+
+      selectedConversationId = conversationId;
+      messages = Array.isArray(data.messages) ? data.messages : [];
+      conversations = conversations.map((item) =>
+        item.id === conversationId ? { ...item, unread_count: 0 } : item
+      );
+      setCommunityConsoleState({
+        tab: activateTab ? 'chats' : activeTab,
+        conversationId
+      });
+    } catch (error) {
+      console.error('Failed to load messages', error);
+      chatError = 'Messages failed to load.';
+    } finally {
+      loadingMessages = false;
+    }
+  }
+
+  async function sendMessage() {
+    const content = messageDraft.trim();
+    if (!$isAuthenticated) {
+      requireAuth('登录后才能发消息。');
+      return;
+    }
+    if (!selectedConversationId || !content || sendingMessage) return;
+
+    sendingMessage = true;
+    chatError = '';
+
+    try {
+      const res = await communityFetch('/api/community/chats/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversation_id: selectedConversationId,
+          content
+        })
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        chatError = data.msg || 'Message failed to send.';
+        return;
+      }
+
+      messages = [...messages, data.message];
+      conversations = conversations.map((item) =>
+        item.id === selectedConversationId
+          ? {
+              ...item,
+              last_message: content,
+              last_sender_name: $user?.username || 'You',
+              last_message_at: data.message?.created_at
+            }
+          : item
+      );
+      messageDraft = '';
+    } catch (error) {
+      console.error('Failed to send message', error);
+      chatError = 'Message failed to send.';
+    } finally {
+      sendingMessage = false;
+    }
+  }
+
+  async function loadDriveInfo() {
+    if (!$isAuthenticated) return;
+
+    try {
+      const res = await communityFetch('/api/community/drive/info');
+      const data = await res.json();
+      if (data.ok) {
+        driveStats = data.stats || { quota_bytes: 0, used_bytes: 0 };
+      } else {
+        driveError = data.msg || 'Drive info failed to load.';
+      }
+    } catch (error) {
+      console.error('Failed to load drive info', error);
+      driveError = 'Drive info failed to load.';
+    }
+  }
+
+  async function loadDriveList(parentId: string | null = drivePath[drivePath.length - 1]?.id || null) {
+    if (!$isAuthenticated) return;
+    loadingDrive = true;
+    driveError = '';
+
+    try {
+      const query = parentId ? `?parent_id=${encodeURIComponent(parentId)}` : '';
+      const res = await communityFetch(`/api/community/drive/list${query}`);
+      const data = await res.json();
+      if (!data.ok) {
+        driveError = data.msg || 'Drive list failed to load.';
+        return;
+      }
+      driveItems = Array.isArray(data.files) ? data.files : [];
+    } catch (error) {
+      console.error('Failed to load drive list', error);
+      driveError = 'Drive list failed to load.';
+    } finally {
+      loadingDrive = false;
+    }
+  }
+
+  async function enterFolder(item: DriveItem) {
+    drivePath = [...drivePath, { id: item.id, name: item.name }];
+    await loadDriveList(item.id);
+  }
+
+  async function goToDrivePath(index: number) {
+    drivePath = drivePath.slice(0, index + 1);
+    await loadDriveList(drivePath[drivePath.length - 1]?.id || null);
+  }
+
+  async function createFolder() {
+    if (!$isAuthenticated) {
+      requireAuth('登录后才能创建文件夹。');
+      return;
+    }
+
+    const name = prompt('Folder name');
+    if (!name || !name.trim()) return;
+
+    try {
+      const res = await communityFetch('/api/community/drive/mkdir', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: name.trim(),
+          parent_id: drivePath[drivePath.length - 1]?.id || null
+        })
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        driveError = data.msg || 'Folder creation failed.';
+        return;
+      }
+      await loadDriveList();
+    } catch (error) {
+      console.error('Failed to create folder', error);
+      driveError = 'Folder creation failed.';
+    }
+  }
+
+  async function renameDriveItem(item: DriveItem) {
+    const nextName = prompt('Rename item', item.name);
+    if (!nextName || !nextName.trim() || nextName.trim() === item.name) return;
+
+    try {
+      const res = await communityFetch('/api/community/drive/rename', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: item.id, name: nextName.trim() })
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        driveError = data.msg || 'Rename failed.';
+        return;
+      }
+      await loadDriveList();
+    } catch (error) {
+      console.error('Failed to rename drive item', error);
+      driveError = 'Rename failed.';
+    }
+  }
+
+  async function deleteDriveItem(item: DriveItem) {
+    if (!confirm(`Delete ${item.name}?`)) return;
+
+    try {
+      const res = await communityFetch('/api/community/drive/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: [item.id] })
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        driveError = data.msg || 'Delete failed.';
+        return;
+      }
+      await Promise.allSettled([loadDriveInfo(), loadDriveList()]);
+    } catch (error) {
+      console.error('Failed to delete drive item', error);
+      driveError = 'Delete failed.';
+    }
+  }
+
+  async function handleDriveUpload(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    if (!$isAuthenticated) {
+      requireAuth('登录后才能上传文件。');
+      input.value = '';
+      return;
+    }
+
+    uploadingDrive = true;
+    driveError = '';
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const parentId = drivePath[drivePath.length - 1]?.id;
+      if (parentId) formData.append('parent_id', parentId);
+
+      const res = await communityFetch('/api/community/drive/upload', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        driveError = data.msg || 'Upload failed.';
+        return;
+      }
+      await Promise.allSettled([loadDriveInfo(), loadDriveList()]);
+    } catch (error) {
+      console.error('Failed to upload drive file', error);
+      driveError = 'Upload failed.';
+    } finally {
+      uploadingDrive = false;
+      input.value = '';
+    }
+  }
+
+  async function loadNotifications() {
+    if (!$isAuthenticated) return;
+    loadingNotifications = true;
+    notificationError = '';
+
+    try {
+      const res = await communityFetch('/api/community/notifications');
+      const data = await res.json();
+      if (!data.ok) {
+        notificationError = data.msg || 'Alerts failed to load.';
+        return;
+      }
+      notifications = Array.isArray(data.notifications) ? data.notifications : [];
+    } catch (error) {
+      console.error('Failed to load notifications', error);
+      notificationError = 'Alerts failed to load.';
+    } finally {
+      loadingNotifications = false;
+    }
+  }
+
+  async function saveProfile() {
+    if (!$isAuthenticated) {
+      requireAuth('登录后才能保存资料。');
+      return;
+    }
+    savingProfile = true;
+    profileMessage = '';
+
+    try {
+      const res = await communityFetch('/api/community/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(profileForm)
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        profileMessage = data.msg || 'Profile save failed.';
+        return;
+      }
+
+      const nextUser = {
+        ...$user,
+        ...profileForm
+      };
+      user.set(nextUser);
+      persistCommunitySession(nextUser);
+      profileMessage = 'Profile updated.';
+    } catch (error) {
+      console.error('Failed to save profile', error);
+      profileMessage = 'Profile save failed.';
+    } finally {
+      savingProfile = false;
+    }
+  }
+
+  function openMyProfile() {
+    if (!$user) return;
+    selectedProfile.set($user);
+    handleClose();
+  }
+
+  function openAuth() {
+    openModal('auth');
+  }
+
+  function logout() {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('commUser');
+    }
+    resetCommunityConsoleState();
+    user.set(null);
+    isAuthenticated.set(false);
+    isAdmin.set(false);
+    closeModal();
+  }
+
+  async function createGroup() {
+    const title = groupForm.title.trim();
+    const description = groupForm.description.trim();
+
+    if (!$isAuthenticated) {
+      requireAuth('登录后才能创建群组。');
+      return;
+    }
+    if (!title || creatingGroup) {
+      groupMessage = '请输入群组名称。';
+      return;
+    }
+
+    creatingGroup = true;
+    groupMessage = '';
+
+    try {
+      const res = await communityFetch('/api/community/groups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title,
+          description,
+          member_ids: []
+        })
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        groupMessage = data.msg || 'Group creation failed.';
+        return;
+      }
+
+      groupForm = { title: '', description: '' };
+      groupMessage = 'Group created.';
+      await loadChats();
+      activeTab = 'groups';
+      setCommunityConsoleState({ tab: 'groups', conversationId: data.conversation_id || '' });
+    } catch (error) {
+      console.error('Failed to create group', error);
+      groupMessage = 'Group creation failed.';
+    } finally {
+      creatingGroup = false;
+    }
+  }
+
+  async function openConversation(conversationId: string) {
+    await switchTab('chats');
+    await loadMessages(conversationId);
+  }
+
+  function formatBytes(value = 0) {
+    if (!value) return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    let size = value;
+    let unitIndex = 0;
+    while (size >= 1024 && unitIndex < units.length - 1) {
+      size /= 1024;
+      unitIndex += 1;
+    }
+    return `${size.toFixed(size >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+  }
+
+  function formatDate(value?: string) {
+    if (!value) return '';
+    try {
+      return new Date(value).toLocaleString('zh-CN');
+    } catch {
+      return value;
+    }
+  }
+
+  function formatNotification(type: string) {
+    const map: Record<string, string> = {
+      like: 'liked your post',
+      follow: 'followed you',
+      repost: 'reposted your story',
+      comment: 'commented on your post',
+      message: 'sent you a message'
+    };
+    return map[type] || type;
+  }
+
+  function openNodesView() {
+    currentView.set('nodes');
+    handleClose();
+  }
+
+  $: selectedConversation = conversations.find((item) => item.id === selectedConversationId) || null;
+  $: groupConversations = conversations.filter((item) => item.kind === 'group');
+  $: directConversations = conversations.filter((item) => item.kind === 'direct');
+  $: driveUsagePercent = driveStats.quota_bytes
+    ? Math.min(100, Math.round(((driveStats.used_bytes || 0) / driveStats.quota_bytes) * 100))
+    : 0;
+
+  function handleClose() {
+    resetCommunityConsoleState();
+    closeModal();
+  }
+</script>
+
+<div class="fixed inset-0 z-[10000] flex items-center justify-center p-4 md:p-6" transition:fade={{ duration: 220 }}>
+  <!-- svelte-ignore a11y-click-events-have-key-events -->
+  <!-- svelte-ignore a11y-no-static-element-interactions -->
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-xl" on:click={handleClose}></div>
+
+  <section
+    class="relative z-10 flex h-[min(90vh,56rem)] w-full max-w-6xl flex-col overflow-hidden rounded-[36px] border border-white/10 bg-[rgba(var(--color-bg-rgb),0.96)] text-[var(--color-text)] shadow-2xl backdrop-blur-2xl"
+    transition:fly={{ y: 36, duration: 360 }}
+  >
+    <header class="flex items-center justify-between gap-4 border-b border-white/10 px-5 py-4 md:px-6">
+      <div>
+        <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">Community Console</p>
+        <h2 class="mt-1 text-2xl font-black tracking-tight">用户 / 聊天 / 网盘</h2>
+      </div>
+
+      <div class="flex items-center gap-3">
+        {#if $isAuthenticated}
+          <div class="hidden rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-[0.2em] opacity-70 md:block">
+            {$user?.username || 'member'}
+          </div>
+        {/if}
+        <button type="button" class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={handleClose}>
+          Close
+        </button>
+      </div>
+    </header>
+
+    <div class="grid min-h-0 flex-1 lg:grid-cols-[15rem_minmax(0,1fr)]">
+      <aside class="border-b border-white/10 p-4 lg:border-b-0 lg:border-r">
+        <div class="grid grid-cols-2 gap-2 lg:grid-cols-1">
+          {#each tabs as tab}
+            <button
+              type="button"
+              class="rounded-2xl px-4 py-3 text-left text-xs font-black uppercase tracking-[0.18em] transition-all {activeTab === tab.id ? 'bg-[var(--color-primary)] text-[var(--color-bg)] shadow-lg' : 'border border-white/10 bg-white/5 opacity-75 hover:opacity-100'}"
+              on:click={() => switchTab(tab.id)}
+            >
+              {tab.label}
+            </button>
+          {/each}
+        </div>
+
+        <div class="mt-4 rounded-[28px] border border-white/10 bg-white/5 p-4 text-sm font-medium leading-7 opacity-75">
+          {#if $isAuthenticated}
+            已恢复个人资料、聊天会话、群组加入后的入口和网盘操作。
+          {:else}
+            {authPrompt || '先登录，就能继续使用聊天、用户组会话和网盘。'}
+          {/if}
+        </div>
+
+        <div class="mt-4 flex flex-wrap gap-2">
+          <button type="button" class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={openNodesView}>
+            Discover
+          </button>
+          {#if $isAuthenticated}
+            <button type="button" class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={openMyProfile}>
+              My Profile
+            </button>
+          {/if}
+        </div>
+      </aside>
+
+      <div class="min-h-0 overflow-y-auto p-5 md:p-6">
+        {#if activeTab === 'account'}
+          <div class="space-y-6">
+            {#if !$isAuthenticated}
+              <section class="rounded-[32px] border border-white/10 bg-white/5 p-6 shadow-xl">
+                <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">Account Required</p>
+                <h3 class="mt-3 text-3xl font-black tracking-tight">登录入口已经恢复</h3>
+                <p class="mt-3 max-w-2xl text-sm font-medium leading-7 opacity-70">
+                  现在这里会固定显示账号入口。登录后，聊天会话、群组、网盘和个人资料编辑都会在同一个面板里可见。
+                </p>
+                <div class="mt-5 flex flex-wrap gap-3">
+                  <button type="button" class="rounded-full bg-[var(--color-primary)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105" on:click={openAuth}>
+                    Login / Register
+                  </button>
+                  <button type="button" class="rounded-full border border-white/10 bg-white/5 px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105" on:click={openNodesView}>
+                    Browse Nodes
+                  </button>
+                </div>
+              </section>
+            {:else}
+              <section class="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(20rem,0.95fr)]">
+                <div class="rounded-[32px] border border-white/10 bg-white/5 p-6 shadow-xl">
+                  <div class="flex items-center gap-4">
+                    <div class="flex h-16 w-16 items-center justify-center overflow-hidden rounded-[22px] bg-[var(--color-primary)] text-2xl font-black text-[var(--color-bg)]">
+                      {#if $user?.avatar_url}
+                        <img src={$user.avatar_url} alt={$user?.username || 'user'} class="h-full w-full object-cover" />
+                      {:else}
+                        {$user?.username?.slice(0, 1).toUpperCase() || 'U'}
+                      {/if}
+                    </div>
+
+                    <div class="min-w-0 flex-1">
+                      <h3 class="truncate text-3xl font-black tracking-tight">{$user?.username}</h3>
+                      <p class="mt-1 text-[10px] font-black uppercase tracking-[0.24em] opacity-35">
+                        {$user?.role || 'user'} · LV.{$user?.level || 1} · XP.{$user?.xp || 0}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div class="mt-6 grid gap-4 md:grid-cols-3">
+                    <label class="block">
+                      <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35">Signature</span>
+                      <textarea bind:value={profileForm.signature} class="h-28 w-full rounded-[22px] border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium outline-none transition-colors focus:border-[var(--color-primary)]"></textarea>
+                    </label>
+                    <label class="block">
+                      <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35">Avatar Url</span>
+                      <input bind:value={profileForm.avatar_url} type="text" class="w-full rounded-[22px] border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium outline-none transition-colors focus:border-[var(--color-primary)]" />
+                    </label>
+                    <label class="block">
+                      <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35">Background Url</span>
+                      <input bind:value={profileForm.background_url} type="text" class="w-full rounded-[22px] border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium outline-none transition-colors focus:border-[var(--color-primary)]" />
+                    </label>
+                  </div>
+
+                  <div class="mt-5 flex flex-wrap gap-3">
+                    <button type="button" class="rounded-full bg-[var(--color-primary)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105 disabled:opacity-50" on:click={saveProfile} disabled={savingProfile}>
+                      {savingProfile ? 'Saving...' : 'Save Profile'}
+                    </button>
+                    <button type="button" class="rounded-full border border-white/10 bg-white/5 px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105" on:click={openMyProfile}>
+                      Open Profile
+                    </button>
+                    <button type="button" class="rounded-full border border-red-400/20 bg-red-500/10 px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-red-200 transition-transform hover:scale-105" on:click={logout}>
+                      Logout
+                    </button>
+                  </div>
+
+                  {#if profileMessage}
+                    <p class="mt-4 text-sm font-bold opacity-75">{profileMessage}</p>
+                  {/if}
+                </div>
+
+                <div class="rounded-[32px] border border-white/10 bg-white/5 p-6 shadow-xl">
+                  <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">Quick Status</p>
+                  <div class="mt-4 grid gap-4 md:grid-cols-2">
+                    <div class="rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.04)] p-4">
+                      <p class="text-[10px] font-black uppercase tracking-[0.2em] opacity-35">Conversations</p>
+                      <p class="mt-2 text-2xl font-black tracking-tight">{conversations.length}</p>
+                      <p class="mt-1 text-sm font-medium opacity-65">私聊和群组会话会统一汇总到这里。</p>
+                    </div>
+                    <div class="rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.04)] p-4">
+                      <p class="text-[10px] font-black uppercase tracking-[0.2em] opacity-35">Groups</p>
+                      <p class="mt-2 text-2xl font-black tracking-tight">{groupConversations.length}</p>
+                      <p class="mt-1 text-sm font-medium opacity-65">旧版加入过的群组现在能在控制台里直接打开。</p>
+                    </div>
+                    <div class="rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.04)] p-4">
+                      <p class="text-[10px] font-black uppercase tracking-[0.2em] opacity-35">Drive Usage</p>
+                      <p class="mt-2 text-2xl font-black tracking-tight">{formatBytes(driveStats.used_bytes || 0)}</p>
+                      <p class="mt-1 text-sm font-medium opacity-65">总配额 {formatBytes(driveStats.quota_bytes || 0)}</p>
+                    </div>
+                    <div class="rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.04)] p-4">
+                      <p class="text-[10px] font-black uppercase tracking-[0.2em] opacity-35">Role</p>
+                      <p class="mt-2 text-2xl font-black tracking-tight">{$isAdmin ? 'Admin' : 'Member'}</p>
+                      <p class="mt-1 text-sm font-medium opacity-65">账号入口和资料面板已经恢复为固定 UI。</p>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            {/if}
+          </div>
+        {/if}
+
+        {#if activeTab === 'chats'}
+          {#if !$isAuthenticated}
+            <div class="rounded-[32px] border border-white/10 bg-white/5 p-6 shadow-xl">
+              <p class="text-sm font-bold opacity-70">{authPrompt || '登录后才能查看聊天和群组会话。'}</p>
+              <button type="button" class="mt-4 rounded-full bg-[var(--color-primary)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105" on:click={openAuth}>
+                Login First
+              </button>
+            </div>
+          {:else}
+            <div class="grid min-h-[34rem] gap-5 xl:grid-cols-[18rem_minmax(0,1fr)]">
+              <section class="rounded-[32px] border border-white/10 bg-white/5 p-4 shadow-xl">
+                <div class="mb-4 flex items-center justify-between">
+                  <div>
+                    <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">Conversations</p>
+                    <h3 class="mt-1 text-xl font-black tracking-tight">{conversations.length} active</h3>
+                    <p class="mt-1 text-xs font-medium opacity-55">{directConversations.length} direct · {groupConversations.length} groups</p>
+                  </div>
+                  <button type="button" class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={loadChats}>
+                    Refresh
+                  </button>
+                </div>
+
+                {#if chatError}
+                  <p class="mb-3 rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-200">{chatError}</p>
+                {/if}
+
+                <div class="space-y-3">
+                  {#if loadingChats}
+                    {#each Array(4) as _}
+                      <div class="h-20 animate-pulse rounded-[22px] bg-white/5"></div>
+                    {/each}
+                  {:else if conversations.length > 0}
+                    {#each conversations as item (item.id)}
+                      <button
+                        type="button"
+                        class="flex w-full items-start gap-3 rounded-[22px] border px-4 py-4 text-left transition-colors {selectedConversationId === item.id ? 'border-[var(--color-primary)] bg-[rgba(255,255,255,0.08)]' : 'border-white/10 bg-[rgba(255,255,255,0.04)] hover:bg-[rgba(255,255,255,0.07)]'}"
+                        on:click={() => loadMessages(item.id)}
+                      >
+                        <div class="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-[16px] bg-[var(--color-primary)] font-black text-[var(--color-bg)]">
+                          {#if item.avatar_url}
+                            <img src={item.avatar_url} alt={item.title} class="h-full w-full object-cover" />
+                          {:else}
+                            {item.title?.slice(0, 1).toUpperCase() || '#'}
+                          {/if}
+                        </div>
+                        <div class="min-w-0 flex-1">
+                          <div class="flex items-center justify-between gap-3">
+                            <p class="truncate text-sm font-black">{item.title}</p>
+                            {#if item.unread_count}
+                              <span class="rounded-full bg-[var(--color-primary)] px-2 py-1 text-[10px] font-black text-[var(--color-bg)]">{item.unread_count}</span>
+                            {/if}
+                          </div>
+                          <p class="mt-1 truncate text-xs font-medium opacity-55">{item.last_sender_name ? `${item.last_sender_name}: ` : ''}{item.last_message || item.description || 'No messages yet.'}</p>
+                          <p class="mt-2 text-[10px] font-black uppercase tracking-[0.18em] opacity-30">{item.kind}</p>
+                        </div>
+                      </button>
+                    {/each}
+                  {:else}
+                    <div class="rounded-[24px] border border-white/10 bg-white/5 px-4 py-10 text-center text-sm font-bold opacity-50">
+                      还没有会话。先去 Discover 页加群，或者从用户资料页开始私聊。
+                    </div>
+                  {/if}
+                </div>
+              </section>
+
+              <section class="flex min-h-0 flex-col rounded-[32px] border border-white/10 bg-white/5 p-4 shadow-xl">
+                <div class="mb-4 border-b border-white/10 pb-4">
+                  <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">Thread</p>
+                  <h3 class="mt-1 text-2xl font-black tracking-tight">{selectedConversation?.title || 'Select a conversation'}</h3>
+                  {#if selectedConversation}
+                    <p class="mt-2 text-sm font-medium opacity-65">{selectedConversation.description || '会话详情会在这里显示。'}</p>
+                  {/if}
+                </div>
+
+                <div class="min-h-0 flex-1 overflow-y-auto rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.04)] p-4">
+                  {#if loadingMessages}
+                    <div class="space-y-3">
+                      {#each Array(4) as _}
+                        <div class="h-16 animate-pulse rounded-[20px] bg-white/5"></div>
+                      {/each}
+                    </div>
+                  {:else if messages.length > 0}
+                    <div class="space-y-3">
+                      {#each messages as message (message.id)}
+                        <article class="rounded-[20px] border border-white/10 bg-white/5 px-4 py-3">
+                          <div class="flex items-center justify-between gap-4">
+                            <p class="text-sm font-black">{message.sender?.username || 'System'}</p>
+                            <p class="text-[10px] font-black uppercase tracking-[0.18em] opacity-30">{formatDate(message.created_at)}</p>
+                          </div>
+                          <p class="mt-2 whitespace-pre-wrap text-sm font-medium leading-7 opacity-80">{message.content}</p>
+                        </article>
+                      {/each}
+                    </div>
+                  {:else}
+                    <div class="flex h-full items-center justify-center text-center text-sm font-bold opacity-45">
+                      {selectedConversation ? '这个会话还没有消息。' : '先从左侧选择一个会话。'}
+                    </div>
+                  {/if}
+                </div>
+
+                <div class="mt-4 flex gap-3">
+                  <input
+                    bind:value={messageDraft}
+                    type="text"
+                    placeholder={selectedConversation ? 'Write a message...' : 'Pick a conversation first'}
+                    disabled={!selectedConversation || sendingMessage}
+                    on:keydown={(event) => event.key === 'Enter' && sendMessage()}
+                    class="min-w-0 flex-1 rounded-[20px] border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium outline-none transition-colors focus:border-[var(--color-primary)] disabled:opacity-40"
+                  />
+                  <button
+                    type="button"
+                    disabled={!selectedConversation || !messageDraft.trim() || sendingMessage}
+                    class="rounded-[20px] bg-[var(--color-primary)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105 disabled:cursor-default disabled:opacity-40"
+                    on:click={sendMessage}
+                  >
+                    Send
+                  </button>
+                </div>
+              </section>
+            </div>
+          {/if}
+        {/if}
+
+        {#if activeTab === 'groups'}
+          {#if !$isAuthenticated}
+            <div class="rounded-[32px] border border-white/10 bg-white/5 p-6 shadow-xl">
+              <p class="text-sm font-bold opacity-70">{authPrompt || '登录后才能查看和创建群组。'}</p>
+              <button type="button" class="mt-4 rounded-full bg-[var(--color-primary)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105" on:click={openAuth}>
+                Login First
+              </button>
+            </div>
+          {:else}
+            <div class="grid gap-5 xl:grid-cols-[minmax(22rem,0.9fr)_minmax(0,1.1fr)]">
+              <section class="rounded-[32px] border border-white/10 bg-white/5 p-6 shadow-xl">
+                <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">Create Group</p>
+                <h3 class="mt-2 text-3xl font-black tracking-tight">群组入口已经补回来了</h3>
+                <p class="mt-3 text-sm font-medium leading-7 opacity-70">
+                  这里直接接后端群组接口。你可以新建群组，也可以从右侧打开之前已经加入的会话。
+                </p>
+
+                <div class="mt-5 space-y-4">
+                  <label class="block">
+                    <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35">Title</span>
+                    <input bind:value={groupForm.title} type="text" maxlength="42" class="w-full rounded-[22px] border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium outline-none transition-colors focus:border-[var(--color-primary)]" />
+                  </label>
+                  <label class="block">
+                    <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35">Description</span>
+                    <textarea bind:value={groupForm.description} class="h-32 w-full rounded-[22px] border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium outline-none transition-colors focus:border-[var(--color-primary)]"></textarea>
+                  </label>
+                </div>
+
+                <div class="mt-5 flex flex-wrap gap-3">
+                  <button type="button" class="rounded-full bg-[var(--color-primary)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105 disabled:opacity-50" on:click={createGroup} disabled={creatingGroup}>
+                    {creatingGroup ? 'Creating...' : 'Create Group'}
+                  </button>
+                  <button type="button" class="rounded-full border border-white/10 bg-white/5 px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105" on:click={openNodesView}>
+                    Discover More
+                  </button>
+                </div>
+
+                {#if groupMessage}
+                  <p class="mt-4 text-sm font-bold opacity-75">{groupMessage}</p>
+                {/if}
+              </section>
+
+              <section class="rounded-[32px] border border-white/10 bg-white/5 p-6 shadow-xl">
+                <div class="mb-4 flex items-center justify-between gap-4">
+                  <div>
+                    <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">Joined Groups</p>
+                    <h3 class="mt-1 text-2xl font-black tracking-tight">{groupConversations.length} groups</h3>
+                  </div>
+                  <button type="button" class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={loadChats}>
+                    Refresh
+                  </button>
+                </div>
+
+                <div class="space-y-3">
+                  {#if loadingChats}
+                    {#each Array(4) as _}
+                      <div class="h-24 animate-pulse rounded-[22px] bg-white/5"></div>
+                    {/each}
+                  {:else if groupConversations.length > 0}
+                    {#each groupConversations as item (item.id)}
+                      <article class="rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.04)] p-4">
+                        <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                          <div class="min-w-0">
+                            <div class="flex flex-wrap items-center gap-3">
+                              <h4 class="truncate text-lg font-black tracking-tight">{item.title}</h4>
+                              <span class="rounded-full border border-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] opacity-60">{item.member_count || 0} members</span>
+                            </div>
+                            <p class="mt-2 text-sm font-medium leading-7 opacity-70">{item.description || item.last_message || '这个群组还没有介绍。'}</p>
+                            <p class="mt-3 text-[10px] font-black uppercase tracking-[0.18em] opacity-35">
+                              {item.last_message_at ? `Last active ${formatDate(item.last_message_at)}` : 'No activity yet'}
+                            </p>
+                          </div>
+                          <button type="button" class="rounded-full bg-[var(--color-primary)] px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105" on:click={() => openConversation(item.id)}>
+                            Open Thread
+                          </button>
+                        </div>
+                      </article>
+                    {/each}
+                  {:else}
+                    <div class="rounded-[24px] border border-white/10 bg-white/5 px-4 py-10 text-center text-sm font-bold opacity-50">
+                      还没有已加入的群组。你可以先在这里建群，或者去 Discover 页加入群组。
+                    </div>
+                  {/if}
+                </div>
+              </section>
+            </div>
+          {/if}
+        {/if}
+
+        {#if activeTab === 'drive'}
+          {#if !$isAuthenticated}
+            <div class="rounded-[32px] border border-white/10 bg-white/5 p-6 shadow-xl">
+              <p class="text-sm font-bold opacity-70">{authPrompt || '登录后才能访问网盘。'}</p>
+              <button type="button" class="mt-4 rounded-full bg-[var(--color-primary)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105" on:click={openAuth}>
+                Login First
+              </button>
+            </div>
+          {:else}
+            <div class="space-y-5">
+              <section class="rounded-[32px] border border-white/10 bg-white/5 p-6 shadow-xl">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">Drive Status</p>
+                    <h3 class="mt-2 text-3xl font-black tracking-tight">{formatBytes(driveStats.used_bytes || 0)} / {formatBytes(driveStats.quota_bytes || 0)}</h3>
+                    <p class="mt-2 text-sm font-medium opacity-65">旧网盘接口已接回前端，这里可以直接浏览、上传、重命名和删除。</p>
+                  </div>
+
+                  <div class="flex flex-wrap gap-3">
+                    <label class="cursor-pointer rounded-full bg-[var(--color-primary)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105">
+                      {uploadingDrive ? 'Uploading...' : 'Upload File'}
+                      <input type="file" class="hidden" disabled={uploadingDrive} on:change={handleDriveUpload} />
+                    </label>
+                    <button type="button" class="rounded-full border border-white/10 bg-white/5 px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105" on:click={createFolder}>
+                      New Folder
+                    </button>
+                    <button type="button" class="rounded-full border border-white/10 bg-white/5 px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105" on:click={() => Promise.allSettled([loadDriveInfo(), loadDriveList()])}>
+                      Refresh
+                    </button>
+                  </div>
+                </div>
+
+                <div class="mt-5">
+                  <div class="h-3 overflow-hidden rounded-full bg-white/10">
+                    <div class="h-full rounded-full bg-[var(--color-primary)] transition-[width] duration-300" style="width: {driveUsagePercent}%"></div>
+                  </div>
+                  <p class="mt-2 text-[10px] font-black uppercase tracking-[0.18em] opacity-35">{driveUsagePercent}% used</p>
+                </div>
+              </section>
+
+              <section class="rounded-[32px] border border-white/10 bg-white/5 p-6 shadow-xl">
+                <div class="flex flex-wrap items-center gap-2">
+                  {#each drivePath as crumb, index}
+                    <button type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.04)] px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={() => goToDrivePath(index)}>
+                      {crumb.name}
+                    </button>
+                  {/each}
+                </div>
+
+                {#if driveError}
+                  <p class="mt-4 rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-200">{driveError}</p>
+                {/if}
+
+                <div class="mt-5 space-y-3">
+                  {#if loadingDrive}
+                    {#each Array(5) as _}
+                      <div class="h-20 animate-pulse rounded-[22px] bg-white/5"></div>
+                    {/each}
+                  {:else if driveItems.length > 0}
+                    {#each driveItems as item (item.id)}
+                      <article class="flex flex-col gap-4 rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.04)] p-4 md:flex-row md:items-center md:justify-between">
+                        <div class="min-w-0">
+                          <div class="flex items-center gap-3">
+                            <div class="flex h-11 w-11 items-center justify-center rounded-[16px] bg-[var(--color-primary)] text-sm font-black text-[var(--color-bg)]">
+                              {item.is_folder ? 'DIR' : 'FILE'}
+                            </div>
+                            <div class="min-w-0">
+                              <p class="truncate text-sm font-black">{item.name}</p>
+                              <p class="mt-1 text-[10px] font-black uppercase tracking-[0.18em] opacity-35">
+                                {item.is_folder ? 'folder' : item.mime_type || 'file'} {#if !item.is_folder}· {formatBytes(item.size || 0)}{/if}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="flex flex-wrap gap-2">
+                          {#if item.is_folder}
+                            <button type="button" class="rounded-full bg-[var(--color-primary)] px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105" on:click={() => enterFolder(item)}>
+                              Open
+                            </button>
+                          {:else if item.url}
+                            <a href={item.url} target="_blank" rel="noreferrer" class="rounded-full bg-[var(--color-primary)] px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105">
+                              Open
+                            </a>
+                          {/if}
+                          <button type="button" class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={() => renameDriveItem(item)}>
+                            Rename
+                          </button>
+                          <button type="button" class="rounded-full border border-red-400/20 bg-red-500/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-red-200 transition-transform hover:scale-105" on:click={() => deleteDriveItem(item)}>
+                            Delete
+                          </button>
+                        </div>
+                      </article>
+                    {/each}
+                  {:else}
+                    <div class="rounded-[24px] border border-white/10 bg-white/5 px-4 py-10 text-center text-sm font-bold opacity-50">
+                      这个目录还没有文件。
+                    </div>
+                  {/if}
+                </div>
+              </section>
+            </div>
+          {/if}
+        {/if}
+
+        {#if activeTab === 'notifications'}
+          {#if !$isAuthenticated}
+            <div class="rounded-[32px] border border-white/10 bg-white/5 p-6 shadow-xl">
+              <p class="text-sm font-bold opacity-70">{authPrompt || '登录后才能查看通知。'}</p>
+              <button type="button" class="mt-4 rounded-full bg-[var(--color-primary)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105" on:click={openAuth}>
+                Login First
+              </button>
+            </div>
+          {:else}
+            <section class="rounded-[32px] border border-white/10 bg-white/5 p-6 shadow-xl">
+              <div class="mb-4 flex items-center justify-between gap-4">
+                <div>
+                  <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">Notifications</p>
+                  <h3 class="mt-1 text-2xl font-black tracking-tight">{notifications.length} updates</h3>
+                </div>
+                <button type="button" class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={loadNotifications}>
+                  Refresh
+                </button>
+              </div>
+
+              {#if notificationError}
+                <p class="mb-4 rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-200">{notificationError}</p>
+              {/if}
+
+              <div class="space-y-3">
+                {#if loadingNotifications}
+                  {#each Array(4) as _}
+                    <div class="h-20 animate-pulse rounded-[22px] bg-white/5"></div>
+                  {/each}
+                {:else if notifications.length > 0}
+                  {#each notifications as item (item.id)}
+                    <article class="rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.04)] px-4 py-4">
+                      <div class="flex items-center justify-between gap-4">
+                        <p class="text-sm font-black">{item.username || 'System'} {formatNotification(item.type)}</p>
+                        <p class="text-[10px] font-black uppercase tracking-[0.18em] opacity-30">{formatDate(item.created_at)}</p>
+                      </div>
+                    </article>
+                  {/each}
+                {:else}
+                  <div class="rounded-[24px] border border-white/10 bg-white/5 px-4 py-10 text-center text-sm font-bold opacity-50">
+                    目前还没有通知。
+                  </div>
+                {/if}
+              </div>
+            </section>
+          {/if}
+        {/if}
+      </div>
+    </div>
+  </section>
+</div>

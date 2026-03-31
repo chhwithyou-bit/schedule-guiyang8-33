@@ -102,6 +102,16 @@
         {/each}
       </div>
 
+      <div class="w-full px-6 pt-4">
+        <button
+          type="button"
+          class="w-full rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-sm font-black uppercase tracking-[0.2em] transition-transform hover:scale-[1.01]"
+          on:click={() => openModal('community-console')}
+        >
+          {$currentView === 'community' ? 'Open Console' : 'User Console'}
+        </button>
+      </div>
+
       <!-- Theme Selection Integration -->
       <div class="flex gap-4 mt-6">
         {#each themes as t}

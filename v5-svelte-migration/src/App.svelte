@@ -22,6 +22,7 @@
   // Modals
   import AuthModal from './components/modals/AuthModal.svelte';
   import PostModal from './components/modals/PostModal.svelte';
+  import CommunityConsole from './components/modals/CommunityConsole.svelte';
 
   import ScheduleView from './components/views/ScheduleView.svelte';
   import CommunityView from './components/views/CommunityView.svelte';
@@ -166,6 +167,8 @@
 
   {#if $activeModal === 'auth'}
     <AuthModal />
+  {:else if $activeModal === 'community-console'}
+    <CommunityConsole />
   {:else if $activeModal === 'comm-post'}
     <PostModal />
   {/if}

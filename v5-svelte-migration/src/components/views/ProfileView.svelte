@@ -4,6 +4,7 @@
   import { openModal } from '../../stores/modalState';
   import PostCard from './PostCard.svelte';
   import { communityFetch } from '../../lib/communityApi';
+  import { setCommunityConsoleState } from '../../stores/communityConsoleState';
 
   let posts: any[] = [];
   let loading = true;
@@ -66,6 +67,33 @@
       }
     } catch (e) {
       console.error('Follow failed', e);
+    }
+  }
+
+  async function startDirectChat() {
+    if (!$isAuthenticated) {
+      openModal('auth');
+      return;
+    }
+    if (!$selectedProfile) return;
+
+    try {
+      const res = await communityFetch('/api/community/chats/direct', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target_user_id: $selectedProfile.id || $selectedProfile.user_id })
+      });
+      const data = await res.json();
+      if (!data.ok) return;
+
+      setCommunityConsoleState({
+        tab: 'chats',
+        conversationId: data.conversation?.id || ''
+      });
+      selectedProfile.set(null);
+      openModal('community-console');
+    } catch (e) {
+      console.error('Direct chat failed', e);
     }
   }
 
@@ -142,13 +170,21 @@
             </div>
             
             {#if $user && $user.id !== ($selectedProfile.id || $selectedProfile.user_id)}
-              <button 
-                on:click={toggleFollow}
-                class="ml-4 px-8 py-4 rounded-2xl font-black text-sm tracking-widest uppercase transition-all
-                       {isFollowing ? 'bg-neutral-100 dark:bg-neutral-900 opacity-60' : 'bg-[var(--color-primary)] text-white shadow-lg scale-105'}"
-              >
-                {isFollowing ? 'Unfollow' : 'Follow Flow'}
-              </button>
+              <div class="ml-4 flex flex-wrap gap-3">
+                <button 
+                  on:click={startDirectChat}
+                  class="px-8 py-4 rounded-2xl border border-white/10 bg-white/5 font-black text-sm tracking-widest uppercase transition-all hover:scale-105"
+                >
+                  Start Chat
+                </button>
+                <button 
+                  on:click={toggleFollow}
+                  class="px-8 py-4 rounded-2xl font-black text-sm tracking-widest uppercase transition-all
+                         {isFollowing ? 'bg-neutral-100 dark:bg-neutral-900 opacity-60' : 'bg-[var(--color-primary)] text-white shadow-lg scale-105'}"
+                >
+                  {isFollowing ? 'Unfollow' : 'Follow Flow'}
+                </button>
+              </div>
             {/if}
           </div>
         </div>

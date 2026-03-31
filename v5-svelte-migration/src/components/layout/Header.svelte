@@ -52,6 +52,12 @@
     <!-- Navigation / Profile -->
     <div class="flex items-center gap-6">
       {#if $isAuthenticated}
+        <button
+          on:click={() => openModal('community-console')}
+          class="hidden px-4 py-2.5 rounded-full border border-white/10 bg-white/5 text-[10px] font-black uppercase tracking-[0.18em] hover:scale-105 active:scale-95 transition-all shadow-sm md:block"
+        >
+          Console
+        </button>
         <button 
           on:click={() => selectedProfile.set($user)}
           class="w-10 h-10 flex items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 hover:scale-110 transition-transform overflow-hidden shadow-sm"
@@ -63,6 +69,12 @@
           {/if}
         </button>
       {:else}
+        <button
+          on:click={() => openModal('community-console')}
+          class="hidden px-4 py-2.5 rounded-full border border-white/10 bg-white/5 text-[10px] font-black uppercase tracking-[0.18em] hover:scale-105 active:scale-95 transition-all shadow-sm md:block"
+        >
+          Account
+        </button>
         <button 
           on:click={() => openModal('auth')}
           class="px-6 py-2.5 rounded-full bg-[var(--color-primary)] text-white text-xs font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-lg"
