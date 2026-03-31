@@ -1,6 +1,6 @@
 <script lang="ts">
   import { slide, fade } from 'svelte/transition';
-  import { currentView } from '../../stores/appState';
+  import { currentView, isAdmin } from '../../stores/appState';
   import { openModal } from '../../stores/modalState';
   import { activeTheme } from '../../stores/theme';
   import { onMount } from 'svelte';
@@ -13,10 +13,12 @@
   let grabHandleRef: HTMLElement;
   let startY = 0;
 
-  const views = [
-    { id: 'schedule', label: 'Schedule' },
+  $: views = [
     { id: 'community', label: 'Community' },
-    { id: 'nodes', label: 'Nodes' }
+    { id: 'schedule', label: 'Schedule' },
+    { id: 'xiangqi', label: 'Chess' },
+    { id: 'nodes', label: 'Nodes' },
+    ...($isAdmin ? [{ id: 'admin', label: 'Admin Hub' }] : [])
   ];
 
   const themes = [

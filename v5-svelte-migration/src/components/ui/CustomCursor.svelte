@@ -58,24 +58,23 @@
 </script>
 
 <!-- The exact mouse position dot -->
-<div 
-  bind:this={cursorRef} 
-  class="fixed top-0 left-0 w-2 h-2 -ml-1 -mt-1 bg-[var(--color-primary)] rounded-full pointer-events-none z-[9999] mix-blend-difference"
+<div
+  bind:this={cursorRef}
+  class="custom-cursor-dot fixed top-0 left-0 w-2 h-2 -ml-1 -mt-1 bg-[var(--color-primary)] rounded-full pointer-events-none z-[9999] mix-blend-difference"
 ></div>
 
 <!-- The smooth following larger circle that scales on hover -->
-<div 
+<div
   bind:this={followerRef}
-  class="fixed top-0 left-0 w-8 h-8 -ml-4 -mt-4 border border-[var(--color-primary)] rounded-full pointer-events-none z-[9998] transition-transform duration-300 ease-out"
+  class="custom-cursor-follower fixed top-0 left-0 w-8 h-8 -ml-4 -mt-4 border border-[var(--color-primary)] rounded-full pointer-events-none z-[9998] transition-transform duration-300 ease-out"
   class:scale-[2.5]={isHovering}
   class:bg-[var(--color-primary)]={isHovering}
   class:opacity-50={isHovering}
 ></div>
-
 <style>
   /* Ensure it doesn't show on touch devices */
   @media (hover: none) and (pointer: coarse) {
-    div {
+    .custom-cursor-dot, .custom-cursor-follower {
       display: none;
     }
   }

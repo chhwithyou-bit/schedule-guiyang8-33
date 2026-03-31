@@ -2,11 +2,25 @@
   import { onMount } from 'svelte';
   import { fade, fly } from 'svelte/transition';
 
+  import { user, isAuthenticated, isAdmin } from '../../stores/appState';
+  import { openModal } from '../../stores/modalState';
+
   let y = 0;
   let lastY = 0;
   let isVisible = true;
 
   onMount(() => {
+    // Auth init
+    const saved = localStorage.getItem('commUser');
+    if (saved) {
+      try {
+        const u = JSON.parse(saved);
+        user.set(u);
+        isAuthenticated.set(true);
+        isAdmin.set(u.role === 'admin' || u.role === 'owner');
+      } catch (e) {}
+    }
+
     // Basic scroll hide/show logic
     window.addEventListener('scroll', () => {
       isVisible = y < lastY || y < 60;
@@ -32,9 +46,27 @@
 
     <!-- Navigation / Profile -->
     <div class="flex items-center gap-6">
-      <button class="w-10 h-10 flex items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 hover:scale-110 transition-transform">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-      </button>
+      {#if $isAuthenticated}
+        <button 
+          on:click={() => {
+            import('../../stores/appState').then(m => m.selectedProfile.set($user))
+          }}
+          class="w-10 h-10 flex items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 hover:scale-110 transition-transform overflow-hidden shadow-sm"
+        >
+          {#if $user.avatar_url}
+            <img src={$user.avatar_url} alt="" class="w-full h-full object-cover" />
+          {:else}
+            <span class="text-xs font-black text-[var(--color-primary)]">{$user.username.slice(0,1).toUpperCase()}</span>
+          {/if}
+        </button>
+      {:else}
+        <button 
+          on:click={() => openModal('auth')}
+          class="px-6 py-2.5 rounded-full bg-[var(--color-primary)] text-white text-xs font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-lg"
+        >
+          Login
+        </button>
+      {/if}
     </div>
   </div>
 </header>

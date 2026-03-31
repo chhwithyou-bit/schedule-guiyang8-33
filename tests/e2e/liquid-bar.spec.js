@@ -201,6 +201,13 @@ test.beforeEach(async ({ page }) => {
 test('liquid bar compacts cleanly and keeps chat actions attached to the bottom rail', async ({ page }, testInfo) => {
   test.setTimeout(90000);
   await page.goto('/');
+  try {
+    const btn = page.locator('button:has-text("Cyber Dark")');
+    if (await btn.isVisible({ timeout: 2000 })) {
+      await btn.click();
+      await page.waitForTimeout(2000);
+    }
+  } catch (e) {}
   await page.waitForSelector('#liquidBar');
   await page.waitForTimeout(1200);
 
@@ -293,6 +300,13 @@ test.describe('mobile liquid bar', () => {
 
   test('touching the compact bar during ongoing scroll expands it and keeps it open', async ({ page }) => {
     await page.goto('/');
+  try {
+    const btn = page.locator('button:has-text("Cyber Dark")');
+    if (await btn.isVisible({ timeout: 2000 })) {
+      await btn.click();
+      await page.waitForTimeout(2000);
+    }
+  } catch (e) {}
     await page.waitForSelector('#liquidBar');
     await page.waitForTimeout(1200);
 

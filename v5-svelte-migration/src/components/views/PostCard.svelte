@@ -1,7 +1,9 @@
 <script lang="ts">
-  import { fade } from 'svelte/transition';
+  import { selectedPost, isAuthenticated, selectedProfile } from '../../stores/appState';
+  import { openModal } from '../../stores/modalState';
 
   export let post: any;
+  let isLiking = false;
 
   function safeJsonArray(json: string) {
     try {
@@ -20,18 +22,47 @@
     minute: '2-digit'
   });
 
-  const liked = !!post.viewer_liked;
+  $: liked = !!post.viewer_liked;
 
-  function handleProfileClick() {
-    // Logic for navigating to profile
+  function handleProfileClick(e: MouseEvent) {
+    e.stopPropagation();
+    selectedProfile.set({
+      id: post.user_id,
+      username: post.username,
+      avatar_url: post.avatar_url,
+      role: post.role
+    });
   }
 
   function handlePostClick() {
-    // Logic for navigating to post detail
+    selectedPost.set(post);
   }
 
-  function toggleLike() {
-    // API call to toggle like
+  async function toggleLike(e: MouseEvent) {
+    e.stopPropagation();
+    if (!$isAuthenticated) {
+      openModal('auth');
+      return;
+    }
+    if (isLiking) return;
+
+    isLiking = true;
+    try {
+      const res = await fetch('/api/community/like', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ post_id: post.id })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        post.viewer_liked = data.action === 'liked';
+        post.like_count = (post.like_count || 0) + (data.action === 'liked' ? 1 : -1);
+      }
+    } catch (e) {
+      console.error('Like failed', e);
+    } finally {
+      isLiking = false;
+    }
   }
 </script>
 
@@ -94,7 +125,7 @@
         <span class="text-xs font-black">{post.like_count || 0}</span>
       </button>
       
-      <button class="flex items-center gap-1.5 opacity-40 hover:opacity-100 transition-opacity">
+      <button on:click={handlePostClick} class="flex items-center gap-1.5 opacity-40 hover:opacity-100 transition-opacity">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
         <span class="text-xs font-black">{post.comment_count || 0}</span>
       </button>

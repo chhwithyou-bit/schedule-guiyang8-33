@@ -38,7 +38,7 @@
       const angle = Math.random() * Math.PI * 2;
 
       // Initial explosive force (velocity)
-      const force = Math.random() * 8 + 4; 
+      const force = Math.random() * 8 + 4;
 
       // Resolve velocity vector into X and Y components
       this.vx = Math.cos(angle) * force;
@@ -49,7 +49,7 @@
       this.size = Math.random() * 3 + 1.5;
 
       // Friction coefficient to simulate air resistance, slowing down the particles over time
-      this.friction = 0.94; 
+      this.friction = 0.94;
     }
 
     update() {
@@ -62,7 +62,7 @@
       this.y += this.vy;
 
       // Fade out effect
-      this.alpha -= 0.015; 
+      this.alpha -= 0.015;
     }
 
     draw(ctx: CanvasRenderingContext2D) {
@@ -85,7 +85,7 @@
     } catch (e) {
       console.warn('GSAP CustomEase registration failed, using fallback ease', e);
     }
-    
+
     ctx = canvas.getContext('2d')!;
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
@@ -168,8 +168,6 @@
 
     // Phase 2: The Ink Wash
     const tl = gsap.timeline();
-    
-    inkWashNode.style.display = 'block';
 
     // Set initial state of ink wash circle
     // Width and height are 100px. Scale will expand it.
@@ -177,7 +175,7 @@
       x: originX,
       y: originY,
       backgroundColor: target.bg,
-      color: target.bg, 
+      color: target.bg,
       opacity: 1,
       scale: 0,
       display: 'block' // Show it
@@ -228,12 +226,12 @@
 </script>
 
 <!-- The Spark Canvas Engine -->
-<canvas bind:this={canvas} class="fixed inset-0 z-[1000012] pointer-events-none"></canvas>
+<canvas bind:this={canvas} class="fixed inset-0 z-[1000005] pointer-events-none"></canvas>
 
 <!-- The Ink Wash Mask -->
-<div 
-  bind:this={inkWashNode} 
-  class="fixed top-0 left-0 z-[1000011] rounded-full pointer-events-none blur-edge"
+<div
+  bind:this={inkWashNode}
+  class="fixed top-0 left-0 z-[1000004] rounded-full pointer-events-none blur-edge"
   style="width: 100px; height: 100px; margin-left: -50px; margin-top: -50px; display: none; background-color: currentColor;"
 ></div>
 
@@ -243,10 +241,10 @@
     <div class="max-w-2xl w-full text-center py-12">
       <h2 class="text-4xl md:text-5xl font-black text-[#f5efe0] mb-4 tracking-tighter uppercase leading-none">Pick Your Aura</h2>
       <p class="text-[#f5efe0]/40 mb-8 md:mb-12 font-medium tracking-widest uppercase text-[10px]">Select a visual frequency to begin.</p>
-      
+
       <div class="grid grid-cols-2 gap-4 md:gap-6">
         {#each themes as theme}
-          <button 
+          <button
             on:click={(e) => handleThemeSwitch(theme.id, e, true)}
             class="group relative aspect-video rounded-2xl md:rounded-[40px] overflow-hidden border border-white/10 transition-all duration-500 hover:scale-[1.03] hover:border-white/20 active:scale-95 bg-white/5"
           >
