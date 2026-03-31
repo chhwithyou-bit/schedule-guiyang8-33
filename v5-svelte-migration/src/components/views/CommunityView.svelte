@@ -3,9 +3,7 @@
   import { fade, fly } from 'svelte/transition';
   import AnimatedHeading from '../ui/AnimatedHeading.svelte';
   import PostCard from './PostCard.svelte';
-  import PostDetail from './PostDetail.svelte';
-  import ProfileView from './ProfileView.svelte';
-  import { syncStatus, selectedPost, selectedProfile } from '../../stores/appState';
+  import { syncStatus } from '../../stores/appState';
 
   let posts: any[] = [];
   let loading = true;
@@ -13,10 +11,6 @@
 
   onMount(async () => {
     await fetchPosts();
-    window.addEventListener('post-created', fetchPosts);
-    return () => {
-      window.removeEventListener('post-created', fetchPosts);
-    };
   });
 
   async function fetchPosts() {
@@ -79,13 +73,5 @@
       <div class="text-6xl mb-4">empty_state</div>
       <p class="text-xl font-bold opacity-30 uppercase tracking-widest">No stories found here.</p>
     </div>
-  {/if}
-
-  {#if $selectedPost}
-    <PostDetail />
-  {/if}
-
-  {#if $selectedProfile}
-    <ProfileView />
   {/if}
 </div>
