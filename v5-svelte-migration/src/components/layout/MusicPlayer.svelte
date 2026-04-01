@@ -65,6 +65,7 @@
   let dragStartDockLeft = 0;
   let dragStartDockTop = 0;
   let dragMoved = false;
+
   $: filteredTracks = playlist.filter((track) => {
     const needle = search.trim().toLowerCase();
     if (!needle) return true;
@@ -87,7 +88,7 @@
     void initializePanelPosition();
 
     const handleResize = () => {
-      void syncPanelPosition({ preserveOrigin: true, useEstimate: isOpen });
+      void syncPanelPosition({ preserveOrigin: true });
     };
 
     window.addEventListener('resize', handleResize);
@@ -170,7 +171,7 @@
       errorMessage = '歌单没加载出来，稍后再试一次。';
       resetAudioElement();
     } finally {
-      await syncPanelPosition({ useEstimate: isOpen });
+      await syncPanelPosition();
     }
   }
 
@@ -206,7 +207,14 @@
     }
   }
 
-  async function togglePlayer() {
+  function syncOpenPanelFromDock(preservedDock = { left: dockLeft, top: dockTop }) {
+    dockLeft = preservedDock.left;
+    dockTop = preservedDock.top;
+    const { width, height } = getPanelDimensions();
+    clampDockToViewport(width, height);
+  }
+
+  function togglePlayer() {
     if (dragMoved) {
       dragMoved = false;
       return;
@@ -218,31 +226,43 @@
       const closedHeight = getClosedPanelHeight();
       syncDockFromPanel(closedWidth, closedHeight);
       const preservedDock = { left: dockLeft, top: dockTop };
+      
       isOpen = true;
-      await syncOpenPanelFromDock(preservedDock);
+      syncOpenPanelFromDock(preservedDock);
       return;
     }
 
-    isOpen = false;
+    const { width, height } = getPanelDimensions();
+    syncDockFromPanel(width, height);
 
-    if (!isOpen) {
-      isListOpen = false;
-      search = '';
-    }
-
-    dockLeft = restDockLeft;
-    dockTop = restDockTop;
-    await syncPanelPosition({ preserveOrigin: true });
-  }
-
-  async function collapsePlayer(event: Event) {
-    event.stopPropagation();
     isOpen = false;
     isListOpen = false;
     search = '';
+
     dockLeft = restDockLeft;
     dockTop = restDockTop;
-    await syncPanelPosition({ preserveOrigin: true });
+    
+    const closedWidth = getClosedPanelSize();
+    const closedHeight = getClosedPanelHeight();
+    clampDockToViewport(closedWidth, closedHeight);
+  }
+
+  function collapsePlayer(event: Event) {
+    event.stopPropagation();
+    
+    const { width, height } = getPanelDimensions();
+    syncDockFromPanel(width, height);
+
+    isOpen = false;
+    isListOpen = false;
+    search = '';
+    
+    dockLeft = restDockLeft;
+    dockTop = restDockTop;
+    
+    const closedWidth = getClosedPanelSize();
+    const closedHeight = getClosedPanelHeight();
+    clampDockToViewport(closedWidth, closedHeight);
   }
 
   function handleHandleClick(event: MouseEvent) {
@@ -254,11 +274,11 @@
     }
 
     if (isOpen) {
-      void collapsePlayer(event);
+      collapsePlayer(event);
       return;
     }
 
-    void togglePlayer();
+    togglePlayer();
   }
 
   async function playCurrent() {
@@ -325,7 +345,7 @@
     selectTrack(prevIndex, autoplay);
   }
 
-  async function toggleList(event: Event) {
+  function toggleList(event: Event) {
     event.stopPropagation();
     if (!isOpen) {
       syncClosedStateFromViewport();
@@ -333,18 +353,20 @@
       const closedHeight = getClosedPanelHeight();
       syncDockFromPanel(closedWidth, closedHeight);
       const preservedDock = { left: dockLeft, top: dockTop };
-      isOpen = true;
+      
       isListOpen = true;
-      await syncOpenPanelFromDock(preservedDock);
+      isOpen = true;
+      syncOpenPanelFromDock(preservedDock);
       return;
     }
 
-    const nextListOpen = !isListOpen;
-    isListOpen = nextListOpen;
+    const { width: oldWidth, height: oldHeight } = getPanelDimensions();
+    syncDockFromPanel(oldWidth, oldHeight);
 
-    if (nextListOpen) {
-      await syncPanelPosition({ preserveOrigin: true, useEstimate: true });
-    }
+    isListOpen = !isListOpen;
+
+    const { width: newWidth, height: newHeight } = getPanelDimensions();
+    clampDockToViewport(newWidth, newHeight);
   }
 
   function handleTimeUpdate() {
@@ -401,13 +423,12 @@
     }
   }
 
-  async function syncPanelPosition(options: { reset?: boolean; preserveOrigin?: boolean; useEstimate?: boolean } = {}) {
+  async function syncPanelPosition(options: { reset?: boolean; preserveOrigin?: boolean } = {}) {
     await tick();
     if (typeof window === 'undefined') return;
 
-    const { reset = false, preserveOrigin = false, useEstimate = false } = options;
-    const { width, height: measuredHeight } = getPanelDimensions();
-    const height = useEstimate && isOpen ? getEstimatedOpenPanelHeight() : measuredHeight;
+    const { reset = false, preserveOrigin = false } = options;
+    const { width, height } = getPanelDimensions();
 
     if (!panelReady || reset) {
       dockLeft = getDefaultDockLeft();
@@ -416,7 +437,7 @@
     }
 
     if (!preserveOrigin) {
-      resolvePanelOrigins();
+      resolvePanelOrigins(panelLeft, panelTop, width, height);
     }
 
     clampDockToViewport(width, height);
@@ -426,20 +447,9 @@
     }
   }
 
-  async function syncOpenPanelFromDock(preservedDock = { left: dockLeft, top: dockTop }) {
-    await tick();
-    await waitForNextFrame();
-    dockLeft = preservedDock.left;
-    dockTop = preservedDock.top;
-    const { width: measuredWidth, height: measuredHeight } = getPanelDimensions();
-    const width = Math.max(measuredWidth, getPreferredPanelWidth(true));
-    const height = Math.max(measuredHeight, getEstimatedOpenPanelHeight());
-    clampDockToViewport(width, height);
-  }
-
   async function initializePanelPosition() {
     await tick();
-    await syncPanelPosition({ reset: true, preserveOrigin: true, resync: false });
+    await syncPanelPosition({ reset: true, preserveOrigin: true });
   }
 
   function getRootFontSize() {
@@ -512,8 +522,14 @@
     referenceHeight = getPanelDimensions().height
   ) {
     if (typeof window === 'undefined') return;
-    panelOriginX = referenceLeft + referenceWidth / 2 >= window.innerWidth / 2 ? 'right' : 'left';
-    panelOriginY = referenceTop + referenceHeight / 2 >= window.innerHeight / 2 ? 'bottom' : 'top';
+    const nextOriginX = referenceLeft + referenceWidth / 2 >= window.innerWidth / 2 ? 'right' : 'left';
+    const nextOriginY = referenceTop + referenceHeight / 2 >= window.innerHeight / 2 ? 'bottom' : 'top';
+
+    if (nextOriginX !== panelOriginX || nextOriginY !== panelOriginY) {
+      panelOriginX = nextOriginX;
+      panelOriginY = nextOriginY;
+      syncDockFromPanel(referenceWidth, referenceHeight, referenceLeft, referenceTop);
+    }
   }
 
   function getAnchoredPanelPosition(width: number, height: number) {
@@ -526,28 +542,16 @@
   }
 
   function getPanelDimensions() {
-    const closedWidth = getClosedPanelSize();
-    const closedHeight = getClosedPanelHeight();
-
     if (!isOpen) {
       return {
-        width: closedWidth,
-        height: closedHeight
+        width: getClosedPanelSize(),
+        height: getClosedPanelHeight()
       };
     }
-
-    if (!widgetEl) {
-      return {
-        width: getPreferredPanelWidth(true),
-        height: closedHeight
-      };
-    }
-
-    const rect = widgetEl.getBoundingClientRect();
 
     return {
-      width: Math.max(rect.width || 0, getPreferredPanelWidth(true)),
-      height: Math.max(rect.height || 0, closedHeight)
+      width: getPreferredPanelWidth(true),
+      height: getEstimatedOpenPanelHeight()
     };
   }
 
@@ -590,10 +594,10 @@
     };
   }
 
-  function syncDockFromPanel(width: number, height: number) {
+  function syncDockFromPanel(width: number, height: number, left = panelLeft, top = panelTop) {
     const closedSize = getClosedPanelSize();
-    dockLeft = panelOriginX === 'right' ? panelLeft + width - closedSize : panelLeft;
-    dockTop = panelOriginY === 'bottom' ? panelTop + height - closedSize : panelTop;
+    dockLeft = panelOriginX === 'right' ? left + width - closedSize : left;
+    dockTop = panelOriginY === 'bottom' ? top + height - closedSize : top;
   }
 
   function handleDragPointerDown(event: PointerEvent) {
@@ -661,25 +665,23 @@
       } catch {}
     }
 
-    dragPointerId = null;
-    dragCaptureEl = null;
-    isDraggingWidget = false;
-
-    if (!dragMoved) {
+    if (dragMoved) {
+      const { width, height } = getPanelDimensions();
+      resolvePanelOrigins(panelLeft, panelTop, width, height);
+      syncDockFromPanel(width, height);
+      clampDockToViewport(width, height);
+      restDockLeft = dockLeft;
+      restDockTop = dockTop;
+    } else {
       panelLeft = dragStartPanelLeft;
       panelTop = dragStartPanelTop;
       dockLeft = dragStartDockLeft;
       dockTop = dragStartDockTop;
     }
 
-    if (dragMoved) {
-      const { width, height } = getPanelDimensions();
-      resolvePanelOrigins(panelLeft, panelTop, width, height);
-      syncDockFromPanel(width, height);
-      restDockLeft = dockLeft;
-      restDockTop = dockTop;
-    }
-
+    dragPointerId = null;
+    dragCaptureEl = null;
+    isDraggingWidget = false;
   }
 
   function formatTime(value: number) {
