@@ -1288,14 +1288,14 @@ export default {
 
         const userSql = q
           ? `
-            SELECT id, username, avatar_url, signature, COALESCE(xp, 0) AS xp, COALESCE(level, 1) AS level, COALESCE(role, 'user') AS role
+            SELECT id, username, avatar_url, background_url, signature, COALESCE(xp, 0) AS xp, COALESCE(level, 1) AS level, COALESCE(role, 'user') AS role
             FROM users
             WHERE is_banned = 0 AND (username LIKE ? OR COALESCE(signature, '') LIKE ?)
             ORDER BY xp DESC, created_at DESC
             LIMIT 8
           `
           : `
-            SELECT id, username, avatar_url, signature, COALESCE(xp, 0) AS xp, COALESCE(level, 1) AS level, COALESCE(role, 'user') AS role
+            SELECT id, username, avatar_url, background_url, signature, COALESCE(xp, 0) AS xp, COALESCE(level, 1) AS level, COALESCE(role, 'user') AS role
             FROM users
             WHERE is_banned = 0
             ORDER BY xp DESC, created_at DESC
@@ -1867,7 +1867,7 @@ export default {
             const userId = url.searchParams.get('userId');
             const username = url.searchParams.get('username');
             let sql = `
-              SELECT p.*, u.username, u.avatar_url, COALESCE(u.xp, 0) as xp, COALESCE(u.level, 1) as level, COALESCE(u.role, 'user') as role,
+              SELECT p.*, u.username, u.avatar_url, u.background_url, u.signature, COALESCE(u.xp, 0) as xp, COALESCE(u.level, 1) as level, COALESCE(u.role, 'user') as role,
               (SELECT COUNT(*) FROM likes WHERE post_id = p.id) as like_count,
               (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comment_count,
               (SELECT COUNT(*) FROM posts WHERE repost_id = p.id) as repost_count
@@ -1908,7 +1908,7 @@ export default {
               const ids = posts.map(p => p.id);
               const placeholders = ids.map(() => '?').join(',');
               // Fetch latest 3 comments for each post (sqlite doesn't have row_number easily, so we just fetch all and group in JS, limit 500 total comments to prevent memory bloat)
-              const commQuery = "SELECT c.id, c.post_id, c.content, c.user_id, u.username, u.avatar_url, COALESCE(u.xp, 0) as xp, COALESCE(u.level, 1) as level FROM comments c JOIN users u ON c.user_id = u.id WHERE c.post_id IN (" + placeholders + ") ORDER BY c.created_at ASC LIMIT 500";
+              const commQuery = "SELECT c.id, c.post_id, c.content, c.user_id, u.username, u.avatar_url, u.background_url, u.signature, COALESCE(u.xp, 0) as xp, COALESCE(u.level, 1) as level FROM comments c JOIN users u ON c.user_id = u.id WHERE c.post_id IN (" + placeholders + ") ORDER BY c.created_at ASC LIMIT 500";
               const commResults = await env.COMMUNITY_DB.prepare(commQuery).bind(...ids).all();
               const comms = (commResults.results || []).map(comment => {
                 const normalizedCommentUser = withCommunityLevel(comment);
@@ -2048,7 +2048,7 @@ export default {
         if (request.method === 'GET') {
           const postId = url.searchParams.get('postId');
           const { results } = await env.COMMUNITY_DB.prepare(`
-            SELECT c.*, u.id as user_id, u.username, u.avatar_url, COALESCE(u.xp, 0) as xp, COALESCE(u.level, 1) as level FROM comments c 
+            SELECT c.*, u.id as user_id, u.username, u.avatar_url, u.background_url, u.signature, COALESCE(u.xp, 0) as xp, COALESCE(u.level, 1) as level FROM comments c 
             JOIN users u ON c.user_id = u.id 
             WHERE c.post_id = ? ORDER BY c.created_at ASC
           `).bind(postId).all();

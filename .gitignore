@@ -11,3 +11,4 @@ fix*.js
 # Local clutter
 .DS_Store
 *.log
+.aider*

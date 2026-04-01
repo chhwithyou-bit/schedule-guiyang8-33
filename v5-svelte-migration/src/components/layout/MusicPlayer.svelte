@@ -22,7 +22,9 @@
   const CLOSED_PANEL_SIZE_REM = 3.75;
   const OPEN_PANEL_WIDTH_REM = 18.75;
   const OPEN_PANEL_HEIGHT_ESTIMATE_REM = 24.875;
-  const PANEL_RESYNC_DELAY_MS = 340;
+  const PANEL_TRANSITION_MS = 520;
+  const PANEL_CONTENT_TRANSITION_MS = 420;
+  const PANEL_RESYNC_DELAY_MS = PANEL_TRANSITION_MS + 80;
 
   let audioEl: HTMLAudioElement;
   let widgetEl: HTMLDivElement;
@@ -46,6 +48,8 @@
   let panelTop = 24;
   let dockLeft = 24;
   let dockTop = 24;
+  let restDockLeft = 24;
+  let restDockTop = 24;
   let panelOriginX: PanelEdge = 'right';
   let panelOriginY: PanelVerticalEdge = 'bottom';
   let panelReady = false;
@@ -62,6 +66,8 @@
   let dragStartDockTop = 0;
   let dragMoved = false;
   let panelResyncTimer: ReturnType<typeof setTimeout> | null = null;
+  let panelResizeObserver: ResizeObserver | null = null;
+  let panelResizeFrame: number | null = null;
 
   $: filteredTracks = playlist.filter((track) => {
     const needle = search.trim().toLowerCase();
@@ -83,6 +89,7 @@
   onMount(() => {
     void loadPlaylist();
     void initializePanelPosition();
+    void setupPanelResizeObserver();
 
     const handleResize = () => {
       void syncPanelPosition({ preserveOrigin: true });
@@ -93,6 +100,10 @@
     return () => {
       window.removeEventListener('resize', handleResize);
       clearPanelResyncTimer();
+      panelResizeObserver?.disconnect();
+      if (panelResizeFrame !== null) {
+        cancelAnimationFrame(panelResizeFrame);
+      }
 
       if (audioEl) {
         audioEl.pause();
@@ -221,6 +232,8 @@
       search = '';
     }
 
+    dockLeft = restDockLeft;
+    dockTop = restDockTop;
     await syncPanelPosition({ preserveOrigin: true });
   }
 
@@ -230,6 +243,8 @@
     isOpen = false;
     isListOpen = false;
     search = '';
+    dockLeft = restDockLeft;
+    dockTop = restDockTop;
     await syncPanelPosition({ preserveOrigin: true });
   }
 
@@ -407,6 +422,10 @@
     }
 
     clampDockToViewport(width, height);
+    if (!isOpen) {
+      restDockLeft = dockLeft;
+      restDockTop = dockTop;
+    }
     if (resync) {
       schedulePanelResync();
     }
@@ -419,7 +438,7 @@
     const width = getPreferredPanelWidth(true);
     const height = getEstimatedOpenPanelHeight();
     clampDockToViewport(width, height);
-    clearPanelResyncTimer();
+    schedulePanelResync();
   }
 
   async function initializePanelPosition() {
@@ -450,6 +469,27 @@
 
   function getEstimatedOpenPanelHeight() {
     return OPEN_PANEL_HEIGHT_ESTIMATE_REM * getRootFontSize();
+  }
+
+  async function setupPanelResizeObserver() {
+    await tick();
+    if (typeof ResizeObserver === 'undefined' || !widgetEl) return;
+
+    panelResizeObserver?.disconnect();
+    panelResizeObserver = new ResizeObserver(() => {
+      if (isDraggingWidget || !panelReady) return;
+
+      if (panelResizeFrame !== null) {
+        cancelAnimationFrame(panelResizeFrame);
+      }
+
+      panelResizeFrame = window.requestAnimationFrame(() => {
+        panelResizeFrame = null;
+        void syncPanelPosition({ preserveOrigin: true, resync: false });
+      });
+    });
+
+    panelResizeObserver.observe(widgetEl);
   }
 
   function syncClosedStateFromViewport() {
@@ -668,6 +708,8 @@
       const { width, height } = getPanelDimensions();
       resolvePanelOrigins(panelLeft, panelTop, width, height);
       syncDockFromPanel(width, height);
+      restDockLeft = dockLeft;
+      restDockTop = dockTop;
     }
 
     schedulePanelResync();
@@ -724,8 +766,8 @@
   class:dragging={isDraggingWidget}
   data-origin-x={panelOriginX}
   data-origin-y={panelOriginY}
-  class="fixed z-[10050] overflow-visible transition-[left,top,width,height,box-shadow,transform] duration-[380ms] ease-[cubic-bezier(0.22,1,0.36,1)]"
-  style="left: {panelLeft}px; top: {panelTop}px; width: {isOpen ? 'min(18.75rem, calc(100vw - 1rem))' : '3.75rem'}; --mp-open-x: {openMotionX}px; --mp-open-y: {openMotionY}px; --mp-origin-x: {panelOriginXPercent}; --mp-origin-y: {panelOriginYPercent};"
+  class="fixed z-[10050] overflow-visible transition-[left,top,width,height,box-shadow,transform] ease-[cubic-bezier(0.22,1,0.36,1)]"
+  style="left: {panelLeft}px; top: {panelTop}px; width: {isOpen ? 'min(18.75rem, calc(100vw - 1rem))' : '3.75rem'}; --mp-open-x: {openMotionX}px; --mp-open-y: {openMotionY}px; --mp-origin-x: {panelOriginXPercent}; --mp-origin-y: {panelOriginYPercent}; --mp-panel-duration: {PANEL_TRANSITION_MS}ms;"
   on:click={() => !isOpen && togglePlayer()}
   on:keydown={(event) => !isOpen && event.key === 'Enter' && togglePlayer()}
   role="button"
@@ -771,7 +813,7 @@
           </div>
         </div>
       {:else}
-        <div class="mp-content" in:fly|local={{ x: openMotionX, y: openMotionY, duration: 320 }}>
+        <div class="mp-content" in:fly|local={{ x: openMotionX, y: openMotionY, duration: PANEL_CONTENT_TRANSITION_MS }}>
           <div class="mp-topline">
             <div>
               <p class="mp-kicker">随手听歌</p>
@@ -923,6 +965,7 @@
     --mp-origin-y: 100%;
     border-radius: 999px;
     outline: none;
+    transition-duration: var(--mp-panel-duration, 520ms);
   }
 
   #mp.open {
@@ -1015,10 +1058,10 @@
     background: rgba(var(--color-bg-rgb), 0.985);
     color: var(--color-text);
     backdrop-filter: blur(22px);
-    border: 1px solid rgba(245, 239, 224, 0.12);
+    border: 1px solid rgba(var(--glow-primary-rgb), 0.12);
     box-shadow: var(--shadow-xl-token);
     transform-origin: var(--mp-origin-x) var(--mp-origin-y);
-    transition: border-radius 0.34s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.34s ease, border-color 0.34s ease, background 0.34s ease;
+    transition: border-radius 0.52s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.52s ease, border-color 0.52s ease, background 0.52s ease;
   }
 
   .mp-shell::after {
@@ -1031,7 +1074,7 @@
     opacity: 0;
     pointer-events: none;
     transform: translate3d(calc(var(--mp-open-x) * -0.45), calc(var(--mp-open-y) * -0.35), 0);
-    transition: opacity 0.32s ease, transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+    transition: opacity 0.42s ease, transform 0.52s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   #mp.open .mp-shell::after {
@@ -1069,7 +1112,7 @@
     overflow: hidden;
     border-radius: 999px;
     background: var(--color-primary);
-    color: var(--color-bg);
+    color: var(--color-button-text);
     font-size: 0.75rem;
     font-weight: 900;
     letter-spacing: 0.1em;
@@ -1123,7 +1166,7 @@
     background:
       radial-gradient(circle at top right, rgba(255, 255, 255, 0.16), transparent 44%),
       linear-gradient(135deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.03));
-    border: 1px solid rgba(245, 239, 224, 0.12);
+    border: 1px solid rgba(var(--glow-primary-rgb), 0.12);
   }
 
   .mp-cover-card {
@@ -1181,7 +1224,7 @@
 
   .mp-meta-row span {
     border-radius: 999px;
-    border: 1px solid rgba(245, 239, 224, 0.12);
+    border: 1px solid rgba(var(--glow-primary-rgb), 0.12);
     background: rgba(255, 255, 255, 0.05);
     padding: 0.32rem 0.55rem;
   }
@@ -1190,7 +1233,7 @@
     margin-top: 0.72rem;
     padding: 0.75rem 0.8rem;
     border-radius: 20px;
-    border: 1px solid rgba(245, 239, 224, 0.1);
+    border: 1px solid rgba(var(--glow-primary-rgb), 0.1);
     background: rgba(255, 255, 255, 0.035);
   }
 
@@ -1258,7 +1301,7 @@
     justify-content: center;
     gap: 0.35rem;
     border-radius: 999px;
-    border: 1px solid rgba(245, 239, 224, 0.12);
+    border: 1px solid rgba(var(--glow-primary-rgb), 0.12);
     background: rgba(255, 255, 255, 0.04);
     color: inherit;
     transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
@@ -1266,14 +1309,14 @@
 
   .mp-icon-btn:hover {
     transform: scale(1.05);
-    border-color: rgba(245, 239, 224, 0.22);
+    border-color: rgba(var(--glow-primary-rgb), 0.22);
   }
 
   .mp-play-btn {
     height: 2.7rem;
     min-width: 2.7rem;
     background: var(--color-primary);
-    color: var(--color-bg);
+    color: var(--color-button-text);
     border-color: transparent;
     box-shadow: 0 14px 26px rgba(var(--shadow-rgb), 0.18);
   }
@@ -1285,7 +1328,7 @@
 
   .mp-list-btn.is-open {
     background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(245, 239, 224, 0.24);
+    border-color: rgba(var(--glow-primary-rgb), 0.24);
   }
 
   .mp-status {
@@ -1316,7 +1359,7 @@
     padding-right: 0.05rem;
     pointer-events: none;
     transform: translate3d(calc(var(--mp-open-x) * 0.16), calc(var(--mp-open-y) * 0.16), 0) scale(0.97);
-    transition: max-height 0.32s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.22s ease, transform 0.32s cubic-bezier(0.22, 1, 0.36, 1), margin-top 0.22s ease;
+    transition: max-height 0.42s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.32s ease, transform 0.42s cubic-bezier(0.22, 1, 0.36, 1), margin-top 0.32s ease;
   }
 
   #mp-list-area.show {
@@ -1328,12 +1371,12 @@
     pointer-events: auto;
     transform: translate3d(0, 0, 0) scale(1);
     background: rgb(var(--color-bg-rgb));
-    border: 1px solid rgba(245, 239, 224, 0.08);
+    border: 1px solid rgba(var(--glow-primary-rgb), 0.08);
     border-radius: 20px;
   }
 
   .mp-search-wrap {
-    border: 1px solid rgba(245, 239, 224, 0.12);
+    border: 1px solid rgba(var(--glow-primary-rgb), 0.12);
     border-radius: 18px;
     background: rgb(var(--color-bg-rgb));
     padding: 0.45rem 0.75rem;
@@ -1350,7 +1393,7 @@
   }
 
   .mp-search-wrap input::placeholder {
-    color: rgba(245, 239, 224, 0.38);
+    color: var(--color-text-soft);
   }
 
   .mp-list {
@@ -1368,7 +1411,7 @@
     justify-content: space-between;
     gap: 0.8rem;
     border-radius: 18px;
-    border: 1px solid rgba(245, 239, 224, 0.08);
+    border: 1px solid rgba(var(--glow-primary-rgb), 0.08);
     background: rgba(255, 255, 255, 0.03);
     padding: 0.8rem 0.85rem;
     text-align: left;
@@ -1378,11 +1421,11 @@
 
   .mp-li:hover {
     transform: translateY(-1px);
-    border-color: rgba(245, 239, 224, 0.16);
+    border-color: rgba(var(--glow-primary-rgb), 0.16);
   }
 
   .mp-li.active {
-    border-color: rgba(245, 239, 224, 0.28);
+    border-color: rgba(var(--glow-primary-rgb), 0.28);
     background: rgba(255, 255, 255, 0.07);
   }
 

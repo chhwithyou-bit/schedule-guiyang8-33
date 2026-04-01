@@ -1,20 +1,11 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount } from 'svelte';
   import { gsap } from 'gsap';
   import { CustomEase } from 'gsap/dist/CustomEase';
-  import { activeTheme } from '../../stores/theme';
+  import { DEFAULT_THEME_ID, applyTheme, themeCatalog } from '../../stores/theme';
   import { themeInitialized } from '../../stores/appState';
 
-  /**
-   * 🎨 Palette Definitions (The Color Palettes)
-   * Oriental Aesthetics & Natural Healing Textures
-   */
-  const themes = [
-    { id: 'theme-default', name: 'Cyber Dark', primary: '#f5efe0', bg: '#020029', accent: '#3a3d5e' },
-    { id: 'theme-spring', name: 'Spring Bamboo', primary: '#85B581', bg: '#EAF4E8', accent: '#598F56' },
-    { id: 'theme-summer', name: 'Summer Lilac', primary: '#B29BCE', bg: '#F4F1F9', accent: '#8E6FB8' },
-    { id: 'theme-autumn', name: 'Autumn Maple', primary: '#D17F71', bg: '#F9EDE9', accent: '#B85343' }
-  ];
+  const themes = themeCatalog;
 
   let showInitPanel = false;
   let canvas: HTMLCanvasElement;
@@ -94,14 +85,15 @@
     try {
       const saved = localStorage.getItem('siteTheme');
       if (saved) {
-        activeTheme.set(saved);
-        document.documentElement.setAttribute('data-theme', saved);
+        applyTheme(saved);
         themeInitialized.set(true);
       } else {
+        applyTheme(DEFAULT_THEME_ID);
         showInitPanel = true;
       }
     } catch (e) {
       console.error('LocalStorage access failed:', e);
+      applyTheme(DEFAULT_THEME_ID);
       showInitPanel = true; // Fallback to show picker if possible
     }
 
@@ -196,9 +188,7 @@
 
     // Phase 3: The Shift
     tl.add(() => {
-      // Swap variables under the mask
-      activeTheme.set(target.id);
-      document.documentElement.setAttribute('data-theme', target.id);
+      applyTheme(target.id);
       localStorage.setItem('siteTheme', target.id);
 
       if (showInitPanel) {
@@ -239,21 +229,55 @@
 
 <!-- Initial Access Palette Picker -->
 {#if showInitPanel}
-  <div class="fixed inset-0 z-[1000010] flex items-center justify-center bg-[#020029] overflow-y-auto p-6">
-    <div class="max-w-2xl w-full text-center py-12">
-      <h2 class="text-4xl md:text-5xl font-black text-[#f5efe0] mb-4 tracking-tighter uppercase leading-none">Pick Your Aura</h2>
-      <p class="text-[#f5efe0]/40 mb-8 md:mb-12 font-medium tracking-widest uppercase text-[10px]">Select a visual frequency to begin.</p>
-      
-      <div class="grid grid-cols-2 gap-4 md:gap-6">
+  <div class="fixed inset-0 z-[1000010] flex items-center justify-center bg-[var(--color-bg)] overflow-y-auto p-6">
+    <div class="aura-shell max-w-5xl w-full py-10 md:py-14">
+      <div class="mb-8 flex flex-col gap-4 md:mb-12 md:flex-row md:items-end md:justify-between">
+        <div class="max-w-2xl">
+          <p class="aura-kicker">Theme Archive</p>
+          <h2 class="text-4xl md:text-5xl font-black text-[#fff4ed] tracking-[-0.04em] leading-none">Pick Your Aura</h2>
+          <p class="mt-4 max-w-xl text-sm md:text-base text-[rgba(255,244,237,0.72)] leading-7">
+            先挑一种今天网站的气色。四套主题都按你给的色卡重做了，打开以后整站背景、阴影和发光都会一起换。
+          </p>
+        </div>
+
+        <p class="max-w-sm text-[11px] font-semibold uppercase tracking-[0.22em] text-[rgba(255,244,237,0.46)]">
+          Split palette cards below echo the reference boards directly.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
         {#each themes as theme}
           <button 
             on:click={(e) => handleThemeSwitch(theme.id, e, true)}
-            class="group relative aspect-video rounded-2xl md:rounded-[40px] overflow-hidden border border-white/10 transition-all duration-500 hover:scale-[1.03] hover:border-white/20 active:scale-95 bg-white/5"
+            data-theme-id={theme.id}
+            class="aura-card group relative aspect-[1.08] md:aspect-[1.28] overflow-hidden rounded-[28px] md:rounded-[40px] border border-white/10 bg-white/5 text-left transition-all duration-500 hover:scale-[1.02] hover:border-white/25 active:scale-[0.985]"
+            style="--aura-a: {theme.primary}; --aura-b: {theme.secondary}; --aura-ink: {theme.accent}; --aura-bg: {theme.bg};"
           >
-            <div class="absolute inset-0 transition-transform duration-1000 group-hover:scale-110" style="background-color: {theme.bg};"></div>
-            <div class="relative h-full flex flex-col items-center justify-center">
-              <div class="w-10 h-10 md:w-14 md:h-14 rounded-full shadow-2xl mb-2 md:mb-4 transition-transform duration-500 group-hover:translate-y-[-8px]" style="background-color: {theme.primary}; border: 3px md:border-[4px] solid {theme.accent};"></div>
-              <span class="text-[8px] md:text-[10px] font-black uppercase tracking-widest" style="color: {theme.primary};">{theme.name}</span>
+            <div class="aura-card-bg"></div>
+            <div class="aura-card-noise"></div>
+
+            <div class="relative z-[1] flex h-full flex-col justify-between p-5 md:p-6">
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <span class="aura-tag">{theme.liquidLabel}</span>
+                  <p class="mt-3 text-[11px] font-black uppercase tracking-[0.22em] text-white/70">{theme.pair}</p>
+                </div>
+
+                <span class="aura-chip">整站切换</span>
+              </div>
+
+              <div class="space-y-3">
+                <div class="flex items-center gap-3">
+                  <span class="aura-swatches" aria-hidden="true">
+                    <span class="aura-swatch is-first"></span>
+                    <span class="aura-swatch is-second"></span>
+                  </span>
+                  <div class="min-w-0">
+                    <strong class="block text-2xl md:text-[2rem] font-black tracking-[-0.04em] leading-none text-white">{theme.displayName}</strong>
+                    <span class="mt-2 block text-[12px] font-medium leading-6 text-white/78">{theme.mood}</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </button>
         {/each}
@@ -267,7 +291,111 @@
     will-change: transform, opacity;
   }
 
+  .aura-shell {
+    position: relative;
+  }
+
+  .aura-kicker {
+    margin-bottom: 0.7rem;
+    font-size: 0.66rem;
+    font-weight: 900;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: rgba(255, 244, 237, 0.46);
+  }
+
+  .aura-card-bg,
+  .aura-card-noise {
+    position: absolute;
+    inset: 0;
+  }
+
+  .aura-card-bg {
+    background:
+      radial-gradient(circle at 24% 26%, rgba(255, 255, 255, 0.26), transparent 26%),
+      radial-gradient(circle at 80% 24%, rgba(255, 255, 255, 0.18), transparent 22%),
+      linear-gradient(90deg, var(--aura-a) 0 49.5%, var(--aura-b) 49.5% 100%);
+    transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1), filter 0.9s ease;
+  }
+
+  .aura-card:hover .aura-card-bg {
+    transform: scale(1.05);
+    filter: saturate(1.06);
+  }
+
+  .aura-card-noise {
+    background:
+      linear-gradient(125deg, rgba(255, 255, 255, 0.2), transparent 26%),
+      linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.08) 100%);
+    mix-blend-mode: screen;
+    opacity: 0.84;
+  }
+
+  .aura-tag,
+  .aura-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2rem;
+    border-radius: 999px;
+    padding: 0.45rem 0.9rem;
+    font-size: 0.66rem;
+    font-weight: 900;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    backdrop-filter: blur(20px);
+  }
+
+  .aura-tag {
+    background: rgba(var(--glow-primary-rgb), 0.18);
+    color: white;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  }
+
+  .aura-chip {
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(0, 0, 0, 0.14);
+    color: rgba(255, 255, 255, 0.72);
+  }
+
+  .aura-swatches {
+    position: relative;
+    display: inline-flex;
+    width: 3.6rem;
+    height: 3.6rem;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .aura-swatch {
+    position: absolute;
+    width: 2.4rem;
+    height: 2.4rem;
+    border-radius: 0.95rem;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 16px 34px rgba(0, 0, 0, 0.18);
+  }
+
+  .aura-swatch.is-first {
+    left: 0.15rem;
+    background: var(--aura-a);
+    transform: rotate(-10deg);
+  }
+
+  .aura-swatch.is-second {
+    right: 0.1rem;
+    background: var(--aura-b);
+    transform: rotate(10deg);
+  }
+
   h2 {
     font-family: 'Outfit', 'PingFang SC', sans-serif;
+  }
+
+  @media (max-width: 767px) {
+    .aura-card {
+      min-height: 17.5rem;
+    }
   }
 </style>

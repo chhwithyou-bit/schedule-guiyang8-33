@@ -11,6 +11,7 @@
     username: string;
     signature?: string;
     avatar_url?: string;
+    background_url?: string;
     role?: string;
     xp?: number;
     level?: number;

@@ -8,7 +8,6 @@
   import { ScrollTrigger } from 'gsap/dist/ScrollTrigger';
   import Lenis from '@studio-freight/lenis';
   import { currentView, themeInitialized } from './stores/appState';
-  import { activeTheme } from './stores/theme';
   import { activeModal } from './stores/modalState';
 
   import CustomCursor from './components/ui/CustomCursor.svelte';
@@ -139,8 +138,7 @@
 </script>
 
 <div 
-  class="app-container font-sans bg-[var(--color-bg)] text-[var(--color-text)] min-h-screen relative selection:bg-[var(--color-primary)] selection:text-white" 
-  data-theme={$activeTheme}
+  class="app-container font-sans bg-[var(--color-bg)] text-[var(--color-text)] min-h-screen relative overflow-hidden selection:bg-[var(--color-primary)] selection:text-[var(--color-button-text)]"
 >
   <!-- ThemeSwitcher rendered first to manage initial theme setup -->
   <ThemeSwitcher />
@@ -179,39 +177,44 @@
 </div>
 
 <style>
+  .app-container {
+    background:
+      radial-gradient(circle at 14% 8%, rgba(var(--glow-primary-rgb), 0.14), transparent 26%),
+      radial-gradient(circle at 86% 14%, rgba(var(--glow-secondary-rgb), 0.16), transparent 28%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 14%),
+      var(--color-bg);
+  }
+
+  .app-container::before,
+  .app-container::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app-container::before {
+    background:
+      radial-gradient(circle at 12% 18%, rgba(var(--glow-primary-rgb), 0.16), transparent 24%),
+      radial-gradient(circle at 84% 12%, rgba(var(--glow-secondary-rgb), 0.18), transparent 28%);
+    opacity: 0.92;
+    transform: translateZ(0);
+  }
+
+  .app-container::after {
+    background:
+      linear-gradient(115deg, rgba(255, 255, 255, 0.05), transparent 28%),
+      linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.18) 100%);
+    opacity: 0.72;
+  }
+
   .main-content-assembly {
-    /* Add a transition so the opacity change is smooth even if GSAP is not used */
+    position: relative;
+    z-index: 1;
     transition: opacity 1.4s ease-out;
   }
-  
-  :global(:root) {
-    --color-primary: #f5efe0;
-    --color-accent: #3a3d5e;
-    --color-bg: #020029;
-    --color-text: #f5efe0;
-  }
 
-  :global([data-theme="theme-spring"]) {
-    --color-primary: #85B581;
-    --color-accent: #598F56;
-    --color-bg: #EAF4E8;
-    --color-text: #1a2e21;
-  }
-
-  :global([data-theme="theme-summer"]) {
-    --color-primary: #B29BCE;
-    --color-accent: #8E6FB8;
-    --color-bg: #F4F1F9;
-    --color-text: #2e1a1a;
-  }
-
-  :global([data-theme="theme-autumn"]) {
-    --color-primary: #D17F71;
-    --color-accent: #B85343;
-    --color-bg: #F9EDE9;
-    --color-text: #0a2e2b;
-  }
-  
   :global(body.modal-open) {
     overflow: hidden !important;
   }

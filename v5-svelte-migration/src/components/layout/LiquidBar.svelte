@@ -4,7 +4,7 @@
 
   import { currentView, isAdmin, isAuthenticated } from '../../stores/appState';
   import { openModal } from '../../stores/modalState';
-  import { activeTheme } from '../../stores/theme';
+  import { activeTheme, themeCatalog } from '../../stores/theme';
 
   let className = '';
   export { className as class };
@@ -51,12 +51,12 @@
   $: currentViewLabel = views.find((view) => view.id === $currentView)?.label || '菜单';
   $: currentViewMood = viewCopy[$currentView] || viewCopy.community;
 
-  const themes = [
-    { id: 'theme-default', color: '#020029', label: '夜航' },
-    { id: 'theme-spring', color: '#85B581', label: '春芽' },
-    { id: 'theme-summer', color: '#B29BCE', label: '夏雾' },
-    { id: 'theme-autumn', color: '#D17F71', label: '秋焰' }
-  ];
+  const themes = themeCatalog.map((theme) => ({
+    id: theme.id,
+    colorA: theme.primary,
+    colorB: theme.secondary,
+    label: theme.liquidLabel
+  }));
 
   function toggleLiquidBar(nextState?: boolean) {
     isExpanded = typeof nextState === 'boolean' ? nextState : !isExpanded;
@@ -117,7 +117,7 @@
 <nav
   bind:this={dockRef}
   id="liquidBar"
-  class="liquid-anchor fixed left-4 top-[5.35rem] z-[5100] pointer-events-none select-none md:left-8 md:top-[6.1rem] {className}"
+  class="liquid-anchor fixed z-[5100] pointer-events-none select-none {className}"
   aria-label="快速导航"
 >
   {#if isExpanded}
@@ -223,7 +223,7 @@
                 <button
                   type="button"
                   class="theme-dot {$activeTheme === t.id ? 'is-active' : ''}"
-                  style="--theme-color: {t.color};"
+                  style="--theme-color-a: {t.colorA}; --theme-color-b: {t.colorB};"
                   aria-label="切换到 {t.label}"
                   on:click={(e) => requestTheme(t.id, e)}
                 >
@@ -240,15 +240,25 @@
 
 <style>
   .liquid-anchor {
-    width: min(22rem, calc(100vw - 1.5rem));
+    top: max(env(safe-area-inset-top), 0.65rem);
+    left: max(env(safe-area-inset-left), 0.65rem);
+    width: min(22rem, calc(100vw - max(env(safe-area-inset-left), 0px) - 1rem));
+  }
+
+  @media (min-width: 768px) {
+    .liquid-anchor {
+      top: max(env(safe-area-inset-top), 0.9rem);
+      left: max(env(safe-area-inset-left), 0.9rem);
+      width: min(22rem, calc(100vw - max(env(safe-area-inset-left), 0px) - 1.5rem));
+    }
   }
 
   .liquid-backdrop {
     position: fixed;
     inset: 0;
     background:
-      radial-gradient(circle at 10rem 7rem, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.02) 18%, transparent 36%),
-      linear-gradient(180deg, rgba(2, 0, 41, 0.18), rgba(2, 0, 41, 0.42));
+      radial-gradient(circle at 10rem 7rem, rgba(var(--glow-primary-rgb), 0.16), rgba(255, 255, 255, 0.02) 18%, transparent 36%),
+      linear-gradient(180deg, rgba(var(--shadow-rgb), 0.2), rgba(var(--shadow-rgb), 0.46));
     backdrop-filter: blur(2px);
   }
 
@@ -280,7 +290,7 @@
       linear-gradient(160deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.04) 45%, rgba(255, 255, 255, 0.12));
     backdrop-filter: blur(24px) saturate(1.3);
     box-shadow:
-      0 22px 54px rgba(2, 0, 41, 0.28),
+      0 22px 54px rgba(var(--shadow-rgb), 0.32),
       inset 0 1px 0 rgba(255, 255, 255, 0.28);
     transition:
       border-radius 0.42s cubic-bezier(0.22, 1, 0.36, 1),
@@ -295,8 +305,8 @@
   .liquid-shell.is-expanded .liquid-core {
     border-radius: 2rem;
     box-shadow:
-      0 32px 84px rgba(2, 0, 41, 0.34),
-      0 12px 30px rgba(2, 0, 41, 0.14),
+      0 32px 84px rgba(var(--shadow-rgb), 0.4),
+      0 12px 30px rgba(var(--shadow-rgb), 0.18),
       inset 0 1px 0 rgba(255, 255, 255, 0.34);
   }
 
@@ -338,7 +348,7 @@
       rgba(255, 255, 255, 0.06);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.24),
-      0 14px 28px rgba(2, 0, 41, 0.2);
+      0 14px 28px rgba(var(--shadow-rgb), 0.24);
   }
 
   .emblem-ring {
@@ -492,9 +502,9 @@
     background: linear-gradient(145deg, rgba(255, 255, 255, 0.96), var(--color-primary));
     border-color: rgba(255, 255, 255, 0.34);
     box-shadow:
-      0 16px 30px rgba(2, 0, 41, 0.16),
+      0 16px 30px rgba(var(--shadow-rgb), 0.2),
       inset 0 1px 0 rgba(255, 255, 255, 0.4);
-    color: var(--color-bg);
+    color: var(--color-button-text);
   }
 
   .liquid-nav-label {
@@ -538,15 +548,15 @@
 
   .liquid-compose-btn {
     background: linear-gradient(145deg, rgba(255, 255, 255, 0.14), var(--color-primary));
-    color: var(--color-bg);
+    color: var(--color-button-text);
     box-shadow:
-      0 18px 34px rgba(2, 0, 41, 0.2),
+      0 18px 34px rgba(var(--shadow-rgb), 0.24),
       inset 0 1px 0 rgba(255, 255, 255, 0.34);
   }
 
   .liquid-console-btn:hover,
   .liquid-compose-btn:hover {
-    box-shadow: 0 18px 34px rgba(2, 0, 41, 0.16);
+    box-shadow: 0 18px 34px rgba(var(--shadow-rgb), 0.2);
   }
 
   .liquid-action-copy {
@@ -625,11 +635,11 @@
     width: 1.72rem;
     border-radius: inherit;
     background:
-      linear-gradient(160deg, rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0.02) 62%),
-      var(--theme-color);
+      linear-gradient(160deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.02) 62%),
+      linear-gradient(135deg, var(--theme-color-a) 0 48%, var(--theme-color-b) 48% 100%);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.28),
-      0 10px 20px rgba(2, 0, 41, 0.16);
+      0 10px 20px rgba(var(--shadow-rgb), 0.2);
   }
 
   .liquid-trigger:focus-visible,

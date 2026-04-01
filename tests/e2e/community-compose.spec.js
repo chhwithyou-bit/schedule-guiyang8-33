@@ -85,7 +85,7 @@ test.beforeEach(async ({ page }) => {
 test('community composer is visible and posts with auth headers', async ({ page }) => {
   await page.goto('/');
   try {
-    const btn = page.locator('button:has-text("Cyber Dark")');
+    const btn = page.locator('button[data-theme-id="theme-default"]');
     if (await btn.isVisible({ timeout: 2000 })) {
       await btn.click();
       await page.waitForTimeout(1200);

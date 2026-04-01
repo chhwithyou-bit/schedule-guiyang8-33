@@ -1,6 +1,7 @@
 const { test, expect } = require('@playwright/test');
 
 const SILENT_AUDIO = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=';
+const WIDGET_SETTLE_MS = 680;
 
 function buildPlaylist() {
   return [
@@ -151,7 +152,7 @@ test.beforeEach(async ({ page }) => {
 test('music widget list scrolls and filters tracks', async ({ page }) => {
   await page.goto('/');
   try {
-    const btn = page.locator('button:has-text("Cyber Dark")');
+    const btn = page.locator('button[data-theme-id="theme-default"]');
     if (await btn.isVisible({ timeout: 2000 })) {
       await btn.click();
       await page.waitForTimeout(2000);
@@ -165,7 +166,7 @@ test('music widget list scrolls and filters tracks', async ({ page }) => {
   await page.locator('#mpb-list').click();
   const listArea = page.locator('#mp-list-area');
   await expect(listArea).toHaveClass(/show/);
-  await page.waitForTimeout(350);
+  await page.waitForTimeout(WIDGET_SETTLE_MS);
   await expect(page.locator('#mp-search')).toBeVisible();
   await expect(page.locator('#mp-list .mp-li')).toHaveCount(12);
 
@@ -193,7 +194,7 @@ test('music widget list scrolls and filters tracks', async ({ page }) => {
 test('music search surface does not darken over bright blocks', async ({ page }) => {
   await page.goto('/');
   try {
-    const btn = page.locator('button:has-text("Cyber Dark")');
+    const btn = page.locator('button[data-theme-id="theme-default"]');
     if (await btn.isVisible({ timeout: 2000 })) {
       await btn.click();
       await page.waitForTimeout(2000);
@@ -205,7 +206,7 @@ test('music search surface does not darken over bright blocks', async ({ page })
   await page.locator('#mpb-list').click();
   await expect(page.locator('#mp-list-area')).toHaveClass(/show/);
   await expect(page.locator('.mp-search-wrap')).toBeVisible();
-  await page.waitForTimeout(300);
+  await page.waitForTimeout(WIDGET_SETTLE_MS);
 
   const widget = page.locator('#mp');
   const widgetBox = await widget.boundingBox();
@@ -248,7 +249,7 @@ test('music search surface does not darken over bright blocks', async ({ page })
 test('music widget can be dragged with the handle', async ({ page }) => {
   await page.goto('/');
   try {
-    const btn = page.locator('button:has-text("Cyber Dark")');
+    const btn = page.locator('button[data-theme-id="theme-default"]');
     if (await btn.isVisible({ timeout: 2000 })) {
       await btn.click();
       await page.waitForTimeout(2000);
@@ -258,7 +259,7 @@ test('music widget can be dragged with the handle', async ({ page }) => {
   const widget = page.locator('#mp');
   await widget.click();
   await expect(widget).toHaveClass(/open/);
-  await page.waitForTimeout(520);
+  await page.waitForTimeout(WIDGET_SETTLE_MS);
 
   const before = await readWidgetState(page);
   const handle = page.locator('#mp-drag-handle');
@@ -308,7 +309,7 @@ test('music widget can be dragged with the handle', async ({ page }) => {
       buttons: 0
     }));
   });
-  await page.waitForTimeout(520);
+  await page.waitForTimeout(WIDGET_SETTLE_MS);
 
   const after = await readWidgetState(page);
 
@@ -316,13 +317,13 @@ test('music widget can be dragged with the handle', async ({ page }) => {
 
   await handle.click();
   await expect(widget).not.toHaveClass(/open/);
-  await page.waitForTimeout(520);
+  await page.waitForTimeout(WIDGET_SETTLE_MS);
 
   const collapsed = await readWidgetState(page);
 
   await widget.click();
   await expect(widget).toHaveClass(/open/);
-  await page.waitForTimeout(520);
+  await page.waitForTimeout(WIDGET_SETTLE_MS);
 
   const reopened = await readWidgetState(page);
   expect(reopened.width).toBeGreaterThan(collapsed.width);
@@ -330,7 +331,7 @@ test('music widget can be dragged with the handle', async ({ page }) => {
 
   await handle.click();
   await expect(widget).not.toHaveClass(/open/);
-  await page.waitForTimeout(520);
+  await page.waitForTimeout(WIDGET_SETTLE_MS);
 
   const collapsedAgain = await readWidgetState(page);
 

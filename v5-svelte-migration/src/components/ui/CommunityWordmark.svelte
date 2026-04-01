@@ -9,41 +9,47 @@
     viewBox="0 0 1600 320"
     role="img"
     aria-label="8community"
+    shape-rendering="geometricPrecision"
+    text-rendering="geometricPrecision"
   >
     <defs>
       <linearGradient id="community-fill" x1="0%" x2="100%" y1="0%" y2="0%">
-        <stop offset="0%" stop-color="#f5efe0">
-          <animate attributeName="stop-color" values="#f5efe0;#fff3c9;#f5efe0" dur="8s" repeatCount="indefinite" />
+        <stop offset="0%" stop-color="#fff6d6">
+          <animate attributeName="stop-color" values="#fff6d6;#fbe7b5;#fff6d6" dur="8s" repeatCount="indefinite" />
         </stop>
-        <stop offset="45%" stop-color="#ffffff">
-          <animate attributeName="stop-color" values="#ffffff;#ffd59e;#ffffff" dur="8s" repeatCount="indefinite" />
+        <stop offset="42%" stop-color="#fffdf6">
+          <animate attributeName="stop-color" values="#fffdf6;#fff0c8;#fffdf6" dur="8s" repeatCount="indefinite" />
         </stop>
-        <stop offset="100%" stop-color="#9fd0ff">
-          <animate attributeName="stop-color" values="#9fd0ff;#c7b8ff;#9fd0ff" dur="8s" repeatCount="indefinite" />
+        <stop offset="100%" stop-color="#b2d8ff">
+          <animate attributeName="stop-color" values="#b2d8ff;#d6c9ff;#b2d8ff" dur="8s" repeatCount="indefinite" />
         </stop>
       </linearGradient>
 
       <linearGradient id="community-sheen" x1="0%" x2="100%" y1="0%" y2="0%">
-        <stop offset="0%" stop-color="rgba(255,255,255,0)" />
-        <stop offset="48%" stop-color="rgba(255,255,255,0.8)" />
-        <stop offset="100%" stop-color="rgba(255,255,255,0)" />
+        <stop offset="0%" stop-color="#ffffff00" />
+        <stop offset="48%" stop-color="#ffffffcc" />
+        <stop offset="100%" stop-color="#ffffff00" />
       </linearGradient>
 
       <filter id="community-glow" x="-20%" y="-30%" width="140%" height="180%">
-        <feGaussianBlur stdDeviation="8" result="blur" />
+        <feGaussianBlur stdDeviation="3.5" result="blur" />
         <feColorMatrix
           in="blur"
           type="matrix"
           values="1 0 0 0 0
                   0 1 0 0 0
                   0 0 1 0 0
-                  0 0 0 0.45 0"
+                  0 0 0 0.28 0"
           result="softGlow"
         />
         <feMerge>
           <feMergeNode in="softGlow" />
           <feMergeNode in="SourceGraphic" />
         </feMerge>
+      </filter>
+
+      <filter id="community-shadow" x="-20%" y="-30%" width="140%" height="180%">
+        <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="rgba(4, 8, 26, 0.22)" />
       </filter>
 
       <mask id="community-mask">
@@ -92,19 +98,19 @@
   .community-wordmark::before {
     left: -2rem;
     top: 1rem;
-    height: 8rem;
-    width: 8rem;
-    background: radial-gradient(circle, rgba(255, 255, 255, 0.18), transparent 70%);
-    opacity: 0.8;
+    height: 6rem;
+    width: 6rem;
+    background: radial-gradient(circle, rgba(255, 244, 210, 0.18), transparent 72%);
+    opacity: 0.45;
   }
 
   .community-wordmark::after {
     right: 10%;
     top: 0;
-    height: 6rem;
-    width: 12rem;
-    background: radial-gradient(circle, rgba(159, 208, 255, 0.18), transparent 72%);
-    opacity: 0.7;
+    height: 4.8rem;
+    width: 10rem;
+    background: radial-gradient(circle, rgba(129, 188, 255, 0.16), transparent 72%);
+    opacity: 0.42;
   }
 
   .community-wordmark-svg {
@@ -112,29 +118,33 @@
     width: 100%;
     height: auto;
     overflow: visible;
+    filter: url(#community-shadow);
   }
 
   .community-fill,
   .community-outline,
   .mask-text {
-    font-family: 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
-    font-size: 186px;
+    font-family: 'Cormorant Garamond', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+    font-size: 190px;
     font-style: italic;
     font-weight: 700;
-    letter-spacing: 10px;
+    letter-spacing: 6px;
     text-transform: lowercase;
   }
 
   .community-fill {
     fill: url(#community-fill);
     filter: url(#community-glow);
+    paint-order: stroke fill;
+    stroke: rgba(255, 255, 255, 0.18);
+    stroke-width: 0.8;
   }
 
   .community-outline {
     fill: none;
-    stroke: rgba(255, 255, 255, 0.3);
-    stroke-dasharray: 14 16;
-    stroke-width: 1.5;
+    stroke: rgba(255, 247, 224, 0.42);
+    stroke-dasharray: 10 14;
+    stroke-width: 1.8;
     animation: outlineDrift 16s linear infinite;
   }
 
@@ -143,7 +153,7 @@
   }
 
   .community-sweep {
-    opacity: 0.8;
+    opacity: 0.66;
     mix-blend-mode: screen;
     animation: sweepAcross 5.8s cubic-bezier(0.22, 1, 0.36, 1) infinite;
   }
@@ -154,20 +164,20 @@
     stroke-dasharray: 12 20;
     stroke-linecap: round;
     stroke-width: 3;
-    opacity: 0.7;
+    opacity: 0.84;
     animation: waveDrift 13s linear infinite;
   }
 
   .community-wave-soft {
     stroke-width: 1.8;
-    opacity: 0.34;
+    opacity: 0.22;
     animation-duration: 18s;
     animation-direction: reverse;
   }
 
   .orbit {
     fill: none;
-    stroke: rgba(255, 255, 255, 0.18);
+    stroke: rgba(255, 247, 224, 0.2);
     transform-box: fill-box;
     transform-origin: center;
   }
@@ -185,7 +195,7 @@
   }
 
   .spark {
-    fill: rgba(255, 255, 255, 0.92);
+    fill: rgba(255, 250, 236, 0.95);
     filter: url(#community-glow);
     animation: sparkle 3.2s ease-in-out infinite;
   }
@@ -263,9 +273,25 @@
     }
   }
 
+  @media (max-width: 900px) {
+    .community-fill,
+    .community-outline,
+    .mask-text {
+      font-size: 160px;
+      letter-spacing: 4px;
+    }
+  }
+
   @media (max-width: 640px) {
     .community-wordmark {
       width: 100%;
+    }
+
+    .community-fill,
+    .community-outline,
+    .mask-text {
+      font-size: 126px;
+      letter-spacing: 2px;
     }
   }
 
