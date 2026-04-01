@@ -21,10 +21,10 @@
   const PANEL_MARGIN = 12;
   const CLOSED_PANEL_SIZE_REM = 3.75;
   const OPEN_PANEL_WIDTH_REM = 18.75;
-  const OPEN_PANEL_HEIGHT_ESTIMATE_REM = 24.875;
+  const OPEN_PANEL_BASE_HEIGHT_REM = 18.25;
+  const OPEN_PANEL_LIST_HEIGHT_REM = 15.5;
   const PANEL_TRANSITION_MS = 520;
   const PANEL_CONTENT_TRANSITION_MS = 420;
-  const PANEL_RESYNC_DELAY_MS = PANEL_TRANSITION_MS + 80;
 
   let audioEl: HTMLAudioElement;
   let widgetEl: HTMLDivElement;
@@ -65,10 +65,6 @@
   let dragStartDockLeft = 0;
   let dragStartDockTop = 0;
   let dragMoved = false;
-  let panelResyncTimer: ReturnType<typeof setTimeout> | null = null;
-  let panelResizeObserver: ResizeObserver | null = null;
-  let panelResizeFrame: number | null = null;
-
   $: filteredTracks = playlist.filter((track) => {
     const needle = search.trim().toLowerCase();
     if (!needle) return true;
@@ -89,21 +85,15 @@
   onMount(() => {
     void loadPlaylist();
     void initializePanelPosition();
-    void setupPanelResizeObserver();
 
     const handleResize = () => {
-      void syncPanelPosition({ preserveOrigin: true });
+      void syncPanelPosition({ preserveOrigin: true, useEstimate: isOpen });
     };
 
     window.addEventListener('resize', handleResize);
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      clearPanelResyncTimer();
-      panelResizeObserver?.disconnect();
-      if (panelResizeFrame !== null) {
-        cancelAnimationFrame(panelResizeFrame);
-      }
 
       if (audioEl) {
         audioEl.pause();
@@ -180,7 +170,7 @@
       errorMessage = '歌单没加载出来，稍后再试一次。';
       resetAudioElement();
     } finally {
-      await syncPanelPosition();
+      await syncPanelPosition({ useEstimate: isOpen });
     }
   }
 
@@ -189,6 +179,17 @@
     audioEl.pause();
     audioEl.removeAttribute('src');
     audioEl.load();
+  }
+
+  function waitForNextFrame() {
+    return new Promise<void>((resolve) => {
+      if (typeof window === 'undefined') {
+        resolve();
+        return;
+      }
+
+      window.requestAnimationFrame(() => resolve());
+    });
   }
 
   function bindTrackToAudio(url: string, autoplay = false) {
@@ -206,8 +207,6 @@
   }
 
   async function togglePlayer() {
-    clearPanelResyncTimer();
-
     if (dragMoved) {
       dragMoved = false;
       return;
@@ -217,7 +216,6 @@
       syncClosedStateFromViewport();
       const closedWidth = getClosedPanelSize();
       const closedHeight = getClosedPanelHeight();
-      resolvePanelOrigins(panelLeft, panelTop, closedWidth, closedHeight);
       syncDockFromPanel(closedWidth, closedHeight);
       const preservedDock = { left: dockLeft, top: dockTop };
       isOpen = true;
@@ -239,7 +237,6 @@
 
   async function collapsePlayer(event: Event) {
     event.stopPropagation();
-    clearPanelResyncTimer();
     isOpen = false;
     isListOpen = false;
     search = '';
@@ -330,22 +327,24 @@
 
   async function toggleList(event: Event) {
     event.stopPropagation();
-    clearPanelResyncTimer();
     if (!isOpen) {
       syncClosedStateFromViewport();
       const closedWidth = getClosedPanelSize();
       const closedHeight = getClosedPanelHeight();
-      resolvePanelOrigins(panelLeft, panelTop, closedWidth, closedHeight);
       syncDockFromPanel(closedWidth, closedHeight);
       const preservedDock = { left: dockLeft, top: dockTop };
       isOpen = true;
+      isListOpen = true;
       await syncOpenPanelFromDock(preservedDock);
-      isListOpen = !isListOpen;
-      await syncPanelPosition({ preserveOrigin: true });
       return;
     }
-    isListOpen = !isListOpen;
-    await syncPanelPosition({ preserveOrigin: true });
+
+    const nextListOpen = !isListOpen;
+    isListOpen = nextListOpen;
+
+    if (nextListOpen) {
+      await syncPanelPosition({ preserveOrigin: true, useEstimate: true });
+    }
   }
 
   function handleTimeUpdate() {
@@ -384,8 +383,6 @@
   }
 
   function beginDragging(clientX: number, clientY: number, target: HTMLElement, pointerId?: number) {
-    clearPanelResyncTimer();
-
     dragPointerId = typeof pointerId === 'number' ? pointerId : null;
     dragCaptureEl = target;
     dragOffsetX = clientX - panelLeft;
@@ -404,12 +401,13 @@
     }
   }
 
-  async function syncPanelPosition(options: { reset?: boolean; preserveOrigin?: boolean; resync?: boolean } = {}) {
+  async function syncPanelPosition(options: { reset?: boolean; preserveOrigin?: boolean; useEstimate?: boolean } = {}) {
     await tick();
     if (typeof window === 'undefined') return;
 
-    const { reset = false, preserveOrigin = false, resync = true } = options;
-    const { width, height } = getPanelDimensions();
+    const { reset = false, preserveOrigin = false, useEstimate = false } = options;
+    const { width, height: measuredHeight } = getPanelDimensions();
+    const height = useEstimate && isOpen ? getEstimatedOpenPanelHeight() : measuredHeight;
 
     if (!panelReady || reset) {
       dockLeft = getDefaultDockLeft();
@@ -426,19 +424,17 @@
       restDockLeft = dockLeft;
       restDockTop = dockTop;
     }
-    if (resync) {
-      schedulePanelResync();
-    }
   }
 
   async function syncOpenPanelFromDock(preservedDock = { left: dockLeft, top: dockTop }) {
     await tick();
+    await waitForNextFrame();
     dockLeft = preservedDock.left;
     dockTop = preservedDock.top;
-    const width = getPreferredPanelWidth(true);
-    const height = getEstimatedOpenPanelHeight();
+    const { width: measuredWidth, height: measuredHeight } = getPanelDimensions();
+    const width = Math.max(measuredWidth, getPreferredPanelWidth(true));
+    const height = Math.max(measuredHeight, getEstimatedOpenPanelHeight());
     clampDockToViewport(width, height);
-    schedulePanelResync();
   }
 
   async function initializePanelPosition() {
@@ -468,32 +464,20 @@
   }
 
   function getEstimatedOpenPanelHeight() {
-    return OPEN_PANEL_HEIGHT_ESTIMATE_REM * getRootFontSize();
-  }
-
-  async function setupPanelResizeObserver() {
-    await tick();
-    if (typeof ResizeObserver === 'undefined' || !widgetEl) return;
-
-    panelResizeObserver?.disconnect();
-    panelResizeObserver = new ResizeObserver(() => {
-      if (isDraggingWidget || !panelReady) return;
-
-      if (panelResizeFrame !== null) {
-        cancelAnimationFrame(panelResizeFrame);
-      }
-
-      panelResizeFrame = window.requestAnimationFrame(() => {
-        panelResizeFrame = null;
-        void syncPanelPosition({ preserveOrigin: true, resync: false });
-      });
-    });
-
-    panelResizeObserver.observe(widgetEl);
+    const rootFontSize = getRootFontSize();
+    return (OPEN_PANEL_BASE_HEIGHT_REM + (isListOpen ? OPEN_PANEL_LIST_HEIGHT_REM : 0)) * rootFontSize;
   }
 
   function syncClosedStateFromViewport() {
-    if (!widgetEl || isOpen) return;
+    if (isOpen) return;
+
+    if (panelReady) {
+      panelLeft = restDockLeft;
+      panelTop = restDockTop;
+      return;
+    }
+
+    if (!widgetEl) return;
 
     const rect = widgetEl.getBoundingClientRect();
     const computed = getComputedStyle(widgetEl);
@@ -569,22 +553,6 @@
 
   function clamp(value: number, min: number, max: number) {
     return Math.min(Math.max(value, min), max);
-  }
-
-  function clearPanelResyncTimer() {
-    if (panelResyncTimer === null) return;
-    clearTimeout(panelResyncTimer);
-    panelResyncTimer = null;
-  }
-
-  function schedulePanelResync() {
-    if (typeof window === 'undefined') return;
-    clearPanelResyncTimer();
-    panelResyncTimer = window.setTimeout(() => {
-      panelResyncTimer = null;
-      if (isDraggingWidget) return;
-      void syncPanelPosition({ preserveOrigin: true, resync: false });
-    }, PANEL_RESYNC_DELAY_MS);
   }
 
   function clampDockToViewport(width = getPanelDimensions().width, height = getPanelDimensions().height) {
@@ -712,7 +680,6 @@
       restDockTop = dockTop;
     }
 
-    schedulePanelResync();
   }
 
   function formatTime(value: number) {

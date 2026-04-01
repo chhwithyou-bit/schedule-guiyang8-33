@@ -10,6 +10,7 @@
   export { className as class };
 
   let isExpanded = false;
+  let suppressNextTriggerClick = false;
   let dockRef: HTMLElement;
 
   const viewCopy: Record<string, { eyebrow: string; detail: string; short: string }> = {
@@ -60,6 +61,25 @@
 
   function toggleLiquidBar(nextState?: boolean) {
     isExpanded = typeof nextState === 'boolean' ? nextState : !isExpanded;
+  }
+
+  function handleTriggerClick() {
+    if (suppressNextTriggerClick) {
+      suppressNextTriggerClick = false;
+      return;
+    }
+
+    toggleLiquidBar();
+  }
+
+  function handleTriggerTouchStart(event: TouchEvent) {
+    event.preventDefault();
+    suppressNextTriggerClick = true;
+  }
+
+  function handleTriggerTouchEnd(event: TouchEvent) {
+    event.preventDefault();
+    toggleLiquidBar();
   }
 
   function closeLiquidBar() {
@@ -126,7 +146,7 @@
       class="liquid-backdrop pointer-events-auto"
       on:click={closeLiquidBar}
       transition:fade={{ duration: 220 }}
-      aria-label="关闭导航"
+      aria-label="导航背景"
     ></button>
   {/if}
 
@@ -135,7 +155,9 @@
       <button
         type="button"
         class="liquid-trigger"
-        on:click={() => toggleLiquidBar()}
+        on:click={handleTriggerClick}
+        on:touchstart={handleTriggerTouchStart}
+        on:touchend={handleTriggerTouchEnd}
         aria-expanded={isExpanded}
         aria-controls="liquid-bar-panel"
       >
@@ -240,16 +262,16 @@
 
 <style>
   .liquid-anchor {
-    top: max(env(safe-area-inset-top), 0.65rem);
-    left: max(env(safe-area-inset-left), 0.65rem);
-    width: min(22rem, calc(100vw - max(env(safe-area-inset-left), 0px) - 1rem));
+    top: env(safe-area-inset-top, 0px);
+    left: env(safe-area-inset-left, 0px);
+    width: min(22rem, calc(100vw - env(safe-area-inset-left, 0px)));
   }
 
   @media (min-width: 768px) {
     .liquid-anchor {
-      top: max(env(safe-area-inset-top), 0.9rem);
-      left: max(env(safe-area-inset-left), 0.9rem);
-      width: min(22rem, calc(100vw - max(env(safe-area-inset-left), 0px) - 1.5rem));
+      top: env(safe-area-inset-top, 0px);
+      left: env(safe-area-inset-left, 0px);
+      width: min(22rem, calc(100vw - env(safe-area-inset-left, 0px)));
     }
   }
 

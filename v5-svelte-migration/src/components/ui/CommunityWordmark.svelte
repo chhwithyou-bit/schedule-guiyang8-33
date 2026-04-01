@@ -13,71 +13,55 @@
     text-rendering="geometricPrecision"
   >
     <defs>
-      <linearGradient id="community-fill" x1="0%" x2="100%" y1="0%" y2="0%">
-        <stop offset="0%" stop-color="#fff6d6">
-          <animate attributeName="stop-color" values="#fff6d6;#fbe7b5;#fff6d6" dur="8s" repeatCount="indefinite" />
-        </stop>
-        <stop offset="42%" stop-color="#fffdf6">
-          <animate attributeName="stop-color" values="#fffdf6;#fff0c8;#fffdf6" dur="8s" repeatCount="indefinite" />
-        </stop>
-        <stop offset="100%" stop-color="#b2d8ff">
-          <animate attributeName="stop-color" values="#b2d8ff;#d6c9ff;#b2d8ff" dur="8s" repeatCount="indefinite" />
-        </stop>
+      <linearGradient id="community-accent" x1="0%" x2="100%" y1="0%" y2="0%">
+        <stop offset="0%" style="stop-color: var(--color-primary); stop-opacity: 1;" />
+        <stop offset="100%" style="stop-color: var(--color-secondary); stop-opacity: 0.92;" />
       </linearGradient>
 
-      <linearGradient id="community-sheen" x1="0%" x2="100%" y1="0%" y2="0%">
+      <linearGradient id="community-beam" x1="0%" x2="100%" y1="0%" y2="0%">
         <stop offset="0%" stop-color="#ffffff00" />
-        <stop offset="48%" stop-color="#ffffffcc" />
+        <stop offset="42%" stop-color="#ffffffd9" />
         <stop offset="100%" stop-color="#ffffff00" />
       </linearGradient>
 
-      <filter id="community-glow" x="-20%" y="-30%" width="140%" height="180%">
-        <feGaussianBlur stdDeviation="3.5" result="blur" />
+      <filter id="community-shadow" x="-16%" y="-24%" width="132%" height="164%">
+        <feGaussianBlur stdDeviation="7" result="blur" />
         <feColorMatrix
           in="blur"
           type="matrix"
           values="1 0 0 0 0
                   0 1 0 0 0
                   0 0 1 0 0
-                  0 0 0 0.28 0"
-          result="softGlow"
+                  0 0 0 0.22 0"
+          result="shadow"
         />
         <feMerge>
-          <feMergeNode in="softGlow" />
+          <feMergeNode in="shadow" />
           <feMergeNode in="SourceGraphic" />
         </feMerge>
       </filter>
 
-      <filter id="community-shadow" x="-20%" y="-30%" width="140%" height="180%">
-        <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="rgba(4, 8, 26, 0.22)" />
-      </filter>
-
-      <mask id="community-mask">
-        <text x="18" y="196" class="mask-text">8community</text>
+      <mask id="community-word-mask">
+        <text x="42" y="196" class="mask-text">8community</text>
       </mask>
     </defs>
 
-    <g class="community-orbits" aria-hidden="true">
-      <circle class="orbit orbit-one" cx="116" cy="82" r="54" />
-      <circle class="orbit orbit-two" cx="142" cy="112" r="33" />
-      <circle class="spark" cx="196" cy="46" r="6" />
+    <rect class="community-frame" x="24" y="38" width="1488" height="224" rx="112" />
+
+    <path class="community-guide" d="M56 94h118" />
+    <path class="community-guide community-guide-right" d="M1324 206h168" />
+
+    <text x="42" y="196" class="community-text-shadow">8community</text>
+    <text x="42" y="196" class="community-text">8community</text>
+
+    <g mask="url(#community-word-mask)" aria-hidden="true">
+      <rect class="community-beam" x="-320" y="28" width="320" height="264" fill="url(#community-beam)" />
     </g>
 
-    <text x="18" y="196" class="community-outline">8community</text>
-    <text x="18" y="196" class="community-fill">8community</text>
-
-    <g mask="url(#community-mask)" aria-hidden="true">
-      <rect class="community-sweep" x="-260" y="-24" width="240" height="260" fill="url(#community-sheen)" />
-    </g>
-
-    <path
-      class="community-wave"
-      d="M 24 236 C 152 208, 250 274, 380 236 S 644 202, 806 230 S 1118 286, 1450 218"
-    />
-    <path
-      class="community-wave community-wave-soft"
-      d="M 54 262 C 232 282, 372 218, 522 246 S 862 306, 1212 248 S 1440 224, 1560 238"
-    />
+    <path class="community-underline" d="M246 226 H1116 C1164 226, 1210 214, 1254 188" />
+    <circle class="community-pulse" cx="1288" cy="180" r="10" />
+    <circle class="community-pulse-ring" cx="1288" cy="180" r="22" />
+    <text x="1318" y="188" class="community-tag">live now</text>
   </svg>
 </div>
 
@@ -92,25 +76,25 @@
     content: '';
     position: absolute;
     pointer-events: none;
-    filter: blur(32px);
+    filter: blur(34px);
   }
 
   .community-wordmark::before {
-    left: -2rem;
-    top: 1rem;
-    height: 6rem;
-    width: 6rem;
-    background: radial-gradient(circle, rgba(255, 244, 210, 0.18), transparent 72%);
-    opacity: 0.45;
+    left: 1rem;
+    top: 2.2rem;
+    width: 8rem;
+    height: 5rem;
+    background: radial-gradient(circle, rgba(var(--glow-primary-rgb), 0.22), transparent 72%);
+    opacity: 0.62;
   }
 
   .community-wordmark::after {
-    right: 10%;
-    top: 0;
-    height: 4.8rem;
-    width: 10rem;
-    background: radial-gradient(circle, rgba(129, 188, 255, 0.16), transparent 72%);
-    opacity: 0.42;
+    right: 6%;
+    top: 0.8rem;
+    width: 11rem;
+    height: 5.5rem;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.1), transparent 74%);
+    opacity: 0.55;
   }
 
   .community-wordmark-svg {
@@ -118,167 +102,132 @@
     width: 100%;
     height: auto;
     overflow: visible;
-    filter: url(#community-shadow);
   }
 
-  .community-fill,
-  .community-outline,
+  .community-frame {
+    fill: rgba(var(--color-bg-rgb), 0.26);
+    stroke: rgba(255, 255, 255, 0.12);
+    stroke-width: 1.5;
+  }
+
+  .community-guide {
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.22);
+    stroke-linecap: round;
+    stroke-width: 2.5;
+  }
+
+  .community-guide-right {
+    opacity: 0.52;
+  }
+
+  .community-text,
+  .community-text-shadow,
   .mask-text {
-    font-family: 'Cormorant Garamond', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
-    font-size: 190px;
-    font-style: italic;
-    font-weight: 700;
-    letter-spacing: 6px;
+    font-family: 'Outfit', 'SF Pro Display', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+    font-size: 184px;
+    font-weight: 900;
+    letter-spacing: -0.065em;
     text-transform: lowercase;
   }
 
-  .community-fill {
-    fill: url(#community-fill);
-    filter: url(#community-glow);
-    paint-order: stroke fill;
-    stroke: rgba(255, 255, 255, 0.18);
-    stroke-width: 0.8;
+  .community-text-shadow {
+    fill: rgba(var(--shadow-rgb), 0.34);
+    filter: url(#community-shadow);
   }
 
-  .community-outline {
-    fill: none;
-    stroke: rgba(255, 247, 224, 0.42);
-    stroke-dasharray: 10 14;
-    stroke-width: 1.8;
-    animation: outlineDrift 16s linear infinite;
+  .community-text {
+    fill: var(--color-text);
+    stroke: rgba(255, 255, 255, 0.09);
+    stroke-width: 2;
+    paint-order: stroke fill;
   }
 
   .mask-text {
     fill: #fff;
   }
 
-  .community-sweep {
-    opacity: 0.66;
+  .community-beam {
+    opacity: 0.7;
     mix-blend-mode: screen;
-    animation: sweepAcross 5.8s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+    animation: beamSweep 5.2s cubic-bezier(0.22, 1, 0.36, 1) infinite;
   }
 
-  .community-wave {
+  .community-underline {
     fill: none;
-    stroke: url(#community-fill);
-    stroke-dasharray: 12 20;
+    stroke: url(#community-accent);
     stroke-linecap: round;
-    stroke-width: 3;
-    opacity: 0.84;
-    animation: waveDrift 13s linear infinite;
+    stroke-width: 6;
+    opacity: 0.94;
   }
 
-  .community-wave-soft {
-    stroke-width: 1.8;
-    opacity: 0.22;
-    animation-duration: 18s;
-    animation-direction: reverse;
+  .community-pulse {
+    fill: url(#community-accent);
+    opacity: 0.96;
   }
 
-  .orbit {
+  .community-pulse-ring {
     fill: none;
-    stroke: rgba(255, 247, 224, 0.2);
+    stroke: rgba(var(--glow-primary-rgb), 0.5);
+    stroke-width: 2.5;
     transform-box: fill-box;
     transform-origin: center;
+    animation: pulseRing 3s ease-in-out infinite;
   }
 
-  .orbit-one {
-    stroke-dasharray: 8 10;
-    stroke-width: 1.2;
-    animation: orbitSpin 14s linear infinite;
+  .community-tag {
+    fill: rgba(255, 255, 255, 0.6);
+    font-family: 'Outfit', 'SF Pro Display', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
   }
 
-  .orbit-two {
-    stroke-dasharray: 3 8;
-    stroke-width: 1.3;
-    animation: orbitSpinReverse 10s linear infinite;
-  }
-
-  .spark {
-    fill: rgba(255, 250, 236, 0.95);
-    filter: url(#community-glow);
-    animation: sparkle 3.2s ease-in-out infinite;
-  }
-
-  @keyframes sweepAcross {
+  @keyframes beamSweep {
     0% {
-      transform: translateX(0) rotate(11deg);
+      transform: translateX(0);
       opacity: 0;
     }
 
     18% {
-      opacity: 0.92;
+      opacity: 0.72;
     }
 
     82% {
-      opacity: 0.92;
+      opacity: 0.72;
     }
 
     100% {
-      transform: translateX(1880px) rotate(11deg);
+      transform: translateX(1860px);
       opacity: 0;
     }
   }
 
-  @keyframes outlineDrift {
-    0% {
-      stroke-dashoffset: 0;
-    }
-
-    100% {
-      stroke-dashoffset: -180;
-    }
-  }
-
-  @keyframes waveDrift {
-    0% {
-      stroke-dashoffset: 0;
-    }
-
-    100% {
-      stroke-dashoffset: -240;
-    }
-  }
-
-  @keyframes orbitSpin {
-    0% {
-      transform: rotate(0deg);
-    }
-
-    100% {
-      transform: rotate(360deg);
-    }
-  }
-
-  @keyframes orbitSpinReverse {
-    0% {
-      transform: rotate(0deg);
-    }
-
-    100% {
-      transform: rotate(-360deg);
-    }
-  }
-
-  @keyframes sparkle {
+  @keyframes pulseRing {
     0%,
     100% {
-      opacity: 0.45;
-      transform: scale(0.88);
+      opacity: 0.4;
+      transform: scale(0.94);
     }
 
     50% {
       opacity: 1;
-      transform: scale(1.22);
+      transform: scale(1.08);
     }
   }
 
   @media (max-width: 900px) {
-    .community-fill,
-    .community-outline,
+    .community-text,
+    .community-text-shadow,
     .mask-text {
       font-size: 160px;
-      letter-spacing: 4px;
+      letter-spacing: -0.055em;
+    }
+
+    .community-tag {
+      font-size: 22px;
+      letter-spacing: 0.22em;
     }
   }
 
@@ -287,21 +236,30 @@
       width: 100%;
     }
 
-    .community-fill,
-    .community-outline,
+    .community-text,
+    .community-text-shadow,
     .mask-text {
       font-size: 126px;
-      letter-spacing: 2px;
+      letter-spacing: -0.04em;
+    }
+
+    .community-tag {
+      font-size: 16px;
+      letter-spacing: 0.16em;
+    }
+
+    .community-guide {
+      stroke-width: 1.8;
+    }
+
+    .community-underline {
+      stroke-width: 4;
     }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .community-sweep,
-    .community-wave,
-    .community-outline,
-    .orbit-one,
-    .orbit-two,
-    .spark {
+    .community-beam,
+    .community-pulse-ring {
       animation: none !important;
     }
   }
