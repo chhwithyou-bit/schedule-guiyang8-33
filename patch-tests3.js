@@ -12,7 +12,7 @@ function processDir(dir) {
 
       const replacement = `await page.goto('/');
   try {
-    const btn = page.locator('button:has-text("Cyber Dark")');
+    const btn = page.locator('button:has-text("烟墨十样")');
     if (await btn.isVisible({ timeout: 2000 })) {
       await btn.click();
       await page.waitForTimeout(2000);

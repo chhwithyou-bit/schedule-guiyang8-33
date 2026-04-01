@@ -13,12 +13,16 @@ import { chromium } from 'playwright';
   await page.waitForTimeout(500);
   await page.screenshot({ path: 'visual-initial.png' });
 
-  await page.click('button:has-text("Cyber Dark")');
+  await page.click('button:has-text("烟墨十样")');
 
   await page.waitForTimeout(400);
   await page.screenshot({ path: 'visual-during-click.png' });
 
-  await page.waitForTimeout(4000);
+  await page.waitForTimeout(5000);
+  
+  // Open music player to verify it's centered
+  await page.click('#mp');
+  await page.waitForTimeout(2000);
   await page.screenshot({ path: 'visual-after.png' });
 
   await browser.close();

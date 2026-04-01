@@ -11,7 +11,7 @@ import { chromium } from 'playwright';
   await page.goto('http://localhost:8787');
 
   // click theme
-  await page.click('button:has-text("Cyber Dark")');
+  await page.click('button:has-text("烟墨十样")');
 
   await page.waitForTimeout(500);
   await page.screenshot({ path: 'theme-500ms.png' });

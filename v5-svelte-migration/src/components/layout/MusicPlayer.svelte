@@ -63,6 +63,7 @@
   let lastOpenPanelLeft = INITIAL_PANEL_LEFT;
   let lastOpenPanelTop = INITIAL_PANEL_TOP;
   let hasStoredOpenPanel = false;
+  let userHasDraggedOpenPanel = false;
   let panelOriginX: PanelEdge = 'right';
   let panelOriginY: PanelVerticalEdge = 'bottom';
   let panelReady = false;
@@ -630,13 +631,13 @@
 
     const { width, height } = getPanelDimensions();
 
-    if (hasStoredOpenPanel && !isMobile) {
+    if (userHasDraggedOpenPanel && !isMobile) {
       panelLeft = lastOpenPanelLeft;
       panelTop = lastOpenPanelTop;
     } else {
-      // Always center on mobile or on first expand to fulfill responsive/centered requirements
       panelLeft = (window.innerWidth - width) / 2;
       panelTop = (window.innerHeight - height) / 2;
+      resolvePanelOrigins(panelLeft, panelTop, width, height);
     }
     clampPanelToViewport(width, height);
     lastOpenPanelLeft = panelLeft;
@@ -710,9 +711,10 @@
   }
 
   function positionPanelFromRest(width = getPanelDimensions().width, height = getPanelDimensions().height) {
-    if (isMobile) {
+    if (isMobile || !userHasDraggedOpenPanel) {
       panelLeft = (window.innerWidth - width) / 2;
       panelTop = (window.innerHeight - height) / 2;
+      resolvePanelOrigins(panelLeft, panelTop, width, height);
       return;
     }
 
@@ -815,6 +817,7 @@
       clampPanelToViewport(width, height);
       resolvePanelOrigins(panelLeft, panelTop, width, height);
       stabilizeOpenPanelAnchor(width, height);
+      if (isOpen) userHasDraggedOpenPanel = true;
     } else {
       panelLeft = dragStartPanelLeft;
       panelTop = dragStartPanelTop;
