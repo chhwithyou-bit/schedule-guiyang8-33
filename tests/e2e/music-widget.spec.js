@@ -1,7 +1,7 @@
 const { test, expect } = require('@playwright/test');
 
 const SILENT_AUDIO = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=';
-const WIDGET_SETTLE_MS = 680;
+const WIDGET_SETTLE_MS = 760;
 
 function buildPlaylist() {
   return [
@@ -92,12 +92,21 @@ async function readWidgetState(page) {
 
     return {
       open: el.classList.contains('open'),
+      originX: el.getAttribute('data-origin-x'),
+      originY: el.getAttribute('data-origin-y'),
       left: parseFloat(computed.left || '0'),
       top: parseFloat(computed.top || '0'),
+      right: rect.right,
+      bottom: rect.bottom,
       width: rect.width,
       height: rect.height
     };
   });
+}
+
+function expectPanelPositionStable(before, after, tolerance = 2) {
+  expect(Math.abs(after.left - before.left)).toBeLessThanOrEqual(tolerance);
+  expect(Math.abs(after.top - before.top)).toBeLessThanOrEqual(tolerance);
 }
 
 test.beforeEach(async ({ page }) => {
@@ -337,4 +346,38 @@ test('music widget can be dragged with the handle', async ({ page }) => {
 
   expect(Math.abs(collapsedAgain.left - collapsed.left)).toBeLessThan(2);
   expect(Math.abs(collapsedAgain.top - collapsed.top)).toBeLessThan(2);
+});
+
+test('music widget stays anchored when opening and toggling the list', async ({ page }) => {
+  await page.goto('/');
+  try {
+    const btn = page.locator('button[data-theme-id="theme-default"]');
+    if (await btn.isVisible({ timeout: 2000 })) {
+      await btn.click();
+      await page.waitForTimeout(2000);
+    }
+  } catch (e) {}
+
+  const widget = page.locator('#mp');
+  await expect(widget).toBeVisible();
+
+  await widget.click();
+  await expect(widget).toHaveClass(/open/);
+  await page.waitForTimeout(WIDGET_SETTLE_MS);
+
+  const opened = await readWidgetState(page);
+
+  await page.locator('#mpb-list').click();
+  await expect(page.locator('#mp-list-area')).toHaveClass(/show/);
+  await page.waitForTimeout(WIDGET_SETTLE_MS);
+
+  const listOpened = await readWidgetState(page);
+  expectPanelPositionStable(opened, listOpened);
+
+  await page.locator('#mpb-list').click();
+  await expect(page.locator('#mp-list-area')).not.toHaveClass(/show/);
+  await page.waitForTimeout(WIDGET_SETTLE_MS);
+
+  const listClosed = await readWidgetState(page);
+  expectPanelPositionStable(opened, listClosed);
 });

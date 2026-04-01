@@ -25,64 +25,68 @@
   const OPEN_PANEL_LIST_HEIGHT_REM = 15.5;
   const PANEL_TRANSITION_MS = 520;
   const PANEL_CONTENT_TRANSITION_MS = 420;
+  const INITIAL_PANEL_LEFT = typeof window === 'undefined' ? 24 : getDefaultPanelLeft();
+  const INITIAL_PANEL_TOP = typeof window === 'undefined' ? 24 : getDefaultPanelTop();
 
-  let audioEl = $state<HTMLAudioElement>();
-  let widgetEl = $state<HTMLDivElement>();
+  let audioEl: HTMLAudioElement;
+  let widgetEl: HTMLDivElement;
 
-  let isOpen = $state(false);
-  let isListOpen = $state(false);
-  let isPlaying = $state(false);
-  let progress = $state(0);
-  let duration = $state(0);
-  let currentTime = $state(0);
-  let search = $state('');
-  let errorMessage = $state('');
-  let loadState = $state<'loading' | 'ready' | 'empty' | 'error'>('loading');
-  let playlist = $state<Track[]>([]);
-  let currentIndex = $state(0);
+  let isOpen = false;
+  let isListOpen = false;
+  let isPlaying = false;
+  let progress = 0;
+  let duration = 0;
+  let currentTime = 0;
+  let search = '';
+  let errorMessage = '';
+  let loadState: 'loading' | 'ready' | 'empty' | 'error' = 'loading';
+  let playlist: Track[] = [];
+  let currentIndex = 0;
   let lastBoundUrl = '';
-  let panelLeft = $state(24);
-  let panelTop = $state(24);
-  let dockLeft = $state(24);
-  let dockTop = $state(24);
-  let restDockLeft = $state(24);
-  let restDockTop = $state(24);
-  let panelOriginX = $state<PanelEdge>('right');
-  let panelOriginY = $state<PanelVerticalEdge>('bottom');
-  let panelReady = $state(false);
-  let isDraggingWidget = $state(false);
-  let dragPointerId = $state<number | null>(null);
-  let dragCaptureEl = $state<HTMLElement | null>(null);
+  let filteredTracks: Track[] = [];
+  let currentTrack: Track = FALLBACK_TRACK;
+
+  let panelLeft = INITIAL_PANEL_LEFT;
+  let panelTop = INITIAL_PANEL_TOP;
+  let restPanelLeft = INITIAL_PANEL_LEFT;
+  let restPanelTop = INITIAL_PANEL_TOP;
+  let panelOriginX: PanelEdge = 'right';
+  let panelOriginY: PanelVerticalEdge = 'bottom';
+  let panelReady = false;
+  let openBaseHeight = 0;
+  let isDraggingWidget = false;
+  let dragPointerId: number | null = null;
+  let dragCaptureEl: HTMLElement | null = null;
   let dragOffsetX = 0;
   let dragOffsetY = 0;
   let dragStartX = 0;
   let dragStartY = 0;
   let dragStartPanelLeft = 0;
   let dragStartPanelTop = 0;
-  let dragStartDockLeft = 0;
-  let dragStartDockTop = 0;
-  let dragMoved = $state(false);
+  let dragStartRestPanelLeft = 0;
+  let dragStartRestPanelTop = 0;
+  let dragMoved = false;
+  let openMotionX = 28;
+  let openMotionY = 18;
+  let panelOriginXPercent = '100%';
+  let panelOriginYPercent = '100%';
 
-  const filteredTracks = $derived(
-    playlist.filter((track) => {
-      const needle = search.trim().toLowerCase();
-      if (!needle) return true;
-      return [track.name, track.artist].some((value) => String(value || '').toLowerCase().includes(needle));
-    })
-  );
-
-  const currentTrack = $derived(playlist[currentIndex] || getFallbackTrack());
-
-  $effect(() => {
-    if (audioEl && currentTrack.url && currentTrack.url !== lastBoundUrl) {
-      bindTrackToAudio(currentTrack.url);
-    }
+  $: filteredTracks = playlist.filter((track) => {
+    const needle = search.trim().toLowerCase();
+    if (!needle) return true;
+    return [track.name, track.artist].some((value) => String(value || '').toLowerCase().includes(needle));
   });
 
-  const openMotionX = $derived(panelOriginX === 'right' ? 28 : -28);
-  const openMotionY = $derived(panelOriginY === 'bottom' ? 18 : -18);
-  const panelOriginXPercent = $derived(panelOriginX === 'right' ? '100%' : '0%');
-  const panelOriginYPercent = $derived(panelOriginY === 'bottom' ? '100%' : '0%');
+  $: currentTrack = playlist[currentIndex] || getFallbackTrack();
+
+  $: if (audioEl && currentTrack.url && currentTrack.url !== lastBoundUrl) {
+    bindTrackToAudio(currentTrack.url);
+  }
+
+  $: openMotionX = panelOriginX === 'right' ? 28 : -28;
+  $: openMotionY = panelOriginY === 'bottom' ? 18 : -18;
+  $: panelOriginXPercent = panelOriginX === 'right' ? '100%' : '0%';
+  $: panelOriginYPercent = panelOriginY === 'bottom' ? '100%' : '0%';
 
   onMount(() => {
     void loadPlaylist();
@@ -183,6 +187,17 @@
     audioEl.load();
   }
 
+  function waitForNextFrame() {
+    return new Promise<void>((resolve) => {
+      if (typeof window === 'undefined') {
+        resolve();
+        return;
+      }
+
+      window.requestAnimationFrame(() => resolve());
+    });
+  }
+
   function bindTrackToAudio(url: string, autoplay = false) {
     if (!audioEl || !url) return;
     lastBoundUrl = url;
@@ -197,14 +212,7 @@
     }
   }
 
-  function syncOpenPanelFromDock(preservedDock = { left: dockLeft, top: dockTop }) {
-    dockLeft = preservedDock.left;
-    dockTop = preservedDock.top;
-    const { width, height } = getPanelDimensions();
-    clampDockToViewport(width, height);
-  }
-
-  function togglePlayer() {
+  async function togglePlayer() {
     if (dragMoved) {
       dragMoved = false;
       return;
@@ -214,45 +222,25 @@
       syncClosedStateFromViewport();
       const closedWidth = getClosedPanelSize();
       const closedHeight = getClosedPanelHeight();
-      syncDockFromPanel(closedWidth, closedHeight);
-      const preservedDock = { left: dockLeft, top: dockTop };
-      
+      resolvePanelOrigins(restPanelLeft, restPanelTop, closedWidth, closedHeight);
       isOpen = true;
-      syncOpenPanelFromDock(preservedDock);
+      await syncPanelPosition({ preserveOrigin: true });
       return;
     }
 
-    const { width, height } = getPanelDimensions();
-    syncDockFromPanel(width, height);
-
     isOpen = false;
     isListOpen = false;
     search = '';
-
-    dockLeft = restDockLeft;
-    dockTop = restDockTop;
-    
-    const closedWidth = getClosedPanelSize();
-    const closedHeight = getClosedPanelHeight();
-    clampDockToViewport(closedWidth, closedHeight);
+    await syncPanelPosition({ preserveOrigin: true });
   }
 
-  function collapsePlayer(event: Event) {
+  async function collapsePlayer(event: Event) {
     event.stopPropagation();
-    
-    const { width, height } = getPanelDimensions();
-    syncDockFromPanel(width, height);
 
     isOpen = false;
     isListOpen = false;
     search = '';
-    
-    dockLeft = restDockLeft;
-    dockTop = restDockTop;
-    
-    const closedWidth = getClosedPanelSize();
-    const closedHeight = getClosedPanelHeight();
-    clampDockToViewport(closedWidth, closedHeight);
+    await syncPanelPosition({ preserveOrigin: true });
   }
 
   function handleHandleClick(event: MouseEvent) {
@@ -264,11 +252,11 @@
     }
 
     if (isOpen) {
-      collapsePlayer(event);
+      void collapsePlayer(event);
       return;
     }
 
-    togglePlayer();
+    void togglePlayer();
   }
 
   async function playCurrent() {
@@ -335,28 +323,29 @@
     selectTrack(prevIndex, autoplay);
   }
 
-  function toggleList(event: Event) {
+  async function toggleList(event: Event) {
     event.stopPropagation();
     if (!isOpen) {
       syncClosedStateFromViewport();
       const closedWidth = getClosedPanelSize();
       const closedHeight = getClosedPanelHeight();
-      syncDockFromPanel(closedWidth, closedHeight);
-      const preservedDock = { left: dockLeft, top: dockTop };
-      
+      resolvePanelOrigins(restPanelLeft, restPanelTop, closedWidth, closedHeight);
       isListOpen = true;
       isOpen = true;
-      syncOpenPanelFromDock(preservedDock);
+      await syncPanelPosition({ preserveOrigin: true });
       return;
     }
 
-    const { width: oldWidth, height: oldHeight } = getPanelDimensions();
-    syncDockFromPanel(oldWidth, oldHeight);
-
+    const preservedLeft = panelLeft;
+    const preservedTop = panelTop;
     isListOpen = !isListOpen;
+    await tick();
+    await waitForNextFrame();
 
-    const { width: newWidth, height: newHeight } = getPanelDimensions();
-    clampDockToViewport(newWidth, newHeight);
+    const { width, height } = getPanelDimensions();
+    panelLeft = preservedLeft;
+    panelTop = preservedTop;
+    clampPanelToViewport(width, height);
   }
 
   function handleTimeUpdate() {
@@ -403,8 +392,8 @@
     dragStartY = clientY;
     dragStartPanelLeft = panelLeft;
     dragStartPanelTop = panelTop;
-    dragStartDockLeft = dockLeft;
-    dragStartDockTop = dockTop;
+    dragStartRestPanelLeft = restPanelLeft;
+    dragStartRestPanelTop = restPanelTop;
     dragMoved = false;
     isDraggingWidget = true;
 
@@ -415,26 +404,36 @@
 
   async function syncPanelPosition(options: { reset?: boolean; preserveOrigin?: boolean } = {}) {
     await tick();
+    await waitForNextFrame();
     if (typeof window === 'undefined') return;
 
     const { reset = false, preserveOrigin = false } = options;
     const { width, height } = getPanelDimensions();
 
     if (!panelReady || reset) {
-      dockLeft = getDefaultDockLeft();
-      dockTop = getDefaultDockTop();
+      restPanelLeft = getDefaultPanelLeft();
+      restPanelTop = getDefaultPanelTop();
       panelReady = true;
     }
 
     if (!preserveOrigin) {
-      resolvePanelOrigins(panelLeft, panelTop, width, height);
+      if (isOpen) {
+        resolvePanelOrigins(panelLeft, panelTop, width, height);
+      } else {
+        resolvePanelOrigins(restPanelLeft, restPanelTop, getClosedPanelSize(), getClosedPanelHeight());
+      }
     }
 
-    clampDockToViewport(width, height);
     if (!isOpen) {
-      restDockLeft = dockLeft;
-      restDockTop = dockTop;
+      clampRestPanelToViewport();
+      panelLeft = restPanelLeft;
+      panelTop = restPanelTop;
+      return;
     }
+
+    clampRestPanelToViewport();
+    positionPanelFromRest(width, height);
+    clampPanelToViewport(width, height);
   }
 
   async function initializePanelPosition() {
@@ -468,14 +467,36 @@
     return (OPEN_PANEL_BASE_HEIGHT_REM + (isListOpen ? OPEN_PANEL_LIST_HEIGHT_REM : 0)) * rootFontSize;
   }
 
+  function getMeasuredOpenPanelHeight() {
+    if (!isOpen || !widgetEl) return null;
+
+    const rect = widgetEl.getBoundingClientRect();
+    const renderedHeight = Math.max(
+      Number.isFinite(rect.height) && rect.height > 0 ? rect.height : 0,
+      widgetEl.offsetHeight || 0
+    );
+
+    if (!isListOpen) {
+      if (renderedHeight > 0) {
+        openBaseHeight = renderedHeight;
+      }
+      return renderedHeight > 0 ? renderedHeight : null;
+    }
+
+    const listArea = widgetEl.querySelector<HTMLElement>('#mp-list-area');
+    if (!listArea) return openBaseHeight || renderedHeight || null;
+
+    const listStyles = getComputedStyle(listArea);
+    const maxHeight = Number.parseFloat(listStyles.maxHeight || '0');
+    const marginTop = Number.parseFloat(listStyles.marginTop || '0');
+    const visibleListHeight = Math.min(listArea.scrollHeight || 0, maxHeight > 0 ? maxHeight : listArea.scrollHeight || 0);
+    const baseHeight = openBaseHeight || renderedHeight;
+
+    return baseHeight > 0 ? baseHeight + marginTop + visibleListHeight : null;
+  }
+
   function syncClosedStateFromViewport() {
     if (isOpen) return;
-
-    if (panelReady) {
-      panelLeft = restDockLeft;
-      panelTop = restDockTop;
-      return;
-    }
 
     if (!widgetEl) return;
 
@@ -485,24 +506,27 @@
     const nextTop = Number.isFinite(rect.top) ? rect.top : Number.parseFloat(computed.top || '');
 
     if (Number.isFinite(nextLeft)) {
-      panelLeft = nextLeft;
+      restPanelLeft = nextLeft;
     }
 
     if (Number.isFinite(nextTop)) {
-      panelTop = nextTop;
+      restPanelTop = nextTop;
     }
+
+    panelLeft = restPanelLeft;
+    panelTop = restPanelTop;
   }
 
-  function getDefaultDockLeft() {
+  function getDefaultPanelLeft() {
     if (typeof window === 'undefined') return PANEL_MARGIN;
     const size = getClosedPanelSize();
-    return Math.max(PANEL_MARGIN, window.innerWidth - size - 24);
+    return Math.max(PANEL_MARGIN, window.innerWidth - size - (PANEL_MARGIN * 2));
   }
 
-  function getDefaultDockTop() {
+  function getDefaultPanelTop() {
     if (typeof window === 'undefined') return PANEL_MARGIN;
-    const size = getClosedPanelSize();
-    return Math.max(PANEL_MARGIN, window.innerHeight - size - 24);
+    const height = getClosedPanelHeight();
+    return Math.max(PANEL_MARGIN, window.innerHeight - height - (PANEL_MARGIN * 2));
   }
 
   function resolvePanelOrigins(
@@ -514,21 +538,8 @@
     if (typeof window === 'undefined') return;
     const nextOriginX = referenceLeft + referenceWidth / 2 >= window.innerWidth / 2 ? 'right' : 'left';
     const nextOriginY = referenceTop + referenceHeight / 2 >= window.innerHeight / 2 ? 'bottom' : 'top';
-
-    if (nextOriginX !== panelOriginX || nextOriginY !== panelOriginY) {
-      panelOriginX = nextOriginX;
-      panelOriginY = nextOriginY;
-      syncDockFromPanel(referenceWidth, referenceHeight, referenceLeft, referenceTop);
-    }
-  }
-
-  function getAnchoredPanelPosition(width: number, height: number) {
-    const size = getClosedPanelSize();
-
-    return {
-      left: panelOriginX === 'right' ? dockLeft + size - width : dockLeft,
-      top: panelOriginY === 'bottom' ? dockTop + size - height : dockTop
-    };
+    panelOriginX = nextOriginX;
+    panelOriginY = nextOriginY;
   }
 
   function getPanelDimensions() {
@@ -539,9 +550,11 @@
       };
     }
 
+    const measuredHeight = getMeasuredOpenPanelHeight();
+
     return {
       width: getPreferredPanelWidth(true),
-      height: getEstimatedOpenPanelHeight()
+      height: measuredHeight || getEstimatedOpenPanelHeight()
     };
   }
 
@@ -549,25 +562,10 @@
     return Math.min(Math.max(value, min), max);
   }
 
-  function clampDockToViewport(width = getPanelDimensions().width, height = getPanelDimensions().height) {
-    if (typeof window === 'undefined') return;
-
-    const closedSize = getClosedPanelSize();
-    const minDockLeft = panelOriginX === 'right' ? PANEL_MARGIN + width - closedSize : PANEL_MARGIN;
-    const maxDockLeft = panelOriginX === 'right'
-      ? window.innerWidth - closedSize - PANEL_MARGIN
-      : window.innerWidth - width - PANEL_MARGIN;
-    const minDockTop = panelOriginY === 'bottom' ? PANEL_MARGIN + height - closedSize : PANEL_MARGIN;
-    const maxDockTop = panelOriginY === 'bottom'
-      ? window.innerHeight - closedSize - PANEL_MARGIN
-      : window.innerHeight - height - PANEL_MARGIN;
-
-    dockLeft = clamp(dockLeft, minDockLeft, Math.max(minDockLeft, maxDockLeft));
-    dockTop = clamp(dockTop, minDockTop, Math.max(minDockTop, maxDockTop));
-
-    const anchored = getAnchoredPanelPosition(width, height);
-    panelLeft = anchored.left;
-    panelTop = anchored.top;
+  function clampPanelToViewport(width = getPanelDimensions().width, height = getPanelDimensions().height) {
+    const nextPosition = clampActualPanelPosition(panelLeft, panelTop, width, height);
+    panelLeft = nextPosition.left;
+    panelTop = nextPosition.top;
   }
 
   function clampActualPanelPosition(nextLeft: number, nextTop: number, width: number, height: number) {
@@ -584,10 +582,24 @@
     };
   }
 
-  function syncDockFromPanel(width: number, height: number, left = panelLeft, top = panelTop) {
-    const closedSize = getClosedPanelSize();
-    dockLeft = panelOriginX === 'right' ? left + width - closedSize : left;
-    dockTop = panelOriginY === 'bottom' ? top + height - closedSize : top;
+  function positionPanelFromRest(width = getPanelDimensions().width, height = getPanelDimensions().height) {
+    const closedWidth = getClosedPanelSize();
+    const closedHeight = getClosedPanelHeight();
+    panelLeft = panelOriginX === 'right' ? restPanelLeft + closedWidth - width : restPanelLeft;
+    panelTop = panelOriginY === 'bottom' ? restPanelTop + closedHeight - height : restPanelTop;
+  }
+
+  function syncRestPanelFromPosition(width = getPanelDimensions().width, height = getPanelDimensions().height, left = panelLeft, top = panelTop) {
+    const closedWidth = getClosedPanelSize();
+    const closedHeight = getClosedPanelHeight();
+    restPanelLeft = panelOriginX === 'right' ? left + width - closedWidth : left;
+    restPanelTop = panelOriginY === 'bottom' ? top + height - closedHeight : top;
+  }
+
+  function clampRestPanelToViewport() {
+    const nextPosition = clampActualPanelPosition(restPanelLeft, restPanelTop, getClosedPanelSize(), getClosedPanelHeight());
+    restPanelLeft = nextPosition.left;
+    restPanelTop = nextPosition.top;
   }
 
   function handleDragPointerDown(event: PointerEvent) {
@@ -623,7 +635,6 @@
 
     panelLeft = nextPosition.left;
     panelTop = nextPosition.top;
-    syncDockFromPanel(width, height);
   }
 
   function handleDragMouseMove(event: MouseEvent) {
@@ -643,10 +654,10 @@
 
     panelLeft = nextPosition.left;
     panelTop = nextPosition.top;
-    syncDockFromPanel(width, height);
   }
 
   function finishDragging(event?: PointerEvent | MouseEvent) {
+    if (!isDraggingWidget) return;
     if (event && 'pointerId' in event && dragPointerId !== null && event.pointerId !== dragPointerId) return;
 
     if (dragCaptureEl && dragPointerId !== null) {
@@ -657,16 +668,16 @@
 
     if (dragMoved) {
       const { width, height } = getPanelDimensions();
+      clampPanelToViewport(width, height);
       resolvePanelOrigins(panelLeft, panelTop, width, height);
-      syncDockFromPanel(width, height);
-      clampDockToViewport(width, height);
-      restDockLeft = dockLeft;
-      restDockTop = dockTop;
+      syncRestPanelFromPosition(width, height);
+      clampRestPanelToViewport();
+      positionPanelFromRest(width, height);
     } else {
       panelLeft = dragStartPanelLeft;
       panelTop = dragStartPanelTop;
-      dockLeft = dragStartDockLeft;
-      dockTop = dragStartDockTop;
+      restPanelLeft = dragStartRestPanelLeft;
+      restPanelTop = dragStartRestPanelTop;
     }
 
     dragPointerId = null;
@@ -701,21 +712,21 @@
 </script>
 
 <svelte:window
-  onpointermove={handleDragPointerMove}
-  onpointerup={finishDragging}
-  onpointercancel={finishDragging}
-  onmousemove={handleDragMouseMove}
-  onmouseup={finishDragging}
+  on:pointermove={handleDragPointerMove}
+  on:pointerup={finishDragging}
+  on:pointercancel={finishDragging}
+  on:mousemove={handleDragMouseMove}
+  on:mouseup={finishDragging}
 />
 
 <audio
   bind:this={audioEl}
   preload="metadata"
   playsinline
-  ontimeupdate={handleTimeUpdate}
-  onloadedmetadata={handleLoadedMetadata}
-  onended={handleEnded}
-  onerror={handleAudioError}
+  on:timeupdate={handleTimeUpdate}
+  on:loadedmetadata={handleLoadedMetadata}
+  on:ended={handleEnded}
+  on:error={handleAudioError}
 ></audio>
 
 <div
@@ -727,8 +738,8 @@
   data-origin-y={panelOriginY}
   class="fixed z-[10050] overflow-visible transition-[left,top,width,height,box-shadow,transform] ease-[cubic-bezier(0.22,1,0.36,1)]"
   style="left: {panelLeft}px; top: {panelTop}px; width: {isOpen ? 'min(18.75rem, calc(100vw - 1rem))' : '3.75rem'}; --mp-open-x: {openMotionX}px; --mp-open-y: {openMotionY}px; --mp-origin-x: {panelOriginXPercent}; --mp-origin-y: {panelOriginYPercent}; --mp-panel-duration: {PANEL_TRANSITION_MS}ms;"
-  onclick={() => !isOpen && togglePlayer()}
-  onkeydown={(event) => !isOpen && event.key === 'Enter' && togglePlayer()}
+  on:click={() => !isOpen && togglePlayer()}
+  on:keydown={(event) => !isOpen && event.key === 'Enter' && togglePlayer()}
   role="button"
   tabindex="0"
 >
@@ -739,12 +750,12 @@
       class="mp-drag-handle"
       type="button"
       aria-label="Drag music player"
-      onclick={handleHandleClick}
-      onmousedown={handleDragMouseDown}
-      onpointerdown={handleDragPointerDown}
-      onpointermove={handleDragPointerMove}
-      onpointerup={finishDragging}
-      onpointercancel={finishDragging}
+      on:click={handleHandleClick}
+      on:mousedown={handleDragMouseDown}
+      on:pointerdown={handleDragPointerDown}
+      on:pointermove={handleDragPointerMove}
+      on:pointerup={finishDragging}
+      on:pointercancel={finishDragging}
     >
       <span></span>
       <span></span>
@@ -758,7 +769,7 @@
       <p id="mp-name" class="mp-sr-only">{currentTrack.name}</p>
 
       {#if !isOpen}
-        <div class="mp-closed" in:fade={{ duration: 160 }}>
+        <div class="mp-closed" in:fade|local={{ duration: 160 }}>
           <div class="mp-badge">
             {#if currentTrack.cover}
               <img src={currentTrack.cover} alt={currentTrack.name} class="h-full w-full object-cover" />
@@ -772,14 +783,14 @@
           </div>
         </div>
       {:else}
-        <div class="mp-content" in:fly={{ x: openMotionX, y: openMotionY, duration: PANEL_CONTENT_TRANSITION_MS }}>
+        <div class="mp-content" in:fly|local={{ x: openMotionX, y: openMotionY, duration: PANEL_CONTENT_TRANSITION_MS }}>
           <div class="mp-topline">
             <div>
               <p class="mp-kicker">随手听歌</p>
               <p class="mp-topline-copy">按住上面的横杆，整块都能拖着走。</p>
             </div>
 
-            <button class="mp-icon-btn mp-collapse-btn" onclick={collapsePlayer} aria-label="收起播放器">
+            <button class="mp-icon-btn mp-collapse-btn" on:click={collapsePlayer} aria-label="收起播放器">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M18 15l-6-6-6 6"></path>
               </svg>
@@ -820,9 +831,9 @@
                 step="0.1"
                 value={currentTime}
                 aria-label="调整播放进度"
-                oninput={handleSeekInput}
-                onclick={(e) => e.stopPropagation()}
-                onpointerdown={(e) => e.stopPropagation()}
+                on:input={handleSeekInput}
+                on:click|stopPropagation
+                on:pointerdown|stopPropagation
               />
               <div class="mp-time-row">
                 <span>{formatTime(currentTime)}</span>
@@ -835,11 +846,11 @@
             <span class="mp-actions-balance" aria-hidden="true"></span>
 
             <div class="mp-transport">
-              <button class="mp-icon-btn" onclick={playPrevious} aria-label="上一首">
+              <button class="mp-icon-btn" on:click={playPrevious} aria-label="上一首">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM18.5 6.2v11.6c0 .8-.9 1.3-1.6.8L9 12.8c-.6-.4-.6-1.3 0-1.7l7.9-5.7c.7-.5 1.6 0 1.6.8z"></path></svg>
               </button>
 
-              <button class="mp-icon-btn mp-play-btn" onclick={togglePlay} aria-label={isPlaying ? '暂停播放' : '开始播放'}>
+              <button class="mp-icon-btn mp-play-btn" on:click={togglePlay} aria-label={isPlaying ? '暂停播放' : '开始播放'}>
                 {#if isPlaying}
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
                 {:else}
@@ -847,7 +858,7 @@
                 {/if}
               </button>
 
-              <button class="mp-icon-btn" onclick={playNext} aria-label="下一首">
+              <button class="mp-icon-btn" on:click={playNext} aria-label="下一首">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM5.5 6.2v11.6c0 .8.9 1.3 1.6.8l7.9-5.8c.6-.4.6-1.3 0-1.7L7.1 5.4c-.7-.5-1.6 0-1.6.8z"></path></svg>
               </button>
             </div>
@@ -855,7 +866,7 @@
             <button
               id="mpb-list"
               class="mp-icon-btn mp-list-btn {isListOpen ? 'is-open' : ''}"
-              onclick={toggleList}
+              on:click={toggleList}
               aria-label={isListOpen ? '收起歌单' : '打开歌单'}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M8 6h12"></path><path d="M8 12h12"></path><path d="M8 18h12"></path><circle cx="4" cy="6" r="1"></circle><circle cx="4" cy="12" r="1"></circle><circle cx="4" cy="18" r="1"></circle></svg>
@@ -882,17 +893,17 @@
                 bind:value={search}
                 type="text"
                 placeholder="搜歌名或歌手"
-                onclick={(e) => e.stopPropagation()}
-                onkeydown={(e) => e.stopPropagation()}
+                on:click|stopPropagation
+                on:keydown|stopPropagation
               />
             </div>
 
-            <div id="mp-list" class="mp-list" role="presentation" onmousedown={(e) => e.stopPropagation()} ontouchstart={(e) => e.stopPropagation()}>
+            <div id="mp-list" class="mp-list" role="presentation" on:mousedown|stopPropagation on:touchstart|stopPropagation>
               {#if filteredTracks.length > 0}
                 {#each filteredTracks as track, filteredIndex}
                   <button
                     class="mp-li {track.url === currentTrack.url ? 'active' : ''}"
-                    onclick={(event) => handleTrackSelect(playlist.findIndex((item) => item.url === track.url), event)}
+                    on:click={(event) => handleTrackSelect(playlist.findIndex((item) => item.url === track.url), event)}
                   >
                     <span class="mp-li-meta">
                       <span class="mp-li-name">{track.name}</span>

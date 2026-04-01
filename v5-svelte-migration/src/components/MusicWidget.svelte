@@ -1,22 +1,22 @@
-<script>
-	let { initialX = 100, initialY = 100 } = $props();
+<script lang="ts">
+	export let initialX = 100;
+	export let initialY = 100;
 
-	let x = $state(initialX);
-	let y = $state(initialY);
-	let isDragging = $state(false);
+	let x = initialX;
+	let y = initialY;
+	let isDragging = false;
 
-	function handleMouseDown(e) {
+	function handleMouseDown() {
 		isDragging = true;
 	}
 
-	function handleMouseMove(e) {
-		if (isDragging) {
-			// Potential cause of jumping: movementX/Y can be inconsistent 
-			// across different browsers or when the mouse leaves the window.
-			// Also, CSS transitions on the element can conflict with these updates.
-			x += e.movementX;
-			y += e.movementY;
-		}
+	function handleMouseMove(event: MouseEvent) {
+		if (!isDragging) return;
+
+		// movementX/Y can jump when the pointer leaves the window; keep this
+		// file aligned with the older prototype behavior without using runes.
+		x += event.movementX;
+		y += event.movementY;
 	}
 
 	function handleMouseUp() {
@@ -24,12 +24,12 @@
 	}
 </script>
 
-<svelte:window onmousemove={handleMouseMove} onmouseup={handleMouseUp} />
+<svelte:window on:mousemove={handleMouseMove} on:mouseup={handleMouseUp} />
 
 <div
 	class="music-widget"
 	style="left: {x}px; top: {y}px;"
-	onmousedown={handleMouseDown}
+	on:mousedown={handleMouseDown}
 	role="button"
 	tabindex="0"
 >
