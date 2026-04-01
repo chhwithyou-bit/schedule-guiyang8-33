@@ -86,6 +86,8 @@
   let panelOriginXPercent = '100%';
   let panelOriginYPercent = '100%';
 
+  $: isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+
   $: filteredTracks = playlist.filter((track) => {
     const needle = search.trim().toLowerCase();
     if (!needle) return true;
@@ -627,12 +629,14 @@
     await waitForNextFrame();
 
     const { width, height } = getPanelDimensions();
-    if (hasStoredOpenPanel) {
+
+    if (hasStoredOpenPanel && !isMobile) {
       panelLeft = lastOpenPanelLeft;
       panelTop = lastOpenPanelTop;
     } else {
-      panelLeft = panelOriginX === 'right' ? closedAnchor.left + closedWidth - width : closedAnchor.left;
-      panelTop = panelOriginY === 'bottom' ? closedAnchor.top + closedHeight - height : closedAnchor.top;
+      // Always center on mobile or on first expand to fulfill responsive/centered requirements
+      panelLeft = (window.innerWidth - width) / 2;
+      panelTop = (window.innerHeight - height) / 2;
     }
     clampPanelToViewport(width, height);
     lastOpenPanelLeft = panelLeft;
@@ -706,6 +710,12 @@
   }
 
   function positionPanelFromRest(width = getPanelDimensions().width, height = getPanelDimensions().height) {
+    if (isMobile) {
+      panelLeft = (window.innerWidth - width) / 2;
+      panelTop = (window.innerHeight - height) / 2;
+      return;
+    }
+
     const closedWidth = getClosedPanelSize();
     const closedHeight = getClosedPanelHeight();
     panelLeft = panelOriginX === 'right' ? restPanelLeft + closedWidth - width : restPanelLeft;
