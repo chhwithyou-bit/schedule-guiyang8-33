@@ -348,6 +348,49 @@ test('music widget can be dragged with the handle', async ({ page }) => {
   expect(Math.abs(collapsedAgain.top - collapsed.top)).toBeLessThan(2);
 });
 
+test.describe('music widget drag transition stability', () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test('music widget stays open when dragging begins during open transition', async ({ page }) => {
+    await page.goto('/');
+    try {
+      const btn = page.locator('button[data-theme-id="theme-default"]');
+      if (await btn.isVisible({ timeout: 2000 })) {
+        await btn.click();
+        await page.waitForTimeout(2000);
+      }
+    } catch (e) {}
+
+    const widget = page.locator('#mp');
+    await widget.click();
+    await expect(widget).toHaveClass(/open/);
+    await page.waitForTimeout(40);
+    const before = await readWidgetState(page);
+
+    const handle = page.locator('#mp-drag-handle');
+    const box = await handle.boundingBox();
+    if (!box) throw new Error('Missing drag handle bounds');
+
+    const startX = box.x + (box.width / 2);
+    const startY = box.y + (box.height / 2);
+
+    await page.mouse.move(startX, startY);
+    await page.mouse.down();
+    await page.mouse.move(startX - 24, startY - 24, { steps: 5 });
+
+    const during = await readWidgetState(page);
+    expect(during.open).toBe(true);
+    expect(during.width).toBeGreaterThan(before.width - 2);
+
+    await page.mouse.up();
+    await page.waitForTimeout(120);
+    await expect(widget).toHaveClass(/open/);
+
+    const after = await readWidgetState(page);
+    expect(after.open).toBe(true);
+  });
+});
+
 test('music widget stays anchored when opening and toggling the list', async ({ page }) => {
   await page.goto('/');
   try {

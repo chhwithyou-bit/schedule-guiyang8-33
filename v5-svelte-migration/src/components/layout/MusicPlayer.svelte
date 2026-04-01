@@ -66,6 +66,8 @@
   let dragStartRestPanelLeft = 0;
   let dragStartRestPanelTop = 0;
   let dragMoved = false;
+  let openTransitionEndsAt = 0;
+  let suppressHandleClickOnce = false;
   let openMotionX = 28;
   let openMotionY = 18;
   let panelOriginXPercent = '100%';
@@ -198,6 +200,15 @@
     });
   }
 
+  function markOpenTransitionWindow() {
+    if (typeof window === 'undefined') return;
+    openTransitionEndsAt = window.performance.now() + PANEL_TRANSITION_MS;
+  }
+
+  function isOpenTransitionActive() {
+    return typeof window !== 'undefined' && window.performance.now() < openTransitionEndsAt;
+  }
+
   function bindTrackToAudio(url: string, autoplay = false) {
     if (!audioEl || !url) return;
     lastBoundUrl = url;
@@ -223,6 +234,7 @@
       const closedWidth = getClosedPanelSize();
       const closedHeight = getClosedPanelHeight();
       resolvePanelOrigins(restPanelLeft, restPanelTop, closedWidth, closedHeight);
+      markOpenTransitionWindow();
       isOpen = true;
       await syncPanelPosition({ preserveOrigin: true });
       return;
@@ -245,6 +257,11 @@
 
   function handleHandleClick(event: MouseEvent) {
     event.stopPropagation();
+
+    if (suppressHandleClickOnce) {
+      suppressHandleClickOnce = false;
+      return;
+    }
 
     if (dragMoved) {
       dragMoved = false;
@@ -330,6 +347,7 @@
       const closedWidth = getClosedPanelSize();
       const closedHeight = getClosedPanelHeight();
       resolvePanelOrigins(restPanelLeft, restPanelTop, closedWidth, closedHeight);
+      markOpenTransitionWindow();
       isListOpen = true;
       isOpen = true;
       await syncPanelPosition({ preserveOrigin: true });
@@ -384,6 +402,12 @@
   }
 
   function beginDragging(clientX: number, clientY: number, target: HTMLElement, pointerId?: number) {
+    if (isOpenTransitionActive()) {
+      suppressHandleClickOnce = true;
+      return;
+    }
+
+    suppressHandleClickOnce = false;
     dragPointerId = typeof pointerId === 'number' ? pointerId : null;
     dragCaptureEl = target;
     dragOffsetX = clientX - panelLeft;
