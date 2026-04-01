@@ -178,11 +178,14 @@
 
 <style>
   .app-container {
-    background:
-      radial-gradient(circle at 14% 8%, rgba(var(--glow-primary-rgb), 0.14), transparent 26%),
-      radial-gradient(circle at 86% 14%, rgba(var(--glow-secondary-rgb), 0.16), transparent 28%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 14%),
-      var(--color-bg);
+    background-image: 
+      radial-gradient(circle at 14% 8%, rgba(var(--glow-primary-rgb), 0.12), transparent 26%),
+      radial-gradient(circle at 86% 14%, rgba(var(--glow-secondary-rgb), 0.14), transparent 28%),
+      url('/bg.jpg');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    background-color: var(--color-bg);
   }
 
   .app-container::before,
