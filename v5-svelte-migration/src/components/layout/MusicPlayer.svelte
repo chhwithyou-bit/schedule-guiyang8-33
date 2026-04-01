@@ -9,6 +9,13 @@
     cover?: string | null;
   };
 
+  type CoverPalette = {
+    start: string;
+    end: string;
+    accent: string;
+    glow: string;
+  };
+
   type PanelEdge = 'left' | 'right';
   type PanelVerticalEdge = 'top' | 'bottom';
 
@@ -45,11 +52,17 @@
   let lastBoundUrl = '';
   let filteredTracks: Track[] = [];
   let currentTrack: Track = FALLBACK_TRACK;
+  let currentTrackMonogram = '♪';
+  let currentTrackCoverPalette: CoverPalette = getTrackCoverPalette(FALLBACK_TRACK);
+  let currentTrackCoverStyle = buildTrackCoverStyle(currentTrackCoverPalette);
 
   let panelLeft = INITIAL_PANEL_LEFT;
   let panelTop = INITIAL_PANEL_TOP;
   let restPanelLeft = INITIAL_PANEL_LEFT;
   let restPanelTop = INITIAL_PANEL_TOP;
+  let lastOpenPanelLeft = INITIAL_PANEL_LEFT;
+  let lastOpenPanelTop = INITIAL_PANEL_TOP;
+  let hasStoredOpenPanel = false;
   let panelOriginX: PanelEdge = 'right';
   let panelOriginY: PanelVerticalEdge = 'bottom';
   let panelReady = false;
@@ -80,6 +93,9 @@
   });
 
   $: currentTrack = playlist[currentIndex] || getFallbackTrack();
+  $: currentTrackMonogram = getTrackMonogram(currentTrack);
+  $: currentTrackCoverPalette = getTrackCoverPalette(currentTrack);
+  $: currentTrackCoverStyle = buildTrackCoverStyle(currentTrackCoverPalette);
 
   $: if (audioEl && currentTrack.url && currentTrack.url !== lastBoundUrl) {
     bindTrackToAudio(currentTrack.url);
@@ -132,6 +148,65 @@
       url,
       cover: String(track.cover || '').trim() || null
     };
+  }
+
+  function hashString(value: string) {
+    let hash = 0;
+
+    for (const character of String(value || '')) {
+      hash = ((hash << 5) - hash + character.charCodeAt(0)) | 0;
+    }
+
+    return Math.abs(hash);
+  }
+
+  function toHsl(hue: number, saturation: number, lightness: number) {
+    return `hsl(${hue} ${saturation}% ${lightness}%)`;
+  }
+
+  function getTrackMonogram(track: Track) {
+    const sourceParts = [track?.name, track?.artist]
+      .map((value) => String(value || '').trim())
+      .filter(Boolean)
+      .flatMap((value) => value.split(/[\s\-_/]+/).filter(Boolean));
+
+    if (sourceParts.length >= 2) {
+      const first = Array.from(sourceParts[0])[0] || '';
+      const second = Array.from(sourceParts[1])[0] || '';
+      return `${first}${second}`.toUpperCase();
+    }
+
+    const fallbackChars = Array.from(sourceParts[0] || String(track?.name || '').trim());
+    if (fallbackChars.length >= 2) {
+      return `${fallbackChars[0]}${fallbackChars[1]}`.toUpperCase();
+    }
+
+    if (fallbackChars.length === 1) {
+      return fallbackChars[0].toUpperCase();
+    }
+
+    return '♪';
+  }
+
+  function getTrackCoverPalette(track: Track): CoverPalette {
+    const seed = hashString(`${track?.name || ''}::${track?.artist || ''}`);
+    const hue = seed % 360;
+
+    return {
+      start: toHsl((hue + 14) % 360, 74, 58),
+      end: toHsl((hue + 92) % 360, 76, 48),
+      accent: toHsl((hue + 164) % 360, 94, 80),
+      glow: toHsl((hue + 224) % 360, 82, 72)
+    };
+  }
+
+  function buildTrackCoverStyle(palette: CoverPalette) {
+    return [
+      `--mp-cover-start: ${palette.start}`,
+      `--mp-cover-end: ${palette.end}`,
+      `--mp-cover-accent: ${palette.accent}`,
+      `--mp-cover-glow: ${palette.glow}`
+    ].join('; ');
   }
 
   async function loadPlaylist() {
@@ -230,13 +305,7 @@
     }
 
     if (!isOpen) {
-      syncClosedStateFromViewport();
-      const closedWidth = getClosedPanelSize();
-      const closedHeight = getClosedPanelHeight();
-      resolvePanelOrigins(restPanelLeft, restPanelTop, closedWidth, closedHeight);
-      markOpenTransitionWindow();
-      isOpen = true;
-      await syncPanelPosition({ preserveOrigin: true });
+      await openPlayerFromClosedAnchor(false);
       return;
     }
 
@@ -343,14 +412,7 @@
   async function toggleList(event: Event) {
     event.stopPropagation();
     if (!isOpen) {
-      syncClosedStateFromViewport();
-      const closedWidth = getClosedPanelSize();
-      const closedHeight = getClosedPanelHeight();
-      resolvePanelOrigins(restPanelLeft, restPanelTop, closedWidth, closedHeight);
-      markOpenTransitionWindow();
-      isListOpen = true;
-      isOpen = true;
-      await syncPanelPosition({ preserveOrigin: true });
+      await openPlayerFromClosedAnchor(true);
       return;
     }
 
@@ -363,7 +425,7 @@
     const { width, height } = getPanelDimensions();
     panelLeft = preservedLeft;
     panelTop = preservedTop;
-    clampPanelToViewport(width, height);
+    stabilizeOpenPanelAnchor(width, height);
   }
 
   function handleTimeUpdate() {
@@ -458,6 +520,9 @@
     clampRestPanelToViewport();
     positionPanelFromRest(width, height);
     clampPanelToViewport(width, height);
+    lastOpenPanelLeft = panelLeft;
+    lastOpenPanelTop = panelTop;
+    hasStoredOpenPanel = true;
   }
 
   async function initializePanelPosition() {
@@ -519,26 +584,60 @@
     return baseHeight > 0 ? baseHeight + marginTop + visibleListHeight : null;
   }
 
-  function syncClosedStateFromViewport() {
-    if (isOpen) return;
-
-    if (!widgetEl) return;
+  function getClosedPanelAnchorFromViewport() {
+    if (!widgetEl) {
+      return {
+        left: Number.isFinite(panelLeft) ? panelLeft : getDefaultPanelLeft(),
+        top: Number.isFinite(panelTop) ? panelTop : getDefaultPanelTop()
+      };
+    }
 
     const rect = widgetEl.getBoundingClientRect();
     const computed = getComputedStyle(widgetEl);
-    const nextLeft = Number.isFinite(rect.left) ? rect.left : Number.parseFloat(computed.left || '');
-    const nextTop = Number.isFinite(rect.top) ? rect.top : Number.parseFloat(computed.top || '');
+    const nextLeft = Number.isFinite(rect.left)
+      ? Math.round(rect.left * 100) / 100
+      : Number.parseFloat(computed.left || '');
+    const nextTop = Number.isFinite(rect.top)
+      ? Math.round(rect.top * 100) / 100
+      : Number.parseFloat(computed.top || '');
 
-    if (Number.isFinite(nextLeft)) {
-      restPanelLeft = nextLeft;
+    return {
+      left: Number.isFinite(nextLeft) ? nextLeft : panelLeft,
+      top: Number.isFinite(nextTop) ? nextTop : panelTop
+    };
+  }
+
+  async function openPlayerFromClosedAnchor(showList = false) {
+    const closedAnchor = getClosedPanelAnchorFromViewport();
+    const closedWidth = getClosedPanelSize();
+    const closedHeight = getClosedPanelHeight();
+
+    restPanelLeft = closedAnchor.left;
+    restPanelTop = closedAnchor.top;
+    panelLeft = closedAnchor.left;
+    panelTop = closedAnchor.top;
+    panelReady = true;
+
+    resolvePanelOrigins(restPanelLeft, restPanelTop, closedWidth, closedHeight);
+    markOpenTransitionWindow();
+    isListOpen = showList;
+    isOpen = true;
+
+    await tick();
+    await waitForNextFrame();
+
+    const { width, height } = getPanelDimensions();
+    if (hasStoredOpenPanel) {
+      panelLeft = lastOpenPanelLeft;
+      panelTop = lastOpenPanelTop;
+    } else {
+      panelLeft = panelOriginX === 'right' ? closedAnchor.left + closedWidth - width : closedAnchor.left;
+      panelTop = panelOriginY === 'bottom' ? closedAnchor.top + closedHeight - height : closedAnchor.top;
     }
-
-    if (Number.isFinite(nextTop)) {
-      restPanelTop = nextTop;
-    }
-
-    panelLeft = restPanelLeft;
-    panelTop = restPanelTop;
+    clampPanelToViewport(width, height);
+    lastOpenPanelLeft = panelLeft;
+    lastOpenPanelTop = panelTop;
+    hasStoredOpenPanel = true;
   }
 
   function getDefaultPanelLeft() {
@@ -611,6 +710,17 @@
     const closedHeight = getClosedPanelHeight();
     panelLeft = panelOriginX === 'right' ? restPanelLeft + closedWidth - width : restPanelLeft;
     panelTop = panelOriginY === 'bottom' ? restPanelTop + closedHeight - height : restPanelTop;
+  }
+
+  function stabilizeOpenPanelAnchor(width = getPanelDimensions().width, height = getPanelDimensions().height) {
+    clampPanelToViewport(width, height);
+    syncRestPanelFromPosition(width, height);
+    clampRestPanelToViewport();
+    positionPanelFromRest(width, height);
+    clampPanelToViewport(width, height);
+    lastOpenPanelLeft = panelLeft;
+    lastOpenPanelTop = panelTop;
+    hasStoredOpenPanel = true;
   }
 
   function syncRestPanelFromPosition(width = getPanelDimensions().width, height = getPanelDimensions().height, left = panelLeft, top = panelTop) {
@@ -694,9 +804,7 @@
       const { width, height } = getPanelDimensions();
       clampPanelToViewport(width, height);
       resolvePanelOrigins(panelLeft, panelTop, width, height);
-      syncRestPanelFromPosition(width, height);
-      clampRestPanelToViewport();
-      positionPanelFromRest(width, height);
+      stabilizeOpenPanelAnchor(width, height);
     } else {
       panelLeft = dragStartPanelLeft;
       panelTop = dragStartPanelTop;
@@ -761,7 +869,7 @@
   data-origin-x={panelOriginX}
   data-origin-y={panelOriginY}
   class="fixed z-[10050] overflow-visible transition-[left,top,width,height,box-shadow,transform] ease-[cubic-bezier(0.22,1,0.36,1)]"
-  style="left: {panelLeft}px; top: {panelTop}px; width: {isOpen ? 'min(18.75rem, calc(100vw - 1rem))' : '3.75rem'}; --mp-open-x: {openMotionX}px; --mp-open-y: {openMotionY}px; --mp-origin-x: {panelOriginXPercent}; --mp-origin-y: {panelOriginYPercent}; --mp-panel-duration: {PANEL_TRANSITION_MS}ms;"
+  style="left: {panelLeft}px; top: {panelTop}px; width: {isOpen ? `min(18.75rem, calc(100vw - ${PANEL_MARGIN * 2}px))` : '3.75rem'}; --mp-open-x: {openMotionX}px; --mp-open-y: {openMotionY}px; --mp-origin-x: {panelOriginXPercent}; --mp-origin-y: {panelOriginYPercent}; --mp-panel-duration: {PANEL_TRANSITION_MS}ms;"
   on:click={() => !isOpen && togglePlayer()}
   on:keydown={(event) => !isOpen && event.key === 'Enter' && togglePlayer()}
   role="button"
@@ -798,11 +906,20 @@
             {#if currentTrack.cover}
               <img src={currentTrack.cover} alt={currentTrack.name} class="h-full w-full object-cover" />
             {:else}
-              <svg class="h-6 w-6 {isPlaying ? 'animate-pulse' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M9 18V5l12-2v13"></path>
-                <circle cx="6" cy="18" r="3"></circle>
-                <circle cx="18" cy="16" r="3"></circle>
-              </svg>
+              <div class:is-playing={isPlaying} class="mp-fallback-cover" style={currentTrackCoverStyle} aria-hidden="true">
+                <svg class="mp-cover-art" viewBox="0 0 100 100" fill="none">
+                  <circle class="mp-cover-orb mp-cover-orb-a" cx="78" cy="24" r="15"></circle>
+                  <circle class="mp-cover-orb mp-cover-orb-b" cx="24" cy="78" r="19"></circle>
+                  <circle class="mp-cover-disc" cx="50" cy="52" r="26"></circle>
+                  <circle class="mp-cover-disc-ring" cx="50" cy="52" r="14"></circle>
+                  <circle class="mp-cover-disc-core" cx="50" cy="52" r="5"></circle>
+                  <path class="mp-cover-wave" d="M18 56C28 43 37 40 46 46.5C55 53 63.5 54 82 39"></path>
+                  <path class="mp-cover-wave ghost" d="M22 70C33 62 40 60.5 48 65C56 69.5 65 69.5 78 60"></path>
+                  <path class="mp-cover-needle" d="M70 22L58 45"></path>
+                  <circle class="mp-cover-needle-dot" cx="57" cy="46" r="3.5"></circle>
+                </svg>
+                <span class="mp-cover-mark">{currentTrackMonogram}</span>
+              </div>
             {/if}
           </div>
         </div>
@@ -826,7 +943,20 @@
               {#if currentTrack.cover}
                 <img src={currentTrack.cover} alt={currentTrack.name} class="h-full w-full object-cover" />
               {:else}
-                <span>8C</span>
+                <div class:is-playing={isPlaying} class="mp-fallback-cover" style={currentTrackCoverStyle} aria-hidden="true">
+                  <svg class="mp-cover-art" viewBox="0 0 100 100" fill="none">
+                    <circle class="mp-cover-orb mp-cover-orb-a" cx="78" cy="24" r="15"></circle>
+                    <circle class="mp-cover-orb mp-cover-orb-b" cx="24" cy="78" r="19"></circle>
+                    <circle class="mp-cover-disc" cx="50" cy="52" r="26"></circle>
+                    <circle class="mp-cover-disc-ring" cx="50" cy="52" r="14"></circle>
+                    <circle class="mp-cover-disc-core" cx="50" cy="52" r="5"></circle>
+                    <path class="mp-cover-wave" d="M18 56C28 43 37 40 46 46.5C55 53 63.5 54 82 39"></path>
+                    <path class="mp-cover-wave ghost" d="M22 70C33 62 40 60.5 48 65C56 69.5 65 69.5 78 60"></path>
+                    <path class="mp-cover-needle" d="M70 22L58 45"></path>
+                    <circle class="mp-cover-needle-dot" cx="57" cy="46" r="3.5"></circle>
+                  </svg>
+                  <span class="mp-cover-mark">{currentTrackMonogram}</span>
+                </div>
               {/if}
             </div>
 
@@ -1166,6 +1296,120 @@
   .mp-cover-card {
     position: relative;
     box-shadow: 0 14px 28px rgba(var(--shadow-rgb), 0.16);
+  }
+
+  .mp-fallback-cover {
+    --mp-cover-start: #7c3aed;
+    --mp-cover-end: #2563eb;
+    --mp-cover-accent: rgba(255, 255, 255, 0.84);
+    --mp-cover-glow: rgba(255, 255, 255, 0.36);
+    position: relative;
+    display: flex;
+    width: 100%;
+    height: 100%;
+    align-items: flex-end;
+    justify-content: flex-start;
+    overflow: hidden;
+    border-radius: inherit;
+    padding: 0.45rem;
+    background:
+      radial-gradient(circle at 18% 18%, var(--mp-cover-glow), transparent 36%),
+      radial-gradient(circle at 82% 26%, rgba(255, 255, 255, 0.14), transparent 24%),
+      linear-gradient(145deg, var(--mp-cover-start), var(--mp-cover-end));
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.18),
+      inset 0 -16px 24px rgba(14, 18, 32, 0.2);
+  }
+
+  .mp-fallback-cover::after {
+    content: '';
+    position: absolute;
+    inset: 10%;
+    border-radius: inherit;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    opacity: 0.8;
+    pointer-events: none;
+  }
+
+  .mp-cover-art {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .mp-cover-orb {
+    fill: rgba(255, 255, 255, 0.14);
+  }
+
+  .mp-cover-disc {
+    fill: rgba(8, 12, 24, 0.18);
+    stroke: rgba(255, 255, 255, 0.26);
+    stroke-width: 1.6;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  .mp-cover-disc-ring {
+    stroke: rgba(255, 255, 255, 0.48);
+    stroke-width: 1.8;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  .mp-cover-disc-core {
+    fill: rgba(255, 255, 255, 0.9);
+  }
+
+  .mp-cover-wave {
+    stroke: rgba(255, 255, 255, 0.72);
+    stroke-width: 5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .mp-cover-wave.ghost {
+    stroke-width: 3.5;
+    opacity: 0.34;
+  }
+
+  .mp-cover-needle {
+    stroke: rgba(255, 255, 255, 0.62);
+    stroke-width: 3;
+    stroke-linecap: round;
+  }
+
+  .mp-cover-needle-dot {
+    fill: var(--mp-cover-accent);
+  }
+
+  .mp-cover-mark {
+    position: relative;
+    z-index: 1;
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    color: rgba(255, 255, 255, 0.92);
+    text-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
+  }
+
+  .mp-cover-card .mp-cover-mark {
+    font-size: 0.94rem;
+  }
+
+  .mp-fallback-cover.is-playing .mp-cover-disc,
+  .mp-fallback-cover.is-playing .mp-cover-disc-ring {
+    animation: mp-cover-spin 6s linear infinite;
+  }
+
+  @keyframes mp-cover-spin {
+    from {
+      transform: rotate(0deg);
+    }
+
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   .mp-hero-copy {
