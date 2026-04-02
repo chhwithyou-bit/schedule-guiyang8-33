@@ -206,7 +206,7 @@
 
   .app-background {
     position: fixed;
-    inset: 0;
+    inset: -8vh -8vw;
     overflow: hidden;
     pointer-events: none;
     z-index: 0;
@@ -223,7 +223,7 @@
   }
 
   .app-background::before {
-    background-size: 100% 100%;
+    background-size: cover;
   }
 
   .app-background::after {
@@ -248,6 +248,10 @@
   }
 
   @media (max-width: 768px) {
+    .app-background {
+      inset: -16svh -14vw;
+    }
+
     .app-background::before {
       background-position: center center;
     }
