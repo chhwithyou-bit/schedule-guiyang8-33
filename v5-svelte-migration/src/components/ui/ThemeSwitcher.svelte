@@ -229,7 +229,7 @@
 
 <!-- Initial Access Palette Picker -->
 {#if showInitPanel}
-  <div class="fixed inset-0 z-[1000010] flex items-center justify-center overflow-y-auto p-6 theme-picker-overlay">
+  <div class="fixed inset-0 z-[1000010] flex items-center justify-center bg-[var(--color-bg)] overflow-y-auto p-6">
     <div class="aura-shell max-w-5xl w-full py-10 md:py-14">
       <div class="mb-8 flex flex-col gap-4 md:mb-12 md:flex-row md:items-end md:justify-between">
         <div class="max-w-2xl">
@@ -293,13 +293,6 @@
 
   .aura-shell {
     position: relative;
-  }
-
-  .theme-picker-overlay {
-    background-image: url('/bg.jpg');
-    background-size: cover;
-    background-position: center;
-    background-color: var(--color-bg);
   }
 
   .aura-kicker {
