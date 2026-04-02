@@ -81,7 +81,6 @@
   let dragStartRestPanelTop = 0;
   let dragMoved = false;
   let openTransitionEndsAt = 0;
-  let suppressHandleClickOnce = false;
   let openMotionX = 28;
   let openMotionY = 18;
   let panelOriginXPercent = '100%';
@@ -327,27 +326,6 @@
     await syncPanelPosition({ preserveOrigin: true });
   }
 
-  function handleHandleClick(event: MouseEvent) {
-    event.stopPropagation();
-
-    if (suppressHandleClickOnce) {
-      suppressHandleClickOnce = false;
-      return;
-    }
-
-    if (dragMoved) {
-      dragMoved = false;
-      return;
-    }
-
-    if (isOpen) {
-      void collapsePlayer(event);
-      return;
-    }
-
-    void togglePlayer();
-  }
-
   async function playCurrent() {
     if (!audioEl || !currentTrack.url) return;
     errorMessage = '';
@@ -468,11 +446,9 @@
 
   function beginDragging(clientX: number, clientY: number, target: HTMLElement, pointerId?: number) {
     if (isOpenTransitionActive()) {
-      suppressHandleClickOnce = true;
       return;
     }
 
-    suppressHandleClickOnce = false;
     dragPointerId = typeof pointerId === 'number' ? pointerId : null;
     dragCaptureEl = target;
     dragOffsetX = clientX - panelLeft;
@@ -895,7 +871,6 @@
       class="mp-drag-handle"
       type="button"
       aria-label="Drag music player"
-      on:click={handleHandleClick}
       on:mousedown={handleDragMouseDown}
       on:pointerdown={handleDragPointerDown}
       on:pointermove={handleDragPointerMove}
@@ -905,7 +880,7 @@
       <span></span>
       <span></span>
       <span></span>
-      <small class="mp-drag-label">拖动 / 收起</small>
+      <small class="mp-drag-label">拖动</small>
     </button>
   {/if}
 
@@ -945,8 +920,9 @@
             </div>
 
             <button class="mp-icon-btn mp-collapse-btn" on:click={collapsePlayer} aria-label="收起播放器">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M18 15l-6-6-6 6"></path>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M7 14.25L12 9.25L17 14.25"></path>
+                <path d="M7 18.25L12 13.25L17 18.25" opacity="0.72"></path>
               </svg>
             </button>
           </div>
@@ -1014,19 +990,30 @@
 
             <div class="mp-transport">
               <button class="mp-icon-btn" on:click={playPrevious} aria-label="上一首">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM18.5 6.2v11.6c0 .8-.9 1.3-1.6.8L9 12.8c-.6-.4-.6-1.3 0-1.7l7.9-5.7c.7-.5 1.6 0 1.6.8z"></path></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M7.25 6.75V17.25"></path>
+                  <path d="M16.5 7.5L9.75 12L16.5 16.5V7.5Z"></path>
+                </svg>
               </button>
 
               <button class="mp-icon-btn mp-play-btn" on:click={togglePlay} aria-label={isPlaying ? '暂停播放' : '开始播放'}>
                 {#if isPlaying}
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M9.25 7V17"></path>
+                    <path d="M14.75 7V17"></path>
+                  </svg>
                 {:else}
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M9 7.2V16.8C9 17.57 9.83 18.05 10.5 17.67L17.9 13.47C18.57 13.09 18.57 12.11 17.9 11.73L10.5 7.53C9.83 7.15 9 7.63 9 8.4V7.2Z"></path>
+                  </svg>
                 {/if}
               </button>
 
               <button class="mp-icon-btn" on:click={playNext} aria-label="下一首">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM5.5 6.2v11.6c0 .8.9 1.3 1.6.8l7.9-5.8c.6-.4.6-1.3 0-1.7L7.1 5.4c-.7-.5-1.6 0-1.6.8z"></path></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M16.75 6.75V17.25"></path>
+                  <path d="M7.5 7.5L14.25 12L7.5 16.5V7.5Z"></path>
+                </svg>
               </button>
             </div>
 
@@ -1036,7 +1023,14 @@
               on:click={toggleList}
               aria-label={isListOpen ? '收起歌单' : '打开歌单'}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M8 6h12"></path><path d="M8 12h12"></path><path d="M8 18h12"></path><circle cx="4" cy="6" r="1"></circle><circle cx="4" cy="12" r="1"></circle><circle cx="4" cy="18" r="1"></circle></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M9 7H18"></path>
+                <path d="M9 12H18"></path>
+                <path d="M9 17H18"></path>
+                <path d="M5.75 7H6.25"></path>
+                <path d="M5.75 12H6.25"></path>
+                <path d="M5.75 17H6.25"></path>
+              </svg>
             </button>
           </div>
 
@@ -1172,8 +1166,14 @@
     border-radius: 999px;
     justify-content: flex-start;
     padding: 0 0.8rem;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
-    color: rgba(245, 239, 224, 0.5);
+    background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03)),
+      rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(var(--glow-primary-rgb), 0.12);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      0 8px 18px rgba(var(--shadow-rgb), 0.08);
+    color: rgba(245, 239, 224, 0.56);
   }
 
   .mp-drag-handle.open span {
@@ -1185,7 +1185,7 @@
     margin-left: 0.42rem;
     font-size: 0.56rem;
     font-weight: 900;
-    letter-spacing: 0.18em;
+    letter-spacing: 0.2em;
     text-transform: uppercase;
   }
 
@@ -1291,6 +1291,7 @@
   .mp-collapse-btn {
     height: 2rem;
     min-width: 2rem;
+    border-radius: 18px;
   }
 
   .mp-hero {
@@ -1546,39 +1547,72 @@
 
   .mp-icon-btn {
     display: inline-flex;
-    height: 2.2rem;
-    min-width: 2.2rem;
+    height: 2.3rem;
+    min-width: 2.3rem;
     align-items: center;
     justify-content: center;
     gap: 0.35rem;
     border-radius: 999px;
-    border: 1px solid rgba(var(--glow-primary-rgb), 0.12);
-    background: rgba(255, 255, 255, 0.04);
-    color: inherit;
-    transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+    border: 1px solid rgba(var(--glow-primary-rgb), 0.14);
+    background:
+      radial-gradient(circle at top, rgba(255, 255, 255, 0.16), transparent 70%),
+      rgba(255, 255, 255, 0.045);
+    color: rgba(248, 243, 231, 0.9);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      0 10px 22px rgba(var(--shadow-rgb), 0.08);
+    transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+  }
+
+  .mp-icon-btn svg {
+    display: block;
+    width: 1rem;
+    height: 1rem;
   }
 
   .mp-icon-btn:hover {
-    transform: scale(1.05);
-    border-color: rgba(var(--glow-primary-rgb), 0.22);
+    transform: translateY(-1px) scale(1.03);
+    border-color: rgba(var(--glow-primary-rgb), 0.24);
+    background:
+      radial-gradient(circle at top, rgba(255, 255, 255, 0.22), transparent 72%),
+      rgba(255, 255, 255, 0.07);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.1),
+      0 14px 26px rgba(var(--shadow-rgb), 0.12);
+  }
+
+  .mp-icon-btn:active {
+    transform: scale(0.96);
   }
 
   .mp-play-btn {
-    height: 2.7rem;
-    min-width: 2.7rem;
-    background: var(--color-primary);
+    height: 2.9rem;
+    min-width: 2.9rem;
+    background:
+      radial-gradient(circle at 30% 24%, rgba(255, 255, 255, 0.32), transparent 34%),
+      linear-gradient(135deg, rgba(var(--glow-primary-rgb), 0.9), var(--color-primary));
     color: var(--color-button-text);
     border-color: transparent;
-    box-shadow: 0 14px 26px rgba(var(--shadow-rgb), 0.18);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.16),
+      0 16px 28px rgba(var(--shadow-rgb), 0.18);
+  }
+
+  .mp-play-btn svg {
+    width: 1.12rem;
+    height: 1.12rem;
   }
 
   .mp-list-btn {
     justify-self: end;
     padding: 0;
+    border-radius: 18px;
   }
 
   .mp-list-btn.is-open {
-    background: rgba(255, 255, 255, 0.08);
+    background:
+      radial-gradient(circle at top, rgba(255, 255, 255, 0.2), transparent 72%),
+      rgba(255, 255, 255, 0.08);
     border-color: rgba(var(--glow-primary-rgb), 0.24);
   }
 
