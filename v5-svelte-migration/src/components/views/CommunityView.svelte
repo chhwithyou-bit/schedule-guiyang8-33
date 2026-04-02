@@ -85,46 +85,83 @@
     </div>
 
     <div class="community-action-panel rounded-[32px] p-4">
-      <button
-        type="button"
-        on:click={openComposer}
-        class="community-action-panel__button group flex w-full items-center gap-4 rounded-[28px] px-4 py-4 text-left transition-transform duration-300 hover:scale-[1.01]"
-      >
-        <div class="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-[20px] bg-[var(--color-primary)] text-lg font-black text-[var(--color-bg)] shadow-lg">
-          {#if $user?.avatar_url}
-            <img src={$user.avatar_url} alt={$user.username || 'user'} class="h-full w-full rounded-[20px] object-cover" />
-          {:else if $isAuthenticated}
-            {$user?.username?.slice(0, 1).toUpperCase() || 'U'}
-          {:else}
-            +
-          {/if}
-        </div>
-
-        <div class="min-w-0 flex-1">
-          <p class="text-xs font-black uppercase tracking-[0.22em] opacity-40">
-            {$isAuthenticated ? `${$user?.username || '你'} 正准备发帖` : '先登录，再来发一条'}
-          </p>
-          <p class="mt-1 text-lg font-black tracking-tight">
-            {$isAuthenticated ? '今天发生了什么，直接写下来。' : '登录之后，就能把近况发到社区里。'}
-          </p>
-          <p class="mt-2 text-sm font-medium opacity-60">
-            {$isAuthenticated ? '文字和图片都行，发出去之后页面会立刻刷新。' : '登录后点一下就能打开发帖面板。'}
-          </p>
-        </div>
-
-        <div class="community-action-panel__pill hidden rounded-full px-4 py-2 text-[11px] font-black uppercase tracking-[0.2em] opacity-70 md:block">
-          {$isAuthenticated ? '去发帖' : '先登录'}
-        </div>
-      </button>
-
-      <div class="mt-4 flex flex-wrap gap-3">
+      {#if $isAuthenticated}
         <button
           type="button"
           on:click={openComposer}
-          class="rounded-full bg-[var(--color-primary)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105"
+          class="community-action-panel__button group flex w-full items-center gap-4 rounded-[28px] px-4 py-4 text-left transition-transform duration-300 hover:scale-[1.01]"
         >
-          {$isAuthenticated ? '发一条' : '登录后发帖'}
+          <div class="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-[20px] bg-[var(--color-primary)] text-lg font-black text-[var(--color-bg)] shadow-lg">
+            {#if $user?.avatar_url}
+              <img src={$user.avatar_url} alt={$user.username || 'user'} class="h-full w-full rounded-[20px] object-cover" />
+            {:else}
+              {$user?.username?.slice(0, 1).toUpperCase() || 'U'}
+            {/if}
+          </div>
+
+          <div class="min-w-0 flex-1">
+            <p class="text-xs font-black uppercase tracking-[0.22em] opacity-40">
+              {$user?.username || '你'} 正准备发帖
+            </p>
+            <p class="mt-1 text-lg font-black tracking-tight">
+              今天发生了什么，直接写下来。
+            </p>
+            <p class="mt-2 text-sm font-medium opacity-60">
+              文字和图片都行，发出去之后页面会立刻刷新。
+            </p>
+          </div>
+
+          <div class="community-action-panel__pill hidden rounded-full px-4 py-2 text-[11px] font-black uppercase tracking-[0.2em] opacity-70 md:block">
+            去发帖
+          </div>
         </button>
+      {:else}
+        <div
+          class="community-action-panel__button group flex w-full items-center gap-4 rounded-[28px] px-4 py-4 text-left transition-transform duration-300"
+        >
+          <div class="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-[20px] bg-[var(--color-primary)] text-lg font-black text-[var(--color-bg)] shadow-lg">
+            ?
+          </div>
+
+          <div class="min-w-0 flex-1">
+            <p class="text-xs font-black uppercase tracking-[0.22em] opacity-40">
+              先登录，再来发一条
+            </p>
+            <p class="mt-1 text-lg font-black tracking-tight">
+              登录之后，就能把近况发到社区里。
+            </p>
+            <p class="mt-2 text-sm font-medium opacity-60">
+              登录后点击下方按钮就能打开发帖面板。
+            </p>
+          </div>
+        </div>
+      {/if}
+
+      <div class="mt-4 flex flex-wrap gap-3">
+        {#if $isAuthenticated}
+          <button
+            type="button"
+            on:click={openComposer}
+            class="rounded-full bg-[var(--color-primary)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105"
+          >
+            发一条
+          </button>
+        {:else}
+          <button
+            type="button"
+            on:click={() => openModal('auth')}
+            class="rounded-full bg-[var(--color-primary)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105"
+          >
+            登录
+          </button>
+          <button
+            type="button"
+            on:click={() => openModal('auth')}
+            class="community-action-panel__ghost rounded-full px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105"
+          >
+            注册
+          </button>
+        {/if}
         <button
           type="button"
           on:click={fetchPosts}
