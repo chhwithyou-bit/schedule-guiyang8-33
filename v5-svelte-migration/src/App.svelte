@@ -109,6 +109,15 @@
     }, 5000);
 
     try {
+      const isTouchDevice = window.matchMedia('(pointer: coarse)').matches || window.matchMedia('(hover: none)').matches;
+      const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      if (isTouchDevice || prefersReducedMotion) {
+        return () => {
+          clearTimeout(failSafe);
+        };
+      }
+
       // Initialize smooth scrolling with Lenis
       lenis = new Lenis({
         duration: 1.2,
