@@ -109,15 +109,6 @@
     }, 5000);
 
     try {
-      const isTouchDevice = window.matchMedia('(pointer: coarse)').matches || window.matchMedia('(hover: none)').matches;
-      const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-      if (isTouchDevice || prefersReducedMotion) {
-        return () => {
-          clearTimeout(failSafe);
-        };
-      }
-
       // Initialize smooth scrolling with Lenis
       lenis = new Lenis({
         duration: 1.2,
@@ -206,7 +197,7 @@
 
   .app-background {
     position: fixed;
-    inset: -8vh -8vw;
+    inset: 0;
     overflow: hidden;
     pointer-events: none;
     z-index: 0;
@@ -219,7 +210,7 @@
     inset: 0;
     background-image: url('/IMG_1695.jpeg');
     background-repeat: no-repeat;
-    background-position: center;
+    background-position: center top;
   }
 
   .app-background::before {
@@ -248,12 +239,8 @@
   }
 
   @media (max-width: 768px) {
-    .app-background {
-      inset: -16svh -14vw;
-    }
-
     .app-background::before {
-      background-position: center center;
+      background-position: center top;
     }
 
     .app-container::before {
