@@ -197,10 +197,11 @@
     background:
       linear-gradient(rgba(var(--color-bg-rgb), 0.6), rgba(var(--color-bg-rgb), 0.6)),
       url('/IMG_1695.jpeg'),
+      url('/IMG_1695.jpeg'),
       radial-gradient(circle at 12% 18%, rgba(var(--glow-primary-rgb), 0.16), transparent 24%),
       radial-gradient(circle at 84% 12%, rgba(var(--glow-secondary-rgb), 0.18), transparent 28%);
-    background-position: center, center, 12% 18%, 84% 12%;
-    background-size: 100% 100%, cover, auto, auto;
+    background-position: center, center, center, 12% 18%, 84% 12%;
+    background-size: 100% 100%, cover, cover, auto, auto;
     background-repeat: no-repeat;
     opacity: 0.92;
     transform: translateZ(0);
@@ -215,8 +216,8 @@
 
   @media (max-width: 768px) {
     .app-container::before {
-      background-position: center, center top, 18% 10%, 82% 12%;
-      background-size: 100% 100%, contain, auto, auto;
+      background-position: center, center top, center top, 18% 10%, 82% 12%;
+      background-size: 100% 100%, contain, cover, auto, auto;
     }
   }
 
