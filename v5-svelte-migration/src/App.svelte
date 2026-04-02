@@ -210,7 +210,7 @@
     inset: 0;
     background-image: url('/IMG_1695.jpeg');
     background-repeat: no-repeat;
-    background-position: center top;
+    background-position: center -24px;
   }
 
   .app-background::before {
@@ -240,7 +240,7 @@
 
   @media (max-width: 768px) {
     .app-background::before {
-      background-position: center top;
+      background-position: center -16px;
     }
 
     .app-container::before {
