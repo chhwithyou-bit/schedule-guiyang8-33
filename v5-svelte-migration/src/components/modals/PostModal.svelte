@@ -106,7 +106,7 @@
       <textarea 
         bind:value={content}
         placeholder="今天想说什么，直接写下来。"
-        class="w-full h-40 px-6 py-6 rounded-3xl border border-white/12 bg-white/14 text-[var(--color-text)] placeholder:text-[color:rgba(255,255,255,0.62)] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/35 transition-all font-semibold text-lg resize-none mb-6 dark:bg-neutral-900/88 dark:text-white dark:placeholder:text-white/55"
+        class="w-full h-40 px-6 py-6 rounded-3xl border border-white/18 bg-black/38 text-white placeholder:text-white/72 caret-[var(--color-primary)] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_18px_40px_rgba(0,0,0,0.18)] outline-none focus:border-[var(--color-primary)] focus:bg-black/46 focus:ring-2 focus:ring-[var(--color-primary)]/40 transition-all font-semibold text-lg resize-none mb-6 dark:bg-black/42"
       ></textarea>
 
       <div class="mb-6 rounded-[28px] border border-white/10 bg-white/5 p-5">
