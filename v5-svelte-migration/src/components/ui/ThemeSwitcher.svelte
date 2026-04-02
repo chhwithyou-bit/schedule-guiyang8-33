@@ -230,17 +230,17 @@
 <!-- Initial Access Palette Picker -->
 {#if showInitPanel}
   <div class="fixed inset-0 z-[1000010] flex items-center justify-center overflow-hidden bg-[var(--color-bg)] p-4 md:p-6">
-    <div class="aura-shell aura-shell--picker w-full max-w-6xl">
+    <div class="aura-shell aura-shell--picker w-full max-w-5xl">
       <div class="aura-picker-copy">
-        <div class="max-w-2xl">
+        <div class="max-w-xl">
           <p class="aura-kicker">Theme Archive</p>
-          <h2 class="text-4xl md:text-5xl font-black text-[#fff4ed] tracking-[-0.04em] leading-none">Pick Your Aura</h2>
-          <p class="mt-3 max-w-xl text-sm md:text-base text-[rgba(255,244,237,0.72)] leading-7">
-            先挑一种今天网站的气色。四套主题都按你给的色卡重做了，打开以后整站背景、阴影和发光都会一起换。
+          <h2 class="text-[2rem] md:text-[2.8rem] font-black text-[#fff4ed] tracking-[-0.04em] leading-none">Pick Your Aura</h2>
+          <p class="mt-2 text-[13px] md:text-[14px] text-[rgba(255,244,237,0.72)] leading-6">
+            先选一种今天网站的气色，整站背景、阴影和发光会一起切换。
           </p>
         </div>
 
-        <p class="max-w-sm text-[11px] font-semibold uppercase tracking-[0.22em] text-[rgba(255,244,237,0.46)]">
+        <p class="max-w-sm text-[10px] font-semibold uppercase tracking-[0.2em] text-[rgba(255,244,237,0.42)]">
           Split palette cards below echo the reference boards directly.
         </p>
       </div>
@@ -257,25 +257,25 @@
             <div class="aura-card-bg"></div>
             <div class="aura-card-noise"></div>
 
-            <div class="relative z-[1] flex h-full flex-col justify-between p-5 md:p-6">
-              <div class="flex items-start justify-between gap-3">
+            <div class="aura-card-content relative z-[1]">
+              <div class="aura-card-head">
                 <div>
                   <span class="aura-tag">{theme.liquidLabel}</span>
-                  <p class="mt-3 text-[11px] font-black uppercase tracking-[0.22em] text-white/70">{theme.pair}</p>
+                  <p class="mt-2 text-[10px] font-black uppercase tracking-[0.2em] text-white/68">{theme.pair}</p>
                 </div>
 
                 <span class="aura-chip">整站切换</span>
               </div>
 
-              <div class="space-y-3">
+              <div class="aura-card-body">
                 <div class="flex items-center gap-3">
                   <span class="aura-swatches" aria-hidden="true">
                     <span class="aura-swatch is-first"></span>
                     <span class="aura-swatch is-second"></span>
                   </span>
                   <div class="min-w-0">
-                    <strong class="block text-2xl md:text-[2rem] font-black tracking-[-0.04em] leading-none text-white">{theme.displayName}</strong>
-                    <span class="mt-2 block text-[12px] font-medium leading-6 text-white/78">{theme.mood}</span>
+                    <strong class="block text-[1.45rem] md:text-[1.8rem] font-black tracking-[-0.04em] leading-none text-white">{theme.displayName}</strong>
+                    <span class="mt-1.5 block text-[11px] md:text-[12px] font-medium leading-5 text-white/76">{theme.mood}</span>
                   </div>
                 </div>
               </div>
@@ -298,14 +298,14 @@
 
   .aura-shell--picker {
     display: grid;
-    gap: 2rem;
+    gap: 1.3rem;
     align-items: center;
     justify-items: center;
   }
 
   .aura-picker-copy {
     display: grid;
-    gap: 0.85rem;
+    gap: 0.55rem;
     width: 100%;
     justify-items: center;
     text-align: center;
@@ -314,14 +314,34 @@
   .aura-picker-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1rem;
-    width: min(100%, 52rem);
+    gap: 0.9rem;
+    width: min(100%, 46rem);
     margin-inline: auto;
+    align-items: stretch;
   }
 
   .aura-card {
-    aspect-ratio: 1.18;
-    min-height: clamp(13.5rem, 30vh, 18rem);
+    min-height: clamp(12rem, 25vh, 15rem);
+  }
+
+  .aura-card-content {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    height: 100%;
+    gap: 1rem;
+    padding: 1rem 1rem 1.05rem;
+  }
+
+  .aura-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .aura-card-body {
+    display: flex;
+    align-items: center;
   }
 
   .aura-kicker {
@@ -365,12 +385,12 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 2rem;
+    min-height: 1.8rem;
     border-radius: 999px;
-    padding: 0.45rem 0.9rem;
-    font-size: 0.66rem;
+    padding: 0.38rem 0.78rem;
+    font-size: 0.6rem;
     font-weight: 900;
-    letter-spacing: 0.18em;
+    letter-spacing: 0.16em;
     text-transform: uppercase;
     backdrop-filter: blur(20px);
   }
@@ -390,8 +410,8 @@
   .aura-swatches {
     position: relative;
     display: inline-flex;
-    width: 3.6rem;
-    height: 3.6rem;
+    width: 3.15rem;
+    height: 3.15rem;
     flex-shrink: 0;
     align-items: center;
     justify-content: center;
@@ -399,9 +419,9 @@
 
   .aura-swatch {
     position: absolute;
-    width: 2.4rem;
-    height: 2.4rem;
-    border-radius: 0.95rem;
+    width: 2.15rem;
+    height: 2.15rem;
+    border-radius: 0.85rem;
     border: 1px solid rgba(255, 255, 255, 0.2);
     box-shadow: 0 16px 34px rgba(0, 0, 0, 0.18);
   }
@@ -424,16 +444,21 @@
 
   @media (max-width: 767px) {
     .aura-shell--picker {
-      gap: 1.4rem;
+      gap: 1rem;
     }
 
     .aura-picker-grid {
-      gap: 0.8rem;
-      width: min(100%, 26rem);
+      gap: 0.7rem;
+      width: min(100%, 24rem);
     }
 
     .aura-card {
-      min-height: clamp(11rem, 24vh, 14rem);
+      min-height: clamp(10rem, 22vh, 12.2rem);
+    }
+
+    .aura-card-content {
+      gap: 0.75rem;
+      padding: 0.85rem;
     }
   }
 </style>
