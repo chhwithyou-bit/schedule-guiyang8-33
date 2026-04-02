@@ -229,13 +229,13 @@
 
 <!-- Initial Access Palette Picker -->
 {#if showInitPanel}
-  <div class="fixed inset-0 z-[1000010] flex items-center justify-center bg-[var(--color-bg)] overflow-y-auto p-6">
-    <div class="aura-shell max-w-5xl w-full py-10 md:py-14">
-      <div class="mb-8 flex flex-col gap-4 md:mb-12 md:flex-row md:items-end md:justify-between">
+  <div class="fixed inset-0 z-[1000010] flex items-center justify-center overflow-hidden bg-[var(--color-bg)] p-4 md:p-6">
+    <div class="aura-shell aura-shell--picker w-full max-w-6xl">
+      <div class="aura-picker-copy">
         <div class="max-w-2xl">
           <p class="aura-kicker">Theme Archive</p>
           <h2 class="text-4xl md:text-5xl font-black text-[#fff4ed] tracking-[-0.04em] leading-none">Pick Your Aura</h2>
-          <p class="mt-4 max-w-xl text-sm md:text-base text-[rgba(255,244,237,0.72)] leading-7">
+          <p class="mt-3 max-w-xl text-sm md:text-base text-[rgba(255,244,237,0.72)] leading-7">
             先挑一种今天网站的气色。四套主题都按你给的色卡重做了，打开以后整站背景、阴影和发光都会一起换。
           </p>
         </div>
@@ -245,13 +245,13 @@
         </p>
       </div>
 
-      <div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
+      <div class="aura-picker-grid">
         {#each themes as theme}
           <button 
             type="button"
             on:click|preventDefault|stopPropagation={(e) => handleThemeSwitch(theme.id, e, true)}
             data-theme-id={theme.id}
-            class="aura-card group relative aspect-[1.08] md:aspect-[1.28] overflow-hidden rounded-[28px] md:rounded-[40px] border border-white/10 bg-white/5 text-left transition-all duration-500 hover:scale-[1.02] hover:border-white/25 active:scale-[0.985]"
+            class="aura-card group relative overflow-hidden rounded-[28px] md:rounded-[40px] border border-white/10 bg-white/5 text-left transition-all duration-500 hover:scale-[1.02] hover:border-white/25 active:scale-[0.985]"
             style="--aura-a: {theme.primary}; --aura-b: {theme.secondary}; --aura-ink: {theme.accent}; --aura-bg: {theme.bg};"
           >
             <div class="aura-card-bg"></div>
@@ -294,6 +294,34 @@
 
   .aura-shell {
     position: relative;
+  }
+
+  .aura-shell--picker {
+    display: grid;
+    gap: 2rem;
+    align-items: center;
+    justify-items: center;
+  }
+
+  .aura-picker-copy {
+    display: grid;
+    gap: 0.85rem;
+    width: 100%;
+    justify-items: center;
+    text-align: center;
+  }
+
+  .aura-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    width: min(100%, 52rem);
+    margin-inline: auto;
+  }
+
+  .aura-card {
+    aspect-ratio: 1.18;
+    min-height: clamp(13.5rem, 30vh, 18rem);
   }
 
   .aura-kicker {
@@ -395,8 +423,17 @@
   }
 
   @media (max-width: 767px) {
+    .aura-shell--picker {
+      gap: 1.4rem;
+    }
+
+    .aura-picker-grid {
+      gap: 0.8rem;
+      width: min(100%, 26rem);
+    }
+
     .aura-card {
-      min-height: 17.5rem;
+      min-height: clamp(11rem, 24vh, 14rem);
     }
   }
 </style>
