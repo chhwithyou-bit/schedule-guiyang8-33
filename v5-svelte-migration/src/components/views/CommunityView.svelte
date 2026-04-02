@@ -91,13 +91,18 @@
           on:click={openComposer}
           class="community-action-panel__button group flex w-full items-center gap-4 rounded-[28px] px-4 py-4 text-left transition-transform duration-300 hover:scale-[1.01]"
         >
-          <div class="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-[20px] bg-[var(--color-primary)] text-lg font-black text-[var(--color-bg)] shadow-lg">
+          <button 
+            type="button" 
+            on:click|stopPropagation={() => openModal('community-console')} 
+            class="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-[20px] bg-[var(--color-primary)] text-lg font-black text-[var(--color-bg)] shadow-lg hover:scale-105 transition-transform"
+            aria-label="管理个人资料"
+          >
             {#if $user?.avatar_url}
               <img src={$user.avatar_url} alt={$user.username || 'user'} class="h-full w-full rounded-[20px] object-cover" />
             {:else}
               {$user?.username?.slice(0, 1).toUpperCase() || 'U'}
             {/if}
-          </div>
+          </button>
 
           <div class="min-w-0 flex-1">
             <p class="text-xs font-black uppercase tracking-[0.22em] opacity-40">

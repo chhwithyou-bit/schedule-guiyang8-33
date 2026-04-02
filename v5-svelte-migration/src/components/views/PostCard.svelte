@@ -25,8 +25,16 @@
 
   $: liked = !!post.viewer_liked;
 
+  import { user } from '../../stores/appState';
+  import { get } from 'svelte/store';
+  
   function handleProfileClick(e: MouseEvent) {
     e.stopPropagation();
+    const currentUser = get(user);
+    if (currentUser && currentUser.id === post.user_id) {
+      openModal('community-console');
+      return;
+    }
     selectedProfile.set({
       id: post.user_id,
       username: post.username,

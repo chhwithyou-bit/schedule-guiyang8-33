@@ -59,7 +59,7 @@
           控制台
         </button>
         <button 
-          on:click={() => selectedProfile.set($user)}
+          on:click={() => openModal('community-console')}
           class="w-10 h-10 flex items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 hover:scale-110 transition-transform overflow-hidden shadow-sm"
         >
           {#if $user.avatar_url}

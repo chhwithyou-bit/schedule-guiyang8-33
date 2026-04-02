@@ -478,6 +478,65 @@
     }
   }
 
+  let uploadingAvatar = false;
+  let uploadingBackground = false;
+
+  async function handleAvatarUpload(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    uploadingAvatar = true;
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await communityFetch('/api/community/drive/upload', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (data.ok && data.file?.url) {
+        profileForm.avatar_url = data.file.url;
+      } else {
+        profileMessage = data.msg || '头像上传失败';
+      }
+    } catch (e) {
+      console.error(e);
+      profileMessage = '头像上传失败';
+    } finally {
+      uploadingAvatar = false;
+      input.value = '';
+    }
+  }
+
+  async function handleBackgroundUpload(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    uploadingBackground = true;
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await communityFetch('/api/community/drive/upload', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (data.ok && data.file?.url) {
+        profileForm.background_url = data.file.url;
+      } else {
+        profileMessage = data.msg || '背景图上传失败';
+      }
+    } catch (e) {
+      console.error(e);
+      profileMessage = '背景图上传失败';
+    } finally {
+      uploadingBackground = false;
+      input.value = '';
+    }
+  }
+
   async function saveProfile() {
     if (!$isAuthenticated) {
       requireAuth('登录后才能保存资料。');
@@ -753,14 +812,22 @@
                       <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35">个性签名</span>
                       <textarea bind:value={profileForm.signature} class="h-28 w-full rounded-[22px] border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium outline-none transition-colors focus:border-[var(--color-primary)]"></textarea>
                     </label>
+                    
                     <label class="block">
-                      <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35">头像链接</span>
-                      <input bind:value={profileForm.avatar_url} type="text" class="w-full rounded-[22px] border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium outline-none transition-colors focus:border-[var(--color-primary)]" />
+                      <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35">上传头像</span>
+                      <div class="relative w-full rounded-[22px] border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium transition-colors hover:border-[var(--color-primary)]">
+                        <span class="opacity-70">{uploadingAvatar ? '正在上传...' : (profileForm.avatar_url ? '已上传，点击更换' : '点击选择图片')}</span>
+                        <input type="file" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" on:change={handleAvatarUpload} disabled={uploadingAvatar} />
+                      </div>
                     </label>
                     <label class="block">
-                      <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35">背景图链接</span>
-                      <input bind:value={profileForm.background_url} type="text" class="w-full rounded-[22px] border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium outline-none transition-colors focus:border-[var(--color-primary)]" />
+                      <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35">上传主页壁纸</span>
+                      <div class="relative w-full rounded-[22px] border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium transition-colors hover:border-[var(--color-primary)]">
+                        <span class="opacity-70">{uploadingBackground ? '正在上传...' : (profileForm.background_url ? '已上传，点击更换' : '点击选择图片')}</span>
+                        <input type="file" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" on:change={handleBackgroundUpload} disabled={uploadingBackground} />
+                      </div>
                     </label>
+
                   </div>
 
                   <div class="mt-5 flex flex-wrap gap-3">

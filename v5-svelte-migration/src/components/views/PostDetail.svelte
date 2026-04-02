@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { get } from 'svelte/store';
   import { fade, fly } from 'svelte/transition';
   import { tick } from 'svelte';
   import { selectedPost, isAuthenticated, selectedProfile } from '../../stores/appState';
