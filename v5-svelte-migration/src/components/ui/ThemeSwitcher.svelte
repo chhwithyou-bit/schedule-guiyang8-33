@@ -248,7 +248,8 @@
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
         {#each themes as theme}
           <button 
-            on:click={(e) => handleThemeSwitch(theme.id, e, true)}
+            type="button"
+            on:click|preventDefault|stopPropagation={(e) => handleThemeSwitch(theme.id, e, true)}
             data-theme-id={theme.id}
             class="aura-card group relative aspect-[1.08] md:aspect-[1.28] overflow-hidden rounded-[28px] md:rounded-[40px] border border-white/10 bg-white/5 text-left transition-all duration-500 hover:scale-[1.02] hover:border-white/25 active:scale-[0.985]"
             style="--aura-a: {theme.primary}; --aura-b: {theme.secondary}; --aura-ink: {theme.accent}; --aura-bg: {theme.bg};"
