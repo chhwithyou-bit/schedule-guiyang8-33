@@ -223,7 +223,7 @@
   }
 
   .app-background::before {
-    background-size: cover;
+    background-size: 100% 100%;
   }
 
   .app-background::after {
