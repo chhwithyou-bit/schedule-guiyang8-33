@@ -557,6 +557,18 @@
     await openPlayer(false);
   }
 
+  function handleBubblePointerDown(event: PointerEvent) {
+    if (event.button !== 0) return;
+    event.stopPropagation();
+    beginDragging(event.clientX, event.clientY, event.currentTarget as HTMLElement, event.pointerId);
+  }
+
+  function handleBubbleMouseDown(event: MouseEvent) {
+    if (isDragging || event.button !== 0) return;
+    event.stopPropagation();
+    beginDragging(event.clientX, event.clientY, event.currentTarget as HTMLElement);
+  }
+
   async function toggleList(event: Event) {
     if (shouldCancelControlClick(event)) return;
 
@@ -930,8 +942,8 @@
         type="button"
         class="mp-bubble"
         aria-label="打开播放器"
-        on:pointerdown={handleDragPointerDown}
-        on:mousedown={handleDragMouseDown}
+        on:pointerdown={handleBubblePointerDown}
+        on:mousedown={handleBubbleMouseDown}
         on:click={togglePlayerFromBubble}
       >
         <div class="mp-bubble-ring"></div>
