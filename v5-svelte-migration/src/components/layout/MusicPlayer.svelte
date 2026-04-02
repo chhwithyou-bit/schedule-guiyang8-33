@@ -348,20 +348,13 @@
       return;
     }
 
-    isOpen = false;
-    isListOpen = false;
-    search = '';
-    await syncPanelPosition({ preserveOrigin: true });
+    await closePlayer();
   }
 
   async function collapsePlayer(event: Event) {
     if (shouldCancelControlClick(event)) return;
     event.stopPropagation();
-
-    isOpen = false;
-    isListOpen = false;
-    search = '';
-    await syncPanelPosition({ preserveOrigin: true });
+    await closePlayer();
   }
 
   async function playCurrent(options: { silent?: boolean } = {}) {
@@ -691,6 +684,30 @@
     hasStoredOpenPanel = true;
   }
 
+  async function closePlayer() {
+    if (!isOpen) return;
+
+    const { width, height } = getPanelDimensions();
+    const closedWidth = getClosedPanelSize();
+    const closedHeight = getClosedPanelHeight();
+
+    if (userHasDraggedOpenPanel) {
+      syncRestPanelFromPosition(width, height);
+    }
+
+    clampRestPanelToViewport();
+    resolvePanelOrigins(restPanelLeft, restPanelTop, closedWidth, closedHeight);
+    markOpenTransitionWindow();
+
+    isOpen = false;
+    isListOpen = false;
+    search = '';
+    panelLeft = restPanelLeft;
+    panelTop = restPanelTop;
+
+    await tick();
+  }
+
   function getDefaultPanelLeft() {
     if (typeof window === 'undefined') return PANEL_MARGIN;
     const size = getClosedPanelSize();
@@ -730,6 +747,22 @@
       width: getPreferredPanelWidth(true),
       height: measuredHeight || getEstimatedOpenPanelHeight()
     };
+  }
+
+  function getPanelInlineStyle() {
+    const { width, height } = getPanelDimensions();
+
+    return [
+      `left: ${panelLeft}px`,
+      `top: ${panelTop}px`,
+      `width: ${width}px`,
+      `height: ${height}px`,
+      `--mp-open-x: ${openMotionX}px`,
+      `--mp-open-y: ${openMotionY}px`,
+      `--mp-origin-x: ${panelOriginXPercent}`,
+      `--mp-origin-y: ${panelOriginYPercent}`,
+      `--mp-panel-duration: ${PANEL_TRANSITION_MS}ms`
+    ].join('; ');
   }
 
   function clamp(value: number, min: number, max: number) {
@@ -928,7 +961,7 @@
   data-origin-x={panelOriginX}
   data-origin-y={panelOriginY}
   class="fixed z-[10050] overflow-visible transition-[left,top,width,height,box-shadow,transform] ease-[cubic-bezier(0.22,1,0.36,1)]"
-  style="left: {panelLeft}px; top: {panelTop}px; width: {isOpen ? `min(18.75rem, calc(100vw - ${PANEL_MARGIN * 2}px))` : '3.75rem'}; --mp-open-x: {openMotionX}px; --mp-open-y: {openMotionY}px; --mp-origin-x: {panelOriginXPercent}; --mp-origin-y: {panelOriginYPercent}; --mp-panel-duration: {PANEL_TRANSITION_MS}ms;"
+  style={getPanelInlineStyle()}
   on:click={() => !isOpen && togglePlayer()}
   on:keydown={(event) => !isOpen && event.key === 'Enter' && togglePlayer()}
   role="button"
