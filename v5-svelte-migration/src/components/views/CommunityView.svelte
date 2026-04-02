@@ -84,11 +84,11 @@
       </div>
     </div>
 
-    <div class="rounded-[32px] border border-white/10 bg-white/5 p-4 shadow-2xl backdrop-blur-xl">
+    <div class="community-action-panel rounded-[32px] p-4">
       <button
         type="button"
         on:click={openComposer}
-        class="group flex w-full items-center gap-4 rounded-[28px] border border-white/10 bg-[rgba(255,255,255,0.04)] px-4 py-4 text-left transition-transform duration-300 hover:scale-[1.01]"
+        class="community-action-panel__button group flex w-full items-center gap-4 rounded-[28px] px-4 py-4 text-left transition-transform duration-300 hover:scale-[1.01]"
       >
         <div class="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-[20px] bg-[var(--color-primary)] text-lg font-black text-[var(--color-bg)] shadow-lg">
           {#if $user?.avatar_url}
@@ -112,7 +112,7 @@
           </p>
         </div>
 
-        <div class="hidden rounded-full border border-white/10 px-4 py-2 text-[11px] font-black uppercase tracking-[0.2em] opacity-70 md:block">
+        <div class="community-action-panel__pill hidden rounded-full px-4 py-2 text-[11px] font-black uppercase tracking-[0.2em] opacity-70 md:block">
           {$isAuthenticated ? '去发帖' : '先登录'}
         </div>
       </button>
@@ -128,7 +128,7 @@
         <button
           type="button"
           on:click={fetchPosts}
-          class="rounded-full border border-white/10 bg-white/5 px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105"
+          class="community-action-panel__ghost rounded-full px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105"
         >
           刷新动态
         </button>
@@ -137,7 +137,7 @@
   </section>
 
   {#if announcement?.content}
-    <section class="mb-10 rounded-[32px] border border-white/10 bg-[rgba(255,255,255,0.05)] px-6 py-5 shadow-2xl backdrop-blur-xl">
+    <section class="community-notice-panel mb-10 rounded-[32px] px-6 py-5">
       <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
           <p class="text-[10px] font-black uppercase tracking-[0.28em] opacity-35">站内公告</p>
@@ -211,3 +211,30 @@
     <ProfileView />
   {/if}
 </div>
+
+<style>
+  .community-action-panel,
+  .community-notice-panel {
+    border: 1px solid rgba(var(--glow-primary-rgb), 0.14);
+    background:
+      linear-gradient(145deg, rgba(var(--glow-primary-rgb), 0.16), rgba(var(--glow-secondary-rgb), 0.12)),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(var(--color-bg-rgb), 0.16)),
+      rgba(var(--color-bg-rgb), 0.32);
+    box-shadow:
+      0 20px 48px rgba(var(--shadow-rgb), 0.14),
+      inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  }
+
+  .community-action-panel__button {
+    border: 1px solid rgba(var(--glow-primary-rgb), 0.12);
+    background:
+      linear-gradient(135deg, rgba(var(--glow-primary-rgb), 0.12), rgba(var(--glow-secondary-rgb), 0.08)),
+      rgba(255, 255, 255, 0.04);
+  }
+
+  .community-action-panel__pill,
+  .community-action-panel__ghost {
+    border: 1px solid rgba(var(--glow-primary-rgb), 0.14);
+    background: rgba(var(--color-bg-rgb), 0.18);
+  }
+</style>
