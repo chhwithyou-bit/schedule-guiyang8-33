@@ -355,6 +355,7 @@
   }
 
   async function collapsePlayer(event: Event) {
+    if (shouldCancelControlClick(event)) return;
     event.stopPropagation();
 
     isOpen = false;
@@ -390,6 +391,7 @@
   }
 
   function togglePlay(event: Event) {
+    if (shouldCancelControlClick(event)) return;
     event.stopPropagation();
 
     if (!currentTrack.url) {
@@ -420,6 +422,7 @@
   }
 
   function playNext(event?: Event, autoplay = true) {
+    if (event && shouldCancelControlClick(event)) return;
     event?.stopPropagation();
     if (!playlist.length) return;
     const nextIndex = (currentIndex + 1) % playlist.length;
@@ -427,6 +430,7 @@
   }
 
   function playPrevious(event?: Event, autoplay = true) {
+    if (event && shouldCancelControlClick(event)) return;
     event?.stopPropagation();
     if (!playlist.length) return;
     const prevIndex = (currentIndex - 1 + playlist.length) % playlist.length;
@@ -434,6 +438,7 @@
   }
 
   async function toggleList(event: Event) {
+    if (shouldCancelControlClick(event)) return;
     event.stopPropagation();
     if (!isOpen) {
       await openPlayerFromClosedAnchor(true);
@@ -508,6 +513,28 @@
     if (typeof pointerId === 'number') {
       dragCaptureEl?.setPointerCapture(pointerId);
     }
+  }
+
+  function shouldCancelControlClick(event: Event) {
+    event.stopPropagation();
+
+    if (!dragMoved) return false;
+
+    dragMoved = false;
+    event.preventDefault();
+    return true;
+  }
+
+  function handleControlPointerDown(event: PointerEvent) {
+    if (!widgetEl || !isOpen || event.button !== 0) return;
+    event.stopPropagation();
+    beginDragging(event.clientX, event.clientY, event.currentTarget as HTMLElement, event.pointerId);
+  }
+
+  function handleControlMouseDown(event: MouseEvent) {
+    if (!widgetEl || !isOpen || isDraggingWidget || event.button !== 0) return;
+    event.stopPropagation();
+    beginDragging(event.clientX, event.clientY, event.currentTarget as HTMLElement);
   }
 
   async function syncPanelPosition(options: { reset?: boolean; preserveOrigin?: boolean } = {}) {
@@ -962,7 +989,13 @@
               <p class="mp-topline-copy">按住上面的横杆，整块都能拖着走。</p>
             </div>
 
-            <button class="mp-icon-btn mp-collapse-btn" on:click={collapsePlayer} aria-label="收起播放器">
+            <button
+              class="mp-icon-btn mp-collapse-btn"
+              on:click={collapsePlayer}
+              on:mousedown={handleControlMouseDown}
+              on:pointerdown={handleControlPointerDown}
+              aria-label="收起播放器"
+            >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M7 14.25L12 9.25L17 14.25"></path>
                 <path d="M7 18.25L12 13.25L17 18.25" opacity="0.72"></path>
@@ -1033,14 +1066,26 @@
             <span class="mp-actions-balance" aria-hidden="true"></span>
 
             <div class="mp-transport">
-              <button class="mp-icon-btn" on:click={playPrevious} aria-label="上一首">
+              <button
+                class="mp-icon-btn"
+                on:click={playPrevious}
+                on:mousedown={handleControlMouseDown}
+                on:pointerdown={handleControlPointerDown}
+                aria-label="上一首"
+              >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <path d="M7.25 6.75V17.25"></path>
                   <path d="M16.5 7.5L9.75 12L16.5 16.5V7.5Z"></path>
                 </svg>
               </button>
 
-              <button class="mp-icon-btn mp-play-btn" on:click={togglePlay} aria-label={isPlaying ? '暂停播放' : '开始播放'}>
+              <button
+                class="mp-icon-btn mp-play-btn"
+                on:click={togglePlay}
+                on:mousedown={handleControlMouseDown}
+                on:pointerdown={handleControlPointerDown}
+                aria-label={isPlaying ? '暂停播放' : '开始播放'}
+              >
                 {#if isPlaying}
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M9.25 7V17"></path>
@@ -1053,7 +1098,13 @@
                 {/if}
               </button>
 
-              <button class="mp-icon-btn" on:click={playNext} aria-label="下一首">
+              <button
+                class="mp-icon-btn"
+                on:click={playNext}
+                on:mousedown={handleControlMouseDown}
+                on:pointerdown={handleControlPointerDown}
+                aria-label="下一首"
+              >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <path d="M16.75 6.75V17.25"></path>
                   <path d="M7.5 7.5L14.25 12L7.5 16.5V7.5Z"></path>
@@ -1065,6 +1116,8 @@
               id="mpb-list"
               class="mp-icon-btn mp-list-btn {isListOpen ? 'is-open' : ''}"
               on:click={toggleList}
+              on:mousedown={handleControlMouseDown}
+              on:pointerdown={handleControlPointerDown}
               aria-label={isListOpen ? '收起歌单' : '打开歌单'}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
