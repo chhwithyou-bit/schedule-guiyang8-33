@@ -1003,7 +1003,11 @@
             </button>
           </div>
 
-          <section class="mp-hero">
+          <div
+            class="mp-hero"
+            on:mousedown={handleControlMouseDown}
+            on:pointerdown={handleControlPointerDown}
+          >
             <div class="mp-badge large mp-cover-card">
               {#if currentTrack.cover}
                 <img src={currentTrack.cover} alt={currentTrack.name} class="h-full w-full object-cover" />
@@ -1035,7 +1039,7 @@
                 <span>{playlist.length ? `共 ${playlist.length} 首` : '没有歌单'}</span>
               </div>
             </div>
-          </section>
+          </div>
 
           <div class="mp-progress-card">
             <div class="mp-progress-wrap">
@@ -1402,6 +1406,12 @@
       radial-gradient(circle at top right, rgba(255, 255, 255, 0.16), transparent 44%),
       linear-gradient(135deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.03));
     border: 1px solid rgba(var(--glow-primary-rgb), 0.12);
+    cursor: grab;
+    touch-action: none;
+  }
+
+  .mp-hero:active {
+    cursor: grabbing;
   }
 
   .mp-cover-card {
