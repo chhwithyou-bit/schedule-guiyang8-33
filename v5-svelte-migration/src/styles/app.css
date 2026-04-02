@@ -41,6 +41,15 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
+  @media (max-width: 768px) {
+    body {
+      min-height: 100svh;
+      background-size: 100% auto, contain;
+      background-position: center top, center top;
+      background-attachment: scroll;
+    }
+  }
+
   /* Respect reduced motion */
   @media (prefers-reduced-motion: reduce) {
     *,
