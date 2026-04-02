@@ -1003,8 +1003,10 @@
             </button>
           </div>
 
-          <div
+          <button
             class="mp-hero"
+            type="button"
+            aria-label="拖动播放器"
             on:mousedown={handleControlMouseDown}
             on:pointerdown={handleControlPointerDown}
           >
@@ -1039,7 +1041,7 @@
                 <span>{playlist.length ? `共 ${playlist.length} 首` : '没有歌单'}</span>
               </div>
             </div>
-          </div>
+          </button>
 
           <div class="mp-progress-card">
             <div class="mp-progress-wrap">
@@ -1396,6 +1398,8 @@
   }
 
   .mp-hero {
+    appearance: none;
+    border: none;
     display: grid;
     grid-template-columns: 4.75rem minmax(0, 1fr);
     gap: 0.72rem;
@@ -1406,6 +1410,9 @@
       radial-gradient(circle at top right, rgba(255, 255, 255, 0.16), transparent 44%),
       linear-gradient(135deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.03));
     border: 1px solid rgba(var(--glow-primary-rgb), 0.12);
+    width: 100%;
+    text-align: left;
+    color: inherit;
     cursor: grab;
     touch-action: none;
   }
