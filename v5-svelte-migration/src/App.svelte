@@ -214,15 +214,11 @@
   }
 
   .app-background::before {
-    inset: -6%;
     background-size: cover;
-    filter: blur(28px);
-    opacity: 0.34;
-    transform: scale(1.06);
   }
 
   .app-background::after {
-    background-size: contain;
+    display: none;
   }
 
   .app-container::before {
@@ -244,11 +240,6 @@
 
   @media (max-width: 768px) {
     .app-background::before {
-      inset: -10%;
-      opacity: 0.4;
-    }
-
-    .app-background::after {
       background-position: center center;
     }
 
