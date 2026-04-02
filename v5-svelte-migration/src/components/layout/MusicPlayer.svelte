@@ -32,6 +32,7 @@
   const OPEN_PANEL_LIST_HEIGHT_REM = 15.5;
   const PANEL_TRANSITION_MS = 520;
   const PANEL_CONTENT_TRANSITION_MS = 420;
+  const AUTOPLAY_UNLOCK_EVENTS = ['pointerdown', 'keydown'] as const;
   const INITIAL_PANEL_LEFT = typeof window === 'undefined' ? 24 : getDefaultPanelLeft();
   const INITIAL_PANEL_TOP = typeof window === 'undefined' ? 24 : getDefaultPanelTop();
 
@@ -85,6 +86,7 @@
   let openMotionY = 18;
   let panelOriginXPercent = '100%';
   let panelOriginYPercent = '100%';
+  let pendingAutoplayUnlock = false;
 
   $: isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
 
@@ -120,6 +122,7 @@
 
     return () => {
       window.removeEventListener('resize', handleResize);
+      removeAutoplayUnlockListeners();
 
       if (audioEl) {
         audioEl.pause();
@@ -242,6 +245,8 @@
       }
 
       loadState = 'ready';
+      await tick();
+      await attemptAutoplayForCurrentTrack();
     } catch (error) {
       console.error('Failed to load music playlist', error);
       playlist = [];
@@ -286,7 +291,39 @@
     return typeof window !== 'undefined' && window.performance.now() < openTransitionEndsAt;
   }
 
-  function bindTrackToAudio(url: string, autoplay = false) {
+  function removeAutoplayUnlockListeners() {
+    if (typeof window === 'undefined') return;
+    AUTOPLAY_UNLOCK_EVENTS.forEach((eventName) => {
+      window.removeEventListener(eventName, handleAutoplayUnlock);
+    });
+  }
+
+  function queueAutoplayUnlock() {
+    if (typeof window === 'undefined' || pendingAutoplayUnlock || !currentTrack.url) return;
+    pendingAutoplayUnlock = true;
+    AUTOPLAY_UNLOCK_EVENTS.forEach((eventName) => {
+      window.addEventListener(eventName, handleAutoplayUnlock, { once: true });
+    });
+  }
+
+  async function handleAutoplayUnlock() {
+    pendingAutoplayUnlock = false;
+    removeAutoplayUnlockListeners();
+    await playCurrent({ silent: true });
+  }
+
+  async function attemptAutoplayForCurrentTrack() {
+    if (!audioEl || !currentTrack.url) return;
+
+    if (lastBoundUrl !== currentTrack.url) {
+      bindTrackToAudio(currentTrack.url);
+      await tick();
+    }
+
+    await playCurrent({ silent: true });
+  }
+
+  function bindTrackToAudio(url: string, autoplay = false, silentAutoplay = false) {
     if (!audioEl || !url) return;
     lastBoundUrl = url;
     progress = 0;
@@ -296,7 +333,7 @@
     audioEl.load();
 
     if (autoplay) {
-      void playCurrent();
+      void playCurrent({ silent: silentAutoplay });
     }
   }
 
@@ -326,16 +363,22 @@
     await syncPanelPosition({ preserveOrigin: true });
   }
 
-  async function playCurrent() {
+  async function playCurrent(options: { silent?: boolean } = {}) {
     if (!audioEl || !currentTrack.url) return;
     errorMessage = '';
 
     try {
       await audioEl.play();
       isPlaying = true;
+      pendingAutoplayUnlock = false;
+      removeAutoplayUnlockListeners();
     } catch (error) {
       console.error('Audio playback failed', error);
       isPlaying = false;
+      if (options.silent) {
+        queueAutoplayUnlock();
+        return;
+      }
       errorMessage = '这首歌现在放不了，换一首试试。';
     }
   }
@@ -973,6 +1016,7 @@
                 max={duration || 0}
                 step="0.1"
                 value={currentTime}
+                style="--mp-progress: {progress}%;"
                 aria-label="调整播放进度"
                 on:input={handleSeekInput}
                 on:click|stopPropagation
@@ -1512,8 +1556,70 @@
     inset: -0.35rem 0 auto 0;
     width: 100%;
     height: 1rem;
-    opacity: 0;
+    appearance: none;
+    -webkit-appearance: none;
+    background: transparent;
     cursor: pointer;
+  }
+
+  .mp-progress-input:focus {
+    outline: none;
+  }
+
+  .mp-progress-input::-webkit-slider-runnable-track {
+    height: 0.45rem;
+    border-radius: 999px;
+    background: transparent;
+  }
+
+  .mp-progress-input::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 1rem;
+    height: 1rem;
+    margin-top: -0.275rem;
+    border: 2px solid rgba(255, 255, 255, 0.9);
+    border-radius: 999px;
+    background:
+      radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.78) 42%, rgba(var(--glow-primary-rgb), 0.98) 100%);
+    box-shadow:
+      0 0 0 0.22rem rgba(var(--glow-primary-rgb), 0.14),
+      0 10px 18px rgba(var(--shadow-rgb), 0.18);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+  }
+
+  .mp-progress-input::-moz-range-track {
+    height: 0.45rem;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+  }
+
+  .mp-progress-input::-moz-range-thumb {
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid rgba(255, 255, 255, 0.9);
+    border-radius: 999px;
+    background:
+      radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.78) 42%, rgba(var(--glow-primary-rgb), 0.98) 100%);
+    box-shadow:
+      0 0 0 0.22rem rgba(var(--glow-primary-rgb), 0.14),
+      0 10px 18px rgba(var(--shadow-rgb), 0.18);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+  }
+
+  .mp-progress-input:hover::-webkit-slider-thumb,
+  .mp-progress-input:focus-visible::-webkit-slider-thumb,
+  .mp-progress-input:hover::-moz-range-thumb,
+  .mp-progress-input:focus-visible::-moz-range-thumb {
+    transform: scale(1.08);
+    box-shadow:
+      0 0 0 0.3rem rgba(var(--glow-primary-rgb), 0.18),
+      0 12px 22px rgba(var(--shadow-rgb), 0.2);
+  }
+
+  .mp-progress-input:active::-webkit-slider-thumb,
+  .mp-progress-input:active::-moz-range-thumb {
+    transform: scale(0.96);
   }
 
   .mp-time-row {
