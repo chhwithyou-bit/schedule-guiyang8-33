@@ -87,13 +87,13 @@
   }
 </script>
 
-<article class="group relative overflow-hidden rounded-[32px] border border-white/14 bg-white/10 p-6 shadow-[0_22px_60px_rgba(15,23,42,0.14)] ring-1 ring-white/8 backdrop-blur-2xl transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_26px_70px_rgba(15,23,42,0.18)] dark:border-white/10 dark:bg-white/[0.07] dark:ring-white/6">
-  <div aria-hidden="true" class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.34),transparent_32%),linear-gradient(180deg,rgba(255,255,255,0.18),rgba(255,255,255,0.02)_42%,rgba(255,255,255,0.05)_100%)] opacity-90"></div>
-  <div aria-hidden="true" class="pointer-events-none absolute inset-x-6 top-0 h-px bg-white/60 opacity-70"></div>
+<article class="post-glass-card group relative overflow-hidden rounded-[32px] p-6 transition-all duration-500 hover:-translate-y-1">
+  <div aria-hidden="true" class="post-glass-card__overlay pointer-events-none absolute inset-0 opacity-90"></div>
+  <div aria-hidden="true" class="post-glass-card__shine pointer-events-none absolute inset-x-6 top-0 h-px opacity-70"></div>
 
   <div class="relative z-[1]">
     <div class="mb-4 flex items-center gap-3">
-      <button on:click={handleProfileClick} aria-label={`打开 ${post.username || '用户'} 的主页`} class="h-10 w-10 flex-shrink-0 overflow-hidden rounded-full border border-white/20 bg-white/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] backdrop-blur-xl dark:bg-white/10">
+      <button on:click={handleProfileClick} aria-label={`打开 ${post.username || '用户'} 的主页`} class="post-glass-avatar h-10 w-10 flex-shrink-0 overflow-hidden rounded-full">
         {#if post.avatar_url}
           <img src={post.avatar_url} alt={post.username} class="h-full w-full object-cover" />
         {:else}
@@ -122,9 +122,9 @@
     </div>
 
     {#if media.length > 0}
-      <div class="mb-6 grid gap-2 overflow-hidden rounded-[24px] border border-white/14 bg-white/12 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] backdrop-blur-xl {media.length === 1 ? 'grid-cols-1' : 'grid-cols-2'} dark:bg-white/[0.05]">
+      <div class="post-glass-media mb-6 grid gap-2 overflow-hidden rounded-[24px] p-2 {media.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}">
         {#each media.slice(0, 4) as item, i}
-          <div class="relative aspect-square overflow-hidden rounded-[18px] bg-black/10">
+          <div class="post-glass-media__item relative aspect-square overflow-hidden rounded-[18px]">
             <img src={item.url} alt="Post media" class="h-full w-full object-cover" loading="lazy" />
             {#if i === 3 && media.length > 4}
               <div class="absolute inset-0 flex items-center justify-center bg-black/38 text-xl font-bold text-white backdrop-blur-sm">
@@ -136,7 +136,7 @@
       </div>
     {/if}
 
-    <div class="flex items-center justify-between border-t border-white/12 pt-4 dark:border-white/8">
+    <div class="post-glass-footer flex items-center justify-between pt-4">
       <div class="flex items-center gap-4">
         <button 
           on:click={toggleLike}
@@ -160,3 +160,64 @@
     </div>
   </div>
 </article>
+
+<style>
+  .post-glass-card {
+    border: 1px solid rgba(var(--glow-primary-rgb), 0.16);
+    background:
+      linear-gradient(145deg, rgba(var(--glow-primary-rgb), 0.14), rgba(var(--glow-secondary-rgb), 0.1)),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(var(--color-bg-rgb), 0.18)),
+      rgba(var(--color-bg-rgb), 0.22);
+    box-shadow:
+      0 22px 60px rgba(var(--shadow-rgb), 0.16),
+      inset 0 1px 0 rgba(255, 255, 255, 0.14),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.08);
+    backdrop-filter: blur(28px) saturate(1.2);
+  }
+
+  .post-glass-card:hover {
+    box-shadow:
+      0 28px 72px rgba(var(--shadow-rgb), 0.22),
+      inset 0 1px 0 rgba(255, 255, 255, 0.16),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+  }
+
+  .post-glass-card__overlay {
+    background:
+      radial-gradient(circle at top left, rgba(var(--glow-primary-rgb), 0.28), transparent 34%),
+      radial-gradient(circle at 82% 18%, rgba(var(--glow-secondary-rgb), 0.18), transparent 26%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.02) 42%, rgba(var(--color-bg-rgb), 0.04) 100%);
+  }
+
+  .post-glass-card__shine {
+    background: linear-gradient(90deg, rgba(var(--glow-primary-rgb), 0.06), rgba(255, 255, 255, 0.58), rgba(var(--glow-secondary-rgb), 0.1));
+  }
+
+  .post-glass-avatar {
+    border: 1px solid rgba(var(--glow-primary-rgb), 0.24);
+    background:
+      linear-gradient(145deg, rgba(var(--glow-primary-rgb), 0.24), rgba(var(--glow-secondary-rgb), 0.12)),
+      rgba(255, 255, 255, 0.16);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.32);
+    backdrop-filter: blur(18px);
+  }
+
+  .post-glass-media {
+    border: 1px solid rgba(var(--glow-primary-rgb), 0.12);
+    background:
+      linear-gradient(180deg, rgba(var(--glow-primary-rgb), 0.12), rgba(var(--glow-secondary-rgb), 0.06)),
+      rgba(var(--color-bg-rgb), 0.18);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+    backdrop-filter: blur(22px);
+  }
+
+  .post-glass-media__item {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(var(--color-bg-rgb), 0.08)),
+      rgba(var(--color-bg-rgb), 0.14);
+  }
+
+  .post-glass-footer {
+    border-top: 1px solid rgba(var(--glow-primary-rgb), 0.14);
+  }
+</style>
