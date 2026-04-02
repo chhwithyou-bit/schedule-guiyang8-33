@@ -138,7 +138,7 @@
 </script>
 
 <div 
-  class="app-container font-sans bg-[var(--color-bg)] text-[var(--color-text)] min-h-screen relative overflow-hidden selection:bg-[var(--color-primary)] selection:text-[var(--color-button-text)]"
+  class="app-container font-sans text-[var(--color-text)] min-h-screen relative overflow-hidden selection:bg-[var(--color-primary)] selection:text-[var(--color-button-text)]"
 >
   <!-- ThemeSwitcher rendered first to manage initial theme setup -->
   <ThemeSwitcher />
@@ -181,8 +181,7 @@
     background:
       radial-gradient(circle at 14% 8%, rgba(var(--glow-primary-rgb), 0.14), transparent 26%),
       radial-gradient(circle at 86% 14%, rgba(var(--glow-secondary-rgb), 0.16), transparent 28%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 14%),
-      var(--color-bg);
+      linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 14%);
   }
 
   .app-container::before,
