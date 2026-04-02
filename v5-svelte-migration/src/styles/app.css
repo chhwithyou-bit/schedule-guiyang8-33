@@ -31,11 +31,6 @@
     min-height: 100%;
     font-family: 'Outfit', 'SF Pro Display', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
     background-color: var(--color-bg);
-    background-image: linear-gradient(rgba(var(--color-bg-rgb), 0.6), rgba(var(--color-bg-rgb), 0.6)), url('/IMG_1695.jpeg');
-    background-size: cover;
-    background-position: center;
-    background-attachment: fixed;
-    background-repeat: no-repeat;
     color: var(--color-text);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -44,9 +39,6 @@
   @media (max-width: 768px) {
     body {
       min-height: 100svh;
-      background-size: 100% auto, contain;
-      background-position: center top, center top;
-      background-attachment: scroll;
     }
   }
 
