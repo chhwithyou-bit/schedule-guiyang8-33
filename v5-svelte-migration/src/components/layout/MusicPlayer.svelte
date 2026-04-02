@@ -286,14 +286,16 @@
     return clampPosition(nextLeft, nextTop, closed.width, closed.height);
   }
 
-  function getPanelInlineStyle() {
-    const { width, height } = getPanelSize(isOpen, isListOpen);
-    const originX = panelAnchorX === 'right' ? '100%' : '0%';
-    const originY = panelAnchorY === 'bottom' ? '100%' : '0%';
+  $: panelInlineStyle = getPanelInlineStyle(panelLeft, panelTop, isOpen, isListOpen, panelAnchorX, panelAnchorY);
+
+  function getPanelInlineStyle(pLeft: number, pTop: number, open: boolean, listOpen: boolean, aX: string, aY: string) {
+    const { width, height } = getPanelSize(open, listOpen);
+    const originX = aX === 'right' ? '100%' : '0%';
+    const originY = aY === 'bottom' ? '100%' : '0%';
 
     return [
-      `left: ${panelLeft}px`,
-      `top: ${panelTop}px`,
+      `left: ${pLeft}px`,
+      `top: ${pTop}px`,
       `width: ${width}px`,
       `height: ${height}px`,
       `--mp-origin-x: ${originX}`,
@@ -761,7 +763,7 @@
   class:dragging={isDragging}
   data-anchor-x={panelAnchorX}
   data-anchor-y={panelAnchorY}
-  style={getPanelInlineStyle()}
+  style={panelInlineStyle}
 >
   <div class="mp-shell {isOpen ? 'open' : 'closed'}">
     {#if isOpen}
