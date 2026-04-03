@@ -15,6 +15,87 @@
   let profileScrollEl: HTMLDivElement;
   let lastProfileId = '';
 
+  let uploadingAvatar = false;
+  let uploadingBackground = false;
+
+  async function handleAvatarUpload(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    uploadingAvatar = true;
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await communityFetch('/api/community/drive/upload', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (data.ok && data.file?.url) {
+        // Automatically save the profile
+        await communityFetch('/api/community/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            signature: $selectedProfile.signature || '',
+            avatar_url: data.file.url,
+            background_url: $selectedProfile.background_url || ''
+          })
+        });
+        
+        $selectedProfile.avatar_url = data.file.url;
+        if ($user && $user.id === $selectedProfile.id) {
+          user.update(u => ({ ...u, avatar_url: data.file.url }));
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      uploadingAvatar = false;
+      input.value = '';
+    }
+  }
+
+  async function handleBackgroundUpload(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    uploadingBackground = true;
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await communityFetch('/api/community/drive/upload', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (data.ok && data.file?.url) {
+        await communityFetch('/api/community/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            signature: $selectedProfile.signature || '',
+            avatar_url: $selectedProfile.avatar_url || '',
+            background_url: data.file.url
+          })
+        });
+
+        $selectedProfile.background_url = data.file.url;
+        if ($user && $user.id === $selectedProfile.id) {
+          user.update(u => ({ ...u, background_url: data.file.url }));
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      uploadingBackground = false;
+      input.value = '';
+    }
+  }
+
+
   $: currentProfileId = $selectedProfile?.id || $selectedProfile?.user_id || '';
 
   $: if (currentProfileId && currentProfileId !== lastProfileId) {
@@ -130,7 +211,15 @@
     transition:fly={{ y: 100, duration: 600, easing: (t) => t * (2 - t) }}
   >
     <!-- Background Header -->
-    <div class="relative h-[14rem] flex-shrink-0 sm:h-[17rem] md:h-80">
+    <div class="relative h-[14rem] flex-shrink-0 sm:h-[17rem] md:h-80 group">
+      {#if $isAuthenticated && $user?.id === $selectedProfile.id}
+        <div class="absolute right-4 top-4 z-20 sm:right-6 sm:top-6 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div class="relative overflow-hidden rounded-full bg-black/50 px-4 py-2 text-xs font-bold text-white backdrop-blur-xl hover:bg-black/70">
+            {uploadingBackground ? '上传中...' : '更换壁纸'}
+            <input type="file" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" on:change={handleBackgroundUpload} disabled={uploadingBackground} />
+          </div>
+        </div>
+      {/if}
       {#if $selectedProfile.background_url}
         <img src={$selectedProfile.background_url} alt="Background" class="w-full h-full object-cover" />
       {:else}
@@ -151,7 +240,8 @@
       <div class="absolute bottom-0 left-4 right-4 translate-y-1/2 sm:left-6 sm:right-6 md:left-12 md:right-12">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div class="flex items-end gap-4 sm:gap-6">
-            <div class="h-28 w-28 overflow-hidden rounded-[36px] border-4 border-white bg-white p-2 shadow-2xl dark:border-neutral-900 dark:bg-neutral-950 sm:h-32 sm:w-32 md:h-40 md:w-40 md:rounded-[48px]">
+            <div class="h-28 w-28 overflow-hidden rounded-[36px] border-4 border-white bg-white p-2 shadow-2xl dark:border-neutral-900 dark:bg-neutral-950 sm:h-32 sm:w-32 md:h-40 md:w-40 md:rounded-[48px] relative group">
+              
               <div class="flex h-full w-full items-center justify-center overflow-hidden rounded-[28px] bg-neutral-100 dark:bg-neutral-900 md:rounded-[40px]">
                 {#if $selectedProfile.avatar_url}
                   <img src={$selectedProfile.avatar_url} alt="Avatar" class="w-full h-full object-cover" />
@@ -161,6 +251,12 @@
                   </span>
                 {/if}
               </div>
+              {#if $isAuthenticated && $user?.id === $selectedProfile.id}
+                <div class="absolute inset-0 z-10 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-[36px] md:rounded-[48px]">
+                  <span class="text-white text-xs font-bold">{uploadingAvatar ? '上传中...' : '更换头像'}</span>
+                  <input type="file" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" on:change={handleAvatarUpload} disabled={uploadingAvatar} />
+                </div>
+              {/if}
             </div>
 
             <div class="pb-2 text-white">
