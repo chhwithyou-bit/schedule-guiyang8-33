@@ -4,7 +4,7 @@
   import { selectedProfile, isAuthenticated, user } from '../../stores/appState';
   import { openModal } from '../../stores/modalState';
   import PostCard from './PostCard.svelte';
-  import { communityFetch } from '../../lib/communityApi';
+  import { communityFetch, persistCommunitySession } from '../../lib/communityApi';
   import { setCommunityConsoleState } from '../../stores/communityConsoleState';
 
   let posts: any[] = [];
@@ -17,6 +17,54 @@
 
   let uploadingAvatar = false;
   let uploadingBackground = false;
+
+  $: viewedProfileUserId = $selectedProfile?.id || $selectedProfile?.user_id || '';
+  $: isOwnProfile = Boolean($isAuthenticated && $user?.id && viewedProfileUserId && $user.id === viewedProfileUserId);
+
+  function syncProfileSurface(patch: Record<string, unknown>) {
+    if ($selectedProfile) {
+      selectedProfile.set({
+        ...$selectedProfile,
+        ...patch
+      });
+    }
+
+    if ($user && $user.id === viewedProfileUserId) {
+      const nextUser = {
+        ...$user,
+        ...patch
+      };
+      user.set(nextUser);
+      persistCommunitySession(nextUser);
+    }
+  }
+
+  async function saveProfileMedia(patch: { avatar_url?: string; background_url?: string }) {
+    const signature = String($selectedProfile?.signature || $user?.signature || '');
+    const avatar_url = String(patch.avatar_url ?? $selectedProfile?.avatar_url ?? $user?.avatar_url ?? '');
+    const background_url = String(patch.background_url ?? $selectedProfile?.background_url ?? $user?.background_url ?? '');
+
+    const res = await communityFetch('/api/community/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        signature,
+        avatar_url,
+        background_url
+      })
+    });
+
+    const data = await res.json();
+    if (!data.ok) {
+      throw new Error(data.msg || '资料保存失败');
+    }
+
+    syncProfileSurface({
+      avatar_url,
+      background_url,
+      signature
+    });
+  }
 
   async function handleAvatarUpload(event: Event) {
     const input = event.currentTarget as HTMLInputElement;
@@ -33,21 +81,7 @@
       });
       const data = await res.json();
       if (data.ok && data.file?.url) {
-        // Automatically save the profile
-        await communityFetch('/api/community/profile', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            signature: $selectedProfile.signature || '',
-            avatar_url: data.file.url,
-            background_url: $selectedProfile.background_url || ''
-          })
-        });
-        
-        $selectedProfile.avatar_url = data.file.url;
-        if ($user && $user.id === $selectedProfile.id) {
-          user.update(u => ({ ...u, avatar_url: data.file.url }));
-        }
+        await saveProfileMedia({ avatar_url: data.file.url });
       }
     } catch (e) {
       console.error(e);
@@ -72,20 +106,7 @@
       });
       const data = await res.json();
       if (data.ok && data.file?.url) {
-        await communityFetch('/api/community/profile', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            signature: $selectedProfile.signature || '',
-            avatar_url: $selectedProfile.avatar_url || '',
-            background_url: data.file.url
-          })
-        });
-
-        $selectedProfile.background_url = data.file.url;
-        if ($user && $user.id === $selectedProfile.id) {
-          user.update(u => ({ ...u, background_url: data.file.url }));
-        }
+        await saveProfileMedia({ background_url: data.file.url });
       }
     } catch (e) {
       console.error(e);
@@ -212,8 +233,8 @@
   >
     <!-- Background Header -->
     <div class="relative h-[14rem] flex-shrink-0 sm:h-[17rem] md:h-80 group">
-      {#if $isAuthenticated && $user?.id === $selectedProfile.id}
-        <div class="absolute right-4 top-4 z-20 sm:right-6 sm:top-6 opacity-0 group-hover:opacity-100 transition-opacity">
+      {#if isOwnProfile}
+        <div class="absolute right-4 top-4 z-20 transition-opacity sm:right-6 sm:top-6">
           <div class="relative overflow-hidden rounded-full bg-black/50 px-4 py-2 text-xs font-bold text-white backdrop-blur-xl hover:bg-black/70">
             {uploadingBackground ? '上传中...' : '更换壁纸'}
             <input type="file" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" on:change={handleBackgroundUpload} disabled={uploadingBackground} />
@@ -251,11 +272,11 @@
                   </span>
                 {/if}
               </div>
-              {#if $isAuthenticated && $user?.id === $selectedProfile.id}
-                <div class="absolute inset-0 z-10 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-[36px] md:rounded-[48px]">
-                  <span class="text-white text-xs font-bold">{uploadingAvatar ? '上传中...' : '更换头像'}</span>
-                  <input type="file" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" on:change={handleAvatarUpload} disabled={uploadingAvatar} />
-                </div>
+              {#if isOwnProfile}
+                <label class="absolute bottom-2 right-2 z-10 flex min-h-9 min-w-9 cursor-pointer items-center justify-center rounded-full bg-black/60 px-3 text-[11px] font-black text-white shadow-lg backdrop-blur-xl transition-transform hover:scale-105 md:bottom-3 md:right-3">
+                  {uploadingAvatar ? '上传中' : '更换'}
+                  <input type="file" accept="image/*" class="absolute inset-0 h-full w-full cursor-pointer opacity-0" on:change={handleAvatarUpload} disabled={uploadingAvatar} />
+                </label>
               {/if}
             </div>
 
@@ -272,16 +293,28 @@
             </div>
           </div>
 
-          {#if $selectedProfile.background_url}
-            <a
-              href={$selectedProfile.background_url}
-              target="_blank"
-              rel="noreferrer"
-              class="inline-flex items-center gap-2 self-start rounded-full border border-white/15 bg-black/25 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-white/80 backdrop-blur-xl transition-transform hover:scale-105 sm:self-end"
-            >
-              查看壁纸
-            </a>
-          {/if}
+          <div class="flex flex-wrap items-center gap-3">
+            {#if isOwnProfile}
+              <label class="relative inline-flex cursor-pointer items-center gap-2 self-start rounded-full border border-white/15 bg-black/25 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-white/85 backdrop-blur-xl transition-transform hover:scale-105 sm:self-end">
+                {uploadingAvatar ? '头像上传中' : '上传头像'}
+                <input type="file" accept="image/*" class="absolute inset-0 h-full w-full cursor-pointer opacity-0" on:change={handleAvatarUpload} disabled={uploadingAvatar} />
+              </label>
+              <label class="relative inline-flex cursor-pointer items-center gap-2 self-start rounded-full border border-white/15 bg-black/25 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-white/85 backdrop-blur-xl transition-transform hover:scale-105 sm:self-end">
+                {uploadingBackground ? '壁纸上传中' : '上传壁纸'}
+                <input type="file" accept="image/*" class="absolute inset-0 h-full w-full cursor-pointer opacity-0" on:change={handleBackgroundUpload} disabled={uploadingBackground} />
+              </label>
+            {/if}
+            {#if $selectedProfile.background_url}
+              <a
+                href={$selectedProfile.background_url}
+                target="_blank"
+                rel="noreferrer"
+                class="inline-flex items-center gap-2 self-start rounded-full border border-white/15 bg-black/25 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-white/80 backdrop-blur-xl transition-transform hover:scale-105 sm:self-end"
+              >
+                查看壁纸
+              </a>
+            {/if}
+          </div>
         </div>
       </div>
     </div>
