@@ -30,7 +30,8 @@
   const OPEN_WIDTH_REM = 21.25;
   const OPEN_BASE_HEIGHT_REM = 24.5;
   const OPEN_LIST_EXTRA_REM = 12.5;
-  const DRAG_THRESHOLD = 6;
+  const DRAG_THRESHOLD = 10;
+  const DRAG_THRESHOLD_MOBILE = 18;
   const AUTOPLAY_UNLOCK_EVENTS = ['pointerdown', 'keydown'] as const;
 
   let audioEl: HTMLAudioElement;
@@ -562,6 +563,8 @@
   function handleBubblePointerDown(event: PointerEvent) {
     if (event.button !== 0) return;
     event.stopPropagation();
+    // On mobile, touch-action: none handles scroll prevention. 
+    // We avoid preventDefault() here to ensure the 'click' event still fires.
     beginDragging(event.clientX, event.clientY, event.currentTarget as HTMLElement, event.pointerId);
   }
 
@@ -640,9 +643,18 @@
     if (!isDragging || dragPointerId !== event.pointerId) return;
 
     const travel = Math.abs(event.clientX - dragStartX) + Math.abs(event.clientY - dragStartY);
-    if (!dragMoved && travel <= DRAG_THRESHOLD) return;
+    const threshold = event.pointerType === 'touch' ? DRAG_THRESHOLD_MOBILE : DRAG_THRESHOLD;
+    
+    if (!dragMoved && travel <= threshold) return;
 
-    dragMoved = true;
+    if (!dragMoved) {
+      dragMoved = true;
+    }
+
+    // Prevent any default browser behavior (like scrolling) once we've confirmed it's a drag
+    if (event.cancelable) {
+      event.preventDefault();
+    }
 
     const { width, height } = getPanelSize(isOpen, isListOpen);
     const next = clampPosition(event.clientX - dragOffsetX, event.clientY - dragOffsetY, width, height);
@@ -1044,6 +1056,9 @@
     background: transparent;
     padding: 0;
     touch-action: none;
+    user-select: none;
+    -webkit-user-drag: none;
+    -webkit-tap-highlight-color: transparent;
   }
 
   .mp-bubble:active {
@@ -1162,6 +1177,8 @@
     color: rgba(248, 243, 231, 0.84);
     cursor: grab;
     touch-action: none;
+    user-select: none;
+    -webkit-user-drag: none;
   }
 
   .mp-grip:active {
@@ -1245,6 +1262,8 @@
     border: 1px solid rgba(var(--glow-primary-rgb), 0.12);
     cursor: grab;
     touch-action: none;
+    user-select: none;
+    -webkit-user-drag: none;
   }
 
   .mp-hero:active {

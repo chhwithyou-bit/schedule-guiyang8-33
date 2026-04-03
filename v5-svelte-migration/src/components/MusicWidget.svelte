@@ -6,30 +6,43 @@
 	let y = initialY;
 	let isDragging = false;
 
-	function handleMouseDown() {
+	let dragStartX = 0;
+	let dragStartY = 0;
+	let initialMouseX = 0;
+	let initialMouseY = 0;
+
+	function handlePointerDown(event: PointerEvent) {
+		if (event.button !== 0) return;
 		isDragging = true;
+		dragStartX = x;
+		dragStartY = y;
+		initialMouseX = event.clientX;
+		initialMouseY = event.clientY;
+		(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
 	}
 
-	function handleMouseMove(event: MouseEvent) {
+	function handlePointerMove(event: PointerEvent) {
 		if (!isDragging) return;
-
-		// movementX/Y can jump when the pointer leaves the window; keep this
-		// file aligned with the older prototype behavior without using runes.
-		x += event.movementX;
-		y += event.movementY;
+		x = dragStartX + (event.clientX - initialMouseX);
+		y = dragStartY + (event.clientY - initialMouseY);
 	}
 
-	function handleMouseUp() {
+	function handlePointerUp(event: PointerEvent) {
 		isDragging = false;
+		try {
+			(event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId);
+		} catch (e) {}
 	}
 </script>
 
-<svelte:window on:mousemove={handleMouseMove} on:mouseup={handleMouseUp} />
-
 <div
 	class="music-widget"
+	class:is-dragging={isDragging}
 	style="left: {x}px; top: {y}px;"
-	on:mousedown={handleMouseDown}
+	on:pointerdown={handlePointerDown}
+	on:pointermove={handlePointerMove}
+	on:pointerup={handlePointerUp}
+	on:pointercancel={handlePointerUp}
 	role="button"
 	tabindex="0"
 >
@@ -60,10 +73,13 @@
 		box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
 		cursor: move;
 		user-select: none;
-		/* Potential cause of jumping: transition on all properties 
-		   conflicts with manual position updates in handleMouseMove */
-		transition: all 0.2s ease-out;
+		transition: transform 0.2s ease-out, opacity 0.2s ease-out;
 		z-index: 1000;
+		touch-action: none;
+	}
+
+	.music-widget.is-dragging {
+		transition: none;
 	}
 
 	.header {
