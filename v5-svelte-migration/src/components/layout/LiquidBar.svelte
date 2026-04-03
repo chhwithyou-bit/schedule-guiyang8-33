@@ -137,7 +137,7 @@
 <nav
   bind:this={dockRef}
   id="liquidBar"
-  class="liquid-anchor fixed z-[5100] pointer-events-none select-none {className}"
+  class="liquid-anchor fixed z-[5100] select-none {className}"
   aria-label="快速导航"
 >
   {#if isExpanded}

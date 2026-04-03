@@ -83,7 +83,9 @@
         opacity: 0,
         duration: 1.15,
         ease: "expo.out",
-        transformOrigin: "top left"
+        transformOrigin: "top left",
+        immediateRender: false,
+        clearProps: "transform,opacity"
       }, "-=1.4");
 
       tl.from("header", {

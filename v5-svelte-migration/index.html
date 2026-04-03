@@ -8,12 +8,11 @@
     <script>
       (function() {
         try {
-          var theme = localStorage.getItem('siteTheme');
-          if (theme) {
-            document.documentElement.setAttribute('data-theme', theme);
-          } else {
-            document.documentElement.setAttribute('data-theme', 'theme-default');
-          }
+          var theme = localStorage.getItem('siteTheme') || 'theme-default';
+          var isDarkTheme = ['theme-default', 'theme-spring', 'theme-summer', 'theme-autumn'].indexOf(theme) !== -1;
+          document.documentElement.setAttribute('data-theme', theme);
+          document.documentElement.classList.toggle('dark', isDarkTheme);
+          document.documentElement.style.colorScheme = isDarkTheme ? 'dark' : 'light';
         } catch (e) {}
       })();
     </script>
