@@ -63,6 +63,15 @@
       scroll-behavior: auto !important;
     }
   }
+
+  /* Global Input Fixes */
+  textarea, input {
+    color: var(--color-text) !important;
+  }
+  textarea::placeholder, input::placeholder {
+    color: var(--color-text-soft) !important;
+    opacity: 0.5 !important;
+  }
 }
 
 @layer utilities {

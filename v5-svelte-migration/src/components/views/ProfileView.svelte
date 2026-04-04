@@ -235,10 +235,10 @@
     <div class="relative h-[14rem] flex-shrink-0 sm:h-[17rem] md:h-80 group">
       {#if isOwnProfile}
         <div class="absolute right-4 top-4 z-20 transition-opacity sm:right-6 sm:top-6">
-          <div class="relative overflow-hidden rounded-full bg-black/50 px-4 py-2 text-xs font-bold text-white backdrop-blur-xl hover:bg-black/70">
-            {uploadingBackground ? '上传中...' : '更换壁纸'}
-            <input type="file" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" on:change={handleBackgroundUpload} disabled={uploadingBackground} />
-          </div>
+            <div class="relative overflow-hidden rounded-full bg-black/50 px-4 py-2 text-xs font-bold text-white backdrop-blur-xl hover:bg-black/70 border border-white/20">
+              {uploadingBackground ? '上传中...' : '更换壁纸'}
+              <input type="file" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" on:change={handleBackgroundUpload} disabled={uploadingBackground} />
+            </div>
         </div>
       {/if}
       {#if $selectedProfile.background_url}
@@ -273,7 +273,7 @@
                 {/if}
               </div>
               {#if isOwnProfile}
-                <label class="absolute bottom-2 right-2 z-10 flex min-h-9 min-w-9 cursor-pointer items-center justify-center rounded-full bg-black/60 px-3 text-[11px] font-black text-white shadow-lg backdrop-blur-xl transition-transform hover:scale-105 md:bottom-3 md:right-3">
+                <label class="absolute bottom-2 right-2 z-10 flex min-h-9 min-w-9 cursor-pointer items-center justify-center rounded-full bg-black/60 px-3 text-[11px] font-black text-white shadow-lg backdrop-blur-xl transition-transform hover:scale-105 md:bottom-3 md:right-3 border border-white/20">
                   {uploadingAvatar ? '上传中' : '更换'}
                   <input type="file" accept="image/*" class="absolute inset-0 h-full w-full cursor-pointer opacity-0" on:change={handleAvatarUpload} disabled={uploadingAvatar} />
                 </label>
@@ -295,11 +295,11 @@
 
           <div class="flex flex-wrap items-center gap-3">
             {#if isOwnProfile}
-              <label class="relative inline-flex cursor-pointer items-center gap-2 self-start rounded-full border border-white/15 bg-black/25 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-white/85 backdrop-blur-xl transition-transform hover:scale-105 sm:self-end">
+              <label class="relative inline-flex cursor-pointer items-center gap-2 self-start rounded-full border border-white/30 bg-white/15 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-white/85 backdrop-blur-xl transition-transform hover:scale-105 sm:self-end" style="background-color: rgba(255, 255, 255, 0.18);">
                 {uploadingAvatar ? '头像上传中' : '上传头像'}
                 <input type="file" accept="image/*" class="absolute inset-0 h-full w-full cursor-pointer opacity-0" on:change={handleAvatarUpload} disabled={uploadingAvatar} />
               </label>
-              <label class="relative inline-flex cursor-pointer items-center gap-2 self-start rounded-full border border-white/15 bg-black/25 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-white/85 backdrop-blur-xl transition-transform hover:scale-105 sm:self-end">
+              <label class="relative inline-flex cursor-pointer items-center gap-2 self-start rounded-full border border-white/30 bg-white/15 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-white/85 backdrop-blur-xl transition-transform hover:scale-105 sm:self-end" style="background-color: rgba(255, 255, 255, 0.18);">
                 {uploadingBackground ? '壁纸上传中' : '上传壁纸'}
                 <input type="file" accept="image/*" class="absolute inset-0 h-full w-full cursor-pointer opacity-0" on:change={handleBackgroundUpload} disabled={uploadingBackground} />
               </label>
