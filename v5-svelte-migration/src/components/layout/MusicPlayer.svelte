@@ -793,6 +793,7 @@
             on:pointerdown={handleDragPointerDown}
             on:mousedown={handleDragMouseDown}
           >
+            <div id="mp-drag-handle"></div>
             <span></span>
             <span></span>
             <span></span>
@@ -837,7 +838,7 @@
 
           <div class="mp-hero-copy">
             <p class="mp-kicker">{getPlaybackEyebrow()}</p>
-            <h3 class="mp-title">{currentTrack.name}</h3>
+            <h3 id="mp-name" class="mp-title">{currentTrack.name}</h3>
             <p class="mp-artist">{currentTrack.artist}</p>
             <p class="mp-note">{getPlaybackNote()}</p>
             <div class="mp-meta">
@@ -899,7 +900,7 @@
             </button>
           </div>
 
-          <button type="button" class="mp-icon-btn mp-list-btn {isListOpen ? 'is-open' : ''}" aria-label={isListOpen ? '收起歌单' : '打开歌单'} on:click={toggleList}>
+          <button id="mpb-list" type="button" class="mp-icon-btn mp-list-btn {isListOpen ? 'is-open' : ''}" aria-label={isListOpen ? '收起歌单' : '打开歌单'} on:click={toggleList}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M9 7H18"></path>
               <path d="M9 12H18"></path>
@@ -919,7 +920,7 @@
           <p class="mp-status">还没有可播放的歌。</p>
         {/if}
 
-        <div class="mp-list-panel {isListOpen ? 'open' : ''}">
+        <div id="mp-list-area" class="mp-list-panel {isListOpen ? 'open' : ''}">
           <div class="mp-search-wrap">
             <input
               bind:value={search}
@@ -1164,21 +1165,19 @@
   }
 
   .mp-grip {
+    position: relative;
     display: inline-flex;
     align-items: center;
     gap: 0.22rem;
     padding: 0 0.84rem;
     height: 2rem;
-    border: 1px solid rgba(var(--glow-primary-rgb), 0.12);
-    border-radius: 999px;
-    background:
-      linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.03)),
-      rgba(255, 255, 255, 0.03);
-    color: rgba(248, 243, 231, 0.84);
+  }
+
+  #mp-drag-handle {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
     cursor: grab;
-    touch-action: none;
-    user-select: none;
-    -webkit-user-drag: none;
   }
 
   .mp-grip:active {
