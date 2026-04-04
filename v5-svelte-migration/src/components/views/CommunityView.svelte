@@ -209,9 +209,10 @@
         type="text" 
         bind:value={query}
         placeholder="搜帖子内容..."
-        class="w-full px-6 py-4 rounded-2xl bg-neutral-100 dark:bg-neutral-900 border-none focus:ring-2 focus:ring-[var(--color-primary)] transition-all font-medium"
+        class="w-full px-6 py-4 rounded-2xl bg-white/5 border border-white/20 text-[var(--color-text,#fff4ed)] placeholder:text-[var(--color-text,#fff4ed)]/40 focus:ring-2 focus:ring-[var(--color-primary,#fac7b7)] transition-all font-medium outline-none"
+        style="background-color: rgba(255, 255, 255, 0.08);"
       />
-      <button type="submit" class="absolute right-4 top-1/2 -translate-y-1/2 opacity-30 hover:opacity-100 transition-opacity">
+      <button type="submit" class="absolute right-4 top-1/2 -translate-y-1/2 opacity-30 hover:opacity-100 transition-opacity text-[var(--color-text,#fff4ed)]">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
       </button>
     </form>
@@ -220,7 +221,7 @@
   {#if loading}
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {#each Array(6) as _}
-        <div class="h-80 rounded-[32px] bg-neutral-100 dark:bg-neutral-900 animate-pulse"></div>
+        <div class="h-80 rounded-[32px] bg-white/5 border border-white/10 animate-pulse"></div>
       {/each}
     </div>
   {:else if posts.length > 0}

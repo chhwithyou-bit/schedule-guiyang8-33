@@ -809,20 +809,20 @@
 
                   <div class="mt-6 grid gap-4 md:grid-cols-3">
                     <label class="block">
-                      <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35">个性签名</span>
-                      <textarea bind:value={profileForm.signature} class="h-28 w-full rounded-[22px] border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium outline-none transition-colors focus:border-[var(--color-primary)]"></textarea>
+                      <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35 text-[var(--color-text,#fff4ed)]">个性签名</span>
+                      <textarea bind:value={profileForm.signature} class="h-28 w-full rounded-[22px] border border-white/20 bg-white/5 px-4 py-3 text-sm font-medium text-[var(--color-text,#fff4ed)] placeholder:text-[var(--color-text,#fff4ed)]/40 outline-none transition-colors focus:border-[var(--color-primary,#fac7b7)]" style="background-color: rgba(255, 255, 255, 0.08);"></textarea>
                     </label>
                     
                     <label class="block">
-                      <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35">上传头像</span>
-                      <div class="relative w-full rounded-[22px] border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium transition-colors hover:border-[var(--color-primary)]">
+                      <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35 text-[var(--color-text,#fff4ed)]">上传头像</span>
+                      <div class="relative w-full rounded-[22px] border border-white/20 bg-white/10 px-4 py-3 text-sm font-medium transition-colors hover:border-[var(--color-primary,#fac7b7)] text-[var(--color-text,#fff4ed)]">
                         <span class="opacity-70">{uploadingAvatar ? '正在上传...' : (profileForm.avatar_url ? '已上传，点击更换' : '点击选择图片')}</span>
                         <input type="file" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" on:change={handleAvatarUpload} disabled={uploadingAvatar} />
                       </div>
                     </label>
                     <label class="block">
-                      <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35">上传主页壁纸</span>
-                      <div class="relative w-full rounded-[22px] border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium transition-colors hover:border-[var(--color-primary)]">
+                      <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35 text-[var(--color-text,#fff4ed)]">上传主页壁纸</span>
+                      <div class="relative w-full rounded-[22px] border border-white/20 bg-white/10 px-4 py-3 text-sm font-medium transition-colors hover:border-[var(--color-primary,#fac7b7)] text-[var(--color-text,#fff4ed)]">
                         <span class="opacity-70">{uploadingBackground ? '正在上传...' : (profileForm.background_url ? '已上传，点击更换' : '点击选择图片')}</span>
                         <input type="file" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" on:change={handleBackgroundUpload} disabled={uploadingBackground} />
                       </div>
@@ -984,12 +984,13 @@
                     placeholder={selectedConversation ? '说点什么…' : '先选一个会话'}
                     disabled={!selectedConversation || sendingMessage}
                     on:keydown={(event) => event.key === 'Enter' && sendMessage()}
-                    class="min-w-0 flex-1 rounded-[20px] border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium outline-none transition-colors focus:border-[var(--color-primary)] disabled:opacity-40"
+                    class="min-w-0 flex-1 rounded-[20px] border border-white/20 bg-white/5 px-4 py-3 text-sm font-medium text-[var(--color-text,#fff4ed)] placeholder:text-[var(--color-text,#fff4ed)]/40 outline-none transition-colors focus:border-[var(--color-primary,#fac7b7)] disabled:opacity-40"
+                    style="background-color: rgba(255, 255, 255, 0.08);"
                   />
                   <button
                     type="button"
                     disabled={!selectedConversation || !messageDraft.trim() || sendingMessage}
-                    class="rounded-[20px] bg-[var(--color-primary)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105 disabled:cursor-default disabled:opacity-40"
+                    class="rounded-[20px] bg-[var(--color-primary,#fac7b7)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg,#231b22)] shadow-lg transition-transform hover:scale-105 disabled:cursor-default disabled:opacity-40"
                     on:click={sendMessage}
                   >
                     发送
@@ -1020,11 +1021,11 @@
                 <div class="mt-5 space-y-4">
                   <label class="block">
                     <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35">群名</span>
-                    <input bind:value={groupForm.title} type="text" maxlength="42" class="w-full rounded-[22px] border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium outline-none transition-colors focus:border-[var(--color-primary)]" />
+                    <input bind:value={groupForm.title} type="text" maxlength="42" class="w-full rounded-[22px] border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium outline-none transition-colors focus:border-[var(--color-primary)]" style="background-color: rgba(255, 255, 255, 0.08);" />
                   </label>
                   <label class="block">
                     <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35">群介绍</span>
-                    <textarea bind:value={groupForm.description} class="h-32 w-full rounded-[22px] border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium outline-none transition-colors focus:border-[var(--color-primary)]"></textarea>
+                    <textarea bind:value={groupForm.description} class="h-32 w-full rounded-[22px] border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium outline-none transition-colors focus:border-[var(--color-primary)]" style="background-color: rgba(255, 255, 255, 0.08);"></textarea>
                   </label>
                 </div>
 

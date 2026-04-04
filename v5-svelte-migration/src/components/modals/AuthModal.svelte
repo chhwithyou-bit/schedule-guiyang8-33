@@ -53,37 +53,39 @@
   <div class="absolute inset-0 bg-black/60 backdrop-blur-xl" on:click={closeModal}></div>
 
   <div 
-    class="relative w-full max-w-md bg-[var(--color-bg)] rounded-[40px] p-10 shadow-2xl overflow-hidden"
+    class="relative w-full max-w-md bg-[var(--color-bg,#231b22)] text-[var(--color-text,#fff4ed)] rounded-[40px] p-10 shadow-2xl overflow-hidden border border-white/10"
     transition:fly={{ y: 50, duration: 600, easing: (t) => t * (2 - t) }}
   >
     <div class="relative z-10">
-      <h2 class="text-4xl font-black tracking-tighter mb-2 uppercase">
+      <h2 class="text-4xl font-black tracking-tighter mb-2 uppercase text-[var(--color-text,#fff4ed)]">
         {isRegister ? '来这里安个家' : '回来就好'}
       </h2>
-      <p class="text-sm opacity-40 font-bold uppercase tracking-widest mb-8">
+      <p class="text-sm opacity-40 font-bold uppercase tracking-widest mb-8 text-[var(--color-text,#fff4ed)]">
         {isRegister ? '起个名字，就能开始发帖聊天。' : '登上账号，继续刚才的内容。'}
       </p>
 
       <form on:submit|preventDefault={handleSubmit} class="space-y-4">
         <div>
-          <label class="block text-[10px] font-black uppercase tracking-widest opacity-30 mb-2 ml-4" for="username">用户名</label>
+          <label class="block text-[10px] font-black uppercase tracking-widest opacity-30 mb-2 ml-4 text-[var(--color-text,#fff4ed)]" for="username">用户名</label>
           <input 
             id="username"
             type="text" 
             bind:value={username}
             placeholder="想让大家怎么叫你"
-            class="w-full px-6 py-4 rounded-2xl bg-white/5 border border-white/10 focus:ring-2 focus:ring-[var(--color-primary)] transition-all font-bold outline-none"
+            class="w-full px-6 py-4 rounded-2xl bg-white/5 border border-white/20 text-[var(--color-text,#fff4ed)] placeholder:text-[var(--color-text,#fff4ed)]/40 focus:ring-2 focus:ring-[var(--color-primary,#fac7b7)] transition-all font-bold outline-none"
+            style="background-color: rgba(255, 255, 255, 0.08);"
           />
         </div>
 
         <div>
-          <label class="block text-[10px] font-black uppercase tracking-widest opacity-30 mb-2 ml-4" for="password">密码</label>
+          <label class="block text-[10px] font-black uppercase tracking-widest opacity-30 mb-2 ml-4 text-[var(--color-text,#fff4ed)]" for="password">密码</label>
           <input 
             id="password"
             type="password" 
             bind:value={password}
             placeholder="输一个你记得住的"
-            class="w-full px-6 py-4 rounded-2xl bg-white/5 border border-white/10 focus:ring-2 focus:ring-[var(--color-primary)] transition-all font-bold outline-none"
+            class="w-full px-6 py-4 rounded-2xl bg-white/5 border border-white/20 text-[var(--color-text,#fff4ed)] placeholder:text-[var(--color-text,#fff4ed)]/40 focus:ring-2 focus:ring-[var(--color-primary,#fac7b7)] transition-all font-bold outline-none"
+            style="background-color: rgba(255, 255, 255, 0.08);"
           />
         </div>
 
@@ -94,7 +96,7 @@
         <button 
           type="submit" 
           disabled={loading}
-          class="w-full py-5 bg-[var(--color-primary)] text-white font-black text-lg rounded-2xl shadow-lg hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
+          class="w-full py-5 bg-[var(--color-primary,#fac7b7)] text-[var(--color-button-text,#231b22)] font-black text-lg rounded-2xl shadow-lg hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
         >
           {loading ? '正在处理…' : (isRegister ? '注册并进入' : '登录')}
         </button>

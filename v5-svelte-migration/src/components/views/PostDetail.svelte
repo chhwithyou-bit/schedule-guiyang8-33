@@ -282,7 +282,8 @@
               bind:value={reportReason}
               rows="3"
               placeholder="例如：辱骂、人身攻击、恶意广告、盗图。"
-              class="mt-4 w-full rounded-[22px] border border-red-300/15 bg-black/10 px-4 py-3 text-sm font-medium leading-7 outline-none transition-colors focus:border-red-200/35"
+              class="mt-4 w-full rounded-[22px] border border-red-300/30 bg-black/20 px-4 py-3 text-sm font-medium leading-7 text-[var(--color-text,#fff4ed)] placeholder:text-[var(--color-text,#fff4ed)]/40 outline-none transition-colors focus:border-red-200/50"
+              style="background-color: rgba(0, 0, 0, 0.25);"
             ></textarea>
 
             <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -411,21 +412,22 @@
     </div>
 
     <!-- Sticky Comment Input -->
-    <div class="fixed bottom-0 left-0 right-0 border-t border-neutral-100 bg-[var(--color-bg)]/84 p-4 backdrop-blur-2xl dark:border-neutral-900 sm:p-6">
+    <div class="fixed bottom-0 left-0 right-0 border-t border-neutral-100 bg-[var(--color-bg,#231b22)]/84 p-4 backdrop-blur-2xl dark:border-neutral-900 sm:p-6">
       <div class="mx-auto flex max-w-3xl flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
         <input 
           bind:this={commentInputEl}
           type="text" 
           bind:value={newComment}
           placeholder="想回一句什么，就写在这里。"
-          class="min-w-0 flex-1 rounded-2xl bg-white/5 border border-white/10 px-5 py-4 font-bold transition-all focus:ring-2 focus:ring-[var(--color-primary)] outline-none"
+          class="min-w-0 flex-1 rounded-2xl bg-white/5 border border-white/20 px-5 py-4 font-bold text-[var(--color-text,#fff4ed)] placeholder:text-[var(--color-text,#fff4ed)]/40 transition-all focus:ring-2 focus:ring-[var(--color-primary,#fac7b7)] outline-none"
+          style="background-color: rgba(255, 255, 255, 0.08);"
           on:keydown={(e) => e.key === 'Enter' && handleComment()}
         />
         <button 
           on:click={handleComment}
           aria-label="发布评论"
           disabled={submitting || !newComment.trim()}
-          class="inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-[var(--color-primary)] px-5 text-[var(--color-bg)] shadow-lg transition-all hover:scale-[1.03] active:scale-95 disabled:opacity-30 disabled:hover:scale-100"
+          class="inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-[var(--color-primary,#fac7b7)] px-5 text-[var(--color-bg,#231b22)] shadow-lg transition-all hover:scale-[1.03] active:scale-95 disabled:opacity-30 disabled:hover:scale-100"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
           <span class="text-xs font-black uppercase tracking-[0.18em]">{submitting ? '发布中…' : '发布评论'}</span>

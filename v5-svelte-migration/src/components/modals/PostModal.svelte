@@ -92,13 +92,13 @@
   <div class="absolute inset-0 bg-black/60 backdrop-blur-xl" on:click={closeModal}></div>
 
   <div 
-    class="relative w-full max-w-xl bg-[var(--color-bg)] rounded-[40px] p-8 shadow-2xl overflow-hidden"
+    class="relative w-full max-w-xl bg-[var(--color-bg,#231b22)] text-[var(--color-text,#fff4ed)] rounded-[40px] p-8 shadow-2xl overflow-hidden border border-white/10"
     transition:fly={{ y: 50, duration: 600, easing: (t) => t * (2 - t) }}
   >
     <div class="relative z-10">
       <div class="flex items-center justify-between mb-8">
-        <h2 class="text-3xl font-black tracking-tighter uppercase">发点近况</h2>
-        <button on:click={closeModal} class="p-2 opacity-20 hover:opacity-100 transition-opacity">
+        <h2 class="text-3xl font-black tracking-tighter uppercase text-[var(--color-text,#fff4ed)]">发点近况</h2>
+        <button on:click={closeModal} class="p-2 opacity-20 hover:opacity-100 transition-opacity text-[var(--color-text,#fff4ed)]">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
       </div>
@@ -106,10 +106,11 @@
       <textarea 
         bind:value={content}
         placeholder="今天想说什么，直接写下来。"
-        class="w-full h-40 px-6 py-6 rounded-3xl border border-black/10 bg-white/92 text-black placeholder:text-black/45 caret-[var(--color-primary)] shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_18px_40px_rgba(0,0,0,0.12)] outline-none focus:border-[var(--color-primary)] focus:bg-white focus:ring-2 focus:ring-[var(--color-primary)]/30 transition-all font-semibold text-lg resize-none mb-6 dark:border-black/10 dark:bg-white/92 dark:text-black dark:placeholder:text-black/45"
+        class="w-full h-40 px-6 py-6 rounded-3xl border border-white/20 bg-white/5 text-[var(--color-text,#fff4ed)] placeholder:text-[var(--color-text,#fff4ed)]/40 caret-[var(--color-primary,#fac7b7)] shadow-inner outline-none focus:border-[var(--color-primary,#fac7b7)] focus:bg-white/10 focus:ring-2 focus:ring-[var(--color-primary,#fac7b7)]/30 transition-all font-semibold text-lg resize-none mb-6"
+        style="background-color: rgba(255, 255, 255, 0.08);"
       ></textarea>
 
-      <div class="mb-6 rounded-[28px] border border-white/10 bg-white/5 p-5">
+      <div class="mb-6 rounded-[28px] border border-white/10 bg-white/5 p-5" style="background-color: rgba(255, 255, 255, 0.06);">
         <div class="flex items-center justify-between gap-4">
           <div>
             <p class="text-sm font-black uppercase tracking-[0.24em] opacity-60">发帖面板</p>
@@ -150,7 +151,8 @@
         <div class="flex gap-4">
           <button 
             on:click={openFilePicker}
-            class="w-14 h-14 flex items-center justify-center rounded-2xl bg-white/92 border border-black/10 hover:scale-110 active:scale-95 transition-all text-xl shadow-sm"
+            class="w-14 h-14 flex items-center justify-center rounded-2xl bg-white/5 border border-white/20 hover:scale-110 active:scale-95 transition-all text-xl shadow-sm"
+            style="background-color: rgba(255, 255, 255, 0.08);"
             title="加图片"
           >
             🖼️
@@ -168,7 +170,7 @@
         <button 
           on:click={handleSubmit}
           disabled={loading || (!content.trim() && media.length === 0)}
-          class="px-10 py-5 bg-[var(--color-primary)] text-white font-black text-lg rounded-2xl shadow-lg hover:scale-[1.05] active:scale-95 transition-all disabled:opacity-30 disabled:hover:scale-100"
+          class="px-10 py-5 bg-[var(--color-primary,#fac7b7)] text-[var(--color-button-text,#231b22)] font-black text-lg rounded-2xl shadow-lg hover:scale-[1.05] active:scale-95 transition-all disabled:opacity-30 disabled:hover:scale-100"
         >
           {loading ? '正在发出…' : '发出去'}
         </button>
