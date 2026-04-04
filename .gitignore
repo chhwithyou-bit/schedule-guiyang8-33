@@ -12,3 +12,8 @@ fix*.js
 .DS_Store
 *.log
 .aider*
+
+
+# Added by cargo
+
+/target

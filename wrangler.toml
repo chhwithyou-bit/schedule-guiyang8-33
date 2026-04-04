@@ -1,5 +1,5 @@
 name = "schedule-guiyang8-33"
-main = "worker.js"
+main = "src/lib.rs"
 compatibility_date = "2024-01-01"
 
 [[kv_namespaces]]
@@ -14,14 +14,13 @@ fallbacks = []
 [assets]
 directory = "./public"
 
-
 [[r2_buckets]]
 binding = "MUSIC_BUCKET"
 bucket_name = "music"
 
 [[r2_buckets]]
 binding = "COMMUNITY_R2"
-bucket_name = "community-media" # 等待创建
+bucket_name = "community-media"
 
 [[d1_databases]]
 binding = "COMMUNITY_DB"
@@ -29,9 +28,7 @@ database_name = "community_db"
 database_id = "6d9636b4-a7a9-4451-a701-7f48df456c6e"
 
 [vars]
-# Google Drive Folder ID
 GDRIVE_FOLDER_ID = "1JLM76eGeMI7AJB3PXiuPAQzEnt9AJhtg"
-# Optional community media cache tuning:
-# COMMUNITY_R2_CACHE_MAX_BYTES = "6442450944"     # 6 GiB
-# COMMUNITY_R2_CACHE_MAX_ITEM_BYTES = "2097152"   # 2 MiB
-# COMMUNITY_R2_CACHE_MAX_AGE_MS = "2592000000"    # 30 days
+
+[build]
+command = "cargo install -q worker-build && worker-build --release"
