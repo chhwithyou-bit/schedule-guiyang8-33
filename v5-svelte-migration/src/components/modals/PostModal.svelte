@@ -106,11 +106,11 @@
       <textarea 
         bind:value={content}
         placeholder="今天想说什么，直接写下来。"
-        class="w-full h-40 px-6 py-6 rounded-3xl border border-white/20 bg-white/5 text-[var(--color-text,#fff4ed)] placeholder:text-[var(--color-text,#fff4ed)]/40 caret-[var(--color-primary,#fac7b7)] shadow-inner outline-none focus:border-[var(--color-primary,#fac7b7)] focus:bg-white/10 focus:ring-2 focus:ring-[var(--color-primary,#fac7b7)]/30 transition-all font-semibold text-lg resize-none mb-6"
-        style="background-color: rgba(255, 255, 255, 0.08);"
+        class="w-full h-40 px-6 py-6 rounded-3xl border border-white/30 bg-white/15 text-[var(--color-text,#fff4ed)] placeholder:text-[var(--color-text,#fff4ed)]/40 caret-[var(--color-primary,#fac7b7)] outline-none focus:border-[var(--color-primary,#fac7b7)] focus:bg-white/20 focus:ring-2 focus:ring-[var(--color-primary,#fac7b7)]/30 transition-all font-semibold text-lg resize-none mb-6"
+        style="background-color: rgba(255, 255, 255, 0.18);"
       ></textarea>
 
-      <div class="mb-6 rounded-[28px] border border-white/10 bg-white/5 p-5" style="background-color: rgba(255, 255, 255, 0.06);">
+      <div class="mb-6 rounded-[28px] border border-white/15 bg-white/10 p-5" style="background-color: rgba(255, 255, 255, 0.12);">
         <div class="flex items-center justify-between gap-4">
           <div>
             <p class="text-sm font-black uppercase tracking-[0.24em] opacity-60">发帖面板</p>
@@ -151,8 +151,8 @@
         <div class="flex gap-4">
           <button 
             on:click={openFilePicker}
-            class="w-14 h-14 flex items-center justify-center rounded-2xl bg-white/5 border border-white/20 hover:scale-110 active:scale-95 transition-all text-xl shadow-sm"
-            style="background-color: rgba(255, 255, 255, 0.08);"
+            class="w-14 h-14 flex items-center justify-center rounded-2xl bg-white/15 border border-white/30 hover:scale-110 active:scale-95 transition-all text-xl shadow-sm"
+            style="background-color: rgba(255, 255, 255, 0.18);"
             title="加图片"
           >
             🖼️

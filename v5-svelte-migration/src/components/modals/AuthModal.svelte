@@ -72,8 +72,8 @@
             type="text" 
             bind:value={username}
             placeholder="想让大家怎么叫你"
-            class="w-full px-6 py-4 rounded-2xl bg-white/5 border border-white/20 text-[var(--color-text,#fff4ed)] placeholder:text-[var(--color-text,#fff4ed)]/40 focus:ring-2 focus:ring-[var(--color-primary,#fac7b7)] transition-all font-bold outline-none"
-            style="background-color: rgba(255, 255, 255, 0.08);"
+            class="w-full px-6 py-4 rounded-2xl bg-white/15 border border-white/30 text-[var(--color-text,#fff4ed)] placeholder:text-[var(--color-text,#fff4ed)]/40 focus:ring-2 focus:ring-[var(--color-primary,#fac7b7)] transition-all font-bold outline-none"
+            style="background-color: rgba(255, 255, 255, 0.18);"
           />
         </div>
 
@@ -84,8 +84,8 @@
             type="password" 
             bind:value={password}
             placeholder="输一个你记得住的"
-            class="w-full px-6 py-4 rounded-2xl bg-white/5 border border-white/20 text-[var(--color-text,#fff4ed)] placeholder:text-[var(--color-text,#fff4ed)]/40 focus:ring-2 focus:ring-[var(--color-primary,#fac7b7)] transition-all font-bold outline-none"
-            style="background-color: rgba(255, 255, 255, 0.08);"
+            class="w-full px-6 py-4 rounded-2xl bg-white/15 border border-white/30 text-[var(--color-text,#fff4ed)] placeholder:text-[var(--color-text,#fff4ed)]/40 focus:ring-2 focus:ring-[var(--color-primary,#fac7b7)] transition-all font-bold outline-none"
+            style="background-color: rgba(255, 255, 255, 0.18);"
           />
         </div>
 

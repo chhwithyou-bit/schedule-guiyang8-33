@@ -419,8 +419,8 @@
           type="text" 
           bind:value={newComment}
           placeholder="想回一句什么，就写在这里。"
-          class="min-w-0 flex-1 rounded-2xl bg-white/5 border border-white/20 px-5 py-4 font-bold text-[var(--color-text,#fff4ed)] placeholder:text-[var(--color-text,#fff4ed)]/40 transition-all focus:ring-2 focus:ring-[var(--color-primary,#fac7b7)] outline-none"
-          style="background-color: rgba(255, 255, 255, 0.08);"
+          class="min-w-0 flex-1 rounded-2xl bg-white/15 border border-white/30 px-5 py-4 font-bold text-[var(--color-text,#fff4ed)] placeholder:text-[var(--color-text,#fff4ed)]/40 transition-all focus:ring-2 focus:ring-[var(--color-primary,#fac7b7)] outline-none"
+          style="background-color: rgba(255, 255, 255, 0.18);"
           on:keydown={(e) => e.key === 'Enter' && handleComment()}
         />
         <button 

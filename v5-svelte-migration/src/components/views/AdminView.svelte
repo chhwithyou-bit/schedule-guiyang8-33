@@ -132,7 +132,8 @@
           <textarea 
             bind:value={announcement.content} 
             placeholder="想告诉全站什么，就写在这里。"
-            class="w-full h-48 p-6 rounded-3xl bg-neutral-100 dark:bg-neutral-900 border-none focus:ring-2 focus:ring-[var(--color-primary)] transition-all font-bold resize-none mb-6"
+            class="w-full h-48 p-6 rounded-3xl bg-white/15 border border-white/30 text-[var(--color-text,#fff4ed)] placeholder:text-[var(--color-text,#fff4ed)]/40 focus:ring-2 focus:ring-[var(--color-primary,#fac7b7)] transition-all font-bold resize-none mb-6 outline-none"
+            style="background-color: rgba(255, 255, 255, 0.18);"
           ></textarea>
           <button 
             on:click={updateAnnouncement}

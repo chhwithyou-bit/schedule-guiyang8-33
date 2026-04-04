@@ -927,6 +927,8 @@
               bind:value={search}
               type="text"
               placeholder="搜歌名或歌手"
+              class="w-full rounded-xl bg-white/15 border border-white/30 px-4 py-2 text-sm font-medium text-[var(--color-text,#fff4ed)] placeholder:text-[var(--color-text,#fff4ed)]/40 outline-none transition-colors focus:border-[var(--color-primary,#fac7b7)]"
+              style="background-color: rgba(255, 255, 255, 0.18);"
               on:click|stopPropagation
               on:keydown|stopPropagation
             />

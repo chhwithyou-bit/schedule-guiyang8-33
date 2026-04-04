@@ -119,7 +119,8 @@
         bind:value={query}
         type="text"
         placeholder="搜人名或群名..."
-        class="w-full rounded-2xl bg-neutral-100 px-6 py-4 font-medium text-neutral-900 transition-all focus:ring-2 focus:ring-[var(--color-primary)] dark:bg-neutral-900 dark:text-neutral-100"
+        class="w-full rounded-2xl bg-white/15 border border-white/30 px-6 py-4 font-medium text-[var(--color-text,#fff4ed)] placeholder:text-[var(--color-text,#fff4ed)]/40 transition-all focus:ring-2 focus:ring-[var(--color-primary,#fac7b7)] outline-none"
+        style="background-color: rgba(255, 255, 255, 0.18);"
       />
       <button type="submit" class="absolute right-4 top-1/2 -translate-y-1/2 opacity-30 transition-opacity hover:opacity-100">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
