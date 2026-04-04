@@ -150,7 +150,7 @@
         <div class="flex gap-4">
           <button 
             on:click={openFilePicker}
-            class="w-14 h-14 flex items-center justify-center rounded-2xl bg-neutral-100 dark:bg-neutral-900 hover:scale-110 active:scale-95 transition-all text-xl"
+            class="w-14 h-14 flex items-center justify-center rounded-2xl bg-white/92 border border-black/10 hover:scale-110 active:scale-95 transition-all text-xl shadow-sm"
             title="加图片"
           >
             🖼️

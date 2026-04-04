@@ -261,9 +261,9 @@
       <div class="absolute bottom-0 left-4 right-4 translate-y-1/2 sm:left-6 sm:right-6 md:left-12 md:right-12">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div class="flex items-end gap-4 sm:gap-6">
-            <div class="h-28 w-28 overflow-hidden rounded-[36px] border-4 border-white bg-white p-2 shadow-2xl dark:border-neutral-900 dark:bg-neutral-950 sm:h-32 sm:w-32 md:h-40 md:w-40 md:rounded-[48px] relative group">
+            <div class="h-28 w-28 overflow-hidden rounded-[36px] border-4 border-white/20 bg-white/10 p-2 shadow-2xl sm:h-32 sm:w-32 md:h-40 md:w-40 md:rounded-[48px] relative group backdrop-blur-xl">
               
-              <div class="flex h-full w-full items-center justify-center overflow-hidden rounded-[28px] bg-neutral-100 dark:bg-neutral-900 md:rounded-[40px]">
+              <div class="flex h-full w-full items-center justify-center overflow-hidden rounded-[28px] bg-white/5 md:rounded-[40px]">
                 {#if $selectedProfile.avatar_url}
                   <img src={$selectedProfile.avatar_url} alt="Avatar" class="w-full h-full object-cover" />
                 {:else}
@@ -360,7 +360,7 @@
                 <button 
                   on:click={toggleFollow}
                   class="px-8 py-4 rounded-2xl font-black text-sm tracking-widest uppercase transition-all
-                         {isFollowing ? 'bg-neutral-100 dark:bg-neutral-900 opacity-60' : 'bg-[var(--color-primary)] text-white shadow-lg scale-105'}"
+                         {isFollowing ? 'bg-white/10 border border-white/10 opacity-60' : 'bg-[var(--color-primary)] text-white shadow-lg scale-105'}"
                 >
                   {isFollowing ? '取消关注' : '关注一下'}
                 </button>
@@ -399,7 +399,7 @@
           {#if loading}
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               {#each Array(4) as _}
-                <div class="h-64 rounded-[32px] bg-neutral-100 dark:bg-neutral-900 animate-pulse"></div>
+                <div class="h-64 rounded-[32px] bg-white/5 border border-white/5 animate-pulse"></div>
               {/each}
             </div>
           {:else if posts.length > 0}

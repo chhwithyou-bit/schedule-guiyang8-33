@@ -72,7 +72,7 @@
             type="text" 
             bind:value={username}
             placeholder="想让大家怎么叫你"
-            class="w-full px-6 py-4 rounded-2xl bg-neutral-100 dark:bg-neutral-900 border-none focus:ring-2 focus:ring-[var(--color-primary)] transition-all font-bold"
+            class="w-full px-6 py-4 rounded-2xl bg-white/5 border border-white/10 focus:ring-2 focus:ring-[var(--color-primary)] transition-all font-bold outline-none"
           />
         </div>
 
@@ -83,7 +83,7 @@
             type="password" 
             bind:value={password}
             placeholder="输一个你记得住的"
-            class="w-full px-6 py-4 rounded-2xl bg-neutral-100 dark:bg-neutral-900 border-none focus:ring-2 focus:ring-[var(--color-primary)] transition-all font-bold"
+            class="w-full px-6 py-4 rounded-2xl bg-white/5 border border-white/10 focus:ring-2 focus:ring-[var(--color-primary)] transition-all font-bold outline-none"
           />
         </div>
 

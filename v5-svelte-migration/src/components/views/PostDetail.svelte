@@ -308,7 +308,7 @@
         <div class="mb-8 flex items-center gap-4">
           <!-- svelte-ignore a11y-click-events-have-key-events -->
           <!-- svelte-ignore a11y-no-static-element-interactions -->
-          <div on:click={() => handleProfileClick($selectedPost)} class="h-14 w-14 cursor-pointer overflow-hidden rounded-full border-2 border-[var(--color-primary)] bg-neutral-100 dark:bg-neutral-900">
+          <div on:click={() => handleProfileClick($selectedPost)} class="h-14 w-14 cursor-pointer overflow-hidden rounded-full border-2 border-[var(--color-primary)] bg-white/5">
             {#if $selectedPost.avatar_url}
               <img src={$selectedPost.avatar_url} alt={$selectedPost.username} class="w-full h-full object-cover" />
             {:else}
@@ -343,7 +343,7 @@
         {#if media.length > 0}
           <div class="space-y-4 mb-12">
             {#each media as item}
-              <div class="rounded-3xl overflow-hidden bg-neutral-100 dark:bg-neutral-900 border border-neutral-100 dark:border-neutral-900">
+              <div class="rounded-3xl overflow-hidden bg-white/5 border border-white/10">
                 <img src={item.url} alt="Content" class="w-full h-auto" />
               </div>
             {/each}
@@ -361,10 +361,10 @@
             <div class="space-y-6">
               {#each Array(3) as _}
                 <div class="flex gap-4 animate-pulse">
-                  <div class="w-10 h-10 rounded-full bg-neutral-100 dark:bg-neutral-900"></div>
+                  <div class="w-10 h-10 rounded-full bg-white/5"></div>
                   <div class="flex-1 space-y-2">
-                    <div class="h-4 w-24 bg-neutral-100 dark:bg-neutral-900 rounded"></div>
-                    <div class="h-12 w-full bg-neutral-100 dark:bg-neutral-900 rounded-xl"></div>
+                    <div class="h-4 w-24 bg-white/5 rounded"></div>
+                    <div class="h-12 w-full bg-white/5 rounded-xl"></div>
                   </div>
                 </div>
               {/each}
@@ -375,7 +375,7 @@
                 <div class="flex gap-4" in:fade>
                   <!-- svelte-ignore a11y-click-events-have-key-events -->
                   <!-- svelte-ignore a11y-no-static-element-interactions -->
-                  <div on:click={() => handleProfileClick(comment)} class="w-10 h-10 rounded-full bg-neutral-100 dark:bg-neutral-900 overflow-hidden flex-shrink-0 cursor-pointer">
+                  <div on:click={() => handleProfileClick(comment)} class="w-10 h-10 rounded-full bg-white/5 overflow-hidden flex-shrink-0 cursor-pointer">
                     {#if comment.avatar_url}
                       <img src={comment.avatar_url} alt={comment.username} class="w-full h-full object-cover" />
                     {:else}
@@ -418,7 +418,7 @@
           type="text" 
           bind:value={newComment}
           placeholder="想回一句什么，就写在这里。"
-          class="min-w-0 flex-1 rounded-2xl bg-neutral-100 px-5 py-4 font-bold transition-all focus:ring-2 focus:ring-[var(--color-primary)] dark:bg-neutral-900"
+          class="min-w-0 flex-1 rounded-2xl bg-white/5 border border-white/10 px-5 py-4 font-bold transition-all focus:ring-2 focus:ring-[var(--color-primary)] outline-none"
           on:keydown={(e) => e.key === 'Enter' && handleComment()}
         />
         <button 
