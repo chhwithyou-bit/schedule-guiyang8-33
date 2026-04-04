@@ -920,9 +920,10 @@
           <p class="mp-status">还没有可播放的歌。</p>
         {/if}
 
-        <div id="mp-list-area" class="mp-list-panel {isListOpen ? 'open' : ''}">
+        <div id="mp-list-area" class="mp-list-panel {isListOpen ? 'open show' : ''}">
           <div class="mp-search-wrap">
             <input
+              id="mp-search"
               bind:value={search}
               type="text"
               placeholder="搜歌名或歌手"
@@ -931,12 +932,12 @@
             />
           </div>
 
-          <div class="mp-list-scroll">
+          <div id="mp-list" class="mp-list-scroll">
             {#if filteredTracks.length > 0}
               {#each filteredTracks as track}
                 <button
                   type="button"
-                  class="mp-track-row {track.url === currentTrack.url ? 'is-active' : ''}"
+                  class="mp-track-row mp-li {track.url === currentTrack.url ? 'is-active' : ''}"
                   on:click={(event) => handleTrackSelect(playlist.findIndex((item) => item.url === track.url), event)}
                 >
                   <div class="mp-track-copy">
@@ -947,7 +948,7 @@
                 </button>
               {/each}
             {:else}
-              <div class="mp-empty-search">没有搜到这首，换个关键词试试。</div>
+              <div class="mp-empty-search mp-empty">这次没搜到，换个词试试</div>
             {/if}
           </div>
         </div>
@@ -1461,7 +1462,7 @@
   .mp-progress-fill {
     height: 100%;
     border-radius: inherit;
-    background: linear-gradient(90deg, var(--color-primary), rgba(255, 255, 255, 0.92));
+    background: linear-gradient(90deg, var(--color-primary) 0% 50%, rgba(255, 255, 255, 0.92) 50% 100%);
     transition: width 0.12s linear;
   }
 
@@ -1551,7 +1552,7 @@
     height: 2.95rem;
     background:
       radial-gradient(circle at 30% 24%, rgba(255, 255, 255, 0.34), transparent 34%),
-      linear-gradient(135deg, rgba(var(--glow-primary-rgb), 0.9), var(--color-primary));
+      linear-gradient(135deg, rgba(var(--glow-primary-rgb), 0.9) 0% 50%, var(--color-primary) 50% 100%);
     color: var(--color-button-text);
     border-color: transparent;
     box-shadow:
