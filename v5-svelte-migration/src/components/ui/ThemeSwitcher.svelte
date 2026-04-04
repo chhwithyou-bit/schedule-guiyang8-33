@@ -363,7 +363,7 @@
     background:
       radial-gradient(circle at 24% 26%, rgba(255, 255, 255, 0.26), transparent 26%),
       radial-gradient(circle at 80% 24%, rgba(255, 255, 255, 0.18), transparent 22%),
-      linear-gradient(90deg, var(--aura-a) 0 49.5%, var(--aura-b) 49.5% 100%);
+      linear-gradient(105deg, var(--aura-a) 0 50%, var(--aura-b) 50% 100%);
     transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1), filter 0.9s ease;
   }
 

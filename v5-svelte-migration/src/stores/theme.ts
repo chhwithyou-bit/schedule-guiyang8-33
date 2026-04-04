@@ -35,8 +35,8 @@ export const themeCatalog: ThemeDefinition[] = [
     liquidLabel: '烟墨',
     surfaceMode: 'dark',
     primary: '#FAC7B7',
-    secondary: '#F2D3C7',
-    accent: '#5D4F57',
+    secondary: '#5D4F57',
+    accent: '#F2D3C7',
     bg: '#231B22',
     bgRgb: '35, 27, 34',
     text: '#FFF4ED',
@@ -55,8 +55,8 @@ export const themeCatalog: ThemeDefinition[] = [
     liquidLabel: '若竹',
     surfaceMode: 'dark',
     primary: '#5DA984',
-    secondary: '#8AB9DB',
-    accent: '#75C1A6',
+    secondary: '#4A90E2',
+    accent: '#8AB9DB',
     bg: '#173C39',
     bgRgb: '23, 60, 57',
     text: '#ECFAF4',
@@ -64,7 +64,7 @@ export const themeCatalog: ThemeDefinition[] = [
     buttonText: '#173C39',
     shadowRgb: '19, 54, 50',
     glowPrimaryRgb: '93, 169, 132',
-    glowSecondaryRgb: '138, 185, 219'
+    glowSecondaryRgb: '74, 144, 226'
   },
   {
     id: 'theme-summer',
@@ -75,8 +75,8 @@ export const themeCatalog: ThemeDefinition[] = [
     liquidLabel: '西子',
     surfaceMode: 'dark',
     primary: '#F0CFE9',
-    secondary: '#87C0CB',
-    accent: '#9DD4DD',
+    secondary: '#459B96',
+    accent: '#87C0CB',
     bg: '#283E48',
     bgRgb: '40, 62, 72',
     text: '#FFF5FC',
@@ -84,7 +84,7 @@ export const themeCatalog: ThemeDefinition[] = [
     buttonText: '#283E48',
     shadowRgb: '31, 47, 57',
     glowPrimaryRgb: '240, 207, 233',
-    glowSecondaryRgb: '135, 192, 203'
+    glowSecondaryRgb: '69, 155, 150'
   },
   {
     id: 'theme-autumn',
@@ -95,8 +95,8 @@ export const themeCatalog: ThemeDefinition[] = [
     liquidLabel: '青绿',
     surfaceMode: 'dark',
     primary: '#ED863F',
-    secondary: '#215A53',
-    accent: '#F3B168',
+    secondary: '#00A896',
+    accent: '#215A53',
     bg: '#163734',
     bgRgb: '22, 55, 52',
     text: '#FFF2E6',
@@ -104,7 +104,7 @@ export const themeCatalog: ThemeDefinition[] = [
     buttonText: '#163734',
     shadowRgb: '17, 42, 41',
     glowPrimaryRgb: '237, 134, 63',
-    glowSecondaryRgb: '33, 90, 83'
+    glowSecondaryRgb: '0, 168, 150'
   }
 ];
 

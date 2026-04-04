@@ -173,7 +173,7 @@
   .post-glass-card {
     border: 1px solid rgba(var(--glow-primary-rgb), 0.16);
     background:
-      linear-gradient(145deg, rgba(var(--glow-primary-rgb), 0.14), rgba(var(--glow-secondary-rgb), 0.1)),
+      linear-gradient(145deg, rgba(var(--glow-primary-rgb), 0.18) 0% 45%, rgba(var(--glow-secondary-rgb), 0.14) 45% 100%),
       linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(var(--color-bg-rgb), 0.18)),
       rgba(var(--color-bg-rgb), 0.22);
     box-shadow:
@@ -192,9 +192,9 @@
 
   .post-glass-card__overlay {
     background:
-      radial-gradient(circle at top left, rgba(var(--glow-primary-rgb), 0.28), transparent 34%),
-      radial-gradient(circle at 82% 18%, rgba(var(--glow-secondary-rgb), 0.18), transparent 26%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.02) 42%, rgba(var(--color-bg-rgb), 0.04) 100%);
+      radial-gradient(circle at top left, rgba(var(--glow-primary-rgb), 0.32), transparent 38%),
+      radial-gradient(circle at 82% 18%, rgba(var(--glow-secondary-rgb), 0.22), transparent 30%),
+      linear-gradient(135deg, rgba(var(--glow-primary-rgb), 0.08) 0% 50%, rgba(var(--glow-secondary-rgb), 0.06) 50% 100%);
   }
 
   .post-glass-card__shine {
@@ -204,7 +204,7 @@
   .post-glass-avatar {
     border: 1px solid rgba(var(--glow-primary-rgb), 0.24);
     background:
-      linear-gradient(145deg, rgba(var(--glow-primary-rgb), 0.24), rgba(var(--glow-secondary-rgb), 0.12)),
+      linear-gradient(145deg, rgba(var(--glow-primary-rgb), 0.28) 0% 50%, rgba(var(--glow-secondary-rgb), 0.16) 50% 100%),
       rgba(255, 255, 255, 0.16);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.32);
     backdrop-filter: blur(18px);
