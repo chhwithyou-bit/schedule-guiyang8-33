@@ -42,11 +42,13 @@
     align-items: center;
     justify-content: center;
     border-radius: 48px;
-    background: linear-gradient(145deg, rgba(var(--color-bg-rgb), 0.4), rgba(var(--color-bg-rgb), 0.1));
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    box-shadow: 
-      inset 0 0 40px rgba(var(--glow-primary-rgb), 0.05),
-      0 20px 40px rgba(0, 0, 0, 0.2);
+    /* 移除厚重的背景，改为完全透明或极淡的渐变 */
+    background: radial-gradient(circle at center, rgba(var(--glow-primary-rgb), 0.08), transparent 70%);
+    border: 1px solid rgba(255, 255, 255, 0.03);
+    /* 移除全局模糊，避免遮挡背景图 */
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: none;
     overflow: hidden;
     animation: float 6s ease-in-out infinite;
   }
@@ -63,27 +65,29 @@
 
   .ambient-glow {
     position: absolute;
-    inset: -20%;
+    inset: 0;
     background: 
-      radial-gradient(circle at 20% 50%, rgba(var(--glow-primary-rgb), 0.25) 0%, transparent 50%),
-      radial-gradient(circle at 80% 50%, rgba(var(--glow-secondary-rgb), 0.25) 0%, transparent 50%);
-    filter: blur(40px);
+      radial-gradient(circle at 30% 50%, rgba(var(--glow-primary-rgb), 0.12) 0%, transparent 60%),
+      radial-gradient(circle at 70% 50%, rgba(var(--glow-secondary-rgb), 0.1) 0%, transparent 60%);
+    filter: blur(30px);
     animation: breathe 8s ease-in-out infinite alternate;
     z-index: 0;
+    opacity: 0.6;
   }
 
   .grid-pattern {
     position: absolute;
     inset: 0;
     background-image: 
-      linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
-    background-size: 30px 30px;
+      linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+    background-size: 40px 40px;
     background-position: center center;
-    mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
-    -webkit-mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
+    mask-image: radial-gradient(ellipse at center, black 30%, transparent 70%);
+    -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 70%);
     z-index: 1;
-    animation: pan 30s linear infinite;
+    animation: pan 40s linear infinite;
+    opacity: 0.4;
   }
 
   .content-wrapper {
