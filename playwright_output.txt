@@ -1,4 +1,0 @@
-
-Running 5 tests using 1 worker
-
-  ✘  1 tests/e2e/music-widget.spec.js:161:1 › music widget list scrolls and filters tracks (43.7s)
