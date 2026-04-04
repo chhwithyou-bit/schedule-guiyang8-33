@@ -1,4 +1,4 @@
-import htmlContent from './index.html';
+import htmlContent from './public/index.html';
 import { getCommunityLevelFromXp, COMMUNITY_LEVEL_THRESHOLDS } from './utils.mjs';
 
 const DEFAULT_ADMIN_USER = 'admin';
