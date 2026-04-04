@@ -51,8 +51,6 @@
     box-shadow: none;
     overflow: hidden;
     animation: float 6s ease-in-out infinite;
-    /* Debug marker for Playwright */
-    content-visibility: auto;
   }
 
   .showcase-inner {
