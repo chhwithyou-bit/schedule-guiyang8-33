@@ -157,3 +157,67 @@ test('community console restores account, chat, and drive surfaces', async ({ pa
   await page.locator('button:has-text("提醒")').click();
   await expect(page.locator('text=Alice 给你发来一条消息')).toBeVisible();
 });
+
+test('mobile: modal is fully scrollable and header is reachable', async ({ page }) => {
+  // Simulate a typical mobile viewport (iPhone 14 size)
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  await page.goto('/');
+  try {
+    const btn = page.locator('button[data-theme-id="theme-default"]');
+    if (await btn.isVisible({ timeout: 2000 })) {
+      await btn.click();
+      await page.waitForTimeout(1200);
+    }
+  } catch (e) {}
+
+  await page.locator('nav button:has-text("社区")').click();
+  await page.locator('button:has-text("打开控制台")').click();
+
+  // The modal header must be visible (reachable by scrolling to top)
+  const header = page.getByText('个人面板', { exact: true });
+  await expect(header).toBeVisible({ timeout: 8000 });
+
+  // Scroll to top of page to ensure the header isn't cut off
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await expect(header).toBeVisible();
+
+  // The close button must be reachable
+  const closeBtn = page.locator('button:has-text("关闭")');
+  await expect(closeBtn).toBeVisible();
+
+  // Content further down (user profile heading) must also be reachable by scrolling
+  const usernameHeading = page.getByRole('heading', { name: 'debugger' });
+  await usernameHeading.scrollIntoViewIfNeeded();
+  await expect(usernameHeading).toBeVisible();
+
+  // Tab navigation must work on mobile
+  await page.locator('button:has-text("聊天")').click();
+  await expect(page.getByRole('heading', { name: 'General Lounge' })).toBeVisible();
+
+  // Closing the modal must work
+  await closeBtn.click();
+  await expect(header).not.toBeVisible();
+});
+
+test('mobile: backdrop click closes modal', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  await page.goto('/');
+  try {
+    const btn = page.locator('button[data-theme-id="theme-default"]');
+    if (await btn.isVisible({ timeout: 2000 })) {
+      await btn.click();
+      await page.waitForTimeout(1200);
+    }
+  } catch (e) {}
+
+  await page.locator('nav button:has-text("社区")').click();
+  await page.locator('button:has-text("打开控制台")').click();
+
+  await expect(page.getByText('个人面板', { exact: true })).toBeVisible({ timeout: 8000 });
+
+  // Click the backdrop (top-left corner, outside the card)
+  await page.mouse.click(5, 5);
+  await expect(page.getByText('个人面板', { exact: true })).not.toBeVisible();
+});
