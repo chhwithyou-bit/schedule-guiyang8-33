@@ -191,16 +191,112 @@ async fn get_auth(req: &Request, db: &D1Database) -> Result<Option<User>> {
             let token = &auth[7..];
             let parts: Vec<&str> = token.split(':').collect();
             if parts.len() == 2 {
-                let username = parts[0];
                 let pass_hash = parts[1];
-                
-                let query = db.prepare("SELECT * FROM users WHERE username = ? AND password_hash = ?");
-                let user = query.bind(&[username.into(), pass_hash.into()])?.first::<User>(None).await?;
-                return Ok(user);
+
+                let mut username_candidates = vec![parts[0].to_string()];
+                if parts[0].contains('%') {
+                    let decode_probe = format!("https://community.local/?username={}", parts[0]);
+                    if let Ok(parsed) = url::Url::parse(&decode_probe) {
+                        if let Some((_, decoded)) = parsed.query_pairs().find(|(k, _)| k == "username") {
+                            let decoded_username = decoded.into_owned();
+                            if decoded_username != parts[0] {
+                                username_candidates.push(decoded_username);
+                            }
+                        }
+                    }
+                }
+
+                for username in username_candidates {
+                    let query = db.prepare("SELECT * FROM users WHERE username = ? AND password_hash = ?");
+                    let user = query.bind(&[username.into(), pass_hash.into()])?.first::<User>(None).await?;
+                    if user.is_some() {
+                        return Ok(user);
+                    }
+                }
             }
         }
     }
     Ok(None)
+}
+
+fn normalize_media_url(value: Option<String>) -> Option<String> {
+    let trimmed = value?.trim().to_string();
+    if trimmed.is_empty() {
+        return None;
+    }
+    if trimmed.starts_with("/api/community/media/") || trimmed.starts_with("http://") || trimmed.starts_with("https://") {
+        return Some(trimmed);
+    }
+    Some(format!("/api/community/media/{}", trimmed))
+}
+
+fn extract_media_file_id(value: &str) -> Option<String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    if let Some(rest) = trimmed.strip_prefix("/api/community/media/") {
+        return Some(rest.to_string());
+    }
+    if trimmed.starts_with("http://") || trimmed.starts_with("https://") {
+        if let Ok(parsed) = url::Url::parse(trimmed) {
+            if let Some(rest) = parsed.path().strip_prefix("/api/community/media/") {
+                return Some(rest.to_string());
+            }
+        }
+        return None;
+    }
+    Some(trimmed.to_string())
+}
+
+fn infer_extension_from_mime(mime_type: &str) -> &'static str {
+    match mime_type {
+        "image/jpeg" => "jpg",
+        "image/png" => "png",
+        "image/gif" => "gif",
+        "image/webp" => "webp",
+        "image/svg+xml" => "svg",
+        "image/avif" => "avif",
+        "video/mp4" => "mp4",
+        "video/webm" => "webm",
+        _ => "bin",
+    }
+}
+
+async fn fetch_drive_media(env: &Env, file_id: &str) -> Result<Option<(Vec<u8>, String)>> {
+    if file_id.trim().is_empty() {
+        return Ok(None);
+    }
+
+    let token = match get_google_auth_token(env).await {
+        Ok(t) if !t.is_empty() => t,
+        _ => return Ok(None),
+    };
+
+    let url = format!(
+        "https://www.googleapis.com/drive/v3/files/{}?alt=media&supportsAllDrives=true",
+        file_id
+    );
+    let headers = Headers::new();
+    headers.set("Authorization", &format!("Bearer {}", token))?;
+
+    let mut init = RequestInit::new();
+    init.with_method(Method::Get);
+    init.with_headers(headers);
+
+    let req = Request::new_with_init(&url, &init)?;
+    let mut resp = Fetch::Request(req).send().await?;
+
+    if resp.status_code() != 200 {
+        return Ok(None);
+    }
+
+    let content_type = resp
+        .headers()
+        .get("Content-Type")?
+        .unwrap_or_else(|| "application/octet-stream".to_string());
+    let bytes = resp.bytes().await?;
+    Ok(Some((bytes, content_type)))
 }
 
 async fn award_xp(db: &D1Database, user_id: &str, amount: i32) -> Result<()> {
@@ -771,6 +867,9 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                 Some(u) => u,
                 None => return utils::json_resp(json!({"ok": false}), 401)
             };
+            db.prepare("INSERT INTO user_drive_stats (user_id, quota_bytes, used_bytes) VALUES (?, 0, 0) ON CONFLICT(user_id) DO NOTHING")
+                .bind(&[user.id.clone().into()])?
+                .run().await?;
             let stats = db.prepare("SELECT quota_bytes, used_bytes FROM user_drive_stats WHERE user_id = ?").bind(&[user.id.into()])?.first::<DriveStats>(None).await?.unwrap_or(DriveStats { quota_bytes: 0, used_bytes: 0 });
             utils::json_resp(json!({"ok": true, "stats": stats}), 200)
         })
@@ -794,7 +893,10 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             }
             sql += " ORDER BY is_folder DESC, created_at DESC";
             
-            let files = db.prepare(&sql).bind(&params)?.all().await?.results::<DriveFile>()?;
+            let mut files = db.prepare(&sql).bind(&params)?.all().await?.results::<DriveFile>()?;
+            for file in files.iter_mut() {
+                file.url = normalize_media_url(file.url.clone());
+            }
             utils::json_resp(json!({"ok": true, "files": files}), 200)
         })
         .post_async("/api/community/drive/mkdir", |mut req, ctx| async move {
@@ -865,37 +967,60 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             let size = file.size() as i64;
             let mime_type = file.type_();
             let buffer = file.bytes().await?;
-            
-            // Check quota
+
+            db.prepare("INSERT INTO user_drive_stats (user_id, quota_bytes, used_bytes) VALUES (?, 0, 0) ON CONFLICT(user_id) DO NOTHING")
+                .bind(&[user.id.clone().into()])?
+                .run().await?;
+
             let stats = db.prepare("SELECT quota_bytes, used_bytes FROM user_drive_stats WHERE user_id = ?").bind(&[user.id.clone().into()])?.first::<DriveStats>(None).await?.unwrap_or(DriveStats { quota_bytes: 0, used_bytes: 0 });
-            if stats.used_bytes + size > stats.quota_bytes {
+            if stats.quota_bytes > 0 && stats.used_bytes + size > stats.quota_bytes {
                 return utils::json_resp(json!({"ok": false, "msg": "空间不足"}), 400);
             }
 
-            // Upload to Google Drive
-            let drive_resp = upload_to_drive(&ctx.env, buffer, &name, &mime_type).await?;
-            let drive_id = drive_resp["id"].as_str().unwrap_or_default();
-            
-            if drive_id.is_empty() {
+            let drive_resp = match upload_to_drive(&ctx.env, buffer, &name, &mime_type).await {
+                Ok(resp) => resp,
+                Err(_) => {
+                    return utils::json_resp(json!({"ok": false, "msg": "云盘服务不可用"}), 503);
+                }
+            };
+            let drive_file_id = drive_resp["id"].as_str().unwrap_or_default().to_string();
+
+            if drive_file_id.is_empty() {
                 return utils::json_resp(json!({"ok": false, "msg": "上传到云端失败"}), 500);
             }
 
             let id = Uuid::new_v4().to_string();
+            let file_url = format!("/api/community/media/{}", drive_file_id);
             db.prepare("INSERT INTO drive_files (id, user_id, name, size, mime_type, url, parent_id, is_folder) VALUES (?, ?, ?, ?, ?, ?, ?, 0)")
                 .bind(&[
-                    id.into(),
+                    id.clone().into(),
                     user.id.clone().into(),
-                    name.into(),
+                    name.clone().into(),
                     size.into(),
-                    mime_type.into(),
-                    drive_id.into(),
-                    parent_id.into()
+                    mime_type.clone().into(),
+                    file_url.clone().into(),
+                    parent_id.clone().into()
                 ])?.run().await?;
-            
-            db.prepare("UPDATE user_drive_stats SET used_bytes = used_bytes + ? WHERE user_id = ?")
-                .bind(&[size.into(), user.id.into()])?.run().await?;
 
-            utils::json_resp(json!({"ok": true}), 200)
+            db.prepare("INSERT INTO user_drive_stats (user_id, quota_bytes, used_bytes) VALUES (?, 0, ?) ON CONFLICT(user_id) DO UPDATE SET used_bytes = used_bytes + excluded.used_bytes, updated_at = CURRENT_TIMESTAMP")
+                .bind(&[user.id.clone().into(), size.into()])?
+                .run().await?;
+
+            utils::json_resp(json!({
+                "ok": true,
+                "id": id,
+                "fileId": drive_file_id,
+                "fromDrive": true,
+                "file": {
+                    "id": id,
+                    "name": name,
+                    "size": size,
+                    "mime_type": mime_type,
+                    "url": file_url,
+                    "parent_id": parent_id,
+                    "is_folder": 0
+                }
+            }), 200)
         })
         .get_async("/api/community/conversations", |req, ctx| async move {
             let db = ctx.env.d1("COMMUNITY_DB")?;
@@ -1029,25 +1154,73 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             utils::json_resp(json!({"ok": true}), 200)
         })
         .post_async("/api/community/upload", |mut req, ctx| async move {
-            let form = req.form_data().await?;
-            let file = match form.get("file") {
-                Some(FormEntry::File(f)) => f,
-                _ => return utils::json_resp(json!({"ok": false, "msg": "未找到文件"}), 400)
+            let db = ctx.env.d1("COMMUNITY_DB")?;
+            if get_auth(&req, &db).await?.is_none() {
+                return utils::json_resp(json!({"ok": false}), 401);
+            }
+
+            let content_type_header = req.headers().get("Content-Type")?.unwrap_or_default();
+            let is_multipart = content_type_header
+                .to_ascii_lowercase()
+                .starts_with("multipart/form-data");
+
+            let mut detected_name = String::new();
+            let mut detected_mime = String::new();
+            let bytes = if is_multipart {
+                let form = req.form_data().await?;
+                let file = match form.get("file") {
+                    Some(FormEntry::File(f)) => f,
+                    _ => return utils::json_resp(json!({"ok": false, "msg": "未找到文件"}), 400)
+                };
+                detected_name = file.name();
+                detected_mime = file.type_();
+                file.bytes().await?
+            } else {
+                let raw = req.bytes().await?;
+                if raw.is_empty() {
+                    return utils::json_resp(json!({"ok": false, "msg": "未找到文件"}), 400);
+                }
+                raw
             };
-            
+
+            if detected_mime.is_empty() {
+                detected_mime = content_type_header
+                    .split(';')
+                    .next()
+                    .unwrap_or("")
+                    .trim()
+                    .to_string();
+            }
+            if detected_mime.is_empty() {
+                detected_mime = "application/octet-stream".to_string();
+            }
+            if detected_name.trim().is_empty() {
+                detected_name = format!(
+                    "upload-{}.{}",
+                    Uuid::new_v4(),
+                    infer_extension_from_mime(&detected_mime)
+                );
+            }
+
             let bucket = ctx.env.bucket("COMMUNITY_R2")?;
-            let key = format!("{}-{}", Uuid::new_v4(), file.name());
-            let bytes = file.bytes().await?;
-            
+            let key = format!("{}-{}", Uuid::new_v4(), detected_name);
+
             bucket.put(&key, bytes).execute().await?;
-            
-            // In a real app, you'd return a public URL. Here we return the key.
-            utils::json_resp(json!({"ok": true, "url": format!("/api/community/media/{}", key)}), 200)
+
+            utils::json_resp(json!({
+                "ok": true,
+                "fileId": key,
+                "url": format!("/api/community/media/{}", key),
+                "fromDrive": false
+            }), 200)
         })
         .get_async("/api/community/media/:key", |_req, ctx| async move {
-            let key = ctx.param("key").unwrap();
+            let key = match ctx.param("key") {
+                Some(v) => v.to_string(),
+                None => return Response::error("Not Found", 404),
+            };
             let bucket = ctx.env.bucket("COMMUNITY_R2")?;
-            let obj = bucket.get(key).execute().await?;
+            let obj = bucket.get(&key).execute().await?;
             match obj {
                 Some(o) => {
                     let headers = Headers::new();
@@ -1058,7 +1231,39 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                     let bytes = o.body().unwrap().bytes().await?;
                     Ok(Response::from_bytes(bytes)?.with_headers(headers))
                 },
-                None => Response::error("Not Found", 404)
+                None => {
+                    let db = ctx.env.d1("COMMUNITY_DB")?;
+                    let mut candidate_ids: Vec<String> = Vec::new();
+
+                    if let Some(id) = extract_media_file_id(&key) {
+                        candidate_ids.push(id);
+                    }
+
+                    let mapping = db.prepare("SELECT url FROM drive_files WHERE id = ?")
+                        .bind(&[key.clone().into()])?
+                        .first::<Value>(None)
+                        .await?;
+                    if let Some(row) = mapping {
+                        if let Some(raw_url) = row["url"].as_str() {
+                            if let Some(mapped_id) = extract_media_file_id(raw_url) {
+                                if !candidate_ids.iter().any(|v| v == &mapped_id) {
+                                    candidate_ids.push(mapped_id);
+                                }
+                            }
+                        }
+                    }
+
+                    for drive_file_id in candidate_ids {
+                        if let Ok(Some((bytes, content_type))) = fetch_drive_media(&ctx.env, &drive_file_id).await {
+                            let headers = Headers::new();
+                            headers.set("Access-Control-Allow-Origin", "*")?;
+                            headers.set("Content-Type", &content_type)?;
+                            return Ok(Response::from_bytes(bytes)?.with_headers(headers));
+                        }
+                    }
+
+                    Response::error("Not Found", 404)
+                }
             }
         })
         .get_async("/api/music", |_req, ctx| async move {
