@@ -771,7 +771,7 @@
   {/if}
 
   <section
-    class="relative z-10 flex w-full flex-col text-[var(--color-text)] {embedded ? 'overflow-visible bg-transparent' : 'overflow-hidden h-[min(90vh,56rem)] max-w-6xl rounded-[36px] border border-white/10 bg-[rgba(var(--color-bg-rgb),0.96)] shadow-2xl backdrop-blur-2xl'}"
+    class="relative z-10 flex w-full flex-col text-[var(--color-text)] {embedded ? 'overflow-visible bg-transparent' : 'overflow-y-auto xl:overflow-hidden max-h-[90svh] max-w-6xl rounded-[36px] border border-white/10 bg-[rgba(var(--color-bg-rgb),0.96)] shadow-2xl backdrop-blur-2xl'}"
     transition:fly={{ y: 36, duration: 360 }}
   >
     {#if !embedded}
@@ -840,7 +840,7 @@
           {/if}
         </div>
 
-      <div class="{embedded ? 'space-y-6' : 'min-h-0 flex-1 overflow-y-auto px-5 pb-5 pt-1 md:px-6 md:pb-6'}">
+      <div class="{embedded ? 'space-y-6' : 'min-h-0 flex-1 px-5 pb-5 pt-1 md:px-6 md:pb-6 xl:overflow-y-auto'}">
         {#if activeTab === 'account'}
           <div class="space-y-6">
             {#if !$isAuthenticated}
