@@ -115,7 +115,7 @@ struct Post {
     level: Option<i32>,
     likes_count: Option<i32>,
     comments_count: Option<i32>,
-    viewer_has_liked: Option<bool>,
+    viewer_has_liked: Option<i32>,
     repost_data: Option<Box<Post>>,
 }
 
@@ -367,7 +367,18 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             let uid = url.query_pairs().find(|(k, _)| k == "userId").map(|(_, v)| v.to_string());
             
             let mut sql = "
-                SELECT p.*, u.username, u.avatar_url, u.xp, u.level,
+                SELECT
+                COALESCE(p.id, '') as id,
+                COALESCE(p.user_id, '') as user_id,
+                p.content,
+                p.media_json,
+                COALESCE(p.type, 'post') as type,
+                p.repost_id,
+                COALESCE(p.created_at, '') as created_at,
+                COALESCE(u.username, '[账号不可用]') as username,
+                u.avatar_url,
+                COALESCE(u.xp, 0) as xp,
+                COALESCE(u.level, 1) as level,
                 (SELECT COUNT(*) FROM likes WHERE post_id = p.id) as likes_count,
                 (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comments_count
             ".to_string();
@@ -378,7 +389,7 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                 sql += ", 0 as viewer_has_liked";
             }
             
-            sql += " FROM posts p JOIN users u ON p.user_id = u.id ";
+            sql += " FROM posts p LEFT JOIN users u ON p.user_id = u.id ";
             
             let mut params = Vec::new();
             if let Some(id) = uid {
@@ -394,7 +405,22 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             for mut post in results {
                 post.level = Some(utils::get_community_level_from_xp(post.xp.unwrap_or(0)));
                 if let Some(ref rid) = post.repost_id {
-                    let r_sql = "SELECT p.*, u.username, u.avatar_url FROM posts p JOIN users u ON p.user_id = u.id WHERE p.id = ?";
+                    let r_sql = "
+                        SELECT
+                        COALESCE(p.id, '') as id,
+                        COALESCE(p.user_id, '') as user_id,
+                        p.content,
+                        p.media_json,
+                        COALESCE(p.type, 'post') as type,
+                        p.repost_id,
+                        COALESCE(p.created_at, '') as created_at,
+                        COALESCE(u.username, '[账号不可用]') as username,
+                        u.avatar_url,
+                        COALESCE(u.xp, 0) as xp,
+                        COALESCE(u.level, 1) as level
+                        FROM posts p LEFT JOIN users u ON p.user_id = u.id
+                        WHERE p.id = ?
+                    ";
                     let r_post = db.prepare(r_sql).bind(&[rid.clone().into()])?.first::<Post>(None).await?;
                     post.repost_data = r_post.map(Box::new);
                 }
@@ -420,15 +446,34 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             let id = Uuid::new_v4().to_string();
             let media_json = if media.is_null() { None } else { Some(media.to_string()) };
             
-            db.prepare("INSERT INTO posts (id, user_id, content, media_json, type, repost_id) VALUES (?, ?, ?, ?, ?, ?)")
-                .bind(&[
-                    id.clone().into(),
-                    user.id.clone().into(),
-                    content.into(),
-                    media_json.into(),
-                    post_type.into(),
-                    repost_id.into()
-                ])?
+            let content_val = content.unwrap_or("");
+            let repost_id_val = repost_id.unwrap_or("");
+            
+            let media_json_val: Option<String> = media_json;
+            let repost_id_opt: Option<String> = if repost_id_val.is_empty() { None } else { Some(repost_id_val.to_string()) };
+            
+            let stmt = db.prepare("INSERT INTO posts (id, user_id, content, media_json, type, repost_id) VALUES (?, ?, ?, ?, ?, ?)");
+            
+            let mut params: Vec<wasm_bindgen::JsValue> = Vec::new();
+            params.push(id.clone().into());
+            params.push(user.id.clone().into());
+            params.push(content_val.into());
+            
+            if let Some(m) = media_json_val {
+                params.push(m.into());
+            } else {
+                params.push(wasm_bindgen::JsValue::NULL);
+            }
+            
+            params.push(post_type.into());
+            
+            if let Some(r) = repost_id_opt {
+                params.push(r.into());
+            } else {
+                params.push(wasm_bindgen::JsValue::NULL);
+            }
+            
+            stmt.bind(&params)?
                 .run().await?;
             
             award_xp(&db, &user.id, 5).await?;
