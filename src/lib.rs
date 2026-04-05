@@ -263,6 +263,63 @@ fn infer_extension_from_mime(mime_type: &str) -> &'static str {
     }
 }
 
+fn is_supported_music_key(key: &str) -> bool {
+    let lowered = key.trim().to_ascii_lowercase();
+    [".mp3", ".wav", ".m4a", ".aac", ".ogg", ".oga", ".flac", ".webm"]
+        .iter()
+        .any(|ext| lowered.ends_with(ext))
+}
+
+fn music_display_name_from_key(key: &str) -> String {
+    let filename = key
+        .trim()
+        .rsplit('/')
+        .next()
+        .unwrap_or(key)
+        .trim();
+
+    if filename.is_empty() {
+        return "Unknown".to_string();
+    }
+
+    match filename.rsplit_once('.') {
+        Some((stem, _)) if !stem.trim().is_empty() => stem.trim().to_string(),
+        _ => filename.to_string(),
+    }
+}
+
+fn infer_music_mime_from_key(key: &str) -> &'static str {
+    let lowered = key.to_ascii_lowercase();
+    if lowered.ends_with(".mp3") {
+        "audio/mpeg"
+    } else if lowered.ends_with(".wav") {
+        "audio/wav"
+    } else if lowered.ends_with(".m4a") {
+        "audio/mp4"
+    } else if lowered.ends_with(".aac") {
+        "audio/aac"
+    } else if lowered.ends_with(".ogg") || lowered.ends_with(".oga") {
+        "audio/ogg"
+    } else if lowered.ends_with(".flac") {
+        "audio/flac"
+    } else if lowered.ends_with(".webm") {
+        "audio/webm"
+    } else {
+        "audio/mpeg"
+    }
+}
+
+fn build_music_track_payload(key: &str) -> Value {
+    let name = music_display_name_from_key(key);
+    json!({
+        "id": key,
+        "name": name,
+        "title": name,
+        "artist": "Unknown",
+        "url": format!("/api/music/file/{}", key)
+    })
+}
+
 async fn fetch_drive_media(env: &Env, file_id: &str) -> Result<Option<(Vec<u8>, String)>> {
     if file_id.trim().is_empty() {
         return Ok(None);
@@ -1269,19 +1326,18 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         .get_async("/api/music", |_req, ctx| async move {
             let bucket = ctx.env.bucket("MUSIC_BUCKET")?;
             let objects = bucket.list().execute().await?;
-            let mut playlist = Vec::new();
+            let mut list = Vec::new();
             for obj in objects.objects() {
                 let key = obj.key();
-                if key.ends_with(".mp3") || key.ends_with(".m4a") || key.ends_with(".wav") {
-                    playlist.push(json!({
-                        "id": key,
-                        "title": key.split('.').next().unwrap_or(&key),
-                        "artist": "Unknown",
-                        "url": format!("/api/music/file/{}", key)
-                    }));
+                if is_supported_music_key(&key) {
+                    list.push(build_music_track_payload(&key));
                 }
             }
-            utils::json_resp(json!({"ok": true, "playlist": playlist}), 200)
+            utils::json_resp(json!({
+                "ok": true,
+                "list": list,
+                "playlist": list.clone()
+            }), 200)
         })
         .get_async("/api/music/file/:key", |_req, ctx| async move {
             let key = ctx.param("key").unwrap();
@@ -1290,7 +1346,12 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             match obj {
                 Some(o) => {
                     let headers = Headers::new();
-                    headers.set("Content-Type", "audio/mpeg")?;
+                    let content_type = o
+                        .http_metadata()
+                        .content_type
+                        .filter(|ct| !ct.trim().is_empty())
+                        .unwrap_or_else(|| infer_music_mime_from_key(key).to_string());
+                    headers.set("Content-Type", &content_type)?;
                     headers.set("Access-Control-Allow-Origin", "*")?;
                     let bytes = o.body().unwrap().bytes().await?;
                     Ok(Response::from_bytes(bytes)?.with_headers(headers))
