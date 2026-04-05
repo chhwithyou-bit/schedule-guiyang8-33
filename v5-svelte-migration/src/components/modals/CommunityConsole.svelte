@@ -771,7 +771,7 @@
   {/if}
 
   <section
-    class="relative z-10 flex w-full flex-col text-[var(--color-text)] {embedded ? 'overflow-visible bg-transparent' : 'overflow-y-auto xl:overflow-hidden max-h-[90svh] max-w-6xl rounded-[36px] border border-white/10 bg-[rgba(var(--color-bg-rgb),0.96)] shadow-2xl backdrop-blur-2xl'}"
+    class="relative z-10 flex w-full flex-col text-[var(--color-text)] {embedded ? 'overflow-visible bg-transparent' : 'overflow-y-auto xl:overflow-hidden max-h-[90svh] xl:h-[min(90vh,56rem)] max-w-6xl rounded-[36px] border border-white/10 bg-[rgba(var(--color-bg-rgb),0.96)] shadow-2xl backdrop-blur-2xl'}"
     transition:fly={{ y: 36, duration: 360 }}
   >
     {#if !embedded}
@@ -796,8 +796,8 @@
     </header>
     {/if}
 
-    <div class="{embedded ? 'space-y-5' : 'min-h-0 flex-1 overflow-hidden'}">
-      <div class="{embedded ? 'space-y-5' : 'flex h-full min-h-0 flex-col'}">
+    <div class="{embedded ? 'space-y-5' : 'flex-1 xl:min-h-0 xl:overflow-hidden'}">
+      <div class="{embedded ? 'space-y-5' : 'flex flex-col xl:h-full xl:min-h-0'}">
         <div class="rounded-[28px] border border-white/10 bg-white/5 p-3 shadow-lg backdrop-blur-xl {embedded ? '' : 'mx-4 mt-4 md:mx-5 md:mt-5'}">
           <div class="console-tab-shell flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between">
             <div class="console-tab-rail xl:max-w-[19rem]">
@@ -840,7 +840,7 @@
           {/if}
         </div>
 
-      <div class="{embedded ? 'space-y-6' : 'min-h-0 flex-1 px-5 pb-5 pt-1 md:px-6 md:pb-6 xl:overflow-y-auto'}">
+      <div class="{embedded ? 'space-y-6' : 'flex-1 px-5 pb-5 pt-1 md:px-6 md:pb-6 xl:min-h-0 xl:overflow-y-auto'}">
         {#if activeTab === 'account'}
           <div class="space-y-6">
             {#if !$isAuthenticated}
@@ -1014,7 +1014,7 @@
                 </div>
               </section>
 
-              <section class="flex min-h-0 flex-col rounded-[32px] border border-white/10 bg-white/5 p-4 shadow-xl">
+              <section class="flex flex-col rounded-[32px] border border-white/10 bg-white/5 p-4 shadow-xl xl:min-h-0">
                 <div class="mb-4 border-b border-white/10 pb-4">
                   <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">当前会话</p>
                   <h3 class="mt-1 text-2xl font-black tracking-tight">{selectedConversation?.title || '先选一个会话'}</h3>
@@ -1023,7 +1023,7 @@
                   {/if}
                 </div>
 
-                <div class="min-h-0 flex-1 overflow-y-visible rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.04)] p-4 xl:overflow-y-auto">
+                <div class="flex-1 overflow-y-visible rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.04)] p-4 xl:min-h-0 xl:overflow-y-auto">
                   {#if loadingMessages}
                     <div class="space-y-3">
                       {#each Array(4) as _}
