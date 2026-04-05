@@ -1867,11 +1867,11 @@ export default {
             const userId = url.searchParams.get('userId');
             const username = url.searchParams.get('username');
             let sql = `
-              SELECT p.*, u.username, u.avatar_url, u.background_url, u.signature, COALESCE(u.xp, 0) as xp, COALESCE(u.level, 1) as level, COALESCE(u.role, 'user') as role,
+              SELECT p.*, COALESCE(u.username, '[账号不可用]') as username, u.avatar_url, u.background_url, COALESCE(u.signature, '') as signature, COALESCE(u.xp, 0) as xp, COALESCE(u.level, 1) as level, COALESCE(u.role, 'user') as role,
               (SELECT COUNT(*) FROM likes WHERE post_id = p.id) as like_count,
               (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comment_count,
               (SELECT COUNT(*) FROM posts WHERE repost_id = p.id) as repost_count
-              FROM posts p JOIN users u ON p.user_id = u.id 
+              FROM posts p LEFT JOIN users u ON p.user_id = u.id 
             `;
             const params = [];
             const postId = url.searchParams.get('id');
@@ -1938,7 +1938,7 @@ export default {
         }
         if (request.method === 'POST') {
           const user = await getAuth();
-          if (!user) return jsonResp({ ok: false, msg: '请先登录' }, 401);
+          if (!user) return jsonResp({ ok: false, msg: '登录状态失效，请重新登录' }, 401);
           const { content, media, repost_id } = await request.json();
           const postId = crypto.randomUUID();
           await env.COMMUNITY_DB.prepare("INSERT INTO posts (id, user_id, content, media_json, type, repost_id) VALUES (?, ?, ?, ?, ?, ?)")
