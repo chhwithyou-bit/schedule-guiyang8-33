@@ -7,6 +7,10 @@
 
   type TabId = 'account' | 'chats' | 'groups' | 'drive' | 'notifications';
 
+  export let embedded = false;
+  export let accountOnly = false;
+  export let defaultTab: TabId = 'account';
+
   type Conversation = {
     id: string;
     kind: 'direct' | 'group';
@@ -70,7 +74,9 @@
     { id: 'notifications', label: '提醒' }
   ];
 
-  let activeTab: TabId = 'account';
+  $: availableTabs = accountOnly ? tabs.filter((tab) => tab.id === 'account') : tabs;
+
+  let activeTab: TabId = defaultTab;
   let authPrompt = '';
 
   let profileForm = {
@@ -121,13 +127,17 @@
     };
   }
 
-  $: if ($isAuthenticated && $user?.id && initializedForUserId !== $user.id) {
+  $: if ($isAuthenticated && !accountOnly && $user?.id && initializedForUserId !== $user.id) {
     initializedForUserId = $user.id;
     void bootstrapConsole();
   }
 
   $: if ($communityConsoleState.tab && activeTab !== $communityConsoleState.tab) {
     activeTab = $communityConsoleState.tab;
+  }
+
+  $: if (accountOnly && activeTab !== 'account') {
+    activeTab = 'account';
   }
 
   $: if (!$isAuthenticated) {
@@ -160,6 +170,10 @@
   }
 
   async function switchTab(tab: TabId) {
+    if (accountOnly && tab !== 'account') {
+      return;
+    }
+
     if (!$isAuthenticated && tab !== 'account') {
       requireAuth('登录后才能查看这一块。');
       return;
@@ -575,7 +589,9 @@
   function openMyProfile() {
     if (!$user) return;
     selectedProfile.set($user);
-    handleClose();
+    if (!embedded) {
+      handleClose();
+    }
   }
 
   function openAuth() {
@@ -691,7 +707,9 @@
 
   function openNodesView() {
     currentView.set('nodes');
-    handleClose();
+    if (!embedded) {
+      handleClose();
+    }
   }
 
   $: selectedConversation = conversations.find((item) => item.id === selectedConversationId) || null;
@@ -702,24 +720,30 @@
     : 0;
 
   function handleClose() {
+    if (embedded) {
+      return;
+    }
+
     resetCommunityConsoleState();
     closeModal();
   }
 </script>
 
-<div class="fixed inset-0 z-[10000] flex items-center justify-center p-4 md:p-6" transition:fade={{ duration: 220 }}>
-  <!-- svelte-ignore a11y-click-events-have-key-events -->
-  <!-- svelte-ignore a11y-no-static-element-interactions -->
-  <div class="absolute inset-0 bg-black/60 backdrop-blur-xl" on:click={handleClose}></div>
+<div class={embedded ? 'relative z-0' : 'fixed inset-0 z-[10000] flex items-center justify-center p-4 md:p-6'} transition:fade={{ duration: 220 }}>
+  {#if !embedded}
+    <!-- svelte-ignore a11y-click-events-have-key-events -->
+    <!-- svelte-ignore a11y-no-static-element-interactions -->
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-xl" on:click={handleClose}></div>
+  {/if}
 
   <section
-    class="relative z-10 flex h-[min(90vh,56rem)] w-full max-w-6xl flex-col overflow-hidden rounded-[36px] border border-white/10 bg-[rgba(var(--color-bg-rgb),0.96)] text-[var(--color-text)] shadow-2xl backdrop-blur-2xl"
+    class="relative z-10 flex w-full flex-col rounded-[36px] border border-white/10 bg-[rgba(var(--color-bg-rgb),0.96)] text-[var(--color-text)] backdrop-blur-2xl {embedded ? 'overflow-visible shadow-xl' : 'overflow-hidden h-[min(90vh,56rem)] max-w-6xl shadow-2xl'}"
     transition:fly={{ y: 36, duration: 360 }}
   >
     <header class="flex items-center justify-between gap-4 border-b border-white/10 px-5 py-4 md:px-6">
       <div>
-        <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">个人面板</p>
-        <h2 class="mt-1 text-2xl font-black tracking-tight">账号 / 聊天 / 网盘</h2>
+        <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">{embedded ? '社区消息台' : '个人面板'}</p>
+        <h2 class="mt-1 text-2xl font-black tracking-tight">{accountOnly ? '账号面板' : '聊天 / 群组 / 网盘 / 提醒'}</h2>
       </div>
 
       <div class="flex items-center gap-3">
@@ -728,16 +752,18 @@
             {$user?.username || 'member'}
           </div>
         {/if}
-        <button type="button" class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={handleClose}>
-          关闭
-        </button>
+        {#if !embedded}
+          <button type="button" class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={handleClose}>
+            关闭
+          </button>
+        {/if}
       </div>
     </header>
 
-    <div class="grid min-h-0 flex-1 lg:grid-cols-[15rem_minmax(0,1fr)]">
+    <div class="{embedded ? 'grid lg:grid-cols-[15rem_minmax(0,1fr)]' : 'grid min-h-0 flex-1 lg:grid-cols-[15rem_minmax(0,1fr)]'}">
       <aside class="border-b border-white/10 p-4 lg:border-b-0 lg:border-r">
         <div class="grid grid-cols-2 gap-2 lg:grid-cols-1">
-          {#each tabs as tab}
+          {#each availableTabs as tab}
             <button
               type="button"
               class="rounded-2xl px-4 py-3 text-left text-xs font-black uppercase tracking-[0.18em] transition-all {activeTab === tab.id ? 'bg-[var(--color-primary)] text-[var(--color-bg)] shadow-lg' : 'border border-white/10 bg-white/5 opacity-75 hover:opacity-100'}"
@@ -768,7 +794,7 @@
         </div>
       </aside>
 
-      <div class="min-h-0 overflow-y-auto p-5 md:p-6">
+      <div class="{embedded ? 'p-5 md:p-6' : 'min-h-0 overflow-y-auto p-5 md:p-6'}">
         {#if activeTab === 'account'}
           <div class="space-y-6">
             {#if !$isAuthenticated}
@@ -886,7 +912,7 @@
               </button>
             </div>
           {:else}
-            <div class="grid min-h-[34rem] gap-5 xl:grid-cols-[18rem_minmax(0,1fr)]">
+            <div class="{embedded ? 'grid gap-5 xl:grid-cols-[18rem_minmax(0,1fr)]' : 'grid min-h-[34rem] gap-5 xl:grid-cols-[18rem_minmax(0,1fr)]'}">
               <section class="rounded-[32px] border border-white/10 bg-white/5 p-4 shadow-xl">
                 <div class="mb-4 flex items-center justify-between">
                   <div>
@@ -951,7 +977,7 @@
                   {/if}
                 </div>
 
-                <div class="min-h-0 flex-1 overflow-y-auto rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.04)] p-4">
+                <div class="min-h-0 flex-1 overflow-y-visible rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.04)] p-4 xl:overflow-y-auto">
                   {#if loadingMessages}
                     <div class="space-y-3">
                       {#each Array(4) as _}

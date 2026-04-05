@@ -866,7 +866,7 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                 FROM conversations c
                 JOIN conversation_participants cp ON c.id = cp.conversation_id
                 WHERE cp.user_id = ? ORDER BY c.updated_at DESC
-            ").bind(&[user.id.into()])?.all().await?.results::<Conversation>()?;
+            ").bind(&[user.id.clone().into()])?.all().await?.results::<Conversation>()?;
             
             let mut conversations = Vec::new();
             for mut conv in results {
@@ -947,7 +947,7 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             
             utils::json_resp(json!({"ok": true}), 200)
         })
-        .get_async("/api/community/link-preview", |req, ctx| async move {
+        .get_async("/api/community/link-preview", |req, _ctx| async move {
             let url = req.url()?;
             let target_url = url.query_pairs().find(|(k, _)| k == "url").map(|(_, v)| v.to_string()).unwrap_or_default();
             if target_url.is_empty() { return utils::json_resp(json!({"ok": false, "msg": "缺少链接"}), 400); }
@@ -994,7 +994,7 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             let key = format!("{}-{}", Uuid::new_v4(), file.name());
             let bytes = file.bytes().await?;
             
-            bucket.put(&key, bytes).content_type(file.type_()).execute().await?;
+            bucket.put(&key, bytes).execute().await?;
             
             // In a real app, you'd return a public URL. Here we return the key.
             utils::json_resp(json!({"ok": true, "url": format!("/api/community/media/{}", key)}), 200)
@@ -1005,7 +1005,7 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             let obj = bucket.get(key).execute().await?;
             match obj {
                 Some(o) => {
-                    let mut headers = Headers::new();
+                    let headers = Headers::new();
                     headers.set("Access-Control-Allow-Origin", "*")?;
                     if let Some(ct) = o.http_metadata().content_type {
                         headers.set("Content-Type", &ct)?;

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { fade, fly } from 'svelte/transition';
   import { tick } from 'svelte';
-  import { selectedProfile, isAuthenticated, user } from '../../stores/appState';
+  import { currentView, selectedProfile, isAuthenticated, user } from '../../stores/appState';
   import { openModal } from '../../stores/modalState';
   import PostCard from './PostCard.svelte';
   import { communityFetch, persistCommunitySession } from '../../lib/communityApi';
@@ -215,7 +215,7 @@
         conversationId: data.conversation?.id || ''
       });
       selectedProfile.set(null);
-      openModal('community-console');
+      currentView.set('console');
     } catch (e) {
       console.error('Direct chat failed', e);
     }

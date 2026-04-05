@@ -25,6 +25,7 @@
 
   import ScheduleView from './components/views/ScheduleView.svelte';
   import CommunityView from './components/views/CommunityView.svelte';
+  import ConsoleView from './components/views/ConsoleView.svelte';
   import NodesView from './components/views/NodesView.svelte';
   import XiangqiView from './components/views/XiangqiView.svelte';
   import AdminView from './components/views/AdminView.svelte';
@@ -42,6 +43,7 @@
   const viewMap: Record<string, any> = {
     schedule: ScheduleView,
     community: CommunityView,
+    console: ConsoleView,
     nodes: NodesView,
     xiangqi: XiangqiView,
     admin: AdminView
@@ -173,8 +175,6 @@
 
   {#if $activeModal === 'auth'}
     <AuthModal />
-  {:else if $activeModal === 'community-console'}
-    <CommunityConsole />
   {:else if $activeModal === 'comm-post'}
     <PostModal />
   {/if}

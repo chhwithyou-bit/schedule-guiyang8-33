@@ -5,7 +5,8 @@
   import PostCard from './PostCard.svelte';
   import PostDetail from './PostDetail.svelte';
   import ProfileView from './ProfileView.svelte';
-  import { isAuthenticated, selectedPost, selectedProfile, user } from '../../stores/appState';
+  import { currentView, isAuthenticated, selectedPost, selectedProfile, user } from '../../stores/appState';
+  import { setCommunityConsoleState, type CommunityConsoleTab } from '../../stores/communityConsoleState';
   import { openModal } from '../../stores/modalState';
   import { communityFetch } from '../../lib/communityApi';
 
@@ -66,6 +67,16 @@
 
     openModal('comm-post');
   }
+
+  function openConsoleView(event?: Event) {
+    event?.stopPropagation();
+    currentView.set('console');
+  }
+
+  function openConsoleTab(tab: CommunityConsoleTab) {
+    setCommunityConsoleState({ tab, conversationId: '' });
+    currentView.set('console');
+  }
 </script>
 
 <div class="community-view">
@@ -93,7 +104,7 @@
         >
           <button 
             type="button" 
-            on:click|stopPropagation={() => openModal('community-console')} 
+            on:click={openConsoleView}
             class="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-[20px] bg-[var(--color-primary)] text-lg font-black text-[var(--color-bg)] shadow-lg hover:scale-105 transition-transform"
             aria-label="管理个人资料"
           >
@@ -173,6 +184,37 @@
           class="community-action-panel__ghost rounded-full px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105"
         >
           刷新动态
+        </button>
+      </div>
+
+      <div class="mt-3 flex flex-wrap gap-2">
+        <button
+          type="button"
+          on:click={() => openConsoleTab('chats')}
+          class="community-action-panel__ghost rounded-full px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105"
+        >
+          聊天
+        </button>
+        <button
+          type="button"
+          on:click={() => openConsoleTab('groups')}
+          class="community-action-panel__ghost rounded-full px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105"
+        >
+          群组
+        </button>
+        <button
+          type="button"
+          on:click={() => openConsoleTab('drive')}
+          class="community-action-panel__ghost rounded-full px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105"
+        >
+          网盘
+        </button>
+        <button
+          type="button"
+          on:click={() => openConsoleTab('notifications')}
+          class="community-action-panel__ghost rounded-full px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105"
+        >
+          提醒
         </button>
       </div>
     </div>

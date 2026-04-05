@@ -1,12 +1,16 @@
 <script lang="ts">
   import { onMount } from 'svelte';
 
-  import { user, isAuthenticated, isAdmin, selectedProfile } from '../../stores/appState';
+  import { currentView, user, isAuthenticated, isAdmin, selectedProfile } from '../../stores/appState';
   import { openModal } from '../../stores/modalState';
 
   let y = 0;
   let lastY = 0;
   let isVisible = true;
+
+  function openConsoleView() {
+    currentView.set('console');
+  }
 
   onMount(() => {
     // Auth init
@@ -53,13 +57,13 @@
     <div class="flex items-center gap-6">
       {#if $isAuthenticated}
         <button
-          on:click={() => openModal('community-console')}
+          on:click={openConsoleView}
           class="hidden px-4 py-2.5 rounded-full border border-white/10 bg-white/5 text-[10px] font-black uppercase tracking-[0.18em] hover:scale-105 active:scale-95 transition-all shadow-sm md:block"
         >
           控制台
         </button>
         <button 
-          on:click={() => openModal('community-console')}
+          on:click={openConsoleView}
           class="w-10 h-10 flex items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 hover:scale-110 transition-transform overflow-hidden shadow-sm"
         >
           {#if $user.avatar_url}
@@ -70,7 +74,7 @@
         </button>
       {:else}
         <button
-          on:click={() => openModal('community-console')}
+          on:click={openConsoleView}
           class="hidden px-4 py-2.5 rounded-full border border-white/10 bg-white/5 text-[10px] font-black uppercase tracking-[0.18em] hover:scale-105 active:scale-95 transition-all shadow-sm md:block"
         >
           账号

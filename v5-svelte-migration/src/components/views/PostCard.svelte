@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { selectedPost, isAuthenticated, selectedProfile } from '../../stores/appState';
+  import { currentView, selectedPost, isAuthenticated, selectedProfile } from '../../stores/appState';
   import { openModal } from '../../stores/modalState';
   import { communityFetch } from '../../lib/communityApi';
 
@@ -32,7 +32,7 @@
     e.stopPropagation();
     const currentUser = get(user);
     if (currentUser && currentUser.id === post.user_id) {
-      openModal('community-console');
+      currentView.set('console');
       return;
     }
     selectedProfile.set({

@@ -16,8 +16,13 @@
   const viewCopy: Record<string, { eyebrow: string; detail: string; short: string }> = {
     community: {
       eyebrow: '8community',
-      detail: '广场、聊天、群组和控制台都收在这一角。',
+      detail: '广场动态和发帖入口都收在这一角。',
       short: '看近况'
+    },
+    console: {
+      eyebrow: 'main console',
+      detail: '聊天、群组、网盘、提醒现在是独立主选项卡。',
+      short: '开消息台'
     },
     schedule: {
       eyebrow: 'today flow',
@@ -43,6 +48,7 @@
 
   $: views = [
     { id: 'community', label: '社区' },
+    { id: 'console', label: '消息台' },
     { id: 'schedule', label: '课表' },
     { id: 'xiangqi', label: '象棋' },
     { id: 'nodes', label: '节点' },
@@ -101,7 +107,7 @@
 
   function openConsole() {
     closeLiquidBar();
-    openModal('community-console');
+    currentView.set('console');
   }
 
   function openComposer() {
@@ -216,11 +222,11 @@
           <div class="liquid-action-stack">
             <button type="button" class="liquid-console-btn" on:click={openConsole}>
               <span class="liquid-action-copy">
-                <strong>{$currentView === 'community' ? '打开控制台' : '打开个人面板'}</strong>
+                <strong>{$currentView === 'console' ? '打开个人面板' : '打开消息台'}</strong>
                 <small>
-                  {$currentView === 'community'
-                    ? '聊天、群组、网盘和提醒都在这里。'
-                    : '资料、消息和常用入口统一放在这里。'}
+                  {$currentView === 'console'
+                    ? '账号资料、头像和签名编辑都在这里。'
+                    : '聊天、群组、网盘和提醒都在主选项卡。'}
                 </small>
               </span>
               <span class="liquid-action-glyph" aria-hidden="true">↗</span>
