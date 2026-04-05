@@ -796,8 +796,8 @@
     </header>
     {/if}
 
-    <div class="{embedded ? 'space-y-5' : 'flex-1 xl:min-h-0 xl:overflow-hidden'}">
-      <div class="{embedded ? 'space-y-5' : 'flex flex-col xl:h-full xl:min-h-0'}">
+    <div class="{embedded ? 'space-y-5' : 'xl:flex-1 xl:min-h-0 xl:overflow-hidden'}">
+      <div class="{embedded ? 'space-y-5' : 'xl:flex xl:flex-col xl:h-full xl:min-h-0'}">
         <div class="rounded-[28px] border border-white/10 bg-white/5 p-3 shadow-lg backdrop-blur-xl {embedded ? '' : 'mx-4 mt-4 md:mx-5 md:mt-5'}">
           <div class="console-tab-shell flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between">
             <div class="console-tab-rail xl:max-w-[19rem]">
@@ -840,7 +840,7 @@
           {/if}
         </div>
 
-      <div class="{embedded ? 'space-y-6' : 'flex-1 px-5 pb-5 pt-1 md:px-6 md:pb-6 xl:min-h-0 xl:overflow-y-auto'}">
+      <div class="{embedded ? 'space-y-6' : 'px-5 pb-5 pt-1 md:px-6 md:pb-6 xl:flex-1 xl:min-h-0 xl:overflow-y-auto'}">
         {#if activeTab === 'account'}
           <div class="space-y-6">
             {#if !$isAuthenticated}
