@@ -70,6 +70,7 @@
 
   function openConsoleView(event?: Event) {
     event?.stopPropagation();
+    setCommunityConsoleState({ tab: 'account', conversationId: '' });
     currentView.set('console');
   }
 
@@ -77,6 +78,44 @@
     setCommunityConsoleState({ tab, conversationId: '' });
     currentView.set('console');
   }
+
+  const consoleDestinations: Array<{
+    id: CommunityConsoleTab;
+    label: string;
+    title: string;
+    detail: string;
+  }> = [
+    {
+      id: 'account',
+      label: '个人',
+      title: '资料与账号',
+      detail: '头像、签名、主页入口都收在这里。'
+    },
+    {
+      id: 'chats',
+      label: '聊天',
+      title: '私聊消息',
+      detail: '直接回到最近会话，不用先进控制台。'
+    },
+    {
+      id: 'groups',
+      label: '群组',
+      title: '群聊与创建',
+      detail: '建群、回群、继续聊，分区更清楚。'
+    },
+    {
+      id: 'drive',
+      label: '网盘',
+      title: '文件中转站',
+      detail: '上传和整理文件，单独放一格更直观。'
+    },
+    {
+      id: 'notifications',
+      label: '提醒',
+      title: '互动提醒',
+      detail: '最新提及、互动和通知统一查看。'
+    }
+  ];
 </script>
 
 <div class="community-view">
@@ -187,35 +226,34 @@
         </button>
       </div>
 
-      <div class="mt-3 flex flex-wrap gap-2">
-        <button
-          type="button"
-          on:click={() => openConsoleTab('chats')}
-          class="community-action-panel__ghost rounded-full px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105"
-        >
-          聊天
-        </button>
-        <button
-          type="button"
-          on:click={() => openConsoleTab('groups')}
-          class="community-action-panel__ghost rounded-full px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105"
-        >
-          群组
-        </button>
-        <button
-          type="button"
-          on:click={() => openConsoleTab('drive')}
-          class="community-action-panel__ghost rounded-full px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105"
-        >
-          网盘
-        </button>
-        <button
-          type="button"
-          on:click={() => openConsoleTab('notifications')}
-          class="community-action-panel__ghost rounded-full px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105"
-        >
-          提醒
-        </button>
+      <div class="mt-5">
+        <div class="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <p class="text-[10px] font-black uppercase tracking-[0.22em] opacity-35">控制台分区</p>
+            <p class="mt-1 text-sm font-medium opacity-65">不再挤成一个笼统入口，常用内容直接分到选项卡。</p>
+          </div>
+          <button
+            type="button"
+            on:click={openConsoleView}
+            class="community-action-panel__ghost rounded-full px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105"
+          >
+            全部打开
+          </button>
+        </div>
+
+        <div class="community-console-grid">
+          {#each consoleDestinations as item}
+            <button
+              type="button"
+              on:click={() => openConsoleTab(item.id)}
+              class="community-console-tile text-left transition-transform duration-300 hover:-translate-y-1"
+            >
+              <span class="community-console-tile__eyebrow">{item.label}</span>
+              <strong class="mt-2 block text-base font-black tracking-tight">{item.title}</strong>
+              <span class="mt-2 block text-sm font-medium leading-6 opacity-65">{item.detail}</span>
+            </button>
+          {/each}
+        </div>
       </div>
     </div>
   </section>
@@ -321,5 +359,35 @@
   .community-action-panel__ghost {
     border: 1px solid rgba(var(--glow-primary-rgb), 0.14);
     background: rgba(var(--color-bg-rgb), 0.18);
+  }
+
+  .community-console-grid {
+    display: grid;
+    gap: 0.85rem;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  }
+
+  .community-console-tile {
+    border: 1px solid rgba(var(--glow-primary-rgb), 0.14);
+    border-radius: 1.5rem;
+    padding: 1rem;
+    background:
+      linear-gradient(145deg, rgba(var(--glow-primary-rgb), 0.1), rgba(var(--glow-secondary-rgb), 0.06)),
+      rgba(var(--color-bg-rgb), 0.16);
+    box-shadow:
+      0 16px 28px rgba(var(--shadow-rgb), 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+
+  .community-console-tile__eyebrow {
+    display: inline-flex;
+    border-radius: 999px;
+    padding: 0.35rem 0.65rem;
+    background: rgba(255, 255, 255, 0.08);
+    font-size: 0.6rem;
+    font-weight: 900;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    opacity: 0.68;
   }
 </style>

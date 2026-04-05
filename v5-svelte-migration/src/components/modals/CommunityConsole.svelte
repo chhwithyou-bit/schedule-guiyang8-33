@@ -4,6 +4,7 @@
   import { currentView, isAdmin, isAuthenticated, selectedProfile, user } from '../../stores/appState';
   import { communityFetch, persistCommunitySession } from '../../lib/communityApi';
   import { communityConsoleState, resetCommunityConsoleState, setCommunityConsoleState } from '../../stores/communityConsoleState';
+  import { onMount } from 'svelte';
 
   type TabId = 'account' | 'chats' | 'groups' | 'drive' | 'notifications';
 
@@ -74,6 +75,14 @@
     { id: 'notifications', label: '提醒' }
   ];
 
+  const tabHero: Record<TabId, { eyebrow: string; title: string }> = {
+    account: { eyebrow: 'account', title: '资料与账号设置' },
+    chats: { eyebrow: 'messages', title: '最近会话与私聊' },
+    groups: { eyebrow: 'groups', title: '群聊与建群管理' },
+    drive: { eyebrow: 'drive', title: '文件与网盘空间' },
+    notifications: { eyebrow: 'alerts', title: '互动提醒与通知' }
+  };
+
   const tabDescriptions: Record<TabId, string> = {
     account: '管理账号、资料和个性设置。',
     chats: '把私聊和群聊消息集中处理。',
@@ -83,6 +92,7 @@
   };
 
   $: availableTabs = accountOnly ? tabs.filter((tab) => tab.id === 'account') : tabs;
+  $: activeTabMeta = availableTabs.find((tab) => tab.id === activeTab) || availableTabs[0];
 
   let activeTab: TabId = defaultTab;
   let authPrompt = '';
@@ -126,6 +136,22 @@
   let notificationError = '';
 
   let initializedForUserId = '';
+
+  onMount(() => {
+    const handleConsoleTabRequest = (event: Event) => {
+      const customEvent = event as CustomEvent<{ tab?: TabId }>;
+      const nextTab = customEvent.detail?.tab;
+      if (nextTab) {
+        void switchTab(nextTab);
+      }
+    };
+
+    window.addEventListener('community-console-tab-request', handleConsoleTabRequest as EventListener);
+
+    return () => {
+      window.removeEventListener('community-console-tab-request', handleConsoleTabRequest as EventListener);
+    };
+  });
 
   $: if ($user) {
     profileForm = {
@@ -773,21 +799,26 @@
     <div class="{embedded ? 'space-y-5' : 'min-h-0 flex-1 overflow-hidden'}">
       <div class="{embedded ? 'space-y-5' : 'flex h-full min-h-0 flex-col'}">
         <div class="rounded-[28px] border border-white/10 bg-white/5 p-3 shadow-lg backdrop-blur-xl {embedded ? '' : 'mx-4 mt-4 md:mx-5 md:mt-5'}">
-          <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div class="min-w-0">
-              <div class="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div class="console-tab-shell flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between">
+            <div class="console-tab-rail xl:max-w-[19rem]">
+              <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">{tabHero[activeTab].eyebrow}</p>
+              <h3 class="mt-2 text-2xl font-black tracking-tight">{tabHero[activeTab].title}</h3>
+              <p class="mt-2 text-sm font-medium leading-7 opacity-65">{tabDescriptions[activeTab]}</p>
+            </div>
+
+            <div class="min-w-0 flex-1">
+              <div class="console-tab-grid">
           {#each availableTabs as tab}
             <button
               type="button"
-                  class="shrink-0 rounded-full border px-4 py-3 text-left text-[11px] font-black uppercase tracking-[0.18em] transition-all {activeTab === tab.id ? 'border-[var(--color-primary)] bg-[var(--color-primary)] text-[var(--color-bg)] shadow-lg' : 'border-white/10 bg-[rgba(255,255,255,0.04)] opacity-75 hover:border-white/20 hover:opacity-100'}"
+                  class="console-tab-card {activeTab === tab.id ? 'is-active' : ''}"
               on:click={() => switchTab(tab.id)}
             >
-              {tab.label}
+              <span class="console-tab-card__label">{tab.label}</span>
+              <span class="console-tab-card__hint">{tabDescriptions[tab.id]}</span>
             </button>
           {/each}
               </div>
-
-              <p class="mt-3 text-sm font-medium opacity-65">{tabDescriptions[activeTab]}</p>
             </div>
 
             <div class="flex flex-wrap gap-2 lg:justify-end">
@@ -1288,3 +1319,62 @@
     </div>
   </section>
 </div>
+
+<style>
+  .console-tab-shell {
+    align-items: stretch;
+  }
+
+  .console-tab-grid {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
+  }
+
+  .console-tab-card {
+    display: flex;
+    min-height: 6.4rem;
+    flex-direction: column;
+    justify-content: space-between;
+    border-radius: 1.35rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.04);
+    padding: 0.95rem;
+    text-align: left;
+    transition:
+      transform 0.22s ease,
+      background 0.22s ease,
+      border-color 0.22s ease,
+      box-shadow 0.22s ease;
+  }
+
+  .console-tab-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(255, 255, 255, 0.16);
+    background: rgba(255, 255, 255, 0.07);
+  }
+
+  .console-tab-card.is-active {
+    border-color: color-mix(in srgb, var(--color-primary) 72%, white 28%);
+    background: linear-gradient(145deg, rgba(var(--glow-primary-rgb), 0.2), rgba(255, 255, 255, 0.08));
+    box-shadow:
+      0 16px 28px rgba(var(--shadow-rgb), 0.16),
+      inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  }
+
+  .console-tab-card__label {
+    font-size: 0.78rem;
+    font-weight: 900;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  .console-tab-card__hint {
+    margin-top: 0.7rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    line-height: 1.5;
+    opacity: 0.68;
+    text-transform: none;
+  }
+</style>

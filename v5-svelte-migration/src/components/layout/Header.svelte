@@ -3,12 +3,19 @@
 
   import { currentView, user, isAuthenticated, isAdmin, selectedProfile } from '../../stores/appState';
   import { openModal } from '../../stores/modalState';
+  import { setCommunityConsoleState } from '../../stores/communityConsoleState';
 
   let y = 0;
   let lastY = 0;
   let isVisible = true;
 
   function openConsoleView() {
+    setCommunityConsoleState({ tab: 'account', conversationId: '' });
+    currentView.set('console');
+  }
+
+  function openConsoleTab(tab: 'account' | 'chats') {
+    setCommunityConsoleState({ tab, conversationId: '' });
     currentView.set('console');
   }
 
@@ -56,12 +63,20 @@
     <!-- Navigation / Profile -->
     <div class="flex items-center gap-6">
       {#if $isAuthenticated}
-        <button
-          on:click={openConsoleView}
-          class="hidden px-4 py-2.5 rounded-full border border-white/10 bg-white/5 text-[10px] font-black uppercase tracking-[0.18em] hover:scale-105 active:scale-95 transition-all shadow-sm md:block"
-        >
-          控制台
-        </button>
+        <div class="hidden items-center gap-2 rounded-full border border-white/10 bg-white/5 p-1 shadow-sm md:flex">
+          <button
+            on:click={openConsoleView}
+            class="header-switch {($currentView === 'console') ? 'is-active' : ''}"
+          >
+            个人
+          </button>
+          <button
+            on:click={() => openConsoleTab('chats')}
+            class="header-switch {($currentView === 'console') ? 'is-active-soft' : ''}"
+          >
+            消息
+          </button>
+        </div>
         <button 
           on:click={openConsoleView}
           class="w-10 h-10 flex items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 hover:scale-110 transition-transform overflow-hidden shadow-sm"
@@ -75,9 +90,9 @@
       {:else}
         <button
           on:click={openConsoleView}
-          class="hidden px-4 py-2.5 rounded-full border border-white/10 bg-white/5 text-[10px] font-black uppercase tracking-[0.18em] hover:scale-105 active:scale-95 transition-all shadow-sm md:block"
+          class="hidden header-switch-shell md:inline-flex"
         >
-          账号
+          账号入口
         </button>
         <button 
           on:click={() => openModal('auth')}
@@ -89,3 +104,43 @@
     </div>
   </div>
 </header>
+
+<style>
+  .header-switch-shell {
+    align-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+    padding: 0.25rem;
+    font-size: 0.625rem;
+    font-weight: 900;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    transition: transform 0.2s ease;
+  }
+
+  .header-switch {
+    border-radius: 999px;
+    padding: 0.6rem 0.9rem;
+    font-size: 0.625rem;
+    font-weight: 900;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    transition:
+      transform 0.2s ease,
+      background 0.2s ease,
+      color 0.2s ease,
+      opacity 0.2s ease;
+  }
+
+  .header-switch.is-active {
+    background: var(--color-primary);
+    color: var(--color-bg);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.12);
+  }
+
+  .header-switch.is-active-soft {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--color-text);
+  }
+</style>

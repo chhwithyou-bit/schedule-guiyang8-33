@@ -110,6 +110,16 @@
     currentView.set('console');
   }
 
+  function openConsoleTab(tab: 'account' | 'chats') {
+    closeLiquidBar();
+    window.dispatchEvent(
+      new CustomEvent('community-console-tab-request', {
+        detail: { tab }
+      })
+    );
+    currentView.set('console');
+  }
+
   function openComposer() {
     closeLiquidBar();
     openModal($isAuthenticated ? 'comm-post' : 'auth');
@@ -220,17 +230,23 @@
           </div>
 
           <div class="liquid-action-stack">
-            <button type="button" class="liquid-console-btn" on:click={openConsole}>
-              <span class="liquid-action-copy">
-                <strong>{$currentView === 'console' ? '打开个人面板' : '打开消息台'}</strong>
-                <small>
-                  {$currentView === 'console'
-                    ? '账号资料、头像和签名编辑都在这里。'
-                    : '聊天、群组、网盘和提醒都在主选项卡。'}
-                </small>
-              </span>
-              <span class="liquid-action-glyph" aria-hidden="true">↗</span>
-            </button>
+            <div class="liquid-console-split">
+              <button type="button" class="liquid-console-btn is-primary" on:click={() => openConsoleTab('account')}>
+                <span class="liquid-action-copy">
+                  <strong>个人面板</strong>
+                  <small>资料、头像和账号设置单独进。</small>
+                </span>
+                <span class="liquid-action-glyph" aria-hidden="true">◦</span>
+              </button>
+
+              <button type="button" class="liquid-console-btn" on:click={() => openConsoleTab('chats')}>
+                <span class="liquid-action-copy">
+                  <strong>消息选项卡</strong>
+                  <small>聊天、群组、网盘和提醒分栏进入。</small>
+                </span>
+                <span class="liquid-action-glyph" aria-hidden="true">↗</span>
+              </button>
+            </div>
 
             {#if $currentView === 'community'}
               <button type="button" class="liquid-compose-btn" on:click={openComposer}>
@@ -553,6 +569,11 @@
     margin-top: 0.9rem;
   }
 
+  .liquid-console-split {
+    display: grid;
+    gap: 0.72rem;
+  }
+
   .liquid-console-btn,
   .liquid-compose-btn {
     display: flex;
@@ -572,6 +593,12 @@
 
   .liquid-console-btn {
     background: rgba(255, 255, 255, 0.08);
+  }
+
+  .liquid-console-btn.is-primary {
+    background:
+      linear-gradient(160deg, rgba(var(--glow-primary-rgb), 0.22), rgba(255, 255, 255, 0.08)),
+      rgba(255, 255, 255, 0.08);
   }
 
   .liquid-compose-btn {
@@ -664,7 +691,8 @@
     border-radius: inherit;
     background:
       linear-gradient(160deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.02) 62%),
-      linear-gradient(135deg, var(--theme-color-a) 0 50%, var(--theme-color-b) 50% 100%);
+      radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.24), transparent 38%),
+      var(--theme-color-a);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.28),
       0 10px 20px rgba(var(--shadow-rgb), 0.2);

@@ -2,6 +2,7 @@
   import { currentView, selectedPost, isAuthenticated, selectedProfile } from '../../stores/appState';
   import { openModal } from '../../stores/modalState';
   import { communityFetch } from '../../lib/communityApi';
+  import { setCommunityConsoleState } from '../../stores/communityConsoleState';
 
   export let post: any;
   let isLiking = false;
@@ -32,6 +33,7 @@
     e.stopPropagation();
     const currentUser = get(user);
     if (currentUser && currentUser.id === post.user_id) {
+      setCommunityConsoleState({ tab: 'account', conversationId: '' });
       currentView.set('console');
       return;
     }
