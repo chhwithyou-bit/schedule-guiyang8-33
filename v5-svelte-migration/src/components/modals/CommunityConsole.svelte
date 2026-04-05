@@ -763,15 +763,15 @@
   }
 </script>
 
-<div class={embedded ? 'relative z-0' : 'fixed inset-0 z-[10000] flex items-center justify-center p-4 md:p-6'} transition:fade={{ duration: 220 }}>
+<div class={embedded ? 'relative z-0' : 'fixed inset-0 z-[10000] overflow-y-auto xl:overflow-hidden xl:flex xl:items-center xl:justify-center p-4 md:p-6'} transition:fade={{ duration: 220 }}>
   {#if !embedded}
     <!-- svelte-ignore a11y-click-events-have-key-events -->
     <!-- svelte-ignore a11y-no-static-element-interactions -->
-    <div class="absolute inset-0 bg-black/60 backdrop-blur-xl" on:click={handleClose}></div>
+    <div class="fixed inset-0 bg-black/60 backdrop-blur-xl" on:click={handleClose}></div>
   {/if}
 
   <section
-    class="relative z-10 flex w-full flex-col text-[var(--color-text)] {embedded ? 'overflow-visible bg-transparent' : 'overflow-y-auto xl:overflow-hidden max-h-[90svh] xl:h-[min(90vh,56rem)] max-w-6xl rounded-[36px] border border-white/10 bg-[rgba(var(--color-bg-rgb),0.96)] shadow-2xl backdrop-blur-2xl'}"
+    class="relative z-10 flex w-full flex-col text-[var(--color-text)] {embedded ? 'overflow-visible bg-transparent' : 'mx-auto xl:overflow-hidden xl:h-[min(90vh,56rem)] max-w-6xl rounded-[36px] border border-white/10 bg-[rgba(var(--color-bg-rgb),0.96)] shadow-2xl backdrop-blur-2xl'}"
     transition:fly={{ y: 36, duration: 360 }}
   >
     {#if !embedded}
