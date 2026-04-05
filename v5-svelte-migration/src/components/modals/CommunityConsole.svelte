@@ -74,6 +74,14 @@
     { id: 'notifications', label: '提醒' }
   ];
 
+  const tabDescriptions: Record<TabId, string> = {
+    account: '管理账号、资料和个性设置。',
+    chats: '把私聊和群聊消息集中处理。',
+    groups: '新建群组并快速回到已有群聊。',
+    drive: '浏览、上传和整理社区网盘。',
+    notifications: '查看最近的互动和提醒。'
+  };
+
   $: availableTabs = accountOnly ? tabs.filter((tab) => tab.id === 'account') : tabs;
 
   let activeTab: TabId = defaultTab;
@@ -737,9 +745,10 @@
   {/if}
 
   <section
-    class="relative z-10 flex w-full flex-col rounded-[36px] border border-white/10 bg-[rgba(var(--color-bg-rgb),0.96)] text-[var(--color-text)] backdrop-blur-2xl {embedded ? 'overflow-visible shadow-xl' : 'overflow-hidden h-[min(90vh,56rem)] max-w-6xl shadow-2xl'}"
+    class="relative z-10 flex w-full flex-col text-[var(--color-text)] {embedded ? 'overflow-visible bg-transparent' : 'overflow-hidden h-[min(90vh,56rem)] max-w-6xl rounded-[36px] border border-white/10 bg-[rgba(var(--color-bg-rgb),0.96)] shadow-2xl backdrop-blur-2xl'}"
     transition:fly={{ y: 36, duration: 360 }}
   >
+    {#if !embedded}
     <header class="flex items-center justify-between gap-4 border-b border-white/10 px-5 py-4 md:px-6">
       <div>
         <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">{embedded ? '社区消息台' : '个人面板'}</p>
@@ -759,42 +768,48 @@
         {/if}
       </div>
     </header>
+    {/if}
 
-    <div class="{embedded ? 'grid lg:grid-cols-[15rem_minmax(0,1fr)]' : 'grid min-h-0 flex-1 lg:grid-cols-[15rem_minmax(0,1fr)]'}">
-      <aside class="border-b border-white/10 p-4 lg:border-b-0 lg:border-r">
-        <div class="grid grid-cols-2 gap-2 lg:grid-cols-1">
+    <div class="{embedded ? 'space-y-5' : 'min-h-0 flex-1 overflow-hidden'}">
+      <div class="{embedded ? 'space-y-5' : 'flex h-full min-h-0 flex-col'}">
+        <div class="rounded-[28px] border border-white/10 bg-white/5 p-3 shadow-lg backdrop-blur-xl {embedded ? '' : 'mx-4 mt-4 md:mx-5 md:mt-5'}">
+          <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div class="min-w-0">
+              <div class="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {#each availableTabs as tab}
             <button
               type="button"
-              class="rounded-2xl px-4 py-3 text-left text-xs font-black uppercase tracking-[0.18em] transition-all {activeTab === tab.id ? 'bg-[var(--color-primary)] text-[var(--color-bg)] shadow-lg' : 'border border-white/10 bg-white/5 opacity-75 hover:opacity-100'}"
+                  class="shrink-0 rounded-full border px-4 py-3 text-left text-[11px] font-black uppercase tracking-[0.18em] transition-all {activeTab === tab.id ? 'border-[var(--color-primary)] bg-[var(--color-primary)] text-[var(--color-bg)] shadow-lg' : 'border-white/10 bg-[rgba(255,255,255,0.04)] opacity-75 hover:border-white/20 hover:opacity-100'}"
               on:click={() => switchTab(tab.id)}
             >
               {tab.label}
             </button>
           {/each}
-        </div>
+              </div>
 
-        <div class="mt-4 rounded-[28px] border border-white/10 bg-white/5 p-4 text-sm font-medium leading-7 opacity-75">
-          {#if $isAuthenticated}
-            已恢复个人资料、聊天会话、群组加入后的入口和网盘操作。
-          {:else}
-            {authPrompt || '先登录，就能继续使用聊天、用户组会话和网盘。'}
+              <p class="mt-3 text-sm font-medium opacity-65">{tabDescriptions[activeTab]}</p>
+            </div>
+
+            <div class="flex flex-wrap gap-2 lg:justify-end">
+              <button type="button" class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={openNodesView}>
+                去发现页
+              </button>
+              {#if $isAuthenticated}
+                <button type="button" class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={openMyProfile}>
+                  我的主页
+                </button>
+              {/if}
+            </div>
+          </div>
+
+          {#if !$isAuthenticated}
+            <p class="mt-3 rounded-[20px] border border-white/10 bg-[rgba(255,255,255,0.04)] px-4 py-3 text-sm font-medium leading-7 opacity-75">
+              {authPrompt || '先登录，就能继续使用聊天、用户组会话和网盘。'}
+            </p>
           {/if}
         </div>
 
-        <div class="mt-4 flex flex-wrap gap-2">
-          <button type="button" class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={openNodesView}>
-            去发现页
-          </button>
-          {#if $isAuthenticated}
-            <button type="button" class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={openMyProfile}>
-              我的主页
-            </button>
-          {/if}
-        </div>
-      </aside>
-
-      <div class="{embedded ? 'p-5 md:p-6' : 'min-h-0 overflow-y-auto p-5 md:p-6'}">
+      <div class="{embedded ? 'space-y-6' : 'min-h-0 flex-1 overflow-y-auto px-5 pb-5 pt-1 md:px-6 md:pb-6'}">
         {#if activeTab === 'account'}
           <div class="space-y-6">
             {#if !$isAuthenticated}
@@ -1268,6 +1283,7 @@
             </section>
           {/if}
         {/if}
+      </div>
       </div>
     </div>
   </section>

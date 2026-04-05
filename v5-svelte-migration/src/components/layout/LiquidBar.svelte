@@ -527,8 +527,8 @@
   }
 
   .liquid-nav-btn.is-active {
-    background: linear-gradient(145deg, rgba(255, 255, 255, 0.96) 0% 50%, var(--color-primary) 50% 100%);
-    border-color: rgba(255, 255, 255, 0.34);
+    background: var(--color-primary);
+    border-color: color-mix(in srgb, var(--color-primary) 70%, white 30%);
     box-shadow:
       0 16px 30px rgba(var(--shadow-rgb), 0.2),
       inset 0 1px 0 rgba(255, 255, 255, 0.4);
@@ -575,7 +575,7 @@
   }
 
   .liquid-compose-btn {
-    background: linear-gradient(145deg, rgba(255, 255, 255, 0.14) 0% 50%, var(--color-primary) 50% 100%);
+    background: var(--color-primary);
     color: var(--color-button-text);
     box-shadow:
       0 18px 34px rgba(var(--shadow-rgb), 0.24),
