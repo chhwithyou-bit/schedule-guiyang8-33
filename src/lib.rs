@@ -309,14 +309,34 @@ fn infer_music_mime_from_key(key: &str) -> &'static str {
     }
 }
 
+fn encode_music_key_for_url(key: &str) -> String {
+    url::form_urlencoded::byte_serialize(key.as_bytes()).collect::<String>()
+}
+
+fn decode_url_component_if_needed(value: &str) -> String {
+    if !value.contains('%') {
+        return value.to_string();
+    }
+
+    let decode_probe = format!("https://community.local/?key={}", value);
+    if let Ok(parsed) = url::Url::parse(&decode_probe) {
+        if let Some((_, decoded)) = parsed.query_pairs().find(|(k, _)| k == "key") {
+            return decoded.into_owned();
+        }
+    }
+
+    value.to_string()
+}
+
 fn build_music_track_payload(key: &str) -> Value {
     let name = music_display_name_from_key(key);
+    let encoded_key = encode_music_key_for_url(key);
     json!({
         "id": key,
         "name": name,
         "title": name,
         "artist": "Unknown",
-        "url": format!("/api/music/file/{}", key)
+        "url": format!("/api/music/file/{}", encoded_key)
     })
 }
 
@@ -1340,24 +1360,32 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             }), 200)
         })
         .get_async("/api/music/file/:key", |_req, ctx| async move {
-            let key = ctx.param("key").unwrap();
+            let raw_key = ctx.param("key").unwrap().to_string();
+            let decoded_key = decode_url_component_if_needed(&raw_key);
+            let mut candidate_keys = vec![raw_key.clone()];
+            if decoded_key != raw_key {
+                candidate_keys.push(decoded_key);
+            }
+
             let bucket = ctx.env.bucket("MUSIC_BUCKET")?;
-            let obj = bucket.get(key).execute().await?;
-            match obj {
-                Some(o) => {
+
+            for key in candidate_keys {
+                let obj = bucket.get(&key).execute().await?;
+                if let Some(o) = obj {
                     let headers = Headers::new();
                     let content_type = o
                         .http_metadata()
                         .content_type
                         .filter(|ct| !ct.trim().is_empty())
-                        .unwrap_or_else(|| infer_music_mime_from_key(key).to_string());
+                        .unwrap_or_else(|| infer_music_mime_from_key(&key).to_string());
                     headers.set("Content-Type", &content_type)?;
                     headers.set("Access-Control-Allow-Origin", "*")?;
                     let bytes = o.body().unwrap().bytes().await?;
-                    Ok(Response::from_bytes(bytes)?.with_headers(headers))
-                },
-                None => Response::error("Not Found", 404)
+                    return Ok(Response::from_bytes(bytes)?.with_headers(headers));
+                }
             }
+
+            Response::error("Not Found", 404)
         })
         .post_async("/api/proxy-gemini", |mut req, ctx| async move {
             let body = req.text().await?;
