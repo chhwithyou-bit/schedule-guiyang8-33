@@ -376,6 +376,22 @@ async fn fetch_drive_media(env: &Env, file_id: &str) -> Result<Option<(Vec<u8>, 
     Ok(Some((bytes, content_type)))
 }
 
+fn build_public_media_headers(content_type: &str, cache_status: &str) -> Result<Headers> {
+    let headers = Headers::new();
+    let effective_content_type = if content_type.trim().is_empty() {
+        "application/octet-stream"
+    } else {
+        content_type
+    };
+
+    headers.set("Access-Control-Allow-Origin", "*")?;
+    headers.set("Content-Type", effective_content_type)?;
+    headers.set("Cache-Control", "public, max-age=31536000, immutable")?;
+    headers.set("X-Cache", cache_status)?;
+
+    Ok(headers)
+}
+
 async fn award_xp(db: &D1Database, user_id: &str, amount: i32) -> Result<()> {
     db.prepare("UPDATE users SET xp = xp + ? WHERE id = ?")
         .bind(&[amount.into(), user_id.into()])?
@@ -1300,11 +1316,12 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             let obj = bucket.get(&key).execute().await?;
             match obj {
                 Some(o) => {
-                    let headers = Headers::new();
-                    headers.set("Access-Control-Allow-Origin", "*")?;
-                    if let Some(ct) = o.http_metadata().content_type {
-                        headers.set("Content-Type", &ct)?;
-                    }
+                    let content_type = o
+                        .http_metadata()
+                        .content_type
+                        .filter(|ct| !ct.trim().is_empty())
+                        .unwrap_or_else(|| "application/octet-stream".to_string());
+                    let headers = build_public_media_headers(&content_type, "HIT-R2")?;
                     let bytes = o.body().unwrap().bytes().await?;
                     Ok(Response::from_bytes(bytes)?.with_headers(headers))
                 },
@@ -1332,9 +1349,7 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
 
                     for drive_file_id in candidate_ids {
                         if let Ok(Some((bytes, content_type))) = fetch_drive_media(&ctx.env, &drive_file_id).await {
-                            let headers = Headers::new();
-                            headers.set("Access-Control-Allow-Origin", "*")?;
-                            headers.set("Content-Type", &content_type)?;
+                            let headers = build_public_media_headers(&content_type, "MISS-GDrive")?;
                             return Ok(Response::from_bytes(bytes)?.with_headers(headers));
                         }
                     }
