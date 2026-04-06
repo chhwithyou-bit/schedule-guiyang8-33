@@ -4,7 +4,7 @@
   import { currentView, isAdmin, isAuthenticated, selectedProfile, user } from '../../stores/appState';
   import { communityFetch, persistCommunitySession } from '../../lib/communityApi';
   import { communityConsoleState, resetCommunityConsoleState, setCommunityConsoleState } from '../../stores/communityConsoleState';
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
 
   type TabId = 'account' | 'chats' | 'groups' | 'drive' | 'notifications';
 
@@ -122,6 +122,8 @@
   let chatError = '';
   let messageDraft = '';
   let sendingMessage = false;
+  let mobileChatView: 'list' | 'detail' = 'list';
+  let chatDetailPanel: HTMLElement | null = null;
 
   let driveStats: DriveStats = { quota_bytes: 0, used_bytes: 0 };
   let driveUsagePercent = 0;
@@ -187,7 +189,17 @@
   function requireAuth(message: string) {
     authPrompt = message;
     activeTab = 'account';
+    mobileChatView = 'list';
     setCommunityConsoleState({ tab: 'account', conversationId: '' });
+  }
+
+  async function focusMobileChatDetail() {
+    if (!embedded || typeof window === 'undefined' || window.innerWidth >= 1280) {
+      return;
+    }
+
+    await tick();
+    chatDetailPanel?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   async function bootstrapConsole() {
@@ -199,7 +211,7 @@
     ]);
 
     if ($communityConsoleState.conversationId) {
-      await loadMessages($communityConsoleState.conversationId, $communityConsoleState.tab === 'chats');
+      await loadMessages($communityConsoleState.conversationId, $communityConsoleState.tab === 'chats', false);
     }
   }
 
@@ -214,6 +226,7 @@
     }
 
     activeTab = tab;
+    mobileChatView = 'list';
     setCommunityConsoleState({ tab, conversationId: selectedConversationId });
 
     if (tab === 'chats' && conversations.length === 0 && !loadingChats) {
@@ -269,7 +282,7 @@
     }
   }
 
-  async function loadMessages(conversationId: string, activateTab = true) {
+  async function loadMessages(conversationId: string, activateTab = true, showMobileDetail = activateTab) {
     if (!$isAuthenticated || !conversationId) return;
     loadingMessages = true;
     chatError = '';
@@ -291,6 +304,15 @@
         tab: activateTab ? 'chats' : activeTab,
         conversationId
       });
+
+      if (activateTab) {
+        activeTab = 'chats';
+      }
+
+      if (showMobileDetail) {
+        mobileChatView = 'detail';
+        await focusMobileChatDetail();
+      }
     } catch (error) {
       console.error('Failed to load messages', error);
       chatError = '消息没加载出来。';
@@ -798,7 +820,7 @@
 
     <div class="{embedded ? 'space-y-5' : 'xl:flex-1 xl:min-h-0 xl:overflow-hidden'}">
       <div class="{embedded ? 'space-y-5' : 'xl:flex xl:flex-col xl:h-full xl:min-h-0'}">
-        <div class="rounded-[28px] border border-white/10 bg-white/5 p-3 shadow-lg backdrop-blur-xl {embedded ? '' : 'mx-4 mt-4 md:mx-5 md:mt-5'}">
+        <div class="rounded-[28px] border border-white/10 bg-white/5 p-3 shadow-lg backdrop-blur-xl {activeTab === 'chats' && mobileChatView === 'detail' ? 'hidden xl:block' : ''} {embedded ? '' : 'mx-4 mt-4 md:mx-5 md:mt-5'}">
           <div class="console-tab-shell flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between">
             <div class="console-tab-rail xl:max-w-[19rem]">
               <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">{tabHero[activeTab].eyebrow}</p>
@@ -958,8 +980,8 @@
               </button>
             </div>
           {:else}
-            <div class="{embedded ? 'grid gap-5 xl:grid-cols-[18rem_minmax(0,1fr)]' : 'grid min-h-[34rem] gap-5 xl:grid-cols-[18rem_minmax(0,1fr)]'}">
-              <section class="rounded-[32px] border border-white/10 bg-white/5 p-4 shadow-xl">
+            <div class="{embedded ? 'grid gap-5 xl:grid-cols-[18rem_minmax(0,1fr)]' : 'grid min-h-[34rem] gap-5 xl:grid-cols-[18rem_minmax(0,1fr)]'} {mobileChatView === 'detail' ? 'min-h-[72svh]' : ''}">
+              <section class="rounded-[32px] border border-white/10 bg-white/5 p-4 shadow-xl {mobileChatView === 'detail' ? 'hidden xl:block' : ''}">
                 <div class="mb-4 flex items-center justify-between">
                   <div>
                     <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">会话列表</p>
@@ -1014,8 +1036,11 @@
                 </div>
               </section>
 
-              <section class="flex flex-col rounded-[32px] border border-white/10 bg-white/5 p-4 shadow-xl xl:min-h-0">
+              <section bind:this={chatDetailPanel} class="{mobileChatView === 'list' ? 'hidden xl:flex' : 'flex'} flex-col rounded-[32px] border border-white/10 bg-white/5 p-4 shadow-xl min-h-[70svh] xl:min-h-0">
                 <div class="mb-4 border-b border-white/10 pb-4">
+                  <button type="button" class="mb-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105 xl:hidden" on:click={() => (mobileChatView = 'list')}>
+                    返回会话
+                  </button>
                   <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">当前会话</p>
                   <h3 class="mt-1 text-2xl font-black tracking-tight">{selectedConversation?.title || '先选一个会话'}</h3>
                   {#if selectedConversation}
@@ -1023,7 +1048,7 @@
                   {/if}
                 </div>
 
-                <div class="flex-1 overflow-y-visible rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.04)] p-4 xl:min-h-0 xl:overflow-y-auto">
+                <div class="flex-1 overflow-y-auto rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.04)] p-4 min-h-[18rem] max-h-[56svh] xl:min-h-0 xl:max-h-none">
                   {#if loadingMessages}
                     <div class="space-y-3">
                       {#each Array(4) as _}
