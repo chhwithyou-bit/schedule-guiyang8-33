@@ -231,21 +231,22 @@
     try {
       const arr = JSON.parse(json);
       return Array.isArray(arr) ? arr : [];
-    } catch { return []; }
+    } catch {
+      return [];
+    }
   }
 
   let media: any[] = [];
 
-  $: media = $selectedPost ? safeJsonArray($selectedPost.media_json).filter(m => m && m.url) : [];
+  $: media = $selectedPost ? safeJsonArray($selectedPost.media_json).filter((m) => m && m.url) : [];
 </script>
 
 {#if $selectedPost}
-  <div 
-    class="fixed inset-0 z-[6000] flex flex-col bg-[var(--color-bg)]"
-    transition:fly={{ x: 100, duration: 600, easing: (t) => t * (2 - t) }}
+  <div
+    class="post-detail-shell fixed inset-0 z-[6000] flex flex-col"
+    transition:fly={{ x: 44, duration: 320, easing: (t) => t * (2 - t) }}
   >
-    <!-- Header -->
-    <header class="flex items-center justify-between gap-4 border-b border-neutral-100 px-4 py-4 dark:border-neutral-900 sm:px-6 sm:py-6">
+    <header class="flex items-center justify-between gap-4 border-b border-white/10 px-4 py-4 sm:px-6 sm:py-6">
       <button on:click={close} aria-label="返回动态列表" class="p-2 -ml-2 opacity-40 hover:opacity-100 transition-opacity">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
       </button>
@@ -260,11 +261,10 @@
       </button>
     </header>
 
-    <!-- Scrollable Content -->
     <div bind:this={detailScrollEl} class="flex-1 overflow-y-auto px-4 py-6 sm:px-6 sm:py-8">
       <div class="max-w-3xl mx-auto">
         {#if reportComposerOpen}
-          <section class="mb-8 rounded-[28px] border border-red-400/20 bg-red-500/10 p-4 shadow-xl sm:p-5">
+          <section class="mb-8 rounded-[28px] border border-red-400/20 bg-red-500/10 p-4 shadow-lg backdrop-blur-[14px] sm:p-5">
             <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <p class="text-[10px] font-black uppercase tracking-[0.22em] text-red-100/60">举报内容</p>
@@ -308,11 +308,10 @@
           <p class="mb-6 rounded-[22px] border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold opacity-80">{reportMessage}</p>
         {/if}
 
-        <!-- Post Header -->
         <div class="mb-8 flex items-center gap-4">
           <!-- svelte-ignore a11y-click-events-have-key-events -->
           <!-- svelte-ignore a11y-no-static-element-interactions -->
-          <div on:click={() => handleProfileClick($selectedPost)} class="h-14 w-14 cursor-pointer overflow-hidden rounded-full border-2 border-[var(--color-primary)] bg-white/5">
+          <div on:click={() => handleProfileClick($selectedPost)} class="h-14 w-14 cursor-pointer overflow-hidden rounded-full border border-white/12 bg-white/5 backdrop-blur-[14px]">
             {#if $selectedPost.avatar_url}
               <img src={$selectedPost.avatar_url} alt={$selectedPost.username} class="w-full h-full object-cover" />
             {:else}
@@ -336,18 +335,16 @@
           </div>
         </div>
 
-        <!-- Post Body -->
         <div class="mb-8">
           <p class="text-xl leading-relaxed font-medium whitespace-pre-wrap">
             {$selectedPost.content}
           </p>
         </div>
 
-        <!-- Media Grid -->
         {#if media.length > 0}
-          <div class="space-y-4 mb-12">
+          <div class="mb-12 space-y-4">
             {#each media as item, i}
-              <div class="rounded-3xl overflow-hidden bg-white/5 border border-white/10 min-h-[220px]">
+              <div class="min-h-[220px] overflow-hidden rounded-3xl border border-white/10 bg-[rgba(255,255,255,0.06)] backdrop-blur-[14px]">
                 <ReliableImage
                   src={item.url}
                   alt="Content"
@@ -362,21 +359,20 @@
           </div>
         {/if}
 
-        <!-- Comments Section -->
-        <div bind:this={commentSectionEl} class="border-t border-neutral-100 pt-10 pb-40 dark:border-neutral-900 sm:pt-12 sm:pb-32">
-          <h3 class="text-2xl font-black uppercase tracking-tighter mb-8 flex items-center gap-3">
+        <div bind:this={commentSectionEl} class="border-t border-white/10 pt-10 pb-40 sm:pt-12 sm:pb-32">
+          <h3 class="mb-8 flex items-center gap-3 text-2xl font-black uppercase tracking-tighter">
             留言
-            <span class="text-sm opacity-30 font-bold">({$selectedPost.comment_count || 0})</span>
+            <span class="text-sm font-bold opacity-30">({$selectedPost.comment_count || 0})</span>
           </h3>
 
           {#if loading}
             <div class="space-y-6">
               {#each Array(3) as _}
                 <div class="flex gap-4 animate-pulse">
-                  <div class="w-10 h-10 rounded-full bg-white/5"></div>
+                  <div class="h-10 w-10 rounded-full bg-white/5"></div>
                   <div class="flex-1 space-y-2">
-                    <div class="h-4 w-24 bg-white/5 rounded"></div>
-                    <div class="h-12 w-full bg-white/5 rounded-xl"></div>
+                    <div class="h-4 w-24 rounded bg-white/5"></div>
+                    <div class="h-12 w-full rounded-xl bg-white/5"></div>
                   </div>
                 </div>
               {/each}
@@ -387,7 +383,7 @@
                 <div class="flex gap-4" in:fade>
                   <!-- svelte-ignore a11y-click-events-have-key-events -->
                   <!-- svelte-ignore a11y-no-static-element-interactions -->
-                  <div on:click={() => handleProfileClick(comment)} class="w-10 h-10 rounded-full bg-white/5 overflow-hidden flex-shrink-0 cursor-pointer">
+                  <div on:click={() => handleProfileClick(comment)} class="h-10 w-10 flex-shrink-0 cursor-pointer overflow-hidden rounded-full bg-white/5">
                     {#if comment.avatar_url}
                       <img src={comment.avatar_url} alt={comment.username} class="w-full h-full object-cover" />
                     {:else}
@@ -396,17 +392,17 @@
                       </div>
                     {/if}
                   </div>
-                  <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-2 mb-1">
+                  <div class="min-w-0 flex-1">
+                    <div class="mb-1 flex items-center gap-2">
                       <!-- svelte-ignore a11y-click-events-have-key-events -->
                       <!-- svelte-ignore a11y-no-static-element-interactions -->
-                      <span on:click={() => handleProfileClick(comment)} class="font-bold text-sm tracking-tight cursor-pointer hover:text-[var(--color-primary)] transition-colors">{comment.username}</span>
-                      <span class="text-[10px] font-bold opacity-30 uppercase tracking-widest">
+                      <span on:click={() => handleProfileClick(comment)} class="cursor-pointer text-sm font-bold tracking-tight transition-colors hover:text-[var(--color-primary)]">{comment.username}</span>
+                      <span class="text-[10px] font-bold uppercase tracking-widest opacity-30">
                         {new Date(comment.created_at).toLocaleDateString()}
                       </span>
                     </div>
 
-                    <p class="text-sm font-medium leading-relaxed opacity-80 whitespace-pre-wrap">
+                    <p class="whitespace-pre-wrap text-sm font-medium leading-relaxed opacity-80">
                       {comment.content}
                     </p>
                   </div>
@@ -414,7 +410,7 @@
               {/each}
             </div>
           {:else}
-            <div class="py-12 text-center opacity-20 font-black uppercase tracking-widest text-sm">
+            <div class="py-12 text-center text-sm font-black uppercase tracking-widest opacity-20">
               还没人留言。
             </div>
           {/if}
@@ -422,19 +418,18 @@
       </div>
     </div>
 
-    <!-- Sticky Comment Input -->
-    <div class="fixed bottom-0 left-0 right-0 border-t border-neutral-100 bg-[var(--color-bg,#231b22)]/84 p-4 backdrop-blur-2xl dark:border-neutral-900 sm:p-6">
+    <div class="fixed bottom-0 left-0 right-0 border-t border-white/10 bg-[rgba(var(--color-bg-rgb),0.82)] p-4 backdrop-blur-[18px] sm:p-6">
       <div class="mx-auto flex max-w-3xl flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-        <input 
+        <input
           bind:this={commentInputEl}
-          type="text" 
+          type="text"
           bind:value={newComment}
           placeholder="想回一句什么，就写在这里。"
-          class="min-w-0 flex-1 rounded-2xl bg-white/15 border border-white/30 px-5 py-4 font-bold text-[var(--color-text,#fff4ed)] placeholder:text-[var(--color-text,#fff4ed)]/40 transition-all focus:ring-2 focus:ring-[var(--color-primary,#fac7b7)] outline-none"
+          class="min-w-0 flex-1 rounded-2xl border border-white/30 bg-white/15 px-5 py-4 font-bold text-[var(--color-text,#fff4ed)] placeholder:text-[var(--color-text,#fff4ed)]/40 outline-none transition-all focus:ring-2 focus:ring-[var(--color-primary,#fac7b7)]"
           style="background-color: rgba(255, 255, 255, 0.18);"
           on:keydown={(e) => e.key === 'Enter' && handleComment()}
         />
-        <button 
+        <button
           on:click={handleComment}
           aria-label="发布评论"
           disabled={submitting || !newComment.trim()}
@@ -447,3 +442,12 @@
     </div>
   </div>
 {/if}
+
+<style>
+  .post-detail-shell {
+    background:
+      linear-gradient(180deg, rgba(var(--color-bg-rgb), 0.94), rgba(var(--color-bg-rgb), 0.9)),
+      rgba(var(--color-bg-rgb), 0.92);
+    backdrop-filter: blur(18px);
+  }
+</style>

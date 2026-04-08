@@ -4,11 +4,15 @@
   import { themeInitialized } from '../../stores/appState';
 
   const dispatch = createEventDispatcher();
+
   let progress = { value: 0 };
-  let displayValue = "00";
+  let displayValue = '00';
   let turbRef: SVGFETurbulenceElement;
   let dispRef: SVGFEDisplacementMapElement;
   let container: HTMLElement;
+  let veilRef: HTMLDivElement;
+  let apertureRef: HTMLDivElement;
+  let glowRef: HTMLDivElement;
   let numberContainer: HTMLElement;
 
   let counterTl: gsap.core.Timeline;
@@ -17,15 +21,8 @@
   let isMounted = false;
   let completionTimer: ReturnType<typeof setTimeout> | null = null;
 
-  const MIN_VISIBLE_MS = 1400;
+  const MIN_VISIBLE_MS = 920;
 
-  /**
-   * REVOLUTIONARY LOADING STRATEGY
-   * 1. Start counter immediately on mount to provide instant feedback.
-   * 2. Slow down/wait at 99% if theme is not yet picked.
-   * 3. Resume and burst once theme is confirmed.
-   */
-  
   onMount(() => {
     isMounted = true;
     mountedAt = performance.now();
@@ -40,7 +37,9 @@
         clearTimeout(completionTimer);
       }
       if (counterTl) {
-        try { counterTl.kill(); } catch (e) {}
+        try {
+          counterTl.kill();
+        } catch (e) {}
       }
     };
   });
@@ -49,34 +48,60 @@
     scheduleCompletion();
   }
 
+  function updateDisplay() {
+    const val = Math.floor(progress.value);
+    displayValue = val < 10 ? `0${val}` : `${val}`;
+  }
+
+  function setDistortion(x: number, y: number, scale: number) {
+    if (turbRef) {
+      turbRef.setAttribute('baseFrequency', `${x} ${y}`);
+    }
+    if (dispRef) {
+      dispRef.setAttribute('scale', `${scale}`);
+    }
+  }
+
   function startInitialCounter() {
     try {
       counterTl = gsap.timeline();
 
-      // Fast climb to 60%
       counterTl.to(progress, {
-        value: 60,
-        duration: 0.8,
-        ease: "power2.out",
+        value: 78,
+        duration: 0.55,
+        ease: 'power2.out',
         onUpdate: updateDisplay
       });
 
-      // Slow crawl from 60 to 99%
+      counterTl.to(progress, {
+        value: 94,
+        duration: 0.5,
+        ease: 'sine.out',
+        onUpdate: updateDisplay
+      });
+
       counterTl.to(progress, {
         value: 99,
-        duration: 4.0,
-        ease: "power1.inOut",
+        duration: 0.78,
+        ease: 'none',
         onUpdate: updateDisplay
       });
+
+      if (veilRef) {
+        counterTl.to(
+          veilRef,
+          {
+            '--veil-shift': '1',
+            duration: 1.83,
+            ease: 'sine.inOut'
+          },
+          0
+        );
+      }
     } catch (e) {
       console.warn('Initial counter failed, skipping to completion check:', e);
-      displayValue = "99";
+      displayValue = '99';
     }
-  }
-
-  function updateDisplay() {
-    const val = Math.floor(progress.value);
-    displayValue = val < 10 ? `0${val}` : `${val}`;
   }
 
   function scheduleCompletion() {
@@ -98,10 +123,11 @@
       clearTimeout(completionTimer);
       completionTimer = null;
     }
-    
-    // If the counter is still running, fast-forward it
+
     if (counterTl) {
-      try { counterTl.kill(); } catch (e) {}
+      try {
+        counterTl.kill();
+      } catch (e) {}
     }
 
     await tick();
@@ -109,66 +135,100 @@
     try {
       const tl = gsap.timeline({
         onComplete: () => {
+          setDistortion(0, 0, 0);
           dispatch('complete');
         }
       });
 
-      // 1. Zoom to 100%
       tl.to(progress, {
         value: 100,
-        duration: 0.3,
-        ease: "power2.out",
+        duration: 0.24,
+        ease: 'power2.out',
         onUpdate: () => {
-          displayValue = "100";
+          displayValue = '100';
         }
       });
 
-      tl.to({}, { duration: 0.2 }); // Hold
-
-      // 2. Burst Phase
-      // Defensive check for refs which might be missing in some edge cases
       if (turbRef && dispRef) {
-        const freq = { valX: 0, valY: 0 };
-        tl.to(freq, {
-          valX: 0.04,
-          valY: 0.01,
-          duration: 0.8,
-          ease: "power2.in",
-          onUpdate: () => {
-            if (turbRef) turbRef.setAttribute("baseFrequency", `${freq.valX} ${freq.valY}`);
-          }
-        }, "burst");
+        const freq = { x: 0.0025, y: 0.008 };
 
-        tl.to(dispRef, {
-          attr: { scale: 180 },
-          duration: 0.8,
-          ease: "power2.in"
-        }, "burst");
+        tl.to(
+          freq,
+          {
+            x: 0.03,
+            y: 0.01,
+            duration: 0.28,
+            ease: 'power2.in',
+            onUpdate: () => setDistortion(freq.x, freq.y, 44)
+          },
+          0.02
+        );
+
+        tl.to(
+          freq,
+          {
+            x: 0,
+            y: 0,
+            duration: 0.4,
+            ease: 'power2.out',
+            onUpdate: () => setDistortion(freq.x, freq.y, 0)
+          },
+          0.3
+        );
       }
 
-      tl.to(numberContainer, {
-        scale: 0,
-        opacity: 0,
-        duration: 0.4,
-        ease: "back.in(1.7)"
-      }, "burst");
+      tl.to(
+        apertureRef,
+        {
+          scale: 1.48,
+          opacity: 0.86,
+          duration: 0.42,
+          ease: 'power2.out'
+        },
+        0.04
+      );
 
-      // 3. Final Vanish
-      tl.to(container, {
-        opacity: 0,
-        scale: 1.1,
-        duration: 0.6,
-        ease: "power3.inOut"
-      }, "burst+=0.5");
+      tl.to(
+        glowRef,
+        {
+          opacity: 0.88,
+          duration: 0.22,
+          ease: 'power1.out'
+        },
+        0.04
+      );
 
-      // Cleanup
-      tl.add(() => {
-        if (turbRef && dispRef) {
-          try {
-            gsap.set([turbRef, dispRef], { attr: { baseFrequency: "0", scale: "0" } });
-          } catch (e) {}
-        }
-      });
+      tl.to(
+        numberContainer,
+        {
+          y: -14,
+          opacity: 0,
+          duration: 0.26,
+          ease: 'power2.in'
+        },
+        0.12
+      );
+
+      tl.to(
+        veilRef,
+        {
+          yPercent: -108,
+          opacity: 0.86,
+          duration: 0.82,
+          ease: 'expo.inOut'
+        },
+        0.18
+      );
+
+      tl.to(
+        container,
+        {
+          opacity: 0,
+          duration: 0.38,
+          ease: 'power2.out'
+        },
+        0.62
+      );
     } catch (e) {
       console.error('Preloader completion animation failed:', e);
       dispatch('complete');
@@ -176,32 +236,44 @@
   }
 </script>
 
-<svg class="fixed w-0 h-0 overflow-hidden pointer-events-none" aria-hidden="true">
+<svg class="fixed h-0 w-0 overflow-hidden pointer-events-none" aria-hidden="true">
   <filter id="liquid-glass-awakening">
-    <feTurbulence 
+    <feTurbulence
       bind:this={turbRef}
-      type="fractalNoise" 
-      baseFrequency="0" 
-      numOctaves="2" 
-      result="noise" 
+      type="fractalNoise"
+      baseFrequency="0 0"
+      numOctaves="2"
+      result="noise"
     />
-    <feDisplacementMap 
+    <feDisplacementMap
       bind:this={dispRef}
-      in="SourceGraphic" 
-      in2="noise" 
-      scale="0" 
-      xChannelSelector="R" 
-      yChannelSelector="G" 
+      in="SourceGraphic"
+      in2="noise"
+      scale="0"
+      xChannelSelector="R"
+      yChannelSelector="G"
     />
   </filter>
 </svg>
 
 <div bind:this={container} class="preloader-overlay">
-  <div bind:this={numberContainer} class="counter-container">
-    <div class="digit-glitch font-mono">
-      {displayValue}<span class="unit">%</span>
+  <div bind:this={glowRef} class="preloader-glow"></div>
+  <div bind:this={veilRef} class="preloader-veil"></div>
+  <div bind:this={apertureRef} class="preloader-aperture"></div>
+
+  <div class="preloader-center">
+    <p class="preloader-kicker">opening sequence</p>
+
+    <div bind:this={numberContainer} class="counter-container">
+      <div class="digit-display font-mono">
+        {displayValue}<span class="unit">%</span>
+      </div>
+      <p class="preloader-note">liquid veil lifting</p>
     </div>
-    <div class="liquid-aura"></div>
+
+    <div class="preloader-progress" aria-hidden="true">
+      <span style={`transform: scaleX(${Math.min(progress.value, 100) / 100})`}></span>
+    </div>
   </div>
 </div>
 
@@ -210,81 +282,155 @@
     position: fixed;
     inset: 0;
     z-index: 999999;
-    background-color: var(--color-bg);
     display: flex;
     align-items: center;
     justify-content: center;
     overflow: hidden;
-    /* Use CSS for initial visibility to be safe */
-    opacity: 0;
-    animation: simple-fade-in 0.8s ease-out forwards;
-    will-change: transform, opacity;
+    background:
+      radial-gradient(circle at 18% 16%, rgba(var(--glow-primary-rgb), 0.12), transparent 28%),
+      radial-gradient(circle at 82% 14%, rgba(var(--glow-secondary-rgb), 0.14), transparent 30%),
+      linear-gradient(180deg, rgba(var(--color-bg-rgb), 0.98), rgba(var(--color-bg-rgb), 0.94));
+    color: var(--color-text);
+    opacity: 1;
+    will-change: opacity;
   }
 
-  @keyframes simple-fade-in {
-    to { opacity: 1; }
-  }
-
-  .preloader-overlay::after {
-    content: '';
+  .preloader-glow,
+  .preloader-veil,
+  .preloader-aperture {
     position: absolute;
     inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-    opacity: 0.05;
     pointer-events: none;
-    mix-blend-mode: overlay;
+  }
+
+  .preloader-glow {
+    opacity: 0.42;
+    background:
+      radial-gradient(circle at 50% 38%, rgba(255, 255, 255, 0.18), transparent 18%),
+      radial-gradient(circle at 50% 54%, rgba(var(--glow-primary-rgb), 0.16), transparent 32%);
+    filter: blur(18px);
+  }
+
+  .preloader-veil {
+    --veil-shift: 0;
+    inset: -12% -10% 0;
+    background:
+      radial-gradient(circle at calc(48% + (var(--veil-shift) * 7%)) 28%, rgba(255, 255, 255, 0.22), transparent 18%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.05) 34%, rgba(var(--color-bg-rgb), 0.08) 68%, rgba(var(--color-bg-rgb), 0.46) 100%),
+      linear-gradient(135deg, rgba(var(--glow-primary-rgb), 0.16), rgba(var(--glow-secondary-rgb), 0.12));
+    filter: url(#liquid-glass-awakening);
+    transform: translate3d(0, 0, 0);
+  }
+
+  .preloader-veil::after {
+    content: '';
+    position: absolute;
+    inset: auto 0 18%;
+    height: min(20rem, 24vh);
+    background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.16), transparent 72%);
+    opacity: 0.55;
+    filter: blur(32px);
+  }
+
+  .preloader-aperture {
+    inset: 50% auto auto 50%;
+    width: min(34rem, 78vw);
+    height: min(34rem, 78vw);
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background:
+      radial-gradient(circle, rgba(255, 255, 255, 0.1), transparent 62%),
+      rgba(255, 255, 255, 0.02);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.22),
+      0 0 0 1px rgba(var(--glow-primary-rgb), 0.08);
+    opacity: 0.24;
+    transform: translate(-50%, -50%) scale(0.76);
+    transform-origin: center;
+    filter: url(#liquid-glass-awakening);
+  }
+
+  .preloader-center {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    width: min(28rem, calc(100vw - 3rem));
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    text-align: center;
+  }
+
+  .preloader-kicker {
+    font-size: 0.62rem;
+    font-weight: 900;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    opacity: 0.46;
   }
 
   .counter-container {
-    position: relative;
-    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.55rem;
   }
 
-  .digit-glitch {
-    font-size: 16vw;
+  .digit-display {
+    font-size: clamp(5.25rem, 16vw, 9.6rem);
     font-weight: 900;
-    color: var(--color-primary);
-    letter-spacing: -0.06em;
-    line-height: 0.8;
-    text-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    letter-spacing: -0.08em;
+    line-height: 0.82;
+    color: rgba(255, 255, 255, 0.94);
+    text-shadow: 0 14px 34px rgba(var(--shadow-rgb), 0.16);
   }
 
   .unit {
-    font-size: 4vw;
-    opacity: 0.2;
-    margin-left: 1vw;
-    font-weight: 400;
+    margin-left: 0.45rem;
+    font-size: 0.24em;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    opacity: 0.34;
   }
 
-  .liquid-aura {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 40vw;
-    height: 40vw;
-    background: radial-gradient(circle, var(--color-primary) 0%, transparent 70%);
-    transform: translate(-50%, -50%);
-    opacity: 0.12;
-    filter: blur(80px);
-    animation: aura-pulse 5s ease-in-out infinite;
+  .preloader-note {
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    opacity: 0.5;
   }
 
-  @keyframes aura-pulse {
-    0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.1; }
-    50% { transform: translate(-50%, -50%) scale(1.3); opacity: 0.22; }
+  .preloader-progress {
+    width: min(15rem, 58vw);
+    height: 0.24rem;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
   }
 
-  /* Responsive Adjustments */
+  .preloader-progress span {
+    display: block;
+    height: 100%;
+    width: 100%;
+    border-radius: inherit;
+    transform-origin: left center;
+    background: linear-gradient(90deg, rgba(var(--glow-primary-rgb), 0.92), rgba(255, 255, 255, 0.95));
+    box-shadow: 0 0 18px rgba(var(--glow-primary-rgb), 0.18);
+  }
+
   @media (max-width: 768px) {
-    .digit-glitch {
-      font-size: 25vw;
+    .preloader-center {
+      width: min(22rem, calc(100vw - 2rem));
     }
-    .unit {
-      font-size: 8vw;
+
+    .preloader-aperture {
+      width: min(22rem, 88vw);
+      height: min(22rem, 88vw);
     }
-    .liquid-aura {
-      width: 60vw;
-      height: 60vw;
+
+    .preloader-note {
+      font-size: 0.64rem;
     }
   }
 </style>

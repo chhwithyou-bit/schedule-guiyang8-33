@@ -5,7 +5,6 @@
    */
   import { onMount, tick } from 'svelte';
   import { gsap } from 'gsap';
-  import { ScrollTrigger } from 'gsap/dist/ScrollTrigger';
   import Lenis from '@studio-freight/lenis';
   import { currentView, themeInitialized } from './stores/appState';
   import { activeModal } from './stores/modalState';
@@ -30,13 +29,8 @@
   import XiangqiView from './components/views/XiangqiView.svelte';
   import AdminView from './components/views/AdminView.svelte';
 
-  try {
-    gsap.registerPlugin(ScrollTrigger);
-  } catch (e) {
-    console.warn('GSAP ScrollTrigger registration failed:', e);
-  }
-
   let lenis: Lenis;
+  let lenisFrame = 0;
   let mainContent: HTMLElement;
   let isLoading = true;
 
@@ -49,53 +43,74 @@
     admin: AdminView
   };
 
-  /**
-   * PHASE 3: THE ASSEMBLY
-   * Hand-off animation once Preloader hits 100%
-   */
   async function startAssembly() {
     isLoading = false;
     await tick();
-    
+
     if (!mainContent) return;
 
     try {
+      gsap.set(mainContent, { opacity: 1 });
+
       const tl = gsap.timeline();
 
-      // 1. Background focus
-      tl.fromTo(mainContent, 
-        { opacity: 0 },
-        { opacity: 1, duration: 1.4, ease: "expo.out" }
+      tl.fromTo(
+        mainContent,
+        { opacity: 0.02, y: 8, filter: 'blur(10px)' },
+        { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.5, ease: 'power2.out' }
       );
 
-      // 2. 3D Fly-in for main components
-      tl.from(".view-wrapper", {
-        y: 40,
-        opacity: 0,
-        duration: 1.6,
-        ease: "power3.out"
-      }, "-=1.2");
+      tl.from(
+        '.view-wrapper',
+        {
+          y: 26,
+          opacity: 0,
+          duration: 0.6,
+          ease: 'power3.out',
+          clearProps: 'transform,opacity'
+        },
+        '-=0.34'
+      );
 
-      // 3. Elements rising from water
-      tl.from(".liquid-bar-dock", {
-        x: -56,
-        y: -28,
-        scale: 0.88,
-        rotate: -5,
-        opacity: 0,
-        duration: 1.15,
-        ease: "expo.out",
-        transformOrigin: "top left",
-        immediateRender: false,
-        clearProps: "transform,opacity"
-      }, "-=1.4");
+      tl.from(
+        'header',
+        {
+          y: -22,
+          opacity: 0,
+          duration: 0.38,
+          ease: 'power2.out',
+          clearProps: 'transform,opacity'
+        },
+        '-=0.48'
+      );
 
-      tl.from("header", {
-        y: -80,
-        opacity: 0,
-        duration: 1.0,
-        ease: "power3.out"
-      }, "-=1.4");
+      tl.from(
+        '.liquid-bar-dock',
+        {
+          x: -20,
+          y: -16,
+          scale: 0.96,
+          opacity: 0,
+          duration: 0.42,
+          ease: 'power2.out',
+          transformOrigin: 'top left',
+          clearProps: 'transform,opacity'
+        },
+        '-=0.4'
+      );
+
+      tl.from(
+        '#mp',
+        {
+          y: 18,
+          scale: 0.98,
+          opacity: 0,
+          duration: 0.4,
+          ease: 'power2.out',
+          clearProps: 'transform,opacity'
+        },
+        '-=0.34'
+      );
     } catch (e) {
       console.error('Assembly animation failed, forcing visibility:', e);
       if (mainContent) mainContent.style.opacity = '1';
@@ -103,7 +118,6 @@
   }
 
   onMount(() => {
-    // Fail-safe: Force show app after 5 seconds if stuck
     const failSafe = setTimeout(() => {
       if (isLoading) {
         console.warn('App stuck loading, triggering fail-safe...');
@@ -113,50 +127,52 @@
     }, 5000);
 
     try {
-      // Initialize smooth scrolling with Lenis
       lenis = new Lenis({
-        duration: 1.2,
-        easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), 
-        smoothWheel: true
+        duration: 0.82,
+        easing: (t) => 1 - Math.pow(1 - t, 3),
+        smoothWheel: true,
+        wheelMultiplier: 0.92,
+        touchMultiplier: 0.95
       });
 
       const raf = (time: number) => {
-        if (lenis) {
-          lenis.raf(time);
-          ScrollTrigger.update();
-          requestAnimationFrame(raf);
-        }
+        if (!lenis) return;
+        lenis.raf(time);
+        lenisFrame = requestAnimationFrame(raf);
       };
-      requestAnimationFrame(raf);
+
+      lenisFrame = requestAnimationFrame(raf);
     } catch (e) {
       console.warn('Lenis initialization failed:', e);
     }
 
     return () => {
       clearTimeout(failSafe);
+      if (lenisFrame) {
+        cancelAnimationFrame(lenisFrame);
+      }
       if (lenis) {
-        try { lenis.destroy(); } catch(e) {}
+        try {
+          lenis.destroy();
+        } catch (e) {}
       }
     };
   });
 </script>
 
-<div 
+<div
   class="app-container font-sans text-[var(--color-text)] min-h-screen relative overflow-hidden selection:bg-[var(--color-primary)] selection:text-[var(--color-button-text)]"
 >
   <div class="app-background" aria-hidden="true"></div>
 
-  <!-- ThemeSwitcher rendered first to manage initial theme setup -->
   <ThemeSwitcher />
 
-  <!-- The Preloader must always be mounted initially so it can track theme initialization via its own internal logic -->
   {#if isLoading}
     <Preloader on:complete={startAssembly} />
   {/if}
 
-  <!-- Only show content when fully loaded and theme is ready -->
-  <div 
-    bind:this={mainContent} 
+  <div
+    bind:this={mainContent}
     class="main-content-assembly {(isLoading || !$themeInitialized) ? 'opacity-0' : 'opacity-100'}"
   >
     <main class="view-wrapper pt-40 pb-40 px-6 md:px-12 md:pt-44 w-full max-w-7xl mx-auto">
@@ -253,7 +269,7 @@
   .main-content-assembly {
     position: relative;
     z-index: 2;
-    transition: opacity 1.4s ease-out;
+    transition: opacity 0.45s ease-out;
   }
 
   :global(body.modal-open) {

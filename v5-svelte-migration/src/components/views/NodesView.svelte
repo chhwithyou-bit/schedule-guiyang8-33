@@ -156,7 +156,7 @@
     </div>
 
     <form on:submit|preventDefault={() => unlockNodes()} class="w-full xl:max-w-md">
-      <div class="rounded-[32px] border border-white/10 bg-white/5 p-3 shadow-2xl backdrop-blur-xl">
+      <div class="rounded-[32px] border border-white/12 bg-[rgba(255,255,255,0.08)] p-3 shadow-xl backdrop-blur-[18px]">
         <div class="flex flex-col gap-3 sm:flex-row">
           <input
             bind:value={password}
@@ -187,7 +187,7 @@
 
   {#if authed}
     <div bind:this={revealRef} class="space-y-6">
-      <section class="rounded-[40px] border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur-xl">
+      <section class="rounded-[40px] border border-white/10 bg-[rgba(255,255,255,0.08)] p-6 shadow-xl backdrop-blur-[18px]">
         <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p class="text-[10px] font-black uppercase tracking-[0.28em] opacity-35">订阅总览</p>
@@ -198,10 +198,10 @@
             <button type="button" class="rounded-full bg-[var(--color-primary)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105" on:click={() => copyText(subscriptionUrl, '订阅地址')}>
               复制订阅
             </button>
-            <button type="button" class="rounded-full border border-white/10 bg-white/5 px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105" on:click={() => copyText(rawBundle, '原始节点')}>
+            <button type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105" on:click={() => copyText(rawBundle, '原始节点')}>
               复制原始节点
             </button>
-            <button type="button" class="rounded-full border border-white/10 bg-white/5 px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105" on:click={resetAccess}>
+            <button type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105" on:click={resetAccess}>
               清除密码
             </button>
           </div>
@@ -210,7 +210,7 @@
 
       <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {#each clientCards as client, index (client.id)}
-          <article in:fly={{ y: 24, duration: 420, delay: index * 35 }} class="rounded-[32px] border border-white/10 bg-[rgba(255,255,255,0.04)] p-5 shadow-xl backdrop-blur-xl">
+          <article in:fly={{ y: 24, duration: 420, delay: index * 35 }} class="rounded-[32px] border border-white/10 bg-[rgba(255,255,255,0.04)] p-5 shadow-xl backdrop-blur-[18px]">
             <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">客户端</p>
             <h4 class="mt-2 text-xl font-black tracking-tight">{client.label}</h4>
             <p class="mt-2 text-sm font-medium opacity-70">{client.detail}</p>
@@ -218,7 +218,7 @@
               <button type="button" class="rounded-full bg-[var(--color-primary)] px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105" on:click={() => openClient(client.id)}>
                 打开客户端
               </button>
-              <button type="button" class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={() => copyText(subscriptionUrl, `${client.label} 订阅地址`)}>
+              <button type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={() => copyText(subscriptionUrl, `${client.label} 订阅地址`)}>
                 复制链接
               </button>
             </div>
@@ -227,7 +227,7 @@
       </section>
 
       <div class="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
-        <section class="rounded-[40px] border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur-xl">
+        <section class="rounded-[40px] border border-white/10 bg-[rgba(255,255,255,0.08)] p-6 shadow-xl backdrop-blur-[18px]">
           <div class="mb-6 flex items-center justify-between">
             <div>
               <p class="text-[10px] font-black uppercase tracking-[0.28em] opacity-35">节点列表</p>
@@ -257,13 +257,13 @@
               {/each}
             </div>
           {:else}
-            <div class="rounded-[28px] border border-white/10 bg-white/5 px-5 py-10 text-center text-sm font-bold opacity-50">
+            <div class="rounded-[28px] border border-white/10 bg-[rgba(255,255,255,0.08)] px-5 py-10 text-center text-sm font-bold opacity-50">
               现在还没有可下发的节点。
             </div>
           {/if}
         </section>
 
-        <section class="rounded-[40px] border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur-xl">
+        <section class="rounded-[40px] border border-white/10 bg-[rgba(255,255,255,0.08)] p-6 shadow-xl backdrop-blur-[18px]">
           <div class="mb-6 flex items-center justify-between">
             <div>
               <p class="text-[10px] font-black uppercase tracking-[0.28em] opacity-35">节点来源</p>
@@ -281,7 +281,7 @@
                       <h4 class="text-lg font-black tracking-tight">{source.label}</h4>
                       <p class="mt-2 text-xs font-black uppercase tracking-[0.2em] opacity-35">{source.source_type} · {source.node_count || 0} 条</p>
                     </div>
-                    <span class="rounded-full px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] {source.enabled ? 'bg-emerald-500/15 text-emerald-200' : 'bg-white/5 opacity-50'}">
+                    <span class="rounded-full px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] {source.enabled ? 'bg-emerald-500/15 text-emerald-200' : 'bg-[rgba(255,255,255,0.08)] opacity-50'}">
                       {source.enabled ? '启用中' : '已关闭'}
                     </span>
                   </div>
@@ -294,7 +294,7 @@
               {/each}
             </div>
           {:else}
-            <div class="rounded-[28px] border border-white/10 bg-white/5 px-5 py-10 text-center text-sm font-bold opacity-50">
+            <div class="rounded-[28px] border border-white/10 bg-[rgba(255,255,255,0.08)] px-5 py-10 text-center text-sm font-bold opacity-50">
               管理端还没有配置节点来源。
             </div>
           {/if}

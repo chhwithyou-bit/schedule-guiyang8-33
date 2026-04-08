@@ -181,58 +181,58 @@
 
 <style>
   .post-glass-card {
-    border: 1px solid rgba(var(--glow-primary-rgb), 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.12);
     background:
-      linear-gradient(145deg, rgba(var(--glow-primary-rgb), 0.18) 0% 45%, rgba(var(--glow-secondary-rgb), 0.14) 45% 100%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(var(--color-bg-rgb), 0.18)),
-      rgba(var(--color-bg-rgb), 0.22);
+      linear-gradient(145deg, rgba(var(--glow-primary-rgb), 0.12) 0% 45%, rgba(var(--glow-secondary-rgb), 0.08) 45% 100%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(var(--color-bg-rgb), 0.14)),
+      rgba(var(--color-bg-rgb), 0.1);
     box-shadow:
-      0 22px 60px rgba(var(--shadow-rgb), 0.16),
-      inset 0 1px 0 rgba(255, 255, 255, 0.14),
-      inset 0 -1px 0 rgba(0, 0, 0, 0.08);
-    backdrop-filter: blur(28px) saturate(1.2);
+      0 18px 42px rgba(var(--shadow-rgb), 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.05);
+    backdrop-filter: blur(18px) saturate(1.08);
   }
 
   .post-glass-card:hover {
     box-shadow:
-      0 28px 72px rgba(var(--shadow-rgb), 0.22),
-      inset 0 1px 0 rgba(255, 255, 255, 0.16),
-      inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+      0 22px 52px rgba(var(--shadow-rgb), 0.16),
+      inset 0 1px 0 rgba(255, 255, 255, 0.14),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.06);
   }
 
   .post-glass-card__overlay {
     background:
-      radial-gradient(circle at top left, rgba(var(--glow-primary-rgb), 0.32), transparent 38%),
-      radial-gradient(circle at 82% 18%, rgba(var(--glow-secondary-rgb), 0.22), transparent 30%),
-      linear-gradient(135deg, rgba(var(--glow-primary-rgb), 0.08) 0% 50%, rgba(var(--glow-secondary-rgb), 0.06) 50% 100%);
+      radial-gradient(circle at top left, rgba(var(--glow-primary-rgb), 0.2), transparent 38%),
+      radial-gradient(circle at 82% 18%, rgba(var(--glow-secondary-rgb), 0.12), transparent 30%),
+      linear-gradient(135deg, rgba(var(--glow-primary-rgb), 0.05) 0% 50%, rgba(var(--glow-secondary-rgb), 0.04) 50% 100%);
   }
 
   .post-glass-card__shine {
-    background: linear-gradient(90deg, rgba(var(--glow-primary-rgb), 0.06), rgba(255, 255, 255, 0.58), rgba(var(--glow-secondary-rgb), 0.1));
+    background: linear-gradient(90deg, rgba(var(--glow-primary-rgb), 0.04), rgba(255, 255, 255, 0.34), rgba(var(--glow-secondary-rgb), 0.06));
   }
 
   .post-glass-avatar {
-    border: 1px solid rgba(var(--glow-primary-rgb), 0.24);
+    border: 1px solid rgba(255, 255, 255, 0.12);
     background:
-      linear-gradient(145deg, rgba(var(--glow-primary-rgb), 0.28) 0% 50%, rgba(var(--glow-secondary-rgb), 0.16) 50% 100%),
-      rgba(255, 255, 255, 0.16);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.32);
-    backdrop-filter: blur(18px);
+      linear-gradient(145deg, rgba(var(--glow-primary-rgb), 0.18) 0% 50%, rgba(var(--glow-secondary-rgb), 0.1) 50% 100%),
+      rgba(255, 255, 255, 0.12);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    backdrop-filter: blur(14px);
   }
 
   .post-glass-media {
-    border: 1px solid rgba(var(--glow-primary-rgb), 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     background:
-      linear-gradient(180deg, rgba(var(--glow-primary-rgb), 0.12), rgba(var(--glow-secondary-rgb), 0.06)),
-      rgba(var(--color-bg-rgb), 0.18);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
-    backdrop-filter: blur(22px);
+      linear-gradient(180deg, rgba(var(--glow-primary-rgb), 0.08), rgba(var(--glow-secondary-rgb), 0.04)),
+      rgba(var(--color-bg-rgb), 0.08);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(14px);
   }
 
   .post-glass-media__item {
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(var(--color-bg-rgb), 0.08)),
-      rgba(var(--color-bg-rgb), 0.14);
+      linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(var(--color-bg-rgb), 0.06)),
+      rgba(var(--color-bg-rgb), 0.05);
   }
 
   .post-glass-footer {

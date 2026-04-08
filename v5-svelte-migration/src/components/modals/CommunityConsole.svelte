@@ -793,7 +793,7 @@
   {/if}
 
   <section
-    class="relative z-10 flex w-full flex-col text-[var(--color-text)] {embedded ? 'overflow-visible bg-transparent' : 'mx-auto xl:overflow-hidden xl:h-[min(90vh,56rem)] max-w-6xl rounded-[36px] border border-white/10 bg-[rgba(var(--color-bg-rgb),0.96)] shadow-2xl backdrop-blur-2xl'}"
+    class="relative z-10 flex w-full flex-col text-[var(--color-text)] {embedded ? 'overflow-visible bg-transparent' : 'mx-auto xl:overflow-hidden xl:h-[min(90vh,56rem)] max-w-6xl rounded-[36px] border border-white/12 bg-[rgba(var(--color-bg-rgb),0.92)] shadow-[0_24px_60px_rgba(var(--shadow-rgb),0.16)] backdrop-blur-[20px]'}"
     transition:fly={{ y: 36, duration: 360 }}
   >
     {#if !embedded}
@@ -805,12 +805,12 @@
 
       <div class="flex items-center gap-3">
         {#if $isAuthenticated}
-          <div class="hidden rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-[0.2em] opacity-70 md:block">
+          <div class="hidden rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-4 py-2 text-[10px] font-black uppercase tracking-[0.2em] opacity-70 md:block">
             {$user?.username || 'member'}
           </div>
         {/if}
         {#if !embedded}
-          <button type="button" class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={handleClose}>
+          <button type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={handleClose}>
             关闭
           </button>
         {/if}
@@ -820,7 +820,7 @@
 
     <div class="{embedded ? 'space-y-5' : 'xl:flex-1 xl:min-h-0 xl:overflow-hidden'}">
       <div class="{embedded ? 'space-y-5' : 'xl:flex xl:flex-col xl:h-full xl:min-h-0'}">
-        <div class="rounded-[28px] border border-white/10 bg-white/5 p-3 shadow-lg backdrop-blur-xl {activeTab === 'chats' && mobileChatView === 'detail' ? 'hidden xl:block' : ''} {embedded ? '' : 'mx-4 mt-4 md:mx-5 md:mt-5'}">
+        <div class="rounded-[28px] border border-white/12 bg-[rgba(255,255,255,0.08)] p-3 shadow-[0_18px_42px_rgba(var(--shadow-rgb),0.12)] backdrop-blur-[18px] {activeTab === 'chats' && mobileChatView === 'detail' ? 'hidden xl:block' : ''} {embedded ? '' : 'mx-4 mt-4 md:mx-5 md:mt-5'}">
           <div class="console-tab-shell flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between">
             <div class="console-tab-rail xl:max-w-[19rem]">
               <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">{tabHero[activeTab].eyebrow}</p>
@@ -844,11 +844,11 @@
             </div>
 
             <div class="flex flex-wrap gap-2 lg:justify-end">
-              <button type="button" class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={openNodesView}>
+              <button type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={openNodesView}>
                 去代理节点
               </button>
               {#if $isAuthenticated}
-                <button type="button" class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={openMyProfile}>
+                <button type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={openMyProfile}>
                   我的主页
                 </button>
               {/if}
@@ -856,7 +856,7 @@
           </div>
 
           {#if !$isAuthenticated}
-            <p class="mt-3 rounded-[20px] border border-white/10 bg-[rgba(255,255,255,0.04)] px-4 py-3 text-sm font-medium leading-7 opacity-75">
+            <p class="mt-3 rounded-[20px] border border-white/10 bg-[rgba(255,255,255,0.06)] px-4 py-3 text-sm font-medium leading-7 opacity-75">
               {authPrompt || '先登录，就能继续使用聊天、用户组会话和网盘。'}
             </p>
           {/if}
@@ -866,7 +866,7 @@
         {#if activeTab === 'account'}
           <div class="space-y-6">
             {#if !$isAuthenticated}
-              <section class="rounded-[32px] border border-white/10 bg-white/5 p-6 shadow-xl">
+              <section class="rounded-[32px] border border-white/10 bg-[rgba(255,255,255,0.08)] p-6 shadow-xl">
                 <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">先登录一下</p>
                 <h3 class="mt-3 text-3xl font-black tracking-tight">登录入口已经恢复</h3>
                 <p class="mt-3 max-w-2xl text-sm font-medium leading-7 opacity-70">
@@ -876,14 +876,14 @@
                   <button type="button" class="rounded-full bg-[var(--color-primary)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105" on:click={openAuth}>
                     登录 / 注册
                   </button>
-                  <button type="button" class="rounded-full border border-white/10 bg-white/5 px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105" on:click={openNodesView}>
+                  <button type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105" on:click={openNodesView}>
                     去代理节点页
                   </button>
                 </div>
               </section>
             {:else}
               <section class="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(20rem,0.95fr)]">
-                <div class="rounded-[32px] border border-white/10 bg-white/5 p-6 shadow-xl">
+                <div class="rounded-[32px] border border-white/10 bg-[rgba(255,255,255,0.08)] p-6 shadow-xl">
                   <div class="flex items-center gap-4">
                     <div class="flex h-16 w-16 items-center justify-center overflow-hidden rounded-[22px] bg-[var(--color-primary)] text-2xl font-black text-[var(--color-bg)]">
                       {#if $user?.avatar_url}
@@ -928,7 +928,7 @@
                     <button type="button" class="rounded-full bg-[var(--color-primary)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105 disabled:opacity-50" on:click={saveProfile} disabled={savingProfile}>
                       {savingProfile ? '正在保存…' : '保存资料'}
                     </button>
-                    <button type="button" class="rounded-full border border-white/10 bg-white/5 px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105" on:click={openMyProfile}>
+                    <button type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105" on:click={openMyProfile}>
                       打开主页
                     </button>
                     <button type="button" class="rounded-full border border-red-400/20 bg-red-500/10 px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-red-200 transition-transform hover:scale-105" on:click={logout}>
@@ -941,25 +941,25 @@
                   {/if}
                 </div>
 
-                <div class="rounded-[32px] border border-white/10 bg-white/5 p-6 shadow-xl">
+                <div class="rounded-[32px] border border-white/10 bg-[rgba(255,255,255,0.08)] p-6 shadow-xl">
                   <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">现在的情况</p>
                   <div class="mt-4 grid gap-4 md:grid-cols-2">
-                    <div class="rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.04)] p-4">
+                    <div class="rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.06)] p-4">
                       <p class="text-[10px] font-black uppercase tracking-[0.2em] opacity-35">会话</p>
                       <p class="mt-2 text-2xl font-black tracking-tight">{conversations.length}</p>
                       <p class="mt-1 text-sm font-medium opacity-65">私聊和群组会话会统一汇总到这里。</p>
                     </div>
-                    <div class="rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.04)] p-4">
+                    <div class="rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.06)] p-4">
                       <p class="text-[10px] font-black uppercase tracking-[0.2em] opacity-35">群组</p>
                       <p class="mt-2 text-2xl font-black tracking-tight">{groupConversations.length}</p>
                       <p class="mt-1 text-sm font-medium opacity-65">旧版加入过的群组现在能在控制台里直接打开。</p>
                     </div>
-                    <div class="rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.04)] p-4">
+                    <div class="rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.06)] p-4">
                       <p class="text-[10px] font-black uppercase tracking-[0.2em] opacity-35">网盘占用</p>
                       <p class="mt-2 text-2xl font-black tracking-tight">{formatBytes(driveStats.used_bytes || 0)}</p>
                       <p class="mt-1 text-sm font-medium opacity-65">总配额 {formatBytes(driveStats.quota_bytes || 0)}</p>
                     </div>
-                    <div class="rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.04)] p-4">
+                    <div class="rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.06)] p-4">
                       <p class="text-[10px] font-black uppercase tracking-[0.2em] opacity-35">身份</p>
                       <p class="mt-2 text-2xl font-black tracking-tight">{$isAdmin ? '管理员' : '普通成员'}</p>
                       <p class="mt-1 text-sm font-medium opacity-65">账号入口和资料面板已经恢复为固定 UI。</p>
@@ -973,7 +973,7 @@
 
         {#if activeTab === 'chats'}
           {#if !$isAuthenticated}
-            <div class="rounded-[32px] border border-white/10 bg-white/5 p-6 shadow-xl">
+            <div class="rounded-[32px] border border-white/10 bg-[rgba(255,255,255,0.08)] p-6 shadow-xl">
               <p class="text-sm font-bold opacity-70">{authPrompt || '登录后才能查看聊天和群组会话。'}</p>
               <button type="button" class="mt-4 rounded-full bg-[var(--color-primary)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105" on:click={openAuth}>
                 先去登录
@@ -981,14 +981,14 @@
             </div>
           {:else}
             <div class="{embedded ? 'grid gap-5 xl:grid-cols-[18rem_minmax(0,1fr)]' : 'grid min-h-[34rem] gap-5 xl:grid-cols-[18rem_minmax(0,1fr)]'} {mobileChatView === 'detail' ? 'min-h-[72svh]' : ''}">
-              <section class="rounded-[32px] border border-white/10 bg-white/5 p-4 shadow-xl {mobileChatView === 'detail' ? 'hidden xl:block' : ''}">
+              <section class="rounded-[32px] border border-white/10 bg-[rgba(255,255,255,0.08)] p-4 shadow-xl {mobileChatView === 'detail' ? 'hidden xl:block' : ''}">
                 <div class="mb-4 flex items-center justify-between">
                   <div>
                     <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">会话列表</p>
                     <h3 class="mt-1 text-xl font-black tracking-tight">共 {conversations.length} 个会话</h3>
                     <p class="mt-1 text-xs font-medium opacity-55">{directConversations.length} 个私聊 · {groupConversations.length} 个群聊</p>
                   </div>
-                  <button type="button" class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={loadChats}>
+                  <button type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={loadChats}>
                     刷新
                   </button>
                 </div>
@@ -1000,13 +1000,13 @@
                 <div class="space-y-3">
                   {#if loadingChats}
                     {#each Array(4) as _}
-                      <div class="h-20 animate-pulse rounded-[22px] bg-white/5"></div>
+                      <div class="h-20 animate-pulse rounded-[22px] bg-[rgba(255,255,255,0.08)]"></div>
                     {/each}
                   {:else if conversations.length > 0}
                     {#each conversations as item (item.id)}
                       <button
                         type="button"
-                        class="flex w-full items-start gap-3 rounded-[22px] border px-4 py-4 text-left transition-colors {selectedConversationId === item.id ? 'border-[var(--color-primary)] bg-[rgba(255,255,255,0.08)]' : 'border-white/10 bg-[rgba(255,255,255,0.04)] hover:bg-[rgba(255,255,255,0.07)]'}"
+                        class="flex w-full items-start gap-3 rounded-[22px] border px-4 py-4 text-left transition-colors {selectedConversationId === item.id ? 'border-[var(--color-primary)] bg-[rgba(255,255,255,0.08)]' : 'border-white/10 bg-[rgba(255,255,255,0.06)] hover:bg-[rgba(255,255,255,0.07)]'}"
                         on:click={() => loadMessages(item.id)}
                       >
                         <div class="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-[16px] bg-[var(--color-primary)] font-black text-[var(--color-bg)]">
@@ -1029,16 +1029,16 @@
                       </button>
                     {/each}
                   {:else}
-                    <div class="rounded-[24px] border border-white/10 bg-white/5 px-4 py-10 text-center text-sm font-bold opacity-50">
+                    <div class="rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.08)] px-4 py-10 text-center text-sm font-bold opacity-50">
                       还没有会话。先去群组选项卡建一个群，或者去别人的主页打个招呼。
                     </div>
                   {/if}
                 </div>
               </section>
 
-              <section bind:this={chatDetailPanel} class="{mobileChatView === 'list' ? 'hidden xl:flex' : 'flex'} flex-col rounded-[32px] border border-white/10 bg-white/5 p-4 shadow-xl min-h-[70svh] xl:min-h-0">
+              <section bind:this={chatDetailPanel} class="{mobileChatView === 'list' ? 'hidden xl:flex' : 'flex'} flex-col rounded-[32px] border border-white/10 bg-[rgba(255,255,255,0.08)] p-4 shadow-xl min-h-[70svh] xl:min-h-0">
                 <div class="mb-4 border-b border-white/10 pb-4">
-                  <button type="button" class="mb-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105 xl:hidden" on:click={() => (mobileChatView = 'list')}>
+                  <button type="button" class="mb-3 rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105 xl:hidden" on:click={() => (mobileChatView = 'list')}>
                     返回会话
                   </button>
                   <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">当前会话</p>
@@ -1048,17 +1048,17 @@
                   {/if}
                 </div>
 
-                <div class="flex-1 overflow-y-auto rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.04)] p-4 min-h-[18rem] max-h-[56svh] xl:min-h-0 xl:max-h-none">
+                <div class="flex-1 overflow-y-auto rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.06)] p-4 min-h-[18rem] max-h-[56svh] xl:min-h-0 xl:max-h-none">
                   {#if loadingMessages}
                     <div class="space-y-3">
                       {#each Array(4) as _}
-                        <div class="h-16 animate-pulse rounded-[20px] bg-white/5"></div>
+                        <div class="h-16 animate-pulse rounded-[20px] bg-[rgba(255,255,255,0.08)]"></div>
                       {/each}
                     </div>
                   {:else if messages.length > 0}
                     <div class="space-y-3">
                       {#each messages as message (message.id)}
-                        <article class="rounded-[20px] border border-white/10 bg-white/5 px-4 py-3">
+                        <article class="rounded-[20px] border border-white/10 bg-[rgba(255,255,255,0.08)] px-4 py-3">
                           <div class="flex items-center justify-between gap-4">
                             <p class="text-sm font-black">{message.sender?.username || '系统'}</p>
                             <p class="text-[10px] font-black uppercase tracking-[0.18em] opacity-30">{formatDate(message.created_at)}</p>
@@ -1100,7 +1100,7 @@
 
         {#if activeTab === 'groups'}
           {#if !$isAuthenticated}
-            <div class="rounded-[32px] border border-white/10 bg-white/5 p-6 shadow-xl">
+            <div class="rounded-[32px] border border-white/10 bg-[rgba(255,255,255,0.08)] p-6 shadow-xl">
               <p class="text-sm font-bold opacity-70">{authPrompt || '登录后才能查看和创建群组。'}</p>
               <button type="button" class="mt-4 rounded-full bg-[var(--color-primary)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105" on:click={openAuth}>
                 先去登录
@@ -1108,7 +1108,7 @@
             </div>
           {:else}
             <div class="grid gap-5 xl:grid-cols-[minmax(22rem,0.9fr)_minmax(0,1.1fr)]">
-              <section class="rounded-[32px] border border-white/10 bg-white/5 p-6 shadow-xl">
+              <section class="rounded-[32px] border border-white/10 bg-[rgba(255,255,255,0.08)] p-6 shadow-xl">
                 <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">建一个新群</p>
                 <h3 class="mt-2 text-3xl font-black tracking-tight">群组入口已经补回来了</h3>
                 <p class="mt-3 text-sm font-medium leading-7 opacity-70">
@@ -1130,7 +1130,7 @@
                   <button type="button" class="rounded-full bg-[var(--color-primary)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105 disabled:opacity-50" on:click={createGroup} disabled={creatingGroup}>
                     {creatingGroup ? '正在创建…' : '创建群聊'}
                   </button>
-                  <button type="button" class="rounded-full border border-white/10 bg-white/5 px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105" on:click={openNodesView}>
+                  <button type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105" on:click={openNodesView}>
                     去代理节点页
                   </button>
                 </div>
@@ -1140,13 +1140,13 @@
                 {/if}
               </section>
 
-              <section class="rounded-[32px] border border-white/10 bg-white/5 p-6 shadow-xl">
+              <section class="rounded-[32px] border border-white/10 bg-[rgba(255,255,255,0.08)] p-6 shadow-xl">
                 <div class="mb-4 flex items-center justify-between gap-4">
                   <div>
                     <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">我加入的群</p>
                     <h3 class="mt-1 text-2xl font-black tracking-tight">共 {groupConversations.length} 个群</h3>
                   </div>
-                  <button type="button" class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={loadChats}>
+                  <button type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={loadChats}>
                     刷新
                   </button>
                 </div>
@@ -1154,11 +1154,11 @@
                 <div class="space-y-3">
                   {#if loadingChats}
                     {#each Array(4) as _}
-                      <div class="h-24 animate-pulse rounded-[22px] bg-white/5"></div>
+                      <div class="h-24 animate-pulse rounded-[22px] bg-[rgba(255,255,255,0.08)]"></div>
                     {/each}
                   {:else if groupConversations.length > 0}
                     {#each groupConversations as item (item.id)}
-                      <article class="rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.04)] p-4">
+                      <article class="rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.06)] p-4">
                         <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                           <div class="min-w-0">
                             <div class="flex flex-wrap items-center gap-3">
@@ -1177,7 +1177,7 @@
                       </article>
                     {/each}
                   {:else}
-                    <div class="rounded-[24px] border border-white/10 bg-white/5 px-4 py-10 text-center text-sm font-bold opacity-50">
+                    <div class="rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.08)] px-4 py-10 text-center text-sm font-bold opacity-50">
                       还没有已加入的群。你可以先在这里建一个，再从聊天选项卡继续聊。
                     </div>
                   {/if}
@@ -1189,7 +1189,7 @@
 
         {#if activeTab === 'drive'}
           {#if !$isAuthenticated}
-            <div class="rounded-[32px] border border-white/10 bg-white/5 p-6 shadow-xl">
+            <div class="rounded-[32px] border border-white/10 bg-[rgba(255,255,255,0.08)] p-6 shadow-xl">
               <p class="text-sm font-bold opacity-70">{authPrompt || '登录后才能访问网盘。'}</p>
               <button type="button" class="mt-4 rounded-full bg-[var(--color-primary)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105" on:click={openAuth}>
                 先去登录
@@ -1197,7 +1197,7 @@
             </div>
           {:else}
             <div class="space-y-5">
-              <section class="rounded-[32px] border border-white/10 bg-white/5 p-6 shadow-xl">
+              <section class="rounded-[32px] border border-white/10 bg-[rgba(255,255,255,0.08)] p-6 shadow-xl">
                 <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div>
                     <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">网盘情况</p>
@@ -1210,10 +1210,10 @@
                       {uploadingDrive ? '上传中…' : '上传文件'}
                       <input type="file" class="hidden" disabled={uploadingDrive} on:change={handleDriveUpload} />
                     </label>
-                    <button type="button" class="rounded-full border border-white/10 bg-white/5 px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105" on:click={createFolder}>
+                    <button type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105" on:click={createFolder}>
                       新建文件夹
                     </button>
-                    <button type="button" class="rounded-full border border-white/10 bg-white/5 px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105" on:click={() => Promise.allSettled([loadDriveInfo(), loadDriveList()])}>
+                    <button type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105" on:click={() => Promise.allSettled([loadDriveInfo(), loadDriveList()])}>
                       刷新
                     </button>
                   </div>
@@ -1227,10 +1227,10 @@
                 </div>
               </section>
 
-              <section class="rounded-[32px] border border-white/10 bg-white/5 p-6 shadow-xl">
+              <section class="rounded-[32px] border border-white/10 bg-[rgba(255,255,255,0.08)] p-6 shadow-xl">
                 <div class="flex flex-wrap items-center gap-2">
                   {#each drivePath as crumb, index}
-                    <button type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.04)] px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={() => goToDrivePath(index)}>
+                    <button type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.06)] px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={() => goToDrivePath(index)}>
                       {crumb.name}
                     </button>
                   {/each}
@@ -1243,11 +1243,11 @@
                 <div class="mt-5 space-y-3">
                   {#if loadingDrive}
                     {#each Array(5) as _}
-                      <div class="h-20 animate-pulse rounded-[22px] bg-white/5"></div>
+                      <div class="h-20 animate-pulse rounded-[22px] bg-[rgba(255,255,255,0.08)]"></div>
                     {/each}
                   {:else if driveItems.length > 0}
                     {#each driveItems as item (item.id)}
-                      <article class="flex flex-col gap-4 rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.04)] p-4 md:flex-row md:items-center md:justify-between">
+                      <article class="flex flex-col gap-4 rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.06)] p-4 md:flex-row md:items-center md:justify-between">
                         <div class="min-w-0">
                           <div class="flex items-center gap-3">
                             <div class="flex h-11 w-11 items-center justify-center rounded-[16px] bg-[var(--color-primary)] text-sm font-black text-[var(--color-bg)]">
@@ -1272,7 +1272,7 @@
                               打开
                             </a>
                           {/if}
-                          <button type="button" class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={() => renameDriveItem(item)}>
+                          <button type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={() => renameDriveItem(item)}>
                             改名
                           </button>
                           <button type="button" class="rounded-full border border-red-400/20 bg-red-500/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-red-200 transition-transform hover:scale-105" on:click={() => deleteDriveItem(item)}>
@@ -1282,7 +1282,7 @@
                       </article>
                     {/each}
                   {:else}
-                    <div class="rounded-[24px] border border-white/10 bg-white/5 px-4 py-10 text-center text-sm font-bold opacity-50">
+                    <div class="rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.08)] px-4 py-10 text-center text-sm font-bold opacity-50">
                       这个目录还没有文件。
                     </div>
                   {/if}
@@ -1294,20 +1294,20 @@
 
         {#if activeTab === 'notifications'}
           {#if !$isAuthenticated}
-            <div class="rounded-[32px] border border-white/10 bg-white/5 p-6 shadow-xl">
+            <div class="rounded-[32px] border border-white/10 bg-[rgba(255,255,255,0.08)] p-6 shadow-xl">
               <p class="text-sm font-bold opacity-70">{authPrompt || '登录后才能查看通知。'}</p>
               <button type="button" class="mt-4 rounded-full bg-[var(--color-primary)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105" on:click={openAuth}>
                 先去登录
               </button>
             </div>
           {:else}
-            <section class="rounded-[32px] border border-white/10 bg-white/5 p-6 shadow-xl">
+            <section class="rounded-[32px] border border-white/10 bg-[rgba(255,255,255,0.08)] p-6 shadow-xl">
               <div class="mb-4 flex items-center justify-between gap-4">
                 <div>
                   <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">提醒</p>
                   <h3 class="mt-1 text-2xl font-black tracking-tight">{notifications.length} 条更新</h3>
                 </div>
-                <button type="button" class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={loadNotifications}>
+                <button type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={loadNotifications}>
                   刷新
                 </button>
               </div>
@@ -1319,11 +1319,11 @@
               <div class="space-y-3">
                 {#if loadingNotifications}
                   {#each Array(4) as _}
-                    <div class="h-20 animate-pulse rounded-[22px] bg-white/5"></div>
+                    <div class="h-20 animate-pulse rounded-[22px] bg-[rgba(255,255,255,0.08)]"></div>
                   {/each}
                 {:else if notifications.length > 0}
                   {#each notifications as item (item.id)}
-                    <article class="rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.04)] px-4 py-4">
+                    <article class="rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.06)] px-4 py-4">
                       <div class="flex items-center justify-between gap-4">
                         <p class="text-sm font-black">{item.username || '系统'} {formatNotification(item.type)}</p>
                         <p class="text-[10px] font-black uppercase tracking-[0.18em] opacity-30">{formatDate(item.created_at)}</p>
@@ -1331,7 +1331,7 @@
                     </article>
                   {/each}
                 {:else}
-                  <div class="rounded-[24px] border border-white/10 bg-white/5 px-4 py-10 text-center text-sm font-bold opacity-50">
+                  <div class="rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.08)] px-4 py-10 text-center text-sm font-bold opacity-50">
                     目前还没有通知。
                   </div>
                 {/if}
@@ -1362,29 +1362,29 @@
     flex-direction: column;
     justify-content: space-between;
     border-radius: 1.35rem;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.06);
     padding: 0.95rem;
     text-align: left;
     transition:
-      transform 0.22s ease,
-      background 0.22s ease,
-      border-color 0.22s ease,
-      box-shadow 0.22s ease;
+      transform 0.18s ease,
+      background 0.18s ease,
+      border-color 0.18s ease,
+      box-shadow 0.18s ease;
   }
 
   .console-tab-card:hover {
-    transform: translateY(-2px);
-    border-color: rgba(255, 255, 255, 0.16);
-    background: rgba(255, 255, 255, 0.07);
+    transform: translateY(-1px);
+    border-color: rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.08);
   }
 
   .console-tab-card.is-active {
     border-color: color-mix(in srgb, var(--color-primary) 72%, white 28%);
-    background: linear-gradient(145deg, rgba(var(--glow-primary-rgb), 0.2), rgba(255, 255, 255, 0.08));
+    background: linear-gradient(145deg, rgba(var(--glow-primary-rgb), 0.14), rgba(255, 255, 255, 0.08));
     box-shadow:
-      0 16px 28px rgba(var(--shadow-rgb), 0.16),
-      inset 0 1px 0 rgba(255, 255, 255, 0.18);
+      0 12px 22px rgba(var(--shadow-rgb), 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.16);
   }
 
   .console-tab-card__label {

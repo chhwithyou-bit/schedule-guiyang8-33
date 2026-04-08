@@ -47,10 +47,10 @@
 
 <svelte:window bind:scrollY={y} />
 
-<header 
-  class="fixed top-0 left-0 right-0 z-[5000] px-6 md:px-12 py-6 transition-all duration-500
+<header
+  class="fixed top-0 left-0 right-0 z-[5000] px-6 md:px-12 py-6 transition-all duration-300
          {isVisible ? 'translate-y-0' : '-translate-y-full'}
-         {y > 60 ? 'bg-white/80 dark:bg-neutral-950/80 backdrop-blur-2xl shadow-sm' : 'bg-transparent'}"
+         {y > 60 ? 'site-header-shell is-scrolled' : 'site-header-shell'}"
 >
   <div class="max-w-7xl mx-auto flex items-center justify-between">
     <!-- Logo -->
@@ -63,7 +63,7 @@
     <!-- Navigation / Profile -->
     <div class="flex items-center gap-6">
       {#if $isAuthenticated}
-        <div class="hidden items-center gap-2 rounded-full border border-white/10 bg-white/5 p-1 shadow-sm md:flex">
+        <div class="header-switch-shell hidden items-center gap-2 p-1 md:flex">
           <button
             on:click={openConsoleView}
             class="header-switch {($currentView === 'console') ? 'is-active' : ''}"
@@ -79,7 +79,7 @@
         </div>
         <button 
           on:click={openConsoleView}
-          class="w-10 h-10 flex items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 hover:scale-110 transition-transform overflow-hidden shadow-sm"
+          class="header-avatar-shell flex h-10 w-10 items-center justify-center overflow-hidden rounded-full transition-transform hover:scale-105"
         >
           {#if $user.avatar_url}
             <img src={$user.avatar_url} alt="" class="w-full h-full object-cover" />
@@ -106,17 +106,30 @@
 </header>
 
 <style>
+  .site-header-shell {
+    background: transparent;
+  }
+
+  .site-header-shell.is-scrolled {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    background:
+      linear-gradient(180deg, rgba(var(--color-bg-rgb), 0.14), rgba(var(--color-bg-rgb), 0.08)),
+      rgba(var(--color-bg-rgb), 0.08);
+    backdrop-filter: blur(16px) saturate(1.08);
+    box-shadow: 0 12px 26px rgba(var(--shadow-rgb), 0.08);
+  }
+
   .header-switch-shell {
     align-items: center;
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.06);
-    padding: 0.25rem;
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
     font-size: 0.625rem;
     font-weight: 900;
     letter-spacing: 0.18em;
     text-transform: uppercase;
-    transition: transform 0.2s ease;
+    transition: transform 0.2s ease, background 0.2s ease;
   }
 
   .header-switch {
@@ -142,5 +155,14 @@
   .header-switch.is-active-soft {
     background: rgba(255, 255, 255, 0.08);
     color: var(--color-text);
+  }
+
+  .header-avatar-shell {
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow:
+      0 10px 22px rgba(var(--shadow-rgb), 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.14);
+    backdrop-filter: blur(16px);
   }
 </style>

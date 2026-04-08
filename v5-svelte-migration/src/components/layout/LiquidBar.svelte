@@ -301,9 +301,9 @@
     position: fixed;
     inset: 0;
     background:
-      radial-gradient(circle at 10rem 7rem, rgba(var(--glow-primary-rgb), 0.16), rgba(255, 255, 255, 0.02) 18%, transparent 36%),
-      linear-gradient(180deg, rgba(var(--shadow-rgb), 0.2), rgba(var(--shadow-rgb), 0.46));
-    backdrop-filter: blur(2px);
+      radial-gradient(circle at 10rem 7rem, rgba(var(--glow-primary-rgb), 0.1), rgba(255, 255, 255, 0.02) 18%, transparent 36%),
+      linear-gradient(180deg, rgba(var(--shadow-rgb), 0.12), rgba(var(--shadow-rgb), 0.24));
+    backdrop-filter: blur(1px);
   }
 
   .liquid-shell {
@@ -311,9 +311,9 @@
     z-index: 1;
     transform-origin: top left;
     transition:
-      width 0.42s cubic-bezier(0.22, 1, 0.36, 1),
-      transform 0.42s cubic-bezier(0.22, 1, 0.36, 1),
-      filter 0.42s ease;
+      width 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+      filter 0.3s ease;
   }
 
   .liquid-shell.is-collapsed {
@@ -328,18 +328,18 @@
   .liquid-core {
     position: relative;
     overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.14);
     background:
-      radial-gradient(circle at top left, rgba(255, 255, 255, 0.26), transparent 42%),
-      linear-gradient(160deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.04) 45%, rgba(255, 255, 255, 0.12));
-    backdrop-filter: blur(24px) saturate(1.3);
+      radial-gradient(circle at top left, rgba(255, 255, 255, 0.18), transparent 42%),
+      linear-gradient(160deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04) 45%, rgba(255, 255, 255, 0.08));
+    backdrop-filter: blur(20px) saturate(1.12);
     box-shadow:
-      0 22px 54px rgba(var(--shadow-rgb), 0.32),
-      inset 0 1px 0 rgba(255, 255, 255, 0.28);
+      0 18px 42px rgba(var(--shadow-rgb), 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
     transition:
-      border-radius 0.42s cubic-bezier(0.22, 1, 0.36, 1),
-      box-shadow 0.42s cubic-bezier(0.22, 1, 0.36, 1),
-      background 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+      border-radius 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+      background 0.3s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .liquid-shell.is-collapsed .liquid-core {
@@ -349,9 +349,9 @@
   .liquid-shell.is-expanded .liquid-core {
     border-radius: 2rem;
     box-shadow:
-      0 32px 84px rgba(var(--shadow-rgb), 0.4),
-      0 12px 30px rgba(var(--shadow-rgb), 0.18),
-      inset 0 1px 0 rgba(255, 255, 255, 0.34);
+      0 24px 58px rgba(var(--shadow-rgb), 0.24),
+      0 8px 20px rgba(var(--shadow-rgb), 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.26);
   }
 
   .liquid-core::before {
@@ -360,9 +360,9 @@
     inset: 1px;
     border-radius: inherit;
     background:
-      linear-gradient(125deg, rgba(255, 255, 255, 0.22), transparent 32%),
-      radial-gradient(circle at top right, rgba(255, 255, 255, 0.14), transparent 36%);
-    opacity: 0.86;
+      linear-gradient(125deg, rgba(255, 255, 255, 0.16), transparent 32%),
+      radial-gradient(circle at top right, rgba(255, 255, 255, 0.1), transparent 36%);
+    opacity: 0.74;
     pointer-events: none;
   }
 
@@ -388,11 +388,11 @@
     overflow: hidden;
     border-radius: 1rem;
     background:
-      linear-gradient(165deg, rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0.04) 65%),
-      rgba(255, 255, 255, 0.06);
+      linear-gradient(165deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.04) 65%),
+      rgba(255, 255, 255, 0.08);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.24),
-      0 14px 28px rgba(var(--shadow-rgb), 0.24);
+      inset 0 1px 0 rgba(255, 255, 255, 0.2),
+      0 10px 20px rgba(var(--shadow-rgb), 0.14);
   }
 
   .emblem-ring {
@@ -523,15 +523,15 @@
     flex-direction: column;
     justify-content: space-between;
     border-radius: 1.45rem;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
     padding: 0.9rem 0.95rem 0.82rem;
     text-align: left;
     transition:
-      transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
-      background 0.28s ease,
-      border-color 0.28s ease,
-      box-shadow 0.28s ease;
+      transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+      background 0.22s ease,
+      border-color 0.22s ease,
+      box-shadow 0.22s ease;
   }
 
   .liquid-nav-btn:hover,
@@ -592,13 +592,13 @@
   }
 
   .liquid-console-btn {
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.06);
   }
 
   .liquid-console-btn.is-primary {
     background:
-      linear-gradient(160deg, rgba(var(--glow-primary-rgb), 0.22), rgba(255, 255, 255, 0.08)),
-      rgba(255, 255, 255, 0.08);
+      linear-gradient(160deg, rgba(var(--glow-primary-rgb), 0.16), rgba(255, 255, 255, 0.08)),
+      rgba(255, 255, 255, 0.06);
   }
 
   .liquid-compose-btn {

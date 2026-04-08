@@ -994,11 +994,11 @@
     position: fixed;
     z-index: 10050;
     transition:
-      left 0.52s cubic-bezier(0.22, 1, 0.36, 1),
-      top 0.52s cubic-bezier(0.22, 1, 0.36, 1),
-      width 0.52s cubic-bezier(0.22, 1, 0.36, 1),
-      height 0.52s cubic-bezier(0.22, 1, 0.36, 1),
-      filter 0.32s ease;
+      left 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+      top 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+      width 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+      height 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+      filter 0.22s ease;
   }
 
   #mp.dragging {
@@ -1013,19 +1013,19 @@
     overflow: hidden;
     color: var(--color-text);
     background:
-      linear-gradient(160deg, rgba(var(--color-bg-rgb), 0.86), rgba(var(--color-bg-rgb), 0.96)),
+      linear-gradient(160deg, rgba(var(--color-bg-rgb), 0.9), rgba(var(--color-bg-rgb), 0.94)),
       rgba(var(--color-bg-rgb), 0.92);
-    border: 1px solid rgba(var(--glow-primary-rgb), 0.14);
-    backdrop-filter: blur(22px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(18px);
     box-shadow:
-      0 24px 42px rgba(var(--shadow-rgb), 0.18),
+      0 18px 34px rgba(var(--shadow-rgb), 0.14),
       inset 0 1px 0 rgba(255, 255, 255, 0.08);
     transform-origin: var(--mp-origin-x) var(--mp-origin-y);
     transition:
-      border-radius 0.52s cubic-bezier(0.22, 1, 0.36, 1),
-      background 0.52s ease,
-      box-shadow 0.52s ease,
-      padding 0.52s cubic-bezier(0.22, 1, 0.36, 1);
+      border-radius 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+      background 0.32s ease,
+      box-shadow 0.32s ease,
+      padding 0.32s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .mp-shell::before {
@@ -1112,13 +1112,13 @@
     padding: 0.82rem;
     overflow: hidden;
     background:
-      radial-gradient(circle at top right, rgba(255, 255, 255, 0.18), transparent 38%),
-      linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)),
-      rgba(var(--color-bg-rgb), 0.82);
-    border: 1px solid rgba(var(--glow-primary-rgb), 0.12);
+      radial-gradient(circle at top right, rgba(255, 255, 255, 0.12), transparent 38%),
+      linear-gradient(145deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03)),
+      rgba(var(--color-bg-rgb), 0.84);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.08),
-      0 16px 28px rgba(var(--shadow-rgb), 0.1);
+      0 12px 22px rgba(var(--shadow-rgb), 0.08);
   }
 
   .mp-edge {
@@ -1378,17 +1378,7 @@
 
   .mp-fallback-cover.is-playing .mp-cover-disc,
   .mp-fallback-cover.is-playing .mp-cover-disc-ring {
-    animation: mp-cover-spin 6s linear infinite;
-  }
-
-  @keyframes mp-cover-spin {
-    from {
-      transform: rotate(0deg);
-    }
-
-    to {
-      transform: rotate(360deg);
-    }
+    transform: scale(1.02);
   }
 
   .mp-hero-copy {
@@ -1604,13 +1594,13 @@
     opacity: 0;
     overflow: hidden;
     pointer-events: none;
-    transform: translate3d(0, 10px, 0) scale(0.98);
+    transform: translate3d(0, 6px, 0);
     transition:
-      max-height 0.42s cubic-bezier(0.22, 1, 0.36, 1),
-      opacity 0.32s ease,
-      transform 0.42s cubic-bezier(0.22, 1, 0.36, 1),
-      margin-top 0.32s ease,
-      padding 0.32s ease;
+      max-height 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.2s ease,
+      transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+      margin-top 0.2s ease,
+      padding 0.2s ease;
   }
 
   .mp-list-panel.open {
@@ -1620,10 +1610,10 @@
     padding: 0.58rem;
     opacity: 1;
     pointer-events: auto;
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: translate3d(0, 0, 0);
     border-radius: 22px;
-    border: 1px solid rgba(var(--glow-primary-rgb), 0.1);
-    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.05);
   }
 
   .mp-search-wrap {
@@ -1665,14 +1655,14 @@
     gap: 0.72rem;
     padding: 0.82rem 0.88rem;
     border-radius: 18px;
-    border: 1px solid rgba(var(--glow-primary-rgb), 0.08);
-    background: rgba(255, 255, 255, 0.035);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.05);
     color: inherit;
     text-align: left;
     transition:
-      transform 0.18s ease,
-      border-color 0.18s ease,
-      background 0.18s ease;
+      transform 0.16s ease,
+      border-color 0.16s ease,
+      background 0.16s ease;
   }
 
   .mp-track-row:hover {
