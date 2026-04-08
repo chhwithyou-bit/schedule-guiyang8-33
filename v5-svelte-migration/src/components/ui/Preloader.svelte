@@ -7,8 +7,6 @@
 
   let progress = { value: 0 };
   let displayValue = '00';
-  let turbRef: SVGFETurbulenceElement;
-  let dispRef: SVGFEDisplacementMapElement;
   let container: HTMLElement;
   let veilRef: HTMLDivElement;
   let apertureRef: HTMLDivElement;
@@ -51,15 +49,6 @@
   function updateDisplay() {
     const val = Math.floor(progress.value);
     displayValue = val < 10 ? `0${val}` : `${val}`;
-  }
-
-  function setDistortion(x: number, y: number, scale: number) {
-    if (turbRef) {
-      turbRef.setAttribute('baseFrequency', `${x} ${y}`);
-    }
-    if (dispRef) {
-      dispRef.setAttribute('scale', `${scale}`);
-    }
   }
 
   function startInitialCounter() {
@@ -135,7 +124,6 @@
     try {
       const tl = gsap.timeline({
         onComplete: () => {
-          setDistortion(0, 0, 0);
           dispatch('complete');
         }
       });
@@ -148,34 +136,6 @@
           displayValue = '100';
         }
       });
-
-      if (turbRef && dispRef) {
-        const freq = { x: 0.0025, y: 0.008 };
-
-        tl.to(
-          freq,
-          {
-            x: 0.03,
-            y: 0.01,
-            duration: 0.28,
-            ease: 'power2.in',
-            onUpdate: () => setDistortion(freq.x, freq.y, 44)
-          },
-          0.02
-        );
-
-        tl.to(
-          freq,
-          {
-            x: 0,
-            y: 0,
-            duration: 0.4,
-            ease: 'power2.out',
-            onUpdate: () => setDistortion(freq.x, freq.y, 0)
-          },
-          0.3
-        );
-      }
 
       tl.to(
         apertureRef,
@@ -236,26 +196,6 @@
   }
 </script>
 
-<svg class="fixed h-0 w-0 overflow-hidden pointer-events-none" aria-hidden="true">
-  <filter id="liquid-glass-awakening">
-    <feTurbulence
-      bind:this={turbRef}
-      type="fractalNoise"
-      baseFrequency="0 0"
-      numOctaves="2"
-      result="noise"
-    />
-    <feDisplacementMap
-      bind:this={dispRef}
-      in="SourceGraphic"
-      in2="noise"
-      scale="0"
-      xChannelSelector="R"
-      yChannelSelector="G"
-    />
-  </filter>
-</svg>
-
 <div bind:this={container} class="preloader-overlay">
   <div bind:this={glowRef} class="preloader-glow"></div>
   <div bind:this={veilRef} class="preloader-veil"></div>
@@ -308,7 +248,7 @@
     background:
       radial-gradient(circle at 50% 38%, rgba(255, 255, 255, 0.18), transparent 18%),
       radial-gradient(circle at 50% 54%, rgba(var(--glow-primary-rgb), 0.16), transparent 32%);
-    filter: blur(18px);
+    filter: blur(12px);
   }
 
   .preloader-veil {
@@ -317,8 +257,7 @@
     background:
       radial-gradient(circle at calc(48% + (var(--veil-shift) * 7%)) 28%, rgba(255, 255, 255, 0.22), transparent 18%),
       linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.05) 34%, rgba(var(--color-bg-rgb), 0.08) 68%, rgba(var(--color-bg-rgb), 0.46) 100%),
-      linear-gradient(135deg, rgba(var(--glow-primary-rgb), 0.16), rgba(var(--glow-secondary-rgb), 0.12));
-    filter: url(#liquid-glass-awakening);
+      linear-gradient(135deg, rgba(var(--glow-primary-rgb), 0.12), rgba(var(--glow-secondary-rgb), 0.09));
     transform: translate3d(0, 0, 0);
   }
 
@@ -329,7 +268,7 @@
     height: min(20rem, 24vh);
     background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.16), transparent 72%);
     opacity: 0.55;
-    filter: blur(32px);
+    filter: blur(20px);
   }
 
   .preloader-aperture {
@@ -347,7 +286,6 @@
     opacity: 0.24;
     transform: translate(-50%, -50%) scale(0.76);
     transform-origin: center;
-    filter: url(#liquid-glass-awakening);
   }
 
   .preloader-center {

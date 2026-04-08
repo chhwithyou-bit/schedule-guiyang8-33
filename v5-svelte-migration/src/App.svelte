@@ -33,6 +33,7 @@
   let lenisFrame = 0;
   let mainContent: HTMLElement;
   let isLoading = true;
+  let lenisStarted = false;
 
   const viewMap: Record<string, any> = {
     schedule: ScheduleView,
@@ -43,8 +44,34 @@
     admin: AdminView
   };
 
+  function startLenis() {
+    if (lenisStarted) return;
+    lenisStarted = true;
+
+    try {
+      lenis = new Lenis({
+        duration: 0.82,
+        easing: (t) => 1 - Math.pow(1 - t, 3),
+        smoothWheel: true,
+        wheelMultiplier: 0.92,
+        touchMultiplier: 0.95
+      });
+
+      const raf = (time: number) => {
+        if (!lenis) return;
+        lenis.raf(time);
+        lenisFrame = requestAnimationFrame(raf);
+      };
+
+      lenisFrame = requestAnimationFrame(raf);
+    } catch (e) {
+      console.warn('Lenis initialization failed:', e);
+    }
+  }
+
   async function startAssembly() {
     isLoading = false;
+    startLenis();
     await tick();
 
     if (!mainContent) return;
@@ -126,26 +153,6 @@
       }
     }, 5000);
 
-    try {
-      lenis = new Lenis({
-        duration: 0.82,
-        easing: (t) => 1 - Math.pow(1 - t, 3),
-        smoothWheel: true,
-        wheelMultiplier: 0.92,
-        touchMultiplier: 0.95
-      });
-
-      const raf = (time: number) => {
-        if (!lenis) return;
-        lenis.raf(time);
-        lenisFrame = requestAnimationFrame(raf);
-      };
-
-      lenisFrame = requestAnimationFrame(raf);
-    } catch (e) {
-      console.warn('Lenis initialization failed:', e);
-    }
-
     return () => {
       clearTimeout(failSafe);
       if (lenisFrame) {
@@ -226,7 +233,7 @@
     content: '';
     position: absolute;
     inset: 0;
-    background-image: url('/IMG_1695.jpeg');
+    background-image: url('/IMG_1695.webp');
     background-repeat: no-repeat;
     background-position: center -24px;
   }
