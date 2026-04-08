@@ -6,6 +6,7 @@ use hex;
 use uuid::Uuid;
 use chrono::Utc;
 use std::collections::HashMap;
+use base64::{engine::general_purpose, Engine as _};
 
 mod utils {
     use super::*;
@@ -28,18 +29,28 @@ mod utils {
         hex::encode(hasher.finalize())
     }
 
-    pub fn json_resp<T: Serialize>(data: T, status: u16) -> Result<Response> {
+    pub fn cors_headers() -> Headers {
         let headers = Headers::new();
-        let _ = headers.set("Content-Type", "application/json;charset=UTF-8");
         let _ = headers.set("Access-Control-Allow-Origin", "*");
         let _ = headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
         let _ = headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+        headers
+    }
+
+    pub fn json_resp<T: Serialize>(data: T, status: u16) -> Result<Response> {
+        let headers = cors_headers();
+        let _ = headers.set("Content-Type", "application/json;charset=UTF-8");
         
         Ok(Response::from_json(&data)?.with_status(status).with_headers(headers))
+    }
+
+    pub fn empty_resp(status: u16) -> Result<Response> {
+        Ok(Response::empty()?.with_status(status).with_headers(cors_headers()))
     }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(default)]
 struct User {
     id: String,
     username: String,
@@ -65,6 +76,29 @@ struct User {
     drive_quota: Option<i64>,
     #[serde(skip_deserializing)]
     drive_used: Option<i64>,
+}
+
+impl Default for User {
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            username: String::new(),
+            password_hash: String::new(),
+            role: "user".to_string(),
+            avatar_url: None,
+            signature: None,
+            background_url: None,
+            xp: 0,
+            level: 1,
+            is_banned: 0,
+            created_at: String::new(),
+            followers_count: None,
+            following_count: None,
+            viewer_is_following: None,
+            drive_quota: None,
+            drive_used: None,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -146,15 +180,37 @@ struct Notification {
     avatar_url: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
-struct Conversation {
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+struct ConversationSummary {
     id: String,
-    #[serde(rename = "type")]
-    conv_type: String,
-    name: Option<String>,
+    kind: String,
+    title: Option<String>,
+    description: Option<String>,
+    avatar_url: Option<String>,
+    created_at: Option<String>,
+    updated_at: Option<String>,
+    member_role: Option<String>,
+    member_count: Option<i64>,
+    unread_count: Option<i64>,
     last_message: Option<String>,
-    updated_at: String,
-    other_user: Option<User>,
+    last_message_at: Option<String>,
+    last_sender_name: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+struct ConversationMembership {
+    id: String,
+    kind: String,
+    title: Option<String>,
+    description: Option<String>,
+    avatar_url: Option<String>,
+    direct_key: Option<String>,
+    created_by: Option<String>,
+    created_at: Option<String>,
+    updated_at: Option<String>,
+    member_role: Option<String>,
+    last_read_at: Option<String>,
+    joined_at: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -162,11 +218,14 @@ struct Conversation {
 struct Message {
     id: String,
     conversation_id: String,
-    sender_id: String,
+    sender_id: Option<String>,
     content: String,
     created_at: String,
     username: Option<String>,
     avatar_url: Option<String>,
+    xp: Option<i32>,
+    level: Option<i32>,
+    role: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -182,6 +241,360 @@ struct AdminAction {
     member_ids: Option<Vec<String>>,
     title: Option<String>,
     description: Option<String>,
+    source_id: Option<String>,
+    source_type: Option<String>,
+    source_url: Option<String>,
+    source_content: Option<String>,
+    source_label: Option<String>,
+    enabled: Option<bool>,
+}
+
+#[derive(Deserialize)]
+struct GroupJoinRequest {
+    conversation_id: String,
+}
+
+#[derive(Deserialize)]
+struct DirectChatRequest {
+    target_user_id: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+struct NodeSourceRecord {
+    id: String,
+    source_type: String,
+    label: String,
+    source_url: Option<String>,
+    source_content: Option<String>,
+    enabled: bool,
+    node_count: usize,
+    last_error: Option<String>,
+    updated_at: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+struct ProxyNodeRecord {
+    id: String,
+    name: String,
+    raw: String,
+    protocol: String,
+    source_id: Option<String>,
+    source_label: Option<String>,
+}
+
+async fn find_user_by_credentials(db: &D1Database, username: &str, pass_hash: &str) -> Result<Option<User>> {
+    db.prepare(
+        "
+        SELECT
+            COALESCE(id, '') as id,
+            COALESCE(username, '') as username,
+            COALESCE(password_hash, '') as password_hash,
+            COALESCE(role, 'user') as role,
+            avatar_url,
+            signature,
+            background_url,
+            COALESCE(xp, 0) as xp,
+            COALESCE(level, 1) as level,
+            COALESCE(is_banned, 0) as is_banned,
+            COALESCE(created_at, '') as created_at
+        FROM users
+        WHERE username = ? AND password_hash = ?
+        ",
+    )
+    .bind(&[username.into(), pass_hash.into()])?
+    .first::<User>(None)
+    .await
+}
+
+fn normalize_community_role(role: &str) -> String {
+    match role {
+        "owner" => "owner".to_string(),
+        "admin" => "admin".to_string(),
+        _ => "user".to_string(),
+    }
+}
+
+fn is_community_admin_role(role: &str) -> bool {
+    matches!(role, "admin" | "owner")
+}
+
+fn with_community_level(mut user: User) -> User {
+    user.level = utils::get_community_level_from_xp(user.xp);
+    user.role = normalize_community_role(&user.role);
+    user
+}
+
+fn build_direct_conversation_key(user_a: &str, user_b: &str) -> String {
+    let mut users = vec![user_a.trim().to_string(), user_b.trim().to_string()];
+    users.sort();
+    users.join(":")
+}
+
+async fn get_conversation_membership(db: &D1Database, conversation_id: &str, user_id: &str) -> Result<Option<ConversationMembership>> {
+    db.prepare(
+        "
+        SELECT
+            c.id,
+            COALESCE(c.kind, 'direct') as kind,
+            c.title,
+            c.description,
+            c.avatar_url,
+            c.direct_key,
+            c.created_by,
+            c.created_at,
+            c.updated_at,
+            cm.role as member_role,
+            cm.last_read_at,
+            cm.joined_at
+        FROM conversations c
+        JOIN conversation_members cm ON cm.conversation_id = c.id
+        WHERE c.id = ? AND cm.user_id = ?
+        LIMIT 1
+        ",
+    )
+    .bind(&[conversation_id.into(), user_id.into()])?
+    .first::<ConversationMembership>(None)
+    .await
+}
+
+async fn serialize_conversation(db: &D1Database, conversation: &ConversationSummary, viewer_id: &str) -> Result<Value> {
+    let mut payload = json!({
+        "id": conversation.id,
+        "kind": conversation.kind,
+        "title": conversation.title.clone().unwrap_or_default(),
+        "description": conversation.description.clone().unwrap_or_default(),
+        "avatar_url": conversation.avatar_url.clone().unwrap_or_default(),
+        "member_role": conversation.member_role.clone().unwrap_or_else(|| "member".to_string()),
+        "created_at": conversation.created_at.clone(),
+        "updated_at": conversation.updated_at.clone(),
+        "joined": true,
+        "member_count": conversation.member_count.unwrap_or(0),
+        "unread_count": conversation.unread_count.unwrap_or(0),
+        "last_message": conversation.last_message.clone().unwrap_or_default(),
+        "last_message_at": conversation.last_message_at.clone().or_else(|| conversation.updated_at.clone()),
+        "last_sender_name": conversation.last_sender_name.clone().unwrap_or_default()
+    });
+
+    if conversation.kind == "direct" {
+        let partner = db.prepare(
+            "
+            SELECT
+                COALESCE(u.id, '') as id,
+                COALESCE(u.username, '') as username,
+                COALESCE(u.password_hash, '') as password_hash,
+                COALESCE(u.role, 'user') as role,
+                u.avatar_url,
+                u.signature,
+                u.background_url,
+                COALESCE(u.xp, 0) as xp,
+                COALESCE(u.level, 1) as level,
+                COALESCE(u.is_banned, 0) as is_banned,
+                COALESCE(u.created_at, '') as created_at
+            FROM conversation_members cm
+            JOIN users u ON u.id = cm.user_id
+            WHERE cm.conversation_id = ? AND cm.user_id != ?
+            LIMIT 1
+            ",
+        )
+        .bind(&[conversation.id.clone().into(), viewer_id.into()])?
+        .first::<User>(None)
+        .await?;
+
+        if let Some(partner) = partner {
+            let partner = with_community_level(partner);
+            payload["partner"] = json!({
+                "id": partner.id,
+                "username": partner.username,
+                "avatar_url": partner.avatar_url,
+                "signature": partner.signature,
+                "xp": partner.xp,
+                "level": partner.level,
+                "role": partner.role
+            });
+            payload["title"] = json!(payload["title"].as_str().unwrap_or("").to_string().chars().next().map(|_| ()).is_some().then(|| payload["title"].as_str().unwrap_or("").to_string()).unwrap_or_else(|| partner.username.clone()));
+            if payload["avatar_url"].as_str().unwrap_or("").is_empty() {
+                payload["avatar_url"] = json!(partner.avatar_url);
+            }
+            if payload["description"].as_str().unwrap_or("").is_empty() {
+                payload["description"] = json!(partner.signature);
+            }
+        }
+    }
+
+    Ok(payload)
+}
+
+async fn list_user_conversations(db: &D1Database, user_id: &str) -> Result<Vec<Value>> {
+    let rows = db.prepare(
+        "
+        SELECT
+            c.id,
+            COALESCE(c.kind, 'direct') as kind,
+            c.title,
+            c.description,
+            c.avatar_url,
+            c.created_at,
+            c.updated_at,
+            cm.role as member_role,
+            (SELECT COUNT(*) FROM conversation_members WHERE conversation_id = c.id) AS member_count,
+            (SELECT content FROM messages WHERE conversation_id = c.id ORDER BY datetime(created_at) DESC LIMIT 1) AS last_message,
+            (SELECT created_at FROM messages WHERE conversation_id = c.id ORDER BY datetime(created_at) DESC LIMIT 1) AS last_message_at,
+            (SELECT COALESCE(u.username, '系统') FROM messages m LEFT JOIN users u ON u.id = m.sender_id WHERE m.conversation_id = c.id ORDER BY datetime(m.created_at) DESC LIMIT 1) AS last_sender_name,
+            (SELECT COUNT(*) FROM messages WHERE conversation_id = c.id AND datetime(created_at) > datetime(COALESCE(cm.last_read_at, '1970-01-01 00:00:00'))) AS unread_count
+        FROM conversations c
+        JOIN conversation_members cm ON cm.conversation_id = c.id
+        WHERE cm.user_id = ?
+        ORDER BY datetime(COALESCE((SELECT created_at FROM messages WHERE conversation_id = c.id ORDER BY datetime(created_at) DESC LIMIT 1), c.updated_at)) DESC
+        LIMIT 50
+        ",
+    )
+    .bind(&[user_id.into()])?
+    .all()
+    .await?
+    .results::<ConversationSummary>()?;
+
+    let mut conversations = Vec::new();
+    for row in rows {
+        conversations.push(serialize_conversation(db, &row, user_id).await?);
+    }
+    Ok(conversations)
+}
+
+fn decode_b64_if_needed(raw_text: &str) -> String {
+    let trimmed = raw_text.trim();
+    if trimmed.is_empty() {
+        return String::new();
+    }
+
+    if let Ok(bytes) = general_purpose::STANDARD.decode(trimmed) {
+        if let Ok(decoded) = String::from_utf8(bytes) {
+            if decoded.contains("://") {
+                return decoded;
+            }
+        }
+    }
+
+    trimmed.to_string()
+}
+
+fn parse_nodes(raw_text: &str) -> Vec<ProxyNodeRecord> {
+    decode_b64_if_needed(raw_text)
+        .lines()
+        .map(str::trim)
+        .filter(|line| {
+            line.starts_with("ss://")
+                || line.starts_with("vmess://")
+                || line.starts_with("trojan://")
+                || line.starts_with("vless://")
+                || line.starts_with("ssr://")
+        })
+        .map(|raw| {
+            let protocol = raw.split("://").next().unwrap_or("unknown").to_string();
+            let mut name = format!("{}节点", protocol.to_uppercase());
+
+            if raw.starts_with("vmess://") {
+                if let Ok(bytes) = general_purpose::STANDARD.decode(raw.trim_start_matches("vmess://")) {
+                    if let Ok(decoded) = String::from_utf8(bytes) {
+                        if let Ok(value) = serde_json::from_str::<Value>(&decoded) {
+                            name = value["ps"].as_str().or_else(|| value["add"].as_str()).unwrap_or("vmess节点").trim().to_string();
+                        }
+                    }
+                }
+            } else if let Some(hash) = raw.split('#').nth(1) {
+                let decoded_name = decode_url_component_if_needed(hash.split('\r').next().unwrap_or(""));
+                if !decoded_name.trim().is_empty() {
+                    name = decoded_name.trim().to_string();
+                }
+            }
+
+            ProxyNodeRecord {
+                id: Uuid::new_v4().to_string(),
+                name,
+                raw: raw.to_string(),
+                protocol,
+                source_id: None,
+                source_label: None,
+            }
+        })
+        .collect()
+}
+
+async fn read_node_sources(kv: &KvStore) -> Result<Vec<NodeSourceRecord>> {
+    Ok(serde_json::from_str(&kv.get("proxy_node_sources").text().await?.unwrap_or_else(|| "[]".to_string())).unwrap_or_default())
+}
+
+async fn write_node_sources(kv: &KvStore, sources: &[NodeSourceRecord]) -> Result<()> {
+    kv.put("proxy_node_sources", serde_json::to_string(sources)?)?.execute().await?;
+    Ok(())
+}
+
+async fn read_proxy_nodes(kv: &KvStore) -> Result<Vec<ProxyNodeRecord>> {
+    let raw = kv.get("proxy_nodes").text().await?.unwrap_or_else(|| "[]".to_string());
+    if let Ok(nodes) = serde_json::from_str(&raw) {
+        return Ok(nodes);
+    }
+
+    let legacy_raw = kv.get("nodes_list").text().await?.unwrap_or_else(|| "[]".to_string());
+    Ok(serde_json::from_str(&legacy_raw).unwrap_or_default())
+}
+
+async fn write_proxy_nodes(kv: &KvStore, nodes: &[ProxyNodeRecord]) -> Result<()> {
+    let payload = serde_json::to_string(nodes)?;
+    kv.put("proxy_nodes", payload.clone())?.execute().await?;
+    kv.put("nodes_list", payload)?.execute().await?;
+    Ok(())
+}
+
+async fn read_node_password_hash(kv: &KvStore) -> Result<String> {
+    if let Some(hash) = kv.get("proxy_nodes_password_hash").text().await? {
+        if !hash.trim().is_empty() {
+            return Ok(hash);
+        }
+    }
+
+    if let Some(legacy_pwd) = kv.get("nodes_user_pwd").text().await? {
+        if !legacy_pwd.trim().is_empty() {
+            let hash = utils::sha256_hex(legacy_pwd.trim());
+            kv.put("proxy_nodes_password_hash", hash.clone())?.execute().await?;
+            return Ok(hash);
+        }
+    }
+
+    Ok(String::new())
+}
+
+async fn verify_node_password(kv: &KvStore, password: &str) -> Result<bool> {
+    let expected = read_node_password_hash(kv).await?;
+    if expected.is_empty() {
+        return Ok(false);
+    }
+    Ok(utils::sha256_hex(password.trim()) == expected)
+}
+
+async fn verify_node_admin(kv: &KvStore, username: &str, password: &str) -> Result<bool> {
+    let stored_user = kv.get("nodes_admin_user").text().await?.unwrap_or_else(|| "admin".to_string());
+    let stored_pass = kv.get("nodes_admin_pass").text().await?.unwrap_or_else(|| "admin888".to_string());
+    Ok(username == stored_user && password == stored_pass)
+}
+
+fn build_client_launch_links(subscription_url: &str) -> Value {
+    json!({
+        "shadowrocket": format!("shadowrocket://add/sub://{}", url::form_urlencoded::byte_serialize(subscription_url.as_bytes()).collect::<String>()),
+        "clash": subscription_url,
+        "surge": subscription_url,
+        "loon": subscription_url,
+        "stash": subscription_url,
+        "quantumult_x": subscription_url,
+        "sing_box": subscription_url,
+        "v2rayn": subscription_url,
+        "v2rayng": subscription_url
+    })
+}
+
+async fn fetch_remote_text(source_url: &str) -> Result<String> {
+    let req = Request::new(source_url, Method::Get)?;
+    let mut resp = Fetch::Request(req).send().await?;
+    resp.text().await
 }
 
 async fn get_auth(req: &Request, db: &D1Database) -> Result<Option<User>> {
@@ -207,8 +620,7 @@ async fn get_auth(req: &Request, db: &D1Database) -> Result<Option<User>> {
                 }
 
                 for username in username_candidates {
-                    let query = db.prepare("SELECT * FROM users WHERE username = ? AND password_hash = ?");
-                    let user = query.bind(&[username.into(), pass_hash.into()])?.first::<User>(None).await?;
+                    let user = find_user_by_credentials(db, &username, pass_hash).await?;
                     if user.is_some() {
                         return Ok(user);
                     }
@@ -340,7 +752,7 @@ fn build_music_track_payload(key: &str) -> Value {
     })
 }
 
-async fn fetch_drive_media(env: &Env, file_id: &str) -> Result<Option<(Vec<u8>, String)>> {
+async fn fetch_drive_media(env: &Env, file_id: &str) -> Result<Option<Response>> {
     if file_id.trim().is_empty() {
         return Ok(None);
     }
@@ -362,7 +774,7 @@ async fn fetch_drive_media(env: &Env, file_id: &str) -> Result<Option<(Vec<u8>, 
     init.with_headers(headers);
 
     let req = Request::new_with_init(&url, &init)?;
-    let mut resp = Fetch::Request(req).send().await?;
+    let resp = Fetch::Request(req).send().await?;
 
     if resp.status_code() != 200 {
         return Ok(None);
@@ -372,8 +784,9 @@ async fn fetch_drive_media(env: &Env, file_id: &str) -> Result<Option<(Vec<u8>, 
         .headers()
         .get("Content-Type")?
         .unwrap_or_else(|| "application/octet-stream".to_string());
-    let bytes = resp.bytes().await?;
-    Ok(Some((bytes, content_type)))
+    let (_, body) = resp.into_parts();
+    let headers = build_public_media_headers(&content_type, "MISS-GDrive")?;
+    Ok(Some(Response::from_body(body)?.with_headers(headers)))
 }
 
 fn build_public_media_headers(content_type: &str, cache_status: &str) -> Result<Headers> {
@@ -390,6 +803,28 @@ fn build_public_media_headers(content_type: &str, cache_status: &str) -> Result<
     headers.set("X-Cache", cache_status)?;
 
     Ok(headers)
+}
+
+fn resolve_cached_media_status(existing_status: Option<String>) -> &'static str {
+    match existing_status.as_deref() {
+        Some(status) if status.contains("GDrive") => "HIT-GDrive",
+        Some(status) if status.contains("R2") => "HIT-R2",
+        _ => "HIT-EDGE",
+    }
+}
+
+fn update_cached_media_headers(response: &mut Response) -> Result<()> {
+    let existing_status = response.headers().get("X-Cache")?;
+    let cache_status = resolve_cached_media_status(existing_status);
+    response.headers_mut().set("Access-Control-Allow-Origin", "*")?;
+    response.headers_mut().set("X-Cache", cache_status)?;
+    Ok(())
+}
+
+async fn cache_public_media_response(cache: &Cache, cache_key: &str, response: &mut Response) {
+    if let Ok(cloned) = response.cloned() {
+        let _ = cache.put(cache_key.to_string(), cloned).await;
+    }
 }
 
 async fn award_xp(db: &D1Database, user_id: &str, amount: i32) -> Result<()> {
@@ -475,6 +910,9 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
     let router = Router::new();
 
     router
+        .options_async("/api/*path", |_req, _ctx| async move {
+            utils::empty_resp(204)
+        })
         .on_async("/api/data", |mut req, ctx| async move {
             let kv = ctx.env.kv("SCHEDULE_KV")?;
             match req.method() {
@@ -527,9 +965,7 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             let pass_hash = utils::sha256_hex(password);
             
             let db = ctx.env.d1("COMMUNITY_DB")?;
-            let user = db.prepare("SELECT * FROM users WHERE username = ? AND password_hash = ?")
-                .bind(&[username.into(), pass_hash.clone().into()])?
-                .first::<User>(None).await?;
+            let user = find_user_by_credentials(&db, username, &pass_hash).await?;
             
             if let Some(u) = user {
                 if u.is_banned == 1 {
@@ -767,14 +1203,22 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                 Some(u) => u,
                 None => return utils::json_resp(json!({"ok": false}), 401)
             };
-            
+
             let results = db.prepare("
-                SELECT n.*, u.username, u.avatar_url FROM notifications n 
-                JOIN users u ON n.from_user_id = u.id 
+                SELECT n.*, u.username, u.avatar_url FROM notifications n
+                JOIN users u ON n.from_user_id = u.id
                 WHERE n.user_id = ? ORDER BY n.created_at DESC LIMIT 50
             ").bind(&[user.id.into()])?.all().await?.results::<Notification>()?;
-            
+
             utils::json_resp(json!({"ok": true, "notifications": results}), 200)
+        })
+        .get_async("/api/community/announcement", |_req, ctx| async move {
+            let kv = ctx.env.kv("SCHEDULE_KV")?;
+            let announcement = kv.get("community_announcement").text().await?.unwrap_or_else(|| "{}".to_string());
+            utils::json_resp(json!({
+                "ok": true,
+                "announcement": serde_json::from_str::<Value>(&announcement).unwrap_or(json!({"content": "", "updatedAt": null}))
+            }), 200)
         })
         .get_async("/api/community/profile", |req, ctx| async move {
             let db = ctx.env.d1("COMMUNITY_DB")?;
@@ -826,16 +1270,181 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                 Some(u) => u,
                 None => return utils::json_resp(json!({"ok": false}), 401)
             };
-            
+
             let body: Value = req.json().await?;
             let signature = body["signature"].as_str();
             let background_url = body["background_url"].as_str();
             let avatar_url = body["avatar_url"].as_str();
-            
+
             db.prepare("UPDATE users SET signature = COALESCE(?, signature), background_url = COALESCE(?, background_url), avatar_url = COALESCE(?, avatar_url) WHERE id = ?")
                 .bind(&[signature.into(), background_url.into(), avatar_url.into(), user.id.into()])?
                 .run().await?;
-            
+
+            utils::json_resp(json!({"ok": true}), 200)
+        })
+        .get_async("/api/community/discovery", |req, ctx| async move {
+            let db = ctx.env.d1("COMMUNITY_DB")?;
+            let viewer = get_auth(&req, &db).await?;
+            let viewer_id = viewer.as_ref().map(|u| u.id.clone());
+            let url = req.url()?;
+            let q = url.query_pairs().find(|(k, _)| k == "q").map(|(_, v)| v.to_string()).unwrap_or_default();
+            let like_query = format!("%{}%", q.trim());
+
+            let user_sql = if q.trim().is_empty() {
+                "SELECT COALESCE(id, '') as id, COALESCE(username, '') as username, COALESCE(password_hash, '') as password_hash, COALESCE(role, 'user') as role, avatar_url, signature, background_url, COALESCE(xp, 0) as xp, COALESCE(level, 1) as level, COALESCE(is_banned, 0) as is_banned, COALESCE(created_at, '') as created_at FROM users WHERE is_banned = 0 ORDER BY xp DESC, created_at DESC LIMIT 8"
+            } else {
+                "SELECT COALESCE(id, '') as id, COALESCE(username, '') as username, COALESCE(password_hash, '') as password_hash, COALESCE(role, 'user') as role, avatar_url, signature, background_url, COALESCE(xp, 0) as xp, COALESCE(level, 1) as level, COALESCE(is_banned, 0) as is_banned, COALESCE(created_at, '') as created_at FROM users WHERE is_banned = 0 AND (username LIKE ? OR COALESCE(signature, '') LIKE ?) ORDER BY xp DESC, created_at DESC LIMIT 8"
+            };
+
+            let users = if q.trim().is_empty() {
+                db.prepare(user_sql).all().await?.results::<User>()?
+            } else {
+                db.prepare(user_sql).bind(&[like_query.clone().into(), like_query.clone().into()])?.all().await?.results::<User>()?
+            };
+
+            let group_sql = if q.trim().is_empty() {
+                "
+                SELECT
+                    c.id,
+                    COALESCE(c.kind, 'group') as kind,
+                    c.title,
+                    c.description,
+                    c.avatar_url,
+                    c.created_at,
+                    c.updated_at,
+                    'member' as member_role,
+                    (SELECT COUNT(*) FROM conversation_members WHERE conversation_id = c.id) AS member_count,
+                    0 as unread_count,
+                    NULL as last_message,
+                    NULL as last_message_at,
+                    NULL as last_sender_name
+                FROM conversations c
+                WHERE c.kind = 'group'
+                ORDER BY datetime(c.updated_at) DESC, c.title COLLATE NOCASE ASC
+                LIMIT 8
+                "
+            } else {
+                "
+                SELECT
+                    c.id,
+                    COALESCE(c.kind, 'group') as kind,
+                    c.title,
+                    c.description,
+                    c.avatar_url,
+                    c.created_at,
+                    c.updated_at,
+                    'member' as member_role,
+                    (SELECT COUNT(*) FROM conversation_members WHERE conversation_id = c.id) AS member_count,
+                    0 as unread_count,
+                    NULL as last_message,
+                    NULL as last_message_at,
+                    NULL as last_sender_name
+                FROM conversations c
+                WHERE c.kind = 'group' AND (COALESCE(c.title, '') LIKE ? OR COALESCE(c.description, '') LIKE ?)
+                ORDER BY datetime(c.updated_at) DESC, c.title COLLATE NOCASE ASC
+                LIMIT 8
+                "
+            };
+
+            let groups = if q.trim().is_empty() {
+                db.prepare(group_sql).all().await?.results::<ConversationSummary>()?
+            } else {
+                db.prepare(group_sql).bind(&[like_query.clone().into(), like_query.into()])?.all().await?.results::<ConversationSummary>()?
+            };
+
+            let users: Vec<Value> = users.into_iter()
+                .filter(|item| Some(item.id.clone()) != viewer_id)
+                .map(with_community_level)
+                .map(|item| json!({
+                    "id": item.id,
+                    "username": item.username,
+                    "avatar_url": item.avatar_url,
+                    "background_url": item.background_url,
+                    "signature": item.signature,
+                    "xp": item.xp,
+                    "level": item.level,
+                    "role": item.role
+                }))
+                .collect();
+
+            let groups: Vec<Value> = groups.into_iter().map(|group| {
+                let joined = viewer_id.as_ref().map_or(false, |_| false);
+                json!({
+                    "id": group.id,
+                    "title": group.title.unwrap_or_default(),
+                    "description": group.description.unwrap_or_default(),
+                    "avatar_url": group.avatar_url,
+                    "updated_at": group.updated_at,
+                    "member_count": group.member_count.unwrap_or(0),
+                    "joined": joined
+                })
+            }).collect();
+
+            utils::json_resp(json!({"ok": true, "users": users, "groups": groups, "query": q}), 200)
+        })
+        .post_async("/api/community/groups", |mut req, ctx| async move {
+            let db = ctx.env.d1("COMMUNITY_DB")?;
+            let user = get_auth(&req, &db).await?;
+            let user = match user {
+                Some(u) => with_community_level(u),
+                None => return utils::json_resp(json!({"ok": false, "msg": "请先登录"}), 401)
+            };
+
+            let action: AdminAction = req.json().await?;
+            let title = action.title.unwrap_or_default().trim().to_string();
+            let description = action.description.unwrap_or_default().trim().to_string();
+            let member_ids = action.member_ids.unwrap_or_default();
+
+            if title.is_empty() {
+                return utils::json_resp(json!({"ok": false, "msg": "群组名称不能为空"}), 400);
+            }
+            if title.chars().count() > 42 {
+                return utils::json_resp(json!({"ok": false, "msg": "群组名称太长了"}), 400);
+            }
+
+            let valid_members: Vec<String> = member_ids.into_iter().filter(|id| !id.trim().is_empty() && id != &user.id).take(12).collect();
+            let conversation_id = Uuid::new_v4().to_string();
+            db.prepare("INSERT INTO conversations (id, kind, title, description, avatar_url, direct_key, created_by, updated_at) VALUES (?, 'group', ?, ?, '', NULL, ?, CURRENT_TIMESTAMP)")
+                .bind(&[conversation_id.clone().into(), title.into(), description.into(), user.id.clone().into()])?
+                .run().await?;
+            db.prepare("INSERT OR IGNORE INTO conversation_members (conversation_id, user_id, role, last_read_at) VALUES (?, ?, 'owner', CURRENT_TIMESTAMP)")
+                .bind(&[conversation_id.clone().into(), user.id.clone().into()])?
+                .run().await?;
+
+            for member_id in valid_members {
+                db.prepare("INSERT OR IGNORE INTO conversation_members (conversation_id, user_id, role, last_read_at) VALUES (?, ?, 'member', CURRENT_TIMESTAMP)")
+                    .bind(&[conversation_id.clone().into(), member_id.into()])?
+                    .run().await?;
+            }
+
+            utils::json_resp(json!({"ok": true, "conversation_id": conversation_id}), 200)
+        })
+        .post_async("/api/community/groups/join", |mut req, ctx| async move {
+            let db = ctx.env.d1("COMMUNITY_DB")?;
+            let user = get_auth(&req, &db).await?;
+            let user = match user {
+                Some(u) => with_community_level(u),
+                None => return utils::json_resp(json!({"ok": false, "msg": "请先登录"}), 401)
+            };
+
+            let body: GroupJoinRequest = req.json().await?;
+            let conversation_id = body.conversation_id.trim().to_string();
+            if conversation_id.is_empty() {
+                return utils::json_resp(json!({"ok": false, "msg": "缺少群组 ID"}), 400);
+            }
+
+            let exists = db.prepare("SELECT id FROM conversations WHERE id = ? AND kind = 'group'")
+                .bind(&[conversation_id.clone().into()])?
+                .first::<Value>(None)
+                .await?;
+            if exists.is_none() {
+                return utils::json_resp(json!({"ok": false, "msg": "群组不存在"}), 404);
+            }
+
+            db.prepare("INSERT OR IGNORE INTO conversation_members (conversation_id, user_id, role, last_read_at) VALUES (?, ?, 'member', CURRENT_TIMESTAMP)")
+                .bind(&[conversation_id.into(), user.id.into()])?
+                .run().await?;
+
             utils::json_resp(json!({"ok": true}), 200)
         })
         .post_async("/api/community/follow", |mut req, ctx| async move {
@@ -845,23 +1454,25 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                 Some(u) => u,
                 None => return utils::json_resp(json!({"ok": false}), 401)
             };
-            
+
             let body: Value = req.json().await?;
-            let target_id = body["target_id"].as_str().unwrap_or("");
-            if target_id == user.id { return utils::json_resp(json!({"ok": false}), 400); }
-            
+            let target_id = body["following_id"].as_str().or_else(|| body["target_id"].as_str()).unwrap_or("").trim().to_string();
+            if target_id.is_empty() || target_id == user.id {
+                return utils::json_resp(json!({"ok": false}), 400);
+            }
+
             let existing = db.prepare("SELECT 1 FROM follows WHERE follower_id = ? AND following_id = ?")
-                .bind(&[user.id.clone().into(), target_id.into()])?.first::<Value>(None).await?;
-            
+                .bind(&[user.id.clone().into(), target_id.clone().into()])?.first::<Value>(None).await?;
+
             if existing.is_some() {
                 db.prepare("DELETE FROM follows WHERE follower_id = ? AND following_id = ?")
                     .bind(&[user.id.into(), target_id.into()])?.run().await?;
-                utils::json_resp(json!({"ok": true, "following": false}), 200)
+                utils::json_resp(json!({"ok": true, "action": "unfollowed", "following": false}), 200)
             } else {
                 db.prepare("INSERT INTO follows (follower_id, following_id) VALUES (?, ?)")
-                    .bind(&[user.id.clone().into(), target_id.into()])?.run().await?;
-                add_notify(&db, target_id, "follow", &user.id, &user.id).await?;
-                utils::json_resp(json!({"ok": true, "following": true}), 200)
+                    .bind(&[user.id.clone().into(), target_id.clone().into()])?.run().await?;
+                add_notify(&db, &target_id, "follow", &user.id, &user.id).await?;
+                utils::json_resp(json!({"ok": true, "action": "followed", "following": true}), 200)
             }
         })
         .get_async("/api/community/admin/data", |req, ctx| async move {
@@ -876,12 +1487,18 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                 
                 let kv = ctx.env.kv("SCHEDULE_KV")?;
                 let announcement = kv.get("community_announcement").text().await?.unwrap_or_else(|| "{}".to_string());
-                
+                let node_sources = read_node_sources(&kv).await.unwrap_or_default();
+                let proxy_nodes = read_proxy_nodes(&kv).await.unwrap_or_default();
+                let password_configured = !read_node_password_hash(&kv).await.unwrap_or_default().is_empty();
+
                 utils::json_resp(json!({
                     "ok": true,
                     "reports": reports,
                     "users": users,
-                    "announcement": serde_json::from_str::<Value>(&announcement).unwrap_or(json!({"content": "", "updatedAt": null}))
+                    "announcement": serde_json::from_str::<Value>(&announcement).unwrap_or(json!({"content": "", "updatedAt": null})),
+                    "node_sources": node_sources,
+                    "proxy_nodes": proxy_nodes,
+                    "nodes_password_configured": password_configured
                 }), 200)
             } else {
                 utils::json_resp(json!({"ok": false}), 401)
@@ -890,12 +1507,13 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         .post_async("/api/community/admin/action", |mut req, ctx| async move {
             let db = ctx.env.d1("COMMUNITY_DB")?;
             let user = get_auth(&req, &db).await?;
-            let _user = match user {
-                Some(u) if u.role == "admin" || u.role == "owner" => u,
+            let user = match user {
+                Some(u) if is_community_admin_role(&normalize_community_role(&u.role)) => with_community_level(u),
                 _ => return utils::json_resp(json!({"ok": false}), 403)
             };
-            
+
             let action: AdminAction = req.json().await?;
+            let kv = ctx.env.kv("SCHEDULE_KV")?;
             match action.action.as_str() {
                 "reset_password" => {
                     if let Some(tid) = action.target_id {
@@ -926,7 +1544,6 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                     }
                 },
                 "set_announcement" => {
-                    let kv = ctx.env.kv("SCHEDULE_KV")?;
                     kv.put("community_announcement", json!({
                         "content": action.content.unwrap_or_default(),
                         "updatedAt": Utc::now().to_rfc3339()
@@ -949,9 +1566,89 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                         db.prepare("UPDATE users SET role = 'user' WHERE id = ?").bind(&[tid.into()])?.run().await?;
                     }
                 },
+                "set_nodes_password" => {
+                    let next_password = action.new_password.unwrap_or_default();
+                    let hash = utils::sha256_hex(next_password.trim());
+                    kv.put("proxy_nodes_password_hash", hash)?.execute().await?;
+                    kv.put("nodes_user_pwd", next_password)?.execute().await?;
+                },
+                "create_node_source" | "update_node_source" => {
+                    let mut sources = read_node_sources(&kv).await?;
+                    let source_id = action.source_id.unwrap_or_else(|| Uuid::new_v4().to_string());
+                    let source_type = action.source_type.unwrap_or_else(|| "manual".to_string());
+                    let source_url = action.source_url.and_then(|value| if value.trim().is_empty() { None } else { Some(value) });
+                    let source_content = action.source_content.and_then(|value| if value.trim().is_empty() { None } else { Some(value) });
+                    let label = action.source_label.unwrap_or_else(|| "未命名来源".to_string());
+                    let enabled = action.enabled.unwrap_or(true);
+
+                    let resolved_content = if let Some(content) = source_content.clone() {
+                        content
+                    } else if let Some(url) = source_url.clone() {
+                        fetch_remote_text(&url).await.unwrap_or_default()
+                    } else {
+                        String::new()
+                    };
+                    let parsed_nodes = parse_nodes(&resolved_content);
+                    let node_count = parsed_nodes.len();
+                    let last_error = if node_count == 0 { Some("没有解析出可用节点".to_string()) } else { None };
+
+                    let record = NodeSourceRecord {
+                        id: source_id.clone(),
+                        source_type,
+                        label,
+                        source_url,
+                        source_content: Some(resolved_content.clone()),
+                        enabled,
+                        node_count,
+                        last_error,
+                        updated_at: Utc::now().to_rfc3339(),
+                    };
+
+                    if let Some(existing) = sources.iter_mut().find(|item| item.id == source_id) {
+                        *existing = record;
+                    } else {
+                        sources.push(record);
+                    }
+
+                    let mut merged_nodes: Vec<ProxyNodeRecord> = Vec::new();
+                    for source in sources.iter().filter(|item| item.enabled) {
+                        let source_nodes = parse_nodes(source.source_content.as_deref().unwrap_or(""))
+                            .into_iter()
+                            .map(|mut node| {
+                                node.source_id = Some(source.id.clone());
+                                node.source_label = Some(source.label.clone());
+                                node
+                            });
+                        merged_nodes.extend(source_nodes);
+                    }
+
+                    write_node_sources(&kv, &sources).await?;
+                    write_proxy_nodes(&kv, &merged_nodes).await?;
+                },
+                "delete_node_source" => {
+                    if let Some(source_id) = action.source_id {
+                        let mut sources = read_node_sources(&kv).await?;
+                        sources.retain(|item| item.id != source_id);
+                        let mut merged_nodes: Vec<ProxyNodeRecord> = Vec::new();
+                        for source in sources.iter().filter(|item| item.enabled) {
+                            let source_nodes = parse_nodes(source.source_content.as_deref().unwrap_or(""))
+                                .into_iter()
+                                .map(|mut node| {
+                                    node.source_id = Some(source.id.clone());
+                                    node.source_label = Some(source.label.clone());
+                                    node
+                                });
+                            merged_nodes.extend(source_nodes);
+                        }
+                        write_node_sources(&kv, &sources).await?;
+                        write_proxy_nodes(&kv, &merged_nodes).await?;
+                    }
+                },
                 _ => {}
             }
-            utils::json_resp(json!({"ok": true}), 200)
+            let node_sources = read_node_sources(&kv).await.unwrap_or_default();
+            let proxy_nodes = read_proxy_nodes(&kv).await.unwrap_or_default();
+            utils::json_resp(json!({"ok": true, "node_sources": node_sources, "proxy_nodes": proxy_nodes, "actor": user.username}), 200)
         })
         .get_async("/api/community/drive/info", |req, ctx| async move {
             let db = ctx.env.d1("COMMUNITY_DB")?;
@@ -1115,100 +1812,222 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                 }
             }), 200)
         })
+        .get_async("/api/community/chats", |req, ctx| async move {
+            let db = ctx.env.d1("COMMUNITY_DB")?;
+            let user = get_auth(&req, &db).await?;
+            let user = match user {
+                Some(u) => with_community_level(u),
+                None => return utils::json_resp(json!({"ok": false, "msg": "请先登录"}), 401)
+            };
+
+            let conversations = list_user_conversations(&db, &user.id).await?;
+            let unread_total: i64 = conversations.iter().map(|item| item["unread_count"].as_i64().unwrap_or(0)).sum();
+            utils::json_resp(json!({"ok": true, "conversations": conversations, "unread_total": unread_total}), 200)
+        })
         .get_async("/api/community/conversations", |req, ctx| async move {
             let db = ctx.env.d1("COMMUNITY_DB")?;
             let user = get_auth(&req, &db).await?;
             let user = match user {
-                Some(u) => u,
-                None => return utils::json_resp(json!({"ok": false}), 401)
+                Some(u) => with_community_level(u),
+                None => return utils::json_resp(json!({"ok": false, "msg": "请先登录"}), 401)
             };
-            
-            let results = db.prepare("
-                SELECT c.*, 
-                (SELECT content FROM messages WHERE conversation_id = c.id ORDER BY created_at DESC LIMIT 1) as last_message
-                FROM conversations c
-                JOIN conversation_participants cp ON c.id = cp.conversation_id
-                WHERE cp.user_id = ? ORDER BY c.updated_at DESC
-            ").bind(&[user.id.clone().into()])?.all().await?.results::<Conversation>()?;
-            
-            let mut conversations = Vec::new();
-            for mut conv in results {
-                if conv.conv_type == "direct" {
-                    let other = db.prepare("
-                        SELECT u.id, u.username, u.avatar_url FROM users u
-                        JOIN conversation_participants cp ON u.id = cp.user_id
-                        WHERE cp.conversation_id = ? AND cp.user_id != ?
-                    ").bind(&[conv.id.clone().into(), user.id.clone().into()])?.first::<User>(None).await?;
-                    conv.other_user = other;
-                }
-                conversations.push(conv);
-            }
-            
+
+            let conversations = list_user_conversations(&db, &user.id).await?;
             utils::json_resp(json!({"ok": true, "conversations": conversations}), 200)
         })
         .post_async("/api/community/chats/direct", |mut req, ctx| async move {
             let db = ctx.env.d1("COMMUNITY_DB")?;
             let user = get_auth(&req, &db).await?;
             let user = match user {
-                Some(u) => u,
-                None => return utils::json_resp(json!({"ok": false}), 401)
+                Some(u) => with_community_level(u),
+                None => return utils::json_resp(json!({"ok": false, "msg": "请先登录"}), 401)
             };
-            let body: Value = req.json().await?;
-            let target_id = body["target_id"].as_str().unwrap_or("");
-            
-            // Check if exists
-            let existing = db.prepare("
-                SELECT c.id FROM conversations c
-                JOIN conversation_participants cp1 ON c.id = cp1.conversation_id
-                JOIN conversation_participants cp2 ON c.id = cp2.conversation_id
-                WHERE c.type = 'direct' AND cp1.user_id = ? AND cp2.user_id = ?
-            ").bind(&[user.id.clone().into(), target_id.into()])?.first::<Value>(None).await?;
-            
-            if let Some(e) = existing {
-                return utils::json_resp(json!({"ok": true, "id": e["id"]}), 200);
+            let body: DirectChatRequest = req.json().await?;
+            let target_id = body.target_user_id.trim().to_string();
+
+            if target_id.is_empty() || target_id == user.id {
+                return utils::json_resp(json!({"ok": false, "msg": "目标用户无效"}), 400);
             }
-            
-            let id = Uuid::new_v4().to_string();
-            db.prepare("INSERT INTO conversations (id, type) VALUES (?, 'direct')").bind(&[id.clone().into()])?.run().await?;
-            db.prepare("INSERT INTO conversation_participants (conversation_id, user_id) VALUES (?, ?), (?, ?)")
-                .bind(&[id.clone().into(), user.id.into(), id.clone().into(), target_id.into()])?.run().await?;
-            
-            utils::json_resp(json!({"ok": true, "id": id}), 200)
+
+            let target = db.prepare("SELECT id FROM users WHERE id = ? AND is_banned = 0")
+                .bind(&[target_id.clone().into()])?
+                .first::<Value>(None)
+                .await?;
+            if target.is_none() {
+                return utils::json_resp(json!({"ok": false, "msg": "用户不存在"}), 404);
+            }
+
+            let direct_key = build_direct_conversation_key(&user.id, &target_id);
+            let existing = db.prepare("SELECT id FROM conversations WHERE direct_key = ? LIMIT 1")
+                .bind(&[direct_key.clone().into()])?
+                .first::<Value>(None)
+                .await?;
+
+            let conversation_id = if let Some(existing) = existing {
+                existing["id"].as_str().unwrap_or_default().to_string()
+            } else {
+                let id = Uuid::new_v4().to_string();
+                db.prepare("INSERT INTO conversations (id, kind, title, description, avatar_url, direct_key, created_by, updated_at) VALUES (?, 'direct', '', '', '', ?, ?, CURRENT_TIMESTAMP)")
+                    .bind(&[id.clone().into(), direct_key.into(), user.id.clone().into()])?
+                    .run().await?;
+                db.prepare("INSERT OR IGNORE INTO conversation_members (conversation_id, user_id, role, last_read_at) VALUES (?, ?, 'member', CURRENT_TIMESTAMP), (?, ?, 'member', CURRENT_TIMESTAMP)")
+                    .bind(&[id.clone().into(), user.id.clone().into(), id.clone().into(), target_id.clone().into()])?
+                    .run().await?;
+                id
+            };
+
+            let rows = db.prepare(
+                "
+                SELECT
+                    c.id,
+                    COALESCE(c.kind, 'direct') as kind,
+                    c.title,
+                    c.description,
+                    c.avatar_url,
+                    c.created_at,
+                    c.updated_at,
+                    cm.role as member_role,
+                    (SELECT COUNT(*) FROM conversation_members WHERE conversation_id = c.id) AS member_count,
+                    (SELECT content FROM messages WHERE conversation_id = c.id ORDER BY datetime(created_at) DESC LIMIT 1) AS last_message,
+                    (SELECT created_at FROM messages WHERE conversation_id = c.id ORDER BY datetime(created_at) DESC LIMIT 1) AS last_message_at,
+                    (SELECT COALESCE(u.username, '系统') FROM messages m LEFT JOIN users u ON u.id = m.sender_id WHERE m.conversation_id = c.id ORDER BY datetime(m.created_at) DESC LIMIT 1) AS last_sender_name,
+                    (SELECT COUNT(*) FROM messages WHERE conversation_id = c.id AND datetime(created_at) > datetime(COALESCE(cm.last_read_at, '1970-01-01 00:00:00'))) AS unread_count
+                FROM conversations c
+                JOIN conversation_members cm ON cm.conversation_id = c.id
+                WHERE c.id = ? AND cm.user_id = ?
+                LIMIT 1
+                "
+            )
+            .bind(&[conversation_id.clone().into(), user.id.clone().into()])?
+            .first::<ConversationSummary>(None)
+            .await?;
+
+            if let Some(summary) = rows {
+                let conversation = serialize_conversation(&db, &summary, &user.id).await?;
+                return utils::json_resp(json!({"ok": true, "conversation": conversation}), 200);
+            }
+
+            utils::json_resp(json!({"ok": false, "msg": "会话创建失败"}), 500)
         })
         .get_async("/api/community/chats/messages", |req, ctx| async move {
             let db = ctx.env.d1("COMMUNITY_DB")?;
             let user = get_auth(&req, &db).await?;
-            if user.is_none() { return utils::json_resp(json!({"ok": false}), 401); }
-            
+            let user = match user {
+                Some(u) => with_community_level(u),
+                None => return utils::json_resp(json!({"ok": false, "msg": "请先登录"}), 401)
+            };
+
             let url = req.url()?;
-            let conv_id = url.query_pairs().find(|(k, _)| k == "conversationId").map(|(_, v)| v.to_string()).unwrap_or_default();
-            
-            let results = db.prepare("
-                SELECT m.*, u.username, u.avatar_url FROM messages m
-                JOIN users u ON m.sender_id = u.id
-                WHERE m.conversation_id = ? ORDER BY m.created_at ASC LIMIT 100
-            ").bind(&[conv_id.into()])?.all().await?.results::<Message>()?;
-            
-            utils::json_resp(json!({"ok": true, "messages": results}), 200)
+            let conv_id = url.query_pairs().find(|(k, _)| k == "conversation_id").map(|(_, v)| v.to_string()).unwrap_or_default();
+            if conv_id.trim().is_empty() {
+                return utils::json_resp(json!({"ok": false, "msg": "缺少会话 ID"}), 400);
+            }
+
+            let membership = get_conversation_membership(&db, &conv_id, &user.id).await?;
+            if membership.is_none() {
+                return utils::json_resp(json!({"ok": false, "msg": "会话不存在"}), 404);
+            }
+
+            let messages = db.prepare(
+                "
+                SELECT
+                    m.id,
+                    m.conversation_id,
+                    m.sender_id,
+                    m.content,
+                    m.created_at,
+                    u.username,
+                    u.avatar_url,
+                    COALESCE(u.xp, 0) as xp,
+                    COALESCE(u.level, 1) as level,
+                    COALESCE(u.role, 'user') as role
+                FROM messages m
+                LEFT JOIN users u ON u.id = m.sender_id
+                WHERE m.conversation_id = ?
+                ORDER BY datetime(m.created_at) ASC
+                LIMIT 100
+                "
+            )
+            .bind(&[conv_id.clone().into()])?
+            .all()
+            .await?
+            .results::<Message>()?;
+
+            db.prepare("UPDATE conversation_members SET last_read_at = CURRENT_TIMESTAMP WHERE conversation_id = ? AND user_id = ?")
+                .bind(&[conv_id.into(), user.id.into()])?
+                .run().await?;
+
+            let serialized: Vec<Value> = messages.into_iter().map(|message| {
+                json!({
+                    "id": message.id,
+                    "conversation_id": message.conversation_id,
+                    "sender_id": message.sender_id,
+                    "content": message.content,
+                    "created_at": message.created_at,
+                    "sender": message.sender_id.as_ref().map(|sender_id| json!({
+                        "id": sender_id,
+                        "username": message.username,
+                        "avatar_url": message.avatar_url,
+                        "xp": message.xp.unwrap_or(0),
+                        "level": utils::get_community_level_from_xp(message.xp.unwrap_or(0)),
+                        "role": normalize_community_role(message.role.as_deref().unwrap_or("user"))
+                    }))
+                })
+            }).collect();
+
+            utils::json_resp(json!({"ok": true, "messages": serialized}), 200)
         })
         .post_async("/api/community/chats/messages", |mut req, ctx| async move {
             let db = ctx.env.d1("COMMUNITY_DB")?;
             let user = get_auth(&req, &db).await?;
             let user = match user {
-                Some(u) => u,
-                None => return utils::json_resp(json!({"ok": false}), 401)
+                Some(u) => with_community_level(u),
+                None => return utils::json_resp(json!({"ok": false, "msg": "请先登录"}), 401)
             };
             let body: Value = req.json().await?;
-            let conv_id = body["conversation_id"].as_str().unwrap_or("");
-            let content = body["content"].as_str().unwrap_or("");
-            
+            let conv_id = body["conversation_id"].as_str().unwrap_or("").trim().to_string();
+            let content = body["content"].as_str().unwrap_or("").trim().to_string();
+
+            if conv_id.is_empty() || content.is_empty() {
+                return utils::json_resp(json!({"ok": false, "msg": "消息内容不能为空"}), 400);
+            }
+
+            let membership = get_conversation_membership(&db, &conv_id, &user.id).await?;
+            if membership.is_none() {
+                return utils::json_resp(json!({"ok": false, "msg": "会话不存在"}), 404);
+            }
+
             let id = Uuid::new_v4().to_string();
             db.prepare("INSERT INTO messages (id, conversation_id, sender_id, content) VALUES (?, ?, ?, ?)")
-                .bind(&[id.into(), conv_id.into(), user.id.into(), content.into()])?.run().await?;
-            
-            db.prepare("UPDATE conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(&[conv_id.into()])?.run().await?;
-            
-            utils::json_resp(json!({"ok": true}), 200)
+                .bind(&[id.clone().into(), conv_id.clone().into(), user.id.clone().into(), content.clone().into()])?
+                .run().await?;
+
+            db.prepare("UPDATE conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+                .bind(&[conv_id.clone().into()])?
+                .run().await?;
+
+            db.prepare("UPDATE conversation_members SET last_read_at = CURRENT_TIMESTAMP WHERE conversation_id = ? AND user_id = ?")
+                .bind(&[conv_id.clone().into(), user.id.clone().into()])?
+                .run().await?;
+
+            utils::json_resp(json!({
+                "ok": true,
+                "message": {
+                    "id": id,
+                    "conversation_id": conv_id,
+                    "sender_id": user.id,
+                    "content": content,
+                    "created_at": Utc::now().to_rfc3339(),
+                    "sender": {
+                        "id": user.id,
+                        "username": user.username,
+                        "avatar_url": user.avatar_url,
+                        "xp": user.xp,
+                        "level": user.level,
+                        "role": user.role
+                    }
+                }
+            }), 200)
         })
         .get_async("/api/community/link-preview", |req, _ctx| async move {
             let url = req.url()?;
@@ -1307,11 +2126,21 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                 "fromDrive": false
             }), 200)
         })
-        .get_async("/api/community/media/:key", |_req, ctx| async move {
+        .get_async("/api/community/media/:key", |req, ctx| async move {
             let key = match ctx.param("key") {
                 Some(v) => v.to_string(),
                 None => return Response::error("Not Found", 404),
             };
+            let cache = Cache::default();
+            let mut cache_url = req.url()?;
+            cache_url.set_query(None);
+            let cache_key = cache_url.to_string();
+
+            if let Some(mut cached_response) = cache.get(cache_key.as_str(), false).await? {
+                update_cached_media_headers(&mut cached_response)?;
+                return Ok(cached_response);
+            }
+
             let bucket = ctx.env.bucket("COMMUNITY_R2")?;
             let obj = bucket.get(&key).execute().await?;
             match obj {
@@ -1321,9 +2150,14 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                         .content_type
                         .filter(|ct| !ct.trim().is_empty())
                         .unwrap_or_else(|| "application/octet-stream".to_string());
-                    let headers = build_public_media_headers(&content_type, "HIT-R2")?;
-                    let bytes = o.body().unwrap().bytes().await?;
-                    Ok(Response::from_bytes(bytes)?.with_headers(headers))
+                    let headers = build_public_media_headers(&content_type, "MISS-R2")?;
+                    let body = match o.body() {
+                        Some(body) => body.response_body()?,
+                        None => return Response::error("Not Found", 404),
+                    };
+                    let mut response = Response::from_body(body)?.with_headers(headers);
+                    cache_public_media_response(&cache, &cache_key, &mut response).await;
+                    Ok(response)
                 },
                 None => {
                     let db = ctx.env.d1("COMMUNITY_DB")?;
@@ -1348,9 +2182,9 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                     }
 
                     for drive_file_id in candidate_ids {
-                        if let Ok(Some((bytes, content_type))) = fetch_drive_media(&ctx.env, &drive_file_id).await {
-                            let headers = build_public_media_headers(&content_type, "MISS-GDrive")?;
-                            return Ok(Response::from_bytes(bytes)?.with_headers(headers));
+                        if let Ok(Some(mut response)) = fetch_drive_media(&ctx.env, &drive_file_id).await {
+                            cache_public_media_response(&cache, &cache_key, &mut response).await;
+                            return Ok(response);
                         }
                     }
 
@@ -1418,16 +2252,97 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             
             Fetch::Request(req).send().await
         })
-        .get_async("/api/nodes", |_req, ctx| async move {
+        .get_async("/api/nodes", |req, ctx| async move {
             let kv = ctx.env.kv("SCHEDULE_KV")?;
-            let nodes = kv.get("proxy_nodes").text().await?.unwrap_or_else(|| "[]".to_string());
-            Response::ok(nodes)
+            let url = req.url()?;
+            let password = url.query_pairs().find(|(k, _)| k == "pwd").map(|(_, v)| v.to_string()).unwrap_or_default();
+            if !verify_node_password(&kv, &password).await? {
+                return utils::json_resp(json!({"ok": false, "msg": "无权访问"}), 401);
+            }
+
+            let nodes = read_proxy_nodes(&kv).await?;
+            let sources = read_node_sources(&kv).await?;
+            let subscription_url = format!("/api/nodes/subscription?pwd={}", url::form_urlencoded::byte_serialize(password.as_bytes()).collect::<String>());
+            let raw_bundle = nodes.iter().map(|node| node.raw.clone()).collect::<Vec<_>>().join("\n");
+
+            utils::json_resp(json!({
+                "ok": true,
+                "nodes": nodes,
+                "sources": sources,
+                "subscription_url": subscription_url,
+                "raw": raw_bundle,
+                "clients": build_client_launch_links(&subscription_url)
+            }), 200)
+        })
+        .get_async("/api/nodes/subscription", |req, ctx| async move {
+            let kv = ctx.env.kv("SCHEDULE_KV")?;
+            let url = req.url()?;
+            let password = url.query_pairs().find(|(k, _)| k == "pwd").map(|(_, v)| v.to_string()).unwrap_or_default();
+            if !verify_node_password(&kv, &password).await? {
+                return utils::json_resp(json!({"ok": false, "msg": "无权访问"}), 401);
+            }
+
+            let nodes = read_proxy_nodes(&kv).await?;
+            let body = nodes.into_iter().map(|node| node.raw).collect::<Vec<_>>().join("\n");
+            let mut response = Response::ok(body)?;
+            response.headers_mut().set("Content-Type", "text/plain;charset=UTF-8")?;
+            response.headers_mut().set("Access-Control-Allow-Origin", "*")?;
+            Ok(response)
         })
         .post_async("/api/nodes", |mut req, ctx| async move {
             let kv = ctx.env.kv("SCHEDULE_KV")?;
-            let body = req.text().await?;
-            kv.put("proxy_nodes", body)?.execute().await?;
-            utils::json_resp(json!({"ok": true}), 200)
+            let body: Value = req.json().await?;
+            let admin_user = body["adminUser"].as_str().unwrap_or("");
+            let admin_pass = body["adminPass"].as_str().unwrap_or("");
+            if !verify_node_admin(&kv, admin_user, admin_pass).await? {
+                return utils::json_resp(json!({"ok": false, "msg": "认证失败"}), 401);
+            }
+
+            match body["action"].as_str().unwrap_or("") {
+                "getNodes" => {
+                    let nodes = read_proxy_nodes(&kv).await?;
+                    let sources = read_node_sources(&kv).await?;
+                    let password_configured = !read_node_password_hash(&kv).await?.is_empty();
+                    utils::json_resp(json!({"ok": true, "nodes": nodes, "sources": sources, "password_configured": password_configured}), 200)
+                },
+                "clearNodes" => {
+                    write_proxy_nodes(&kv, &[]).await?;
+                    utils::json_resp(json!({"ok": true}), 200)
+                },
+                "setPassword" => {
+                    let next_password = body["password"].as_str().unwrap_or("");
+                    kv.put("proxy_nodes_password_hash", utils::sha256_hex(next_password))?.execute().await?;
+                    kv.put("nodes_user_pwd", next_password)?.execute().await?;
+                    utils::json_resp(json!({"ok": true}), 200)
+                },
+                "importText" => {
+                    let label = body["label"].as_str().unwrap_or("手工导入").to_string();
+                    let source_content = body["content"].as_str().unwrap_or("").to_string();
+                    let mut sources = read_node_sources(&kv).await?;
+                    let source = NodeSourceRecord {
+                        id: Uuid::new_v4().to_string(),
+                        source_type: "manual".to_string(),
+                        label,
+                        source_url: None,
+                        source_content: Some(source_content.clone()),
+                        enabled: true,
+                        node_count: parse_nodes(&source_content).len(),
+                        last_error: None,
+                        updated_at: Utc::now().to_rfc3339(),
+                    };
+                    sources.push(source.clone());
+                    let mut nodes = read_proxy_nodes(&kv).await?;
+                    for mut node in parse_nodes(&source_content) {
+                        node.source_id = Some(source.id.clone());
+                        node.source_label = Some(source.label.clone());
+                        nodes.push(node);
+                    }
+                    write_node_sources(&kv, &sources).await?;
+                    write_proxy_nodes(&kv, &nodes).await?;
+                    utils::json_resp(json!({"ok": true, "source": source, "nodes": nodes}), 200)
+                },
+                _ => utils::json_resp(json!({"ok": false, "msg": "未知操作"}), 400)
+            }
         })
         .run(req, env).await
 }

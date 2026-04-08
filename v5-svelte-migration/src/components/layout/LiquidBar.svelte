@@ -35,9 +35,9 @@
       short: '开一局'
     },
     nodes: {
-      eyebrow: 'find people',
-      detail: '找人、找群、扩连接，从这里进去更顺手。',
-      short: '去发现'
+      eyebrow: 'proxy hub',
+      detail: '代理节点、订阅导出和客户端跳转都从这里进入。',
+      short: '开节点'
     },
     admin: {
       eyebrow: 'control room',

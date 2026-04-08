@@ -3,6 +3,7 @@
   import { openModal } from '../../stores/modalState';
   import { communityFetch } from '../../lib/communityApi';
   import { setCommunityConsoleState } from '../../stores/communityConsoleState';
+  import ReliableImage from '../ui/ReliableImage.svelte';
 
   export let post: any;
   let isLiking = false;
@@ -135,7 +136,14 @@
       <div class="post-glass-media mb-6 grid gap-2 overflow-hidden rounded-[24px] p-2 {media.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}">
         {#each media.slice(0, 4) as item, i}
           <div class="post-glass-media__item relative aspect-square overflow-hidden rounded-[18px]">
-            <img src={item.url} alt="Post media" class="h-full w-full object-cover" loading="lazy" />
+            <ReliableImage
+              src={item.url}
+              alt="Post media"
+              imgClass="h-full w-full object-cover"
+              retries={2}
+              retryDelay={500}
+              loading="lazy"
+            />
             {#if i === 3 && media.length > 4}
               <div class="absolute inset-0 flex items-center justify-center bg-black/38 text-xl font-bold text-white backdrop-blur-sm">
                 +{media.length - 4}

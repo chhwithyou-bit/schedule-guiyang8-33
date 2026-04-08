@@ -5,6 +5,7 @@
   import { selectedPost, isAuthenticated, selectedProfile } from '../../stores/appState';
   import { openModal } from '../../stores/modalState';
   import { communityFetch } from '../../lib/communityApi';
+  import ReliableImage from '../ui/ReliableImage.svelte';
 
   let comments: any[] = [];
   let loading = true;
@@ -233,7 +234,9 @@
     } catch { return []; }
   }
 
-  const media = $selectedPost ? safeJsonArray($selectedPost.media_json).filter(m => m && m.url) : [];
+  let media: any[] = [];
+
+  $: media = $selectedPost ? safeJsonArray($selectedPost.media_json).filter(m => m && m.url) : [];
 </script>
 
 {#if $selectedPost}
@@ -343,9 +346,17 @@
         <!-- Media Grid -->
         {#if media.length > 0}
           <div class="space-y-4 mb-12">
-            {#each media as item}
-              <div class="rounded-3xl overflow-hidden bg-white/5 border border-white/10">
-                <img src={item.url} alt="Content" class="w-full h-auto" />
+            {#each media as item, i}
+              <div class="rounded-3xl overflow-hidden bg-white/5 border border-white/10 min-h-[220px]">
+                <ReliableImage
+                  src={item.url}
+                  alt="Content"
+                  imgClass="block w-full h-auto"
+                  wrapperClass="min-h-[220px] bg-white/5"
+                  retries={3}
+                  retryDelay={550}
+                  loading={i === 0 ? 'eager' : 'lazy'}
+                />
               </div>
             {/each}
           </div>
