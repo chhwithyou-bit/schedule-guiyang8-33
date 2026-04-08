@@ -10,6 +10,8 @@
   export { className as class };
 
   let isExpanded = false;
+  let isClosingPanel = false;
+  let pendingAfterClose: (() => void) | null = null;
   let suppressNextTriggerClick = false;
   let dockRef: HTMLElement;
 
@@ -65,8 +67,37 @@
     label: theme.liquidLabel
   }));
 
+  function runAfterClose(callback?: () => void) {
+    if (!callback) return;
+
+    pendingAfterClose = callback;
+
+    if (!isExpanded && !isClosingPanel) {
+      const next = pendingAfterClose;
+      pendingAfterClose = null;
+      next?.();
+    }
+  }
+
+  function finishClose() {
+    isClosingPanel = false;
+
+    const next = pendingAfterClose;
+    pendingAfterClose = null;
+    next?.();
+  }
+
   function toggleLiquidBar(nextState?: boolean) {
-    isExpanded = typeof nextState === 'boolean' ? nextState : !isExpanded;
+    const shouldExpand = typeof nextState === 'boolean' ? nextState : !isExpanded;
+
+    if (shouldExpand) {
+      pendingAfterClose = null;
+      isClosingPanel = false;
+      isExpanded = true;
+      return;
+    }
+
+    closeLiquidBar();
   }
 
   function handleTriggerClick() {
@@ -88,13 +119,24 @@
     toggleLiquidBar();
   }
 
-  function closeLiquidBar() {
+  function closeLiquidBar(afterClose?: () => void) {
+    if (!isExpanded && !isClosingPanel) {
+      runAfterClose(afterClose);
+      return;
+    }
+
+    if (afterClose) {
+      pendingAfterClose = afterClose;
+    }
+
     isExpanded = false;
+    isClosingPanel = true;
   }
 
   function handleNav(id: string) {
-    currentView.set(id);
-    closeLiquidBar();
+    closeLiquidBar(() => {
+      currentView.set(id);
+    });
   }
 
   function requestTheme(id: string, e: MouseEvent) {
@@ -106,23 +148,26 @@
   }
 
   function openConsole() {
-    closeLiquidBar();
-    currentView.set('console');
+    closeLiquidBar(() => {
+      currentView.set('console');
+    });
   }
 
   function openConsoleTab(tab: 'account' | 'chats') {
-    closeLiquidBar();
-    window.dispatchEvent(
-      new CustomEvent('community-console-tab-request', {
-        detail: { tab }
-      })
-    );
-    currentView.set('console');
+    closeLiquidBar(() => {
+      window.dispatchEvent(
+        new CustomEvent('community-console-tab-request', {
+          detail: { tab }
+        })
+      );
+      currentView.set('console');
+    });
   }
 
   function openComposer() {
-    closeLiquidBar();
-    openModal($isAuthenticated ? 'comm-post' : 'auth');
+    closeLiquidBar(() => {
+      openModal($isAuthenticated ? 'comm-post' : 'auth');
+    });
   }
 
   onMount(() => {
@@ -160,7 +205,7 @@
     <button
       type="button"
       class="liquid-backdrop pointer-events-auto"
-      on:click={closeLiquidBar}
+      on:click={() => closeLiquidBar()}
       transition:fade={{ duration: 220 }}
       aria-label="导航背景"
     ></button>
@@ -203,7 +248,8 @@
         <div
           id="liquid-bar-panel"
           class="liquid-panel"
-          transition:scale|local={{ duration: 320, start: 0.9, opacity: 0.18 }}
+          out:scale|local={{ duration: 220, start: 0.97, opacity: 0.12 }}
+          on:outroend={finishClose}
         >
           <div class="liquid-panel-head">
             <div>
@@ -211,7 +257,7 @@
               <p class="liquid-panel-title">{currentViewMood.detail}</p>
             </div>
 
-            <button type="button" class="liquid-close" on:click={closeLiquidBar}>
+            <button type="button" class="liquid-close" on:click={() => closeLiquidBar()}>
               收起
             </button>
           </div>

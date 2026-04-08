@@ -183,18 +183,23 @@ test('liquid bar expands and switches views from the top-left dock', async ({ pa
   await bootApp(page);
 
   const trigger = page.locator('#liquidBar .liquid-trigger');
+  const panel = page.locator('#liquidBar .liquid-panel');
   await expect(trigger).toHaveAttribute('aria-expanded', 'false');
 
   await trigger.click();
   await expect(trigger).toHaveAttribute('aria-expanded', 'true');
-  await expect(page.locator('#liquidBar .liquid-panel')).toBeVisible();
+  await expect(panel).toBeVisible();
 
   await page.getByRole('button', { name: /课表/ }).click();
   await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  await expect(panel).toBeHidden();
   await expect(page.getByText('课程安排')).toBeVisible();
 
   await trigger.click();
+  await expect(panel).toBeVisible();
   await page.getByRole('button', { name: /节点/ }).click();
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  await expect(panel).toBeHidden();
   await expect(page.getByText('代理节点')).toBeVisible();
   await expect(page.getByPlaceholder('输入访问密码...')).toBeVisible();
 });
@@ -226,13 +231,16 @@ test.describe('mobile liquid bar', () => {
     await bootApp(page);
 
     const trigger = page.locator('#liquidBar .liquid-trigger');
+    const panel = page.locator('#liquidBar .liquid-panel');
     const triggerBox = await trigger.boundingBox();
     if (!triggerBox) throw new Error('Missing liquid trigger bounds');
 
     await page.touchscreen.tap(triggerBox.x + (triggerBox.width / 2), triggerBox.y + (triggerBox.height / 2));
-    await expect(page.locator('#liquidBar .liquid-panel')).toBeVisible();
+    await expect(panel).toBeVisible();
 
     await page.getByRole('button', { name: /课表/ }).tap();
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    await expect(panel).toBeHidden();
     await expect(page.getByText('课程安排')).toBeVisible();
   });
 });
