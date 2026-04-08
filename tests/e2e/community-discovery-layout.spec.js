@@ -70,22 +70,35 @@ test.beforeEach(async ({ page }) => {
       });
     }
 
-    if (pathname === '/api/community/discovery') {
+    if (pathname === '/api/nodes' && req.method() === 'GET') {
       return fulfill({
         ok: true,
-        users: [
-          { id: 'u1', username: 'Atlas', signature: 'building routes', level: 4, xp: 120, role: 'user' },
-          { id: 'u2', username: 'Nova', signature: 'debugging layouts', level: 6, xp: 220, role: 'owner' }
+        nodes: [
+          {
+            id: 'node-1',
+            name: 'HK Edge 01',
+            raw: 'vmess://ZXhhbXBsZQ==',
+            protocol: 'vmess',
+            source_label: '主订阅'
+          }
         ],
-        groups: [
-          { id: 'g1', title: 'Layout Lab', description: 'Fix cut layouts', member_count: 13, joined: false },
-          { id: 'g2', title: 'Sound Dock', description: 'Tune player UX', member_count: 9, joined: false }
-        ]
+        sources: [
+          {
+            id: 'source-1',
+            label: '主订阅',
+            source_type: 'subscription',
+            enabled: true,
+            node_count: 1,
+            updated_at: '2026-03-31T10:00:00.000Z'
+          }
+        ],
+        subscription_url: '/api/nodes/subscription?pwd=playwright-session',
+        raw: 'vmess://ZXhhbXBsZQ==',
+        clients: {
+          shadowrocket: 'shadowrocket://add/sub://example',
+          clash: '/api/nodes/subscription?pwd=playwright-session'
+        }
       });
-    }
-
-    if (pathname === '/api/community/groups/join' && req.method() === 'POST') {
-      return fulfill({ ok: true });
     }
 
     return fulfill({
@@ -150,18 +163,20 @@ test('community feed stays scrollable and shows live announcement', async ({ pag
   expect(lastCardVisibleAtBottom).toBe(true);
 });
 
-test('nodes view loads discovery results and can join groups', async ({ page }) => {
+test('nodes view loads proxy hub instead of discovery recommendations', async ({ page }) => {
   await page.goto('/');
   await settleTheme(page);
 
   await page.locator('nav button:has-text("社区")').click();
   await page.locator('nav button:has-text("节点")').click();
 
-  await expect(page.locator('text=找人和群')).toBeVisible();
-  await expect(page.locator('text=Atlas')).toBeVisible();
-  await expect(page.locator('text=Layout Lab')).toBeVisible();
+  await expect(page.locator('text=代理节点')).toBeVisible();
+  await expect(page.locator('input[placeholder="输入访问密码..."]')).toBeVisible();
+  await page.locator('input[placeholder="输入访问密码..."]').fill('playwright-session');
+  await page.locator('button:has-text("解锁节点")').click();
 
-  await page.locator('button:has-text("加入这个群")').first().click();
-  await expect(page.locator('text=已加入 Layout Lab')).toBeVisible();
-  await expect(page.locator('button:has-text("已加入")').first()).toBeVisible();
+  await expect(page.locator('text=一键复制或直接打开')).toBeVisible();
+  await expect(page.locator('text=HK Edge 01')).toBeVisible();
+  await expect(page.getByRole('heading', { name: '主订阅' })).toBeVisible();
+  await expect(page.locator('text=Shadowrocket')).toBeVisible();
 });

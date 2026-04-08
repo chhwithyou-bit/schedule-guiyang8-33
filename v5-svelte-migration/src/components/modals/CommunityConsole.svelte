@@ -845,7 +845,7 @@
 
             <div class="flex flex-wrap gap-2 lg:justify-end">
               <button type="button" class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={openNodesView}>
-                去发现页
+                去代理节点
               </button>
               {#if $isAuthenticated}
                 <button type="button" class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={openMyProfile}>
@@ -877,7 +877,7 @@
                     登录 / 注册
                   </button>
                   <button type="button" class="rounded-full border border-white/10 bg-white/5 px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105" on:click={openNodesView}>
-                    去逛逛发现页
+                    去代理节点页
                   </button>
                 </div>
               </section>
@@ -1030,7 +1030,7 @@
                     {/each}
                   {:else}
                     <div class="rounded-[24px] border border-white/10 bg-white/5 px-4 py-10 text-center text-sm font-bold opacity-50">
-                      还没有会话。先去发现页加个群，或者去别人的主页打个招呼。
+                      还没有会话。先去群组选项卡建一个群，或者去别人的主页打个招呼。
                     </div>
                   {/if}
                 </div>
@@ -1131,7 +1131,7 @@
                     {creatingGroup ? '正在创建…' : '创建群聊'}
                   </button>
                   <button type="button" class="rounded-full border border-white/10 bg-white/5 px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105" on:click={openNodesView}>
-                    去发现页看看
+                    去代理节点页
                   </button>
                 </div>
 
@@ -1178,7 +1178,7 @@
                     {/each}
                   {:else}
                     <div class="rounded-[24px] border border-white/10 bg-white/5 px-4 py-10 text-center text-sm font-bold opacity-50">
-                      还没有已加入的群。你可以先在这里建一个，或者去发现页加群。
+                      还没有已加入的群。你可以先在这里建一个，再从聊天选项卡继续聊。
                     </div>
                   {/if}
                 </div>

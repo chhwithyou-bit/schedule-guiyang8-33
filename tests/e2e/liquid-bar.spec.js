@@ -18,6 +18,25 @@ function buildDiscoveryState() {
       member_count: 6,
       joined: false
     },
+    nodes: [
+      {
+        id: 'node-1',
+        name: 'Tokyo Relay',
+        raw: 'ss://ZXhhbXBsZQ==',
+        protocol: 'ss',
+        source_label: '常用订阅'
+      }
+    ],
+    sources: [
+      {
+        id: 'source-1',
+        label: '常用订阅',
+        source_type: 'subscription',
+        enabled: true,
+        node_count: 1,
+        updated_at: '2026-03-28T10:30:00.000Z'
+      }
+    ],
     conversations: [
       {
         id: 'group-general',
@@ -85,6 +104,20 @@ function installApiMocks(page, state) {
         return [group.title, group.description].some((value) => String(value || '').toLowerCase().includes(query));
       });
       return fulfill({ ok: true, users, groups });
+    }
+
+    if (pathname === '/api/nodes' && req.method() === 'GET') {
+      return fulfill({
+        ok: true,
+        nodes: state.nodes,
+        sources: state.sources,
+        subscription_url: '/api/nodes/subscription?pwd=playwright-session',
+        raw: state.nodes.map((item) => item.raw).join('\n'),
+        clients: {
+          shadowrocket: 'shadowrocket://add/sub://example',
+          clash: '/api/nodes/subscription?pwd=playwright-session'
+        }
+      });
     }
 
     if (pathname === '/api/community/drive/info') {
@@ -162,7 +195,8 @@ test('liquid bar expands and switches views from the top-left dock', async ({ pa
 
   await trigger.click();
   await page.getByRole('button', { name: /节点/ }).click();
-  await expect(page.getByText('推荐用户')).toBeVisible();
+  await expect(page.getByText('代理节点')).toBeVisible();
+  await expect(page.getByPlaceholder('输入访问密码...')).toBeVisible();
 });
 
 test('liquid bar keeps community actions reachable', async ({ page }) => {
@@ -177,9 +211,8 @@ test('liquid bar keeps community actions reachable', async ({ page }) => {
   await bootApp(page);
 
   await page.locator('#liquidBar .liquid-trigger').click();
-  await page.locator('#liquidBar .liquid-console-btn').click();
-  await expect(page.getByRole('heading', { name: '账号 / 聊天 / 网盘' })).toBeVisible();
-  await expect(page.getByRole('button', { name: '关闭' })).toBeVisible();
+  await page.getByRole('button', { name: /个人面板/ }).click();
+  await expect(page.getByRole('heading', { name: '资料与账号设置' })).toBeVisible();
 });
 
 test.describe('mobile liquid bar', () => {

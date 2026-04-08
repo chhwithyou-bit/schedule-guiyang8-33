@@ -86,12 +86,6 @@
     detail: string;
   }> = [
     {
-      id: 'account',
-      label: '个人',
-      title: '资料与账号',
-      detail: '头像、签名、主页入口都收在这里。'
-    },
-    {
       id: 'chats',
       label: '聊天',
       title: '私聊消息',
@@ -230,7 +224,7 @@
         <div class="mb-3 flex items-center justify-between gap-3">
           <div>
             <p class="text-[10px] font-black uppercase tracking-[0.22em] opacity-35">控制台分区</p>
-            <p class="mt-1 text-sm font-medium opacity-65">不再挤成一个笼统入口，常用内容直接分到选项卡。</p>
+            <p class="mt-1 text-sm font-medium opacity-65">聊天、群组、网盘和提醒直接分到选项卡；资料编辑进个人面板。</p>
           </div>
           <button
             type="button"
