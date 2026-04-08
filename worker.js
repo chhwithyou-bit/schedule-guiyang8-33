@@ -746,20 +746,6 @@ async function verifyAdmin(env, username, password) {
   return username === storedUser && password === storedPass;
 }
 
-function parseNodes(rawText) {
-  let decoded = rawText.trim();
-  try { const b64 = atob(decoded); if (b64.includes('://')) decoded = b64; } catch {}
-  return decoded.split('\n').map(l => l.trim()).filter(l => l.startsWith('ss://') || l.startsWith('vmess://') || l.startsWith('trojan://') || l.startsWith('vless://') || l.startsWith('ssr://'))
-    .map(raw => {
-      let name = '未知节点';
-      try {
-        if (raw.startsWith('vmess://')) { const json = JSON.parse(atob(raw.slice(8))); name = json.ps || json.add || 'vmess节点'; }
-        else { const hashPart = raw.split('#')[1]; if (hashPart) name = decodeURIComponent(hashPart.split('\r')[0]); else name = raw.split('://')[0].toUpperCase() + '节点'; }
-      } catch {}
-      return { name: name.trim(), raw };
-    });
-}
-
 // ── Google Drive API Helpers (OAuth2 User Flow) ────────────────
 async function getGoogleAuthToken(env, forceRefresh = false) {
   // 1. 尝试从 KV 获取缓存的 Token (除非强制刷新)
