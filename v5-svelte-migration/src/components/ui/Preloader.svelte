@@ -1,9 +1,14 @@
 <script lang="ts">
   import { onMount, createEventDispatcher, tick } from 'svelte';
   import { gsap } from 'gsap';
-  import { themeInitialized } from '../../stores/appState';
+
+  export let canComplete = false;
 
   const dispatch = createEventDispatcher();
+
+  const MIN_VISIBLE_MS = 920;
+  const HOLD_PROGRESS = 96;
+  const FINISH_PROGRESS = 100;
 
   let progress = { value: 0 };
   let displayValue = '00';
@@ -19,14 +24,12 @@
   let isMounted = false;
   let completionTimer: ReturnType<typeof setTimeout> | null = null;
 
-  const MIN_VISIBLE_MS = 920;
-
   onMount(() => {
     isMounted = true;
     mountedAt = performance.now();
     startInitialCounter();
 
-    if ($themeInitialized && !isFinishing) {
+    if (canComplete && !isFinishing) {
       scheduleCompletion();
     }
 
@@ -42,12 +45,12 @@
     };
   });
 
-  $: if (isMounted && $themeInitialized && !isFinishing) {
+  $: if (isMounted && canComplete && !isFinishing) {
     scheduleCompletion();
   }
 
   function updateDisplay() {
-    const val = Math.floor(progress.value);
+    const val = Math.min(FINISH_PROGRESS, Math.floor(progress.value));
     displayValue = val < 10 ? `0${val}` : `${val}`;
   }
 
@@ -56,22 +59,22 @@
       counterTl = gsap.timeline();
 
       counterTl.to(progress, {
-        value: 78,
-        duration: 0.55,
+        value: 64,
+        duration: 0.42,
         ease: 'power2.out',
         onUpdate: updateDisplay
       });
 
       counterTl.to(progress, {
-        value: 94,
-        duration: 0.5,
+        value: 88,
+        duration: 0.44,
         ease: 'sine.out',
         onUpdate: updateDisplay
       });
 
       counterTl.to(progress, {
-        value: 99,
-        duration: 0.78,
+        value: HOLD_PROGRESS,
+        duration: 0.52,
         ease: 'none',
         onUpdate: updateDisplay
       });
@@ -81,7 +84,7 @@
           veilRef,
           {
             '--veil-shift': '1',
-            duration: 1.83,
+            duration: 1.38,
             ease: 'sine.inOut'
           },
           0
@@ -89,7 +92,8 @@
       }
     } catch (e) {
       console.warn('Initial counter failed, skipping to completion check:', e);
-      displayValue = '99';
+      progress.value = HOLD_PROGRESS;
+      updateDisplay();
     }
   }
 
@@ -129,12 +133,10 @@
       });
 
       tl.to(progress, {
-        value: 100,
-        duration: 0.24,
+        value: FINISH_PROGRESS,
+        duration: 0.3,
         ease: 'power2.out',
-        onUpdate: () => {
-          displayValue = '100';
-        }
+        onUpdate: updateDisplay
       });
 
       tl.to(

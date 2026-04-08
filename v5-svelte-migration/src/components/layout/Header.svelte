@@ -5,9 +5,13 @@
   import { openModal } from '../../stores/modalState';
   import { setCommunityConsoleState } from '../../stores/communityConsoleState';
 
+  const SHOW_THRESHOLD = 60;
+  const HIDE_THRESHOLD = 96;
+
   let y = 0;
   let lastY = 0;
   let isVisible = true;
+  let isScrolled = false;
 
   function openConsoleView() {
     setCommunityConsoleState({ tab: 'account', conversationId: '' });
@@ -33,7 +37,20 @@
 
     // Basic scroll hide/show logic
     const handleScroll = () => {
-      isVisible = y < lastY || y < 60;
+      if (y <= SHOW_THRESHOLD) {
+        isVisible = true;
+      } else if (y > lastY && y > HIDE_THRESHOLD) {
+        isVisible = false;
+      } else if (y < lastY) {
+        isVisible = true;
+      }
+
+      if (y > HIDE_THRESHOLD) {
+        isScrolled = true;
+      } else if (y < SHOW_THRESHOLD) {
+        isScrolled = false;
+      }
+
       lastY = y;
     };
 
@@ -49,10 +66,9 @@
 
 <header
   class="fixed top-0 left-0 right-0 z-[5000] px-6 md:px-12 py-6 transition-all duration-300
-         {isVisible ? 'translate-y-0' : '-translate-y-full'}
-         {y > 60 ? 'site-header-shell is-scrolled' : 'site-header-shell'}"
+         {isVisible ? 'translate-y-0' : '-translate-y-full'}"
 >
-  <div class="max-w-7xl mx-auto flex items-center justify-between">
+  <div class="site-header-shell {isScrolled ? 'is-scrolled' : ''} max-w-7xl mx-auto flex items-center justify-between">
     <!-- Logo -->
     <div class="group cursor-pointer">
       <h1 class="text-2xl font-black tracking-tighter transition-transform group-hover:scale-110">
@@ -107,11 +123,18 @@
 
 <style>
   .site-header-shell {
+    padding: 0.85rem 1rem;
+    border-radius: 999px;
     background: transparent;
+    transition:
+      background 0.25s ease,
+      border-color 0.25s ease,
+      box-shadow 0.25s ease,
+      backdrop-filter 0.25s ease;
   }
 
   .site-header-shell.is-scrolled {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     background:
       linear-gradient(180deg, rgba(var(--color-bg-rgb), 0.14), rgba(var(--color-bg-rgb), 0.08)),
       rgba(var(--color-bg-rgb), 0.08);

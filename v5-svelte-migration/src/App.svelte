@@ -34,6 +34,11 @@
   let mainContent: HTMLElement;
   let isLoading = true;
   let lenisStarted = false;
+  let backgroundReady = false;
+  let backgroundFailed = false;
+  let canFinishLoading = false;
+
+  const WALLPAPER_SRC = '/IMG_1695.webp';
 
   const viewMap: Record<string, any> = {
     schedule: ScheduleView,
@@ -69,7 +74,46 @@
     }
   }
 
+  function preloadWallpaper() {
+    if (backgroundReady || backgroundFailed) return;
+
+    const img = new Image();
+    img.src = WALLPAPER_SRC;
+
+    const markReady = () => {
+      backgroundReady = true;
+    };
+
+    const markFailed = () => {
+      backgroundFailed = true;
+    };
+
+    img.onload = async () => {
+      try {
+        if (typeof img.decode === 'function') {
+          await img.decode();
+        }
+      } catch (e) {}
+
+      markReady();
+    };
+
+    img.onerror = () => {
+      markFailed();
+    };
+
+    if (img.complete) {
+      if (typeof img.decode === 'function') {
+        void img.decode().catch(() => {}).finally(markReady);
+      } else {
+        markReady();
+      }
+    }
+  }
+
   async function startAssembly() {
+    if ((!$themeInitialized || !backgroundReady) && !backgroundFailed) return;
+
     isLoading = false;
     startLenis();
     await tick();
@@ -144,10 +188,15 @@
     }
   }
 
+  $: canFinishLoading = $themeInitialized && (backgroundReady || backgroundFailed);
+
   onMount(() => {
+    preloadWallpaper();
+
     const failSafe = setTimeout(() => {
       if (isLoading) {
         console.warn('App stuck loading, triggering fail-safe...');
+        backgroundFailed = true;
         themeInitialized.set(true);
         startAssembly();
       }
@@ -170,12 +219,12 @@
 <div
   class="app-container font-sans text-[var(--color-text)] min-h-screen relative overflow-hidden selection:bg-[var(--color-primary)] selection:text-[var(--color-button-text)]"
 >
-  <div class="app-background" aria-hidden="true"></div>
+  <div class="app-background {backgroundReady ? 'is-ready' : ''}" aria-hidden="true"></div>
 
   <ThemeSwitcher />
 
   {#if isLoading}
-    <Preloader on:complete={startAssembly} />
+    <Preloader canComplete={canFinishLoading} on:complete={startAssembly} />
   {/if}
 
   <div
@@ -226,6 +275,15 @@
     overflow: hidden;
     pointer-events: none;
     z-index: 0;
+  }
+
+  .app-background::before {
+    opacity: 0;
+    transition: opacity 280ms ease-out;
+  }
+
+  .app-background.is-ready::before {
+    opacity: 1;
   }
 
   .app-background::before,
