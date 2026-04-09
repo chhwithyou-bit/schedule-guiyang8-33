@@ -1002,7 +1002,7 @@
     {#if !embedded}
     <header class="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-white/10 bg-[rgba(var(--color-bg-rgb),0.92)] px-5 py-4 backdrop-blur-[20px] md:px-6">
       <div>
-        <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">{embedded ? '社区消息台' : '个人面板'}</p>
+        <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">{embedded ? '社区消息台' : '控制台导航'}</p>
         <h2 id="community-console-title" class="mt-1 text-2xl font-black tracking-tight">{accountOnly ? '账号面板' : '聊天 / 群组 / 网盘 / 提醒'}</h2>
       </div>
 
@@ -1023,7 +1023,7 @@
 
     <div class="{embedded ? 'space-y-5' : 'xl:flex-1 xl:min-h-0 xl:overflow-hidden'}">
       <div class="{embedded ? 'space-y-5' : shouldRenderModalShell ? 'min-h-full space-y-5 pb-5' : 'xl:flex xl:flex-col xl:h-full xl:min-h-0'}">
-        <div class="rounded-[28px] border border-white/12 bg-[rgba(255,255,255,0.08)] p-3 shadow-[0_18px_42px_rgba(var(--shadow-rgb),0.12)] backdrop-blur-[18px] {activeTab === 'chats' && mobileChatView === 'detail' ? 'hidden xl:block' : ''} {embedded ? '' : shouldRenderModalShell ? 'mx-1 mt-4 md:mx-2 md:mt-5' : 'mx-4 mt-4 md:mx-5 md:mt-5'}">
+        <div class="console-hero-panel {activeTab === 'chats' && mobileChatView === 'detail' ? 'hidden xl:block' : ''} {embedded ? '' : shouldRenderModalShell ? 'mx-1 mt-4 md:mx-2 md:mt-5' : 'mx-4 mt-4 md:mx-5 md:mt-5'}">
           <div class="console-tab-shell flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between">
             <div class="console-tab-rail xl:max-w-[19rem]">
               <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">{tabHero[activeTab].eyebrow}</p>
@@ -1047,11 +1047,11 @@
             </div>
 
             <div class="flex flex-wrap gap-2 lg:justify-end">
-              <button type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={openNodesView}>
+              <button type="button" class="console-pill console-pill--ghost px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em]" on:click={openNodesView}>
                 去代理节点
               </button>
               {#if $isAuthenticated}
-                <button type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={openMyProfile}>
+                <button type="button" class="console-pill console-pill--ghost px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em]" on:click={openMyProfile}>
                   我的主页
                 </button>
               {/if}
@@ -1069,24 +1069,24 @@
         {#if activeTab === 'account'}
           <div class="space-y-6">
             {#if !$isAuthenticated}
-              <section class="rounded-[32px] border border-white/10 bg-[rgba(255,255,255,0.08)] p-6 shadow-xl">
+              <section class="console-panel p-6">
                 <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">先登录一下</p>
                 <h3 class="mt-3 text-3xl font-black tracking-tight">登录入口已经恢复</h3>
                 <p class="mt-3 max-w-2xl text-sm font-medium leading-7 opacity-70">
                   现在这里会固定显示账号入口。登录后，聊天会话、群组、网盘和个人资料编辑都会在同一个面板里可见。
                 </p>
                 <div class="mt-5 flex flex-wrap gap-3">
-                  <button type="button" class="rounded-full bg-[var(--color-primary)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105" on:click={openAuth}>
+                  <button type="button" class="console-pill console-pill--primary px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)]" on:click={openAuth}>
                     登录 / 注册
                   </button>
-                  <button type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105" on:click={openNodesView}>
+                  <button type="button" class="console-pill console-pill--ghost px-5 py-3 text-xs font-black uppercase tracking-[0.2em]" on:click={openNodesView}>
                     去代理节点页
                   </button>
                 </div>
               </section>
             {:else}
               <section class="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(20rem,0.95fr)]">
-                <div class="rounded-[32px] border border-white/10 bg-[rgba(255,255,255,0.08)] p-6 shadow-xl">
+                <div class="console-panel p-6">
                   <div class="flex items-center gap-4">
                     <div class="flex h-16 w-16 items-center justify-center overflow-hidden rounded-[22px] bg-[var(--color-primary)] text-2xl font-black text-[var(--color-bg)]">
                       {#if $user?.avatar_url}
@@ -1107,19 +1107,19 @@
                   <div class="mt-6 grid gap-4 md:grid-cols-3">
                     <label class="block">
                       <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35 text-[var(--color-text,#fff4ed)]">个性签名</span>
-                      <textarea bind:value={profileForm.signature} class="h-28 w-full rounded-[22px] border border-white/30 bg-white/15 px-4 py-3 text-sm font-medium text-[var(--color-text,#fff4ed)] placeholder:text-[var(--color-text,#fff4ed)]/40 outline-none transition-colors focus:border-[var(--color-primary,#fac7b7)]" style="background-color: rgba(255, 255, 255, 0.18);"></textarea>
+                      <textarea bind:value={profileForm.signature} class="console-field h-28 w-full px-4 py-3 text-sm font-medium text-[var(--color-text,#fff4ed)] placeholder:text-[var(--color-text,#fff4ed)]/40" style="background-color: rgba(255, 255, 255, 0.18);"></textarea>
                     </label>
                     
                     <label class="block">
                       <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35 text-[var(--color-text,#fff4ed)]">上传头像</span>
-                      <div class="relative w-full rounded-[22px] border border-white/30 bg-white/20 px-4 py-3 text-sm font-medium transition-colors hover:border-[var(--color-primary,#fac7b7)] text-[var(--color-text,#fff4ed)]">
+                      <div class="console-field relative w-full px-4 py-3 text-sm font-medium text-[var(--color-text,#fff4ed)]">
                         <span class="opacity-70">{uploadingAvatar ? '正在上传...' : (profileForm.avatar_url ? '已上传，点击更换' : '点击选择图片')}</span>
                         <input type="file" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" on:change={handleAvatarUpload} disabled={uploadingAvatar} />
                       </div>
                     </label>
                     <label class="block">
                       <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35 text-[var(--color-text,#fff4ed)]">上传主页壁纸</span>
-                      <div class="relative w-full rounded-[22px] border border-white/20 bg-white/10 px-4 py-3 text-sm font-medium transition-colors hover:border-[var(--color-primary,#fac7b7)] text-[var(--color-text,#fff4ed)]">
+                      <div class="console-field relative w-full px-4 py-3 text-sm font-medium text-[var(--color-text,#fff4ed)]">
                         <span class="opacity-70">{uploadingBackground ? '正在上传...' : (profileForm.background_url ? '已上传，点击更换' : '点击选择图片')}</span>
                         <input type="file" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" on:change={handleBackgroundUpload} disabled={uploadingBackground} />
                       </div>
@@ -1128,10 +1128,10 @@
                   </div>
 
                   <div class="mt-5 flex flex-wrap gap-3">
-                    <button type="button" class="rounded-full bg-[var(--color-primary)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105 disabled:opacity-50" on:click={saveProfile} disabled={savingProfile}>
+                    <button type="button" class="console-pill console-pill--primary px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] disabled:opacity-50" on:click={saveProfile} disabled={savingProfile}>
                       {savingProfile ? '正在保存…' : '保存资料'}
                     </button>
-                    <button type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105" on:click={openMyProfile}>
+                    <button type="button" class="console-pill console-pill--ghost px-5 py-3 text-xs font-black uppercase tracking-[0.2em]" on:click={openMyProfile}>
                       打开主页
                     </button>
                     <button type="button" class="rounded-full border border-red-400/20 bg-red-500/10 px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-red-200 transition-transform hover:scale-105" on:click={logout}>
@@ -1144,25 +1144,25 @@
                   {/if}
                 </div>
 
-                <div class="rounded-[32px] border border-white/10 bg-[rgba(255,255,255,0.08)] p-6 shadow-xl">
+                <div class="console-panel p-6">
                   <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">现在的情况</p>
                   <div class="mt-4 grid gap-4 md:grid-cols-2">
-                    <div class="rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.06)] p-4">
+                    <div class="console-subpanel p-4">
                       <p class="text-[10px] font-black uppercase tracking-[0.2em] opacity-35">会话</p>
                       <p class="mt-2 text-2xl font-black tracking-tight">{conversations.length}</p>
                       <p class="mt-1 text-sm font-medium opacity-65">私聊和群组会话会统一汇总到这里。</p>
                     </div>
-                    <div class="rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.06)] p-4">
+                    <div class="console-subpanel p-4">
                       <p class="text-[10px] font-black uppercase tracking-[0.2em] opacity-35">群组</p>
                       <p class="mt-2 text-2xl font-black tracking-tight">{groupConversations.length}</p>
                       <p class="mt-1 text-sm font-medium opacity-65">旧版加入过的群组现在能在控制台里直接打开。</p>
                     </div>
-                    <div class="rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.06)] p-4">
+                    <div class="console-subpanel p-4">
                       <p class="text-[10px] font-black uppercase tracking-[0.2em] opacity-35">网盘占用</p>
                       <p class="mt-2 text-2xl font-black tracking-tight">{formatBytes(driveStats.used_bytes || 0)}</p>
                       <p class="mt-1 text-sm font-medium opacity-65">总配额 {formatBytes(driveStats.quota_bytes || 0)}</p>
                     </div>
-                    <div class="rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.06)] p-4">
+                    <div class="console-subpanel p-4">
                       <p class="text-[10px] font-black uppercase tracking-[0.2em] opacity-35">身份</p>
                       <p class="mt-2 text-2xl font-black tracking-tight">{$isAdmin ? '管理员' : '普通成员'}</p>
                       <p class="mt-1 text-sm font-medium opacity-65">账号入口和资料面板已经恢复为固定 UI。</p>
@@ -1176,22 +1176,22 @@
 
         {#if activeTab === 'chats'}
           {#if !$isAuthenticated}
-            <div class="rounded-[32px] border border-white/10 bg-[rgba(255,255,255,0.08)] p-6 shadow-xl">
+            <div class="console-panel p-6">
               <p class="text-sm font-bold opacity-70">{authPrompt || '登录后才能查看聊天和群组会话。'}</p>
-              <button type="button" class="mt-4 rounded-full bg-[var(--color-primary)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105" on:click={openAuth}>
+              <button type="button" class="mt-4 console-pill console-pill--primary px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)]" on:click={openAuth}>
                 先去登录
               </button>
             </div>
           {:else}
             <div class="{embedded ? 'grid gap-5 xl:grid-cols-[18rem_minmax(0,1fr)]' : 'grid min-h-[34rem] gap-5 xl:grid-cols-[18rem_minmax(0,1fr)]'} {mobileChatView === 'detail' ? 'min-h-[72svh]' : ''}">
-              <section class="rounded-[32px] border border-white/10 bg-[rgba(255,255,255,0.08)] p-4 shadow-xl {mobileChatView === 'detail' ? 'hidden xl:block' : ''}">
+              <section class="console-panel p-4 {mobileChatView === 'detail' ? 'hidden xl:block' : ''}">
                 <div class="mb-4 flex items-center justify-between">
                   <div>
                     <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">会话列表</p>
                     <h3 class="mt-1 text-xl font-black tracking-tight">共 {conversations.length} 个会话</h3>
                     <p class="mt-1 text-xs font-medium opacity-55">{directConversations.length} 个私聊 · {groupConversations.length} 个群聊</p>
                   </div>
-                  <button type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={loadChats}>
+                  <button type="button" class="console-pill console-pill--ghost px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em]" on:click={loadChats}>
                     刷新
                   </button>
                 </div>
@@ -1209,7 +1209,7 @@
                     {#each conversations as item (item.id)}
                       <button
                         type="button"
-                        class="flex w-full items-start gap-3 rounded-[22px] border px-4 py-4 text-left transition-colors {selectedConversationId === item.id ? 'border-[var(--color-primary)] bg-[rgba(255,255,255,0.08)]' : 'border-white/10 bg-[rgba(255,255,255,0.06)] hover:bg-[rgba(255,255,255,0.07)]'}"
+                        class="console-list-row flex w-full items-start gap-3 px-4 py-4 text-left {selectedConversationId === item.id ? 'is-active' : ''}"
                         on:click={() => loadMessages(item.id)}
                       >
                         <div class="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-[16px] bg-[var(--color-primary)] font-black text-[var(--color-bg)]">
@@ -1232,16 +1232,16 @@
                       </button>
                     {/each}
                   {:else}
-                    <div class="rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.08)] px-4 py-10 text-center text-sm font-bold opacity-50">
+                    <div class="console-empty-state px-4 py-10 text-center text-sm font-bold opacity-50">
                       还没有会话。先去群组选项卡建一个群，或者去别人的主页打个招呼。
                     </div>
                   {/if}
                 </div>
               </section>
 
-              <section bind:this={chatDetailPanel} class="{mobileChatView === 'list' ? 'hidden xl:flex' : 'flex'} flex-col rounded-[32px] border border-white/10 bg-[rgba(255,255,255,0.08)] p-4 shadow-xl min-h-[70svh] xl:min-h-0">
+              <section bind:this={chatDetailPanel} class="{mobileChatView === 'list' ? 'hidden xl:flex' : 'flex'} console-panel flex-col p-4 min-h-[70svh] xl:min-h-0">
                 <div class="mb-4 border-b border-white/10 pb-4">
-                  <button type="button" class="mb-3 rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105 xl:hidden" on:click={() => (mobileChatView = 'list')}>
+                  <button type="button" class="mb-3 console-pill console-pill--ghost px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] xl:hidden" on:click={() => (mobileChatView = 'list')}>
                     返回会话
                   </button>
                   <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">当前会话</p>
@@ -1251,7 +1251,7 @@
                   {/if}
                 </div>
 
-                <div class="flex-1 overflow-y-auto rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.06)] p-4 min-h-[18rem] max-h-[56svh] xl:min-h-0 xl:max-h-none">
+                <div class="flex-1 overflow-y-auto console-subpanel p-4 min-h-[18rem] max-h-[56svh] xl:min-h-0 xl:max-h-none">
                   {#if loadingMessages}
                     <div class="space-y-3">
                       {#each Array(4) as _}
@@ -1284,13 +1284,13 @@
                     placeholder={selectedConversation ? '说点什么…' : '先选一个会话'}
                     disabled={!selectedConversation || sendingMessage}
                     on:keydown={(event) => event.key === 'Enter' && sendMessage()}
-                    class="min-w-0 flex-1 rounded-[20px] border border-white/30 bg-white/15 px-4 py-3 text-sm font-medium text-[var(--color-text,#fff4ed)] placeholder:text-[var(--color-text,#fff4ed)]/40 outline-none transition-colors focus:border-[var(--color-primary,#fac7b7)] disabled:opacity-40"
+                    class="console-field min-w-0 flex-1 px-4 py-3 text-sm font-medium text-[var(--color-text,#fff4ed)] placeholder:text-[var(--color-text,#fff4ed)]/40 disabled:opacity-40"
                     style="background-color: rgba(255, 255, 255, 0.18);"
                   />
                   <button
                     type="button"
                     disabled={!selectedConversation || !messageDraft.trim() || sendingMessage}
-                    class="rounded-[20px] bg-[var(--color-primary,#fac7b7)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg,#231b22)] shadow-lg transition-transform hover:scale-105 disabled:cursor-default disabled:opacity-40"
+                    class="console-pill console-pill--primary rounded-[20px] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg,#231b22)] disabled:cursor-default disabled:opacity-40"
                     on:click={sendMessage}
                   >
                     发送
@@ -1303,15 +1303,15 @@
 
         {#if activeTab === 'groups'}
           {#if !$isAuthenticated}
-            <div class="rounded-[32px] border border-white/10 bg-[rgba(255,255,255,0.08)] p-6 shadow-xl">
+            <div class="console-panel p-6">
               <p class="text-sm font-bold opacity-70">{authPrompt || '登录后才能查看和创建群组。'}</p>
-              <button type="button" class="mt-4 rounded-full bg-[var(--color-primary)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105" on:click={openAuth}>
+              <button type="button" class="mt-4 console-pill console-pill--primary px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)]" on:click={openAuth}>
                 先去登录
               </button>
             </div>
           {:else}
             <div class="grid gap-5 xl:grid-cols-[minmax(22rem,0.9fr)_minmax(0,1.1fr)]">
-              <section class="rounded-[32px] border border-white/10 bg-[rgba(255,255,255,0.08)] p-6 shadow-xl">
+              <section class="console-panel p-6">
                 <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">建一个新群</p>
                 <h3 class="mt-2 text-3xl font-black tracking-tight">群组入口已经补回来了</h3>
                 <p class="mt-3 text-sm font-medium leading-7 opacity-70">
@@ -1321,19 +1321,19 @@
                 <div class="mt-5 space-y-4">
                   <label class="block">
                     <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35">群名</span>
-                    <input bind:value={groupForm.title} type="text" maxlength="42" class="w-full rounded-[22px] border border-white/30 bg-white/15 px-4 py-3 text-sm font-medium outline-none transition-colors focus:border-[var(--color-primary)]" style="background-color: rgba(255, 255, 255, 0.18);" />
+                    <input bind:value={groupForm.title} type="text" maxlength="42" class="w-full console-field px-4 py-3 text-sm font-medium" style="background-color: rgba(255, 255, 255, 0.18);" />
                   </label>
                   <label class="block">
                     <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35">群介绍</span>
-                    <textarea bind:value={groupForm.description} class="h-32 w-full rounded-[22px] border border-white/30 bg-white/15 px-4 py-3 text-sm font-medium outline-none transition-colors focus:border-[var(--color-primary)]" style="background-color: rgba(255, 255, 255, 0.18);"></textarea>
+                    <textarea bind:value={groupForm.description} class="h-32 w-full console-field px-4 py-3 text-sm font-medium" style="background-color: rgba(255, 255, 255, 0.18);"></textarea>
                   </label>
                 </div>
 
                 <div class="mt-5 flex flex-wrap gap-3">
-                  <button type="button" class="rounded-full bg-[var(--color-primary)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105 disabled:opacity-50" on:click={createGroup} disabled={creatingGroup}>
+                  <button type="button" class="console-pill console-pill--primary px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] disabled:opacity-50" on:click={createGroup} disabled={creatingGroup}>
                     {creatingGroup ? '正在创建…' : '创建群聊'}
                   </button>
-                  <button type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105" on:click={openNodesView}>
+                  <button type="button" class="console-pill console-pill--ghost px-5 py-3 text-xs font-black uppercase tracking-[0.2em]" on:click={openNodesView}>
                     去代理节点页
                   </button>
                 </div>
@@ -1343,13 +1343,13 @@
                 {/if}
               </section>
 
-              <section class="rounded-[32px] border border-white/10 bg-[rgba(255,255,255,0.08)] p-6 shadow-xl">
+              <section class="console-panel p-6">
                 <div class="mb-4 flex items-center justify-between gap-4">
                   <div>
                     <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">我加入的群</p>
                     <h3 class="mt-1 text-2xl font-black tracking-tight">共 {groupConversations.length} 个群</h3>
                   </div>
-                  <button type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={loadChats}>
+                  <button type="button" class="console-pill console-pill--ghost px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em]" on:click={loadChats}>
                     刷新
                   </button>
                 </div>
@@ -1361,7 +1361,7 @@
                     {/each}
                   {:else if groupConversations.length > 0}
                     {#each groupConversations as item (item.id)}
-                      <article class="rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.06)] p-4">
+                      <article class="console-subpanel p-4">
                         <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                           <div class="min-w-0">
                             <div class="flex flex-wrap items-center gap-3">
@@ -1373,14 +1373,14 @@
                               {item.last_message_at ? `最近活跃于 ${formatDate(item.last_message_at)}` : '暂时还没人说话'}
                             </p>
                           </div>
-                          <button type="button" class="rounded-full bg-[var(--color-primary)] px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105" on:click={() => openConversation(item.id)}>
+                          <button type="button" class="console-pill console-pill--primary px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--color-bg)]" on:click={() => openConversation(item.id)}>
                             打开会话
                           </button>
                         </div>
                       </article>
                     {/each}
                   {:else}
-                    <div class="rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.08)] px-4 py-10 text-center text-sm font-bold opacity-50">
+                    <div class="console-empty-state px-4 py-10 text-center text-sm font-bold opacity-50">
                       还没有已加入的群。你可以先在这里建一个，再从聊天选项卡继续聊。
                     </div>
                   {/if}
@@ -1392,15 +1392,15 @@
 
         {#if activeTab === 'drive'}
           {#if !$isAuthenticated}
-            <div class="rounded-[32px] border border-white/10 bg-[rgba(255,255,255,0.08)] p-6 shadow-xl">
+            <div class="console-panel p-6">
               <p class="text-sm font-bold opacity-70">{authPrompt || '登录后才能访问网盘。'}</p>
-              <button type="button" class="mt-4 rounded-full bg-[var(--color-primary)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105" on:click={openAuth}>
+              <button type="button" class="mt-4 console-pill console-pill--primary px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)]" on:click={openAuth}>
                 先去登录
               </button>
             </div>
           {:else}
             <div class="space-y-5">
-              <section class="rounded-[32px] border border-white/10 bg-[rgba(255,255,255,0.08)] p-6 shadow-xl">
+              <section class="console-panel p-6">
                 <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div>
                     <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">网盘情况</p>
@@ -1410,14 +1410,14 @@
                   </div>
 
                   <div class="flex flex-wrap gap-3">
-                    <label class="cursor-pointer rounded-full bg-[var(--color-primary)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105">
+                    <label class="cursor-pointer console-pill console-pill--primary px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)]">
                       {uploadingDrive ? '上传中…' : '上传文件'}
                       <input type="file" class="hidden" disabled={uploadingDrive} on:change={handleDriveUpload} />
                     </label>
-                    <button type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105" on:click={createFolder}>
+                    <button type="button" class="console-pill console-pill--ghost px-5 py-3 text-xs font-black uppercase tracking-[0.2em]" on:click={createFolder}>
                       新建文件夹
                     </button>
-                    <button type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105" on:click={refreshDriveData}>
+                    <button type="button" class="console-pill console-pill--ghost px-5 py-3 text-xs font-black uppercase tracking-[0.2em]" on:click={refreshDriveData}>
                       刷新
                     </button>
                   </div>
@@ -1435,10 +1435,10 @@
                 </div>
               </section>
 
-              <section class="rounded-[32px] border border-white/10 bg-[rgba(255,255,255,0.08)] p-6 shadow-xl">
+              <section class="console-panel p-6">
                 <div class="flex flex-wrap items-center gap-2">
                   {#each drivePath as crumb, index}
-                    <button type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.06)] px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={() => goToDrivePath(index)}>
+                    <button type="button" class="console-pill console-pill--ghost px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em]" on:click={() => goToDrivePath(index)}>
                       {crumb.name}
                     </button>
                   {/each}
@@ -1459,7 +1459,7 @@
                     {/each}
                   {:else if driveItems.length > 0}
                     {#each driveItems as item (item.id)}
-                      <article class="flex flex-col gap-4 rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.06)] p-4 md:flex-row md:items-center md:justify-between">
+                      <article class="flex flex-col gap-4 console-subpanel p-4 md:flex-row md:items-center md:justify-between">
                         <div class="min-w-0 flex-1">
                           <div class="flex items-start gap-3">
                             <div class="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-[16px] bg-[var(--color-primary)] text-sm font-black text-[var(--color-bg)]">
@@ -1501,15 +1501,15 @@
 
                         <div class="flex flex-wrap gap-2">
                           {#if item.is_folder}
-                            <button type="button" class="rounded-full bg-[var(--color-primary)] px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105" on:click={() => enterFolder(item)}>
+                            <button type="button" class="console-pill console-pill--primary px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--color-bg)]" on:click={() => enterFolder(item)}>
                               {getDriveItemOpenLabel(item)}
                             </button>
                           {:else if item.url}
-                            <a href={item.url} target="_blank" rel="noreferrer" class="rounded-full bg-[var(--color-primary)] px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105">
+                            <a href={item.url} target="_blank" rel="noreferrer" class="console-pill console-pill--primary px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--color-bg)]">
                               {getDriveItemOpenLabel(item)}
                             </a>
                           {/if}
-                          <button type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={() => renameDriveItem(item)}>
+                          <button type="button" class="console-pill console-pill--ghost px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em]" on:click={() => renameDriveItem(item)}>
                             改名
                           </button>
                           <button type="button" class="rounded-full border border-red-400/20 bg-red-500/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-red-200 transition-transform hover:scale-105" on:click={() => deleteDriveItem(item)}>
@@ -1519,7 +1519,7 @@
                       </article>
                     {/each}
                   {:else}
-                    <div class="rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.08)] px-4 py-10 text-center text-sm font-bold opacity-50">
+                    <div class="console-empty-state px-4 py-10 text-center text-sm font-bold opacity-50">
                       这个目录还没有文件。
                     </div>
                   {/if}
@@ -1531,20 +1531,20 @@
 
         {#if activeTab === 'notifications'}
           {#if !$isAuthenticated}
-            <div class="rounded-[32px] border border-white/10 bg-[rgba(255,255,255,0.08)] p-6 shadow-xl">
+            <div class="console-panel p-6">
               <p class="text-sm font-bold opacity-70">{authPrompt || '登录后才能查看通知。'}</p>
-              <button type="button" class="mt-4 rounded-full bg-[var(--color-primary)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105" on:click={openAuth}>
+              <button type="button" class="mt-4 console-pill console-pill--primary px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)]" on:click={openAuth}>
                 先去登录
               </button>
             </div>
           {:else}
-            <section class="rounded-[32px] border border-white/10 bg-[rgba(255,255,255,0.08)] p-6 shadow-xl">
+            <section class="console-panel p-6">
               <div class="mb-4 flex items-center justify-between gap-4">
                 <div>
                   <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">提醒</p>
                   <h3 class="mt-1 text-2xl font-black tracking-tight">{notifications.length} 条更新</h3>
                 </div>
-                <button type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={loadNotifications}>
+                <button type="button" class="console-pill console-pill--ghost px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em]" on:click={loadNotifications}>
                   刷新
                 </button>
               </div>
@@ -1560,7 +1560,7 @@
                   {/each}
                 {:else if notifications.length > 0}
                   {#each notifications as item (item.id)}
-                    <article class="rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.06)] px-4 py-4">
+                    <article class="console-subpanel px-4 py-4">
                       <div class="flex items-center justify-between gap-4">
                         <p class="text-sm font-black">{item.username || '系统'} {formatNotification(item.type)}</p>
                         <p class="text-[10px] font-black uppercase tracking-[0.18em] opacity-30">{formatDate(item.created_at)}</p>
@@ -1568,7 +1568,7 @@
                     </article>
                   {/each}
                 {:else}
-                  <div class="rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.08)] px-4 py-10 text-center text-sm font-bold opacity-50">
+                  <div class="console-empty-state px-4 py-10 text-center text-sm font-bold opacity-50">
                     目前还没有通知。
                   </div>
                 {/if}
@@ -1583,6 +1583,128 @@
 </div>
 
 <style>
+  .console-hero-panel,
+  .console-panel {
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 2rem;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(var(--color-bg-rgb), 0.14)),
+      rgba(var(--color-bg-rgb), 0.08);
+    box-shadow:
+      0 18px 42px rgba(var(--shadow-rgb), 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(18px) saturate(1.05);
+  }
+
+  .console-hero-panel {
+    padding: 1rem;
+    background:
+      radial-gradient(circle at top left, rgba(var(--glow-primary-rgb), 0.16), transparent 36%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(var(--color-bg-rgb), 0.14)),
+      rgba(var(--color-bg-rgb), 0.08);
+  }
+
+  .console-panel {
+    transition:
+      transform 0.22s ease,
+      box-shadow 0.22s ease,
+      border-color 0.22s ease;
+  }
+
+  .console-panel:hover {
+    border-color: rgba(255, 255, 255, 0.14);
+    box-shadow:
+      0 22px 52px rgba(var(--shadow-rgb), 0.15),
+      inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  }
+
+  .console-subpanel,
+  .console-empty-state,
+  .console-list-row,
+  .console-field {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(var(--color-bg-rgb), 0.08)),
+      rgba(var(--color-bg-rgb), 0.05);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(12px);
+  }
+
+  .console-subpanel,
+  .console-empty-state,
+  .console-list-row {
+    border-radius: 1.5rem;
+  }
+
+  .console-list-row {
+    transition:
+      transform 0.18s ease,
+      border-color 0.18s ease,
+      background 0.18s ease,
+      box-shadow 0.18s ease;
+  }
+
+  .console-list-row:hover {
+    transform: translateY(-1px);
+    border-color: rgba(255, 255, 255, 0.14);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(var(--color-bg-rgb), 0.09)),
+      rgba(var(--color-bg-rgb), 0.06);
+  }
+
+  .console-list-row.is-active {
+    border-color: color-mix(in srgb, var(--color-primary) 68%, white 32%);
+    background:
+      linear-gradient(145deg, rgba(var(--glow-primary-rgb), 0.14), rgba(255, 255, 255, 0.05)),
+      rgba(var(--color-bg-rgb), 0.08);
+    box-shadow:
+      0 14px 28px rgba(var(--shadow-rgb), 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  }
+
+  .console-field {
+    border-radius: 1.375rem;
+    outline: none;
+    transition:
+      border-color 0.18s ease,
+      background 0.18s ease,
+      box-shadow 0.18s ease;
+  }
+
+  .console-field:focus,
+  .console-field:focus-visible {
+    border-color: color-mix(in srgb, var(--color-primary) 70%, white 30%);
+    box-shadow:
+      0 0 0 1px rgba(var(--glow-primary-rgb), 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  }
+
+  .console-pill {
+    border-radius: 999px;
+    transition:
+      transform 0.18s ease,
+      box-shadow 0.18s ease,
+      border-color 0.18s ease,
+      background 0.18s ease;
+  }
+
+  .console-pill:hover {
+    transform: translateY(-1px);
+  }
+
+  .console-pill--primary {
+    background: linear-gradient(135deg, rgba(var(--glow-primary-rgb), 0.98), rgba(var(--glow-secondary-rgb), 0.92));
+    box-shadow: 0 12px 24px rgba(var(--shadow-rgb), 0.14);
+  }
+
+  .console-pill--ghost {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(var(--color-bg-rgb), 0.08)),
+      rgba(var(--color-bg-rgb), 0.05);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+
   .console-tab-shell {
     align-items: stretch;
   }
@@ -1600,9 +1722,12 @@
     justify-content: space-between;
     border-radius: 1.35rem;
     border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(255, 255, 255, 0.06);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(var(--color-bg-rgb), 0.08)),
+      rgba(var(--color-bg-rgb), 0.05);
     padding: 0.95rem;
     text-align: left;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
     transition:
       transform 0.18s ease,
       background 0.18s ease,
@@ -1613,12 +1738,16 @@
   .console-tab-card:hover {
     transform: translateY(-1px);
     border-color: rgba(255, 255, 255, 0.14);
-    background: rgba(255, 255, 255, 0.08);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(var(--color-bg-rgb), 0.09)),
+      rgba(var(--color-bg-rgb), 0.06);
   }
 
   .console-tab-card.is-active {
     border-color: color-mix(in srgb, var(--color-primary) 72%, white 28%);
-    background: linear-gradient(145deg, rgba(var(--glow-primary-rgb), 0.14), rgba(255, 255, 255, 0.08));
+    background:
+      linear-gradient(145deg, rgba(var(--glow-primary-rgb), 0.16), rgba(255, 255, 255, 0.05)),
+      rgba(var(--color-bg-rgb), 0.07);
     box-shadow:
       0 12px 22px rgba(var(--shadow-rgb), 0.12),
       inset 0 1px 0 rgba(255, 255, 255, 0.16);
