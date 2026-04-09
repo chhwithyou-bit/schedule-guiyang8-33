@@ -185,10 +185,12 @@ test('liquid bar expands and switches views from the top-left dock', async ({ pa
   const trigger = page.locator('#liquidBar .liquid-trigger');
   const panel = page.locator('#liquidBar .liquid-panel');
   await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  await expect(trigger).toHaveAttribute('aria-haspopup', 'dialog');
 
   await trigger.click();
   await expect(trigger).toHaveAttribute('aria-expanded', 'true');
   await expect(panel).toBeVisible();
+  await expect(panel).toHaveAttribute('role', 'dialog');
 
   await page.getByRole('button', { name: /课表/ }).click();
   await expect(trigger).toHaveAttribute('aria-expanded', 'false');
@@ -217,7 +219,30 @@ test('liquid bar keeps community actions reachable', async ({ page }) => {
 
   await page.locator('#liquidBar .liquid-trigger').click();
   await page.getByRole('button', { name: /个人面板/ }).click();
-  await expect(page.getByRole('heading', { name: '资料与账号设置' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '聊天 / 群组 / 网盘 / 提醒' })).toBeVisible();
+});
+
+test('liquid bar traps focus and closes with escape', async ({ page }) => {
+  await bootApp(page);
+
+  const trigger = page.locator('#liquidBar .liquid-trigger');
+  await trigger.focus();
+  await expect(trigger).toBeFocused();
+
+  await page.keyboard.press('Enter');
+  const panel = page.locator('#liquidBar .liquid-panel');
+  await expect(panel).toBeVisible();
+  await expect(page.locator('#liquidBar .liquid-close')).toBeFocused();
+
+  await page.keyboard.press('Shift+Tab');
+  await expect(page.locator('.theme-dot').last()).toBeFocused();
+
+  await page.keyboard.press('Tab');
+  await expect(page.locator('#liquidBar .liquid-close')).toBeFocused();
+
+  await page.keyboard.press('Escape');
+  await expect(panel).toBeHidden();
+  await expect(trigger).toBeFocused();
 });
 
 test.describe('mobile liquid bar', () => {

@@ -13,6 +13,8 @@
   let inkWashNode: HTMLElement;
   let particles: Particle[] = [];
   let animationFrame: number;
+  let activeThemeSwitch: Promise<void> | null = null;
+  let queuedThemeSwitch: { themeId: string; event?: MouseEvent | { clientX: number, clientY: number }; isFromInitPanel: boolean } | null = null;
 
   /**
    * Particle Kinematics for "The Spark"
@@ -126,94 +128,133 @@
     }
   }
 
+  function finalizeThemeSwitch() {
+    cancelAnimationFrame(animationFrame);
+    particles = [];
+    if (ctx && canvas) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+    if (inkWashNode) {
+      gsap.killTweensOf(inkWashNode);
+      gsap.set(inkWashNode, { clearProps: 'all' });
+      inkWashNode.style.display = 'none';
+    }
+  }
+
+  function getQueuedThemeSwitch() {
+    const next = queuedThemeSwitch;
+    queuedThemeSwitch = null;
+    return next;
+  }
+
   export async function handleThemeSwitch(themeId: string, event?: MouseEvent | { clientX: number, clientY: number }, isFromInitPanel = false) {
     const target = themes.find(t => t.id === themeId);
     if (!target) return;
 
-    // Phase 1: The Spark
-    let originX = event ? event.clientX : window.innerWidth / 2;
-    let originY = event ? event.clientY : window.innerHeight / 2;
-
-    if (isFromInitPanel && event && event instanceof MouseEvent) {
-      const targetElement = event.currentTarget as HTMLElement;
-      if (targetElement) {
-        const rect = targetElement.getBoundingClientRect();
-        originX = rect.left + rect.width / 2;
-        originY = rect.top + rect.height / 2;
-      }
+    if (activeThemeSwitch) {
+      queuedThemeSwitch = { themeId, event, isFromInitPanel };
+      return activeThemeSwitch;
     }
 
-    /**
-     * Calculate maximum diagonal distance from origin to viewport corners.
-     * This determines the radius required for the ink wash circle to cover the entire screen.
-     */
-    const distX = Math.max(originX, window.innerWidth - originX);
-    const distY = Math.max(originY, window.innerHeight - originY);
-    // Pythagorean theorem to find the hypotenuse
-    const radius = Math.hypot(distX, distY);
+    const savedThemeId = typeof localStorage !== 'undefined' ? localStorage.getItem('siteTheme') : null;
+    if (target.id === savedThemeId && !showInitPanel) {
+      themeInitialized.set(true);
+      return;
+    }
 
-    // Burst 20-30 particles with the new theme's primary color
-    const particleCount = Math.floor(Math.random() * 11) + 20; // 20 to 30
-    particles = Array.from({ length: particleCount }, () => new Particle(originX, originY, target.primary));
-    cancelAnimationFrame(animationFrame);
-    renderParticles();
+    activeThemeSwitch = new Promise<void>((resolve) => {
+      // Phase 1: The Spark
+      let originX = event ? event.clientX : window.innerWidth / 2;
+      let originY = event ? event.clientY : window.innerHeight / 2;
 
-    // Phase 2: The Ink Wash
-    const tl = gsap.timeline();
-    
-    inkWashNode.style.display = 'block';
+      if (isFromInitPanel && event && event instanceof MouseEvent) {
+        const targetElement = event.currentTarget as HTMLElement;
+        if (targetElement) {
+          const rect = targetElement.getBoundingClientRect();
+          originX = rect.left + rect.width / 2;
+          originY = rect.top + rect.height / 2;
+        }
+      }
 
-    // Set initial state of ink wash circle
-    // Width and height are 100px. Scale will expand it.
-    gsap.set(inkWashNode, {
-      x: originX,
-      y: originY,
-      backgroundColor: target.bg,
-      color: target.bg, 
-      opacity: 1,
-      scale: 0,
-      display: 'block' // Show it
-    });
-    inkWashNode.style.display = 'block';
+      /**
+       * Calculate maximum diagonal distance from origin to viewport corners.
+       * This determines the radius required for the ink wash circle to cover the entire screen.
+       */
+      const distX = Math.max(originX, window.innerWidth - originX);
+      const distY = Math.max(originY, window.innerHeight - originY);
+      // Pythagorean theorem to find the hypotenuse
+      const radius = Math.hypot(distX, distY);
 
-    // Ink Wash expansion
-    // To cover radius with a 100px circle (radius 50px), we scale by (radius * 2) / 100 = radius / 50
-    const targetScale = radius / 50;
+      // Burst 20-30 particles with the new theme's primary color
+      const particleCount = Math.floor(Math.random() * 11) + 20; // 20 to 30
+      particles = Array.from({ length: particleCount }, () => new Particle(originX, originY, target.primary));
+      cancelAnimationFrame(animationFrame);
+      renderParticles();
 
-    tl.to(inkWashNode, {
-      scale: targetScale,
-      duration: 0.5,
-      ease: "custom"
-    }, 0); // Start immediately with particles
+      // Phase 2: The Ink Wash
+      const tl = gsap.timeline({
+        onComplete: () => {
+          finalizeThemeSwitch();
+          activeThemeSwitch = null;
+          const next = getQueuedThemeSwitch();
+          resolve();
+          if (next) {
+            void handleThemeSwitch(next.themeId, next.event, next.isFromInitPanel);
+          }
+        }
+      });
 
-    // Phase 3: The Shift
-    tl.add(() => {
-      applyTheme(target.id);
-      localStorage.setItem('siteTheme', target.id);
+      inkWashNode.style.display = 'block';
 
-      if (showInitPanel) {
-        showInitPanel = false;
-        // Ensure Preloader components and App components have a chance to sync
-        requestAnimationFrame(() => {
+      // Set initial state of ink wash circle
+      // Width and height are 100px. Scale will expand it.
+      gsap.set(inkWashNode, {
+        x: originX,
+        y: originY,
+        backgroundColor: target.bg,
+        color: target.bg,
+        opacity: 1,
+        scale: 0,
+        display: 'block' // Show it
+      });
+
+      // Ink Wash expansion
+      // To cover radius with a 100px circle (radius 50px), we scale by (radius * 2) / 100 = radius / 50
+      const targetScale = radius / 50;
+
+      tl.to(inkWashNode, {
+        scale: targetScale,
+        duration: 0.5,
+        ease: 'custom'
+      }, 0); // Start immediately with particles
+
+      // Phase 3: The Shift
+      tl.add(() => {
+        applyTheme(target.id);
+        localStorage.setItem('siteTheme', target.id);
+
+        if (showInitPanel) {
+          showInitPanel = false;
+          // Ensure Preloader components and App components have a chance to sync
           requestAnimationFrame(() => {
-            themeInitialized.set(true);
+            requestAnimationFrame(() => {
+              themeInitialized.set(true);
+            });
           });
-        });
-      } else {
-        themeInitialized.set(true);
-      }
-    }, 0.5); // After 500ms when screen is fully masked
+        } else {
+          themeInitialized.set(true);
+        }
+      }, 0.5); // After 500ms when screen is fully masked
 
-    // Fade out mask over 300ms
-    tl.to(inkWashNode, {
-      opacity: 0,
-      duration: 0.3,
-      ease: "power2.inOut",
-      onComplete: () => {
-        // Reset scale and hide completely
-        gsap.set(inkWashNode, { scale: 0, display: 'none' });
-      }
-    }, 0.6); // 100ms after the mask fully covers (500ms + 100ms)
+      // Fade out mask over 300ms
+      tl.to(inkWashNode, {
+        opacity: 0,
+        duration: 0.3,
+        ease: 'power2.inOut'
+      }, 0.6); // 100ms after the mask fully covers (500ms + 100ms)
+    });
+
+    return activeThemeSwitch;
   }
 </script>
 

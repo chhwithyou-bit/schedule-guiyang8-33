@@ -1,9 +1,10 @@
 <script lang="ts">
   import { scale, fade } from 'svelte/transition';
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
 
   import { currentView, isAdmin, isAuthenticated } from '../../stores/appState';
   import { openModal } from '../../stores/modalState';
+  import { setCommunityConsoleState } from '../../stores/communityConsoleState';
   import { activeTheme, themeCatalog } from '../../stores/theme';
 
   let className = '';
@@ -14,6 +15,8 @@
   let pendingAfterClose: (() => void) | null = null;
   let suppressNextTriggerClick = false;
   let dockRef: HTMLElement;
+  let panelRef: HTMLElement | null = null;
+  let triggerRef: HTMLButtonElement | null = null;
 
   const viewCopy: Record<string, { eyebrow: string; detail: string; short: string }> = {
     community: {
@@ -81,6 +84,7 @@
 
   function finishClose() {
     isClosingPanel = false;
+    triggerRef?.focus();
 
     const next = pendingAfterClose;
     pendingAfterClose = null;
@@ -106,7 +110,11 @@
       return;
     }
 
-    toggleLiquidBar();
+    if (isExpanded) {
+      return;
+    }
+
+    toggleLiquidBar(true);
   }
 
   function handleTriggerTouchStart(event: TouchEvent) {
@@ -129,8 +137,55 @@
       pendingAfterClose = afterClose;
     }
 
+    panelRef = null;
     isExpanded = false;
     isClosingPanel = true;
+  }
+
+  function getFocusablePanelItems() {
+    if (!panelRef) {
+      return [];
+    }
+
+    return Array.from(
+      panelRef.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])')
+    ).filter((element) => element.getAttribute('aria-hidden') !== 'true');
+  }
+
+  function handlePanelKeydown(event: KeyboardEvent) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeLiquidBar();
+      return;
+    }
+
+    if (event.key !== 'Tab') {
+      return;
+    }
+
+    const focusableItems = getFocusablePanelItems();
+    if (focusableItems.length === 0) {
+      event.preventDefault();
+      triggerRef?.focus();
+      return;
+    }
+
+    const firstItem = focusableItems[0];
+    const lastItem = focusableItems[focusableItems.length - 1];
+    const current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+    if (event.shiftKey) {
+      if (!current || current === firstItem || !panelRef?.contains(current)) {
+        event.preventDefault();
+        lastItem.focus();
+      }
+      return;
+    }
+
+    if (!current || current === lastItem || !panelRef?.contains(current)) {
+      event.preventDefault();
+      firstItem.focus();
+    }
   }
 
   function handleNav(id: string) {
@@ -147,26 +202,28 @@
     );
   }
 
-  function openConsole() {
-    closeLiquidBar(() => {
-      currentView.set('console');
-    });
-  }
-
   function openConsoleTab(tab: 'account' | 'chats') {
     closeLiquidBar(() => {
+      setCommunityConsoleState({ tab, conversationId: '', returnFocusSelector: '[data-console-launch="liquid-tab"]' });
       window.dispatchEvent(
         new CustomEvent('community-console-tab-request', {
           detail: { tab }
         })
       );
-      currentView.set('console');
+      openModal('community-console');
     });
   }
 
   function openComposer() {
     closeLiquidBar(() => {
       openModal($isAuthenticated ? 'comm-post' : 'auth');
+    });
+  }
+
+  $: if (isExpanded) {
+    tick().then(() => {
+      const focusableItems = getFocusablePanelItems();
+      focusableItems[0]?.focus();
     });
   }
 
@@ -179,18 +236,10 @@
       }
     };
 
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        closeLiquidBar();
-      }
-    };
-
     document.addEventListener('pointerdown', handlePointerDown);
-    window.addEventListener('keydown', handleKeyDown);
 
     return () => {
       document.removeEventListener('pointerdown', handlePointerDown);
-      window.removeEventListener('keydown', handleKeyDown);
     };
   });
 </script>
@@ -214,6 +263,7 @@
   <div class="liquid-shell pointer-events-auto {isExpanded ? 'is-expanded' : 'is-collapsed'}">
     <div class="liquid-core">
       <button
+        bind:this={triggerRef}
         type="button"
         class="liquid-trigger"
         on:click={handleTriggerClick}
@@ -221,6 +271,7 @@
         on:touchend={handleTriggerTouchEnd}
         aria-expanded={isExpanded}
         aria-controls="liquid-bar-panel"
+        aria-haspopup="dialog"
       >
         <span class="liquid-trigger-emblem" aria-hidden="true">
           <span class="emblem-ring"></span>
@@ -246,9 +297,15 @@
 
       {#if isExpanded}
         <div
+          bind:this={panelRef}
           id="liquid-bar-panel"
           class="liquid-panel"
+          role="dialog"
+          aria-modal="true"
+          aria-label="液态导航菜单"
+          tabindex="-1"
           out:scale|local={{ duration: 220, start: 0.97, opacity: 0.12 }}
+          on:keydown={handlePanelKeydown}
           on:outroend={finishClose}
         >
           <div class="liquid-panel-head">
@@ -277,7 +334,7 @@
 
           <div class="liquid-action-stack">
             <div class="liquid-console-split">
-              <button type="button" class="liquid-console-btn is-primary" on:click={() => openConsoleTab('account')}>
+              <button type="button" data-console-launch="liquid-account" class="liquid-console-btn is-primary" on:click={() => openConsoleTab('account')}>
                 <span class="liquid-action-copy">
                   <strong>个人面板</strong>
                   <small>资料、头像和账号设置单独进。</small>
@@ -285,7 +342,7 @@
                 <span class="liquid-action-glyph" aria-hidden="true">◦</span>
               </button>
 
-              <button type="button" class="liquid-console-btn" on:click={() => openConsoleTab('chats')}>
+              <button type="button" data-console-launch="liquid-tab" class="liquid-console-btn" on:click={() => openConsoleTab('chats')}>
                 <span class="liquid-action-copy">
                   <strong>消息选项卡</strong>
                   <small>聊天、群组、网盘和提醒分栏进入。</small>

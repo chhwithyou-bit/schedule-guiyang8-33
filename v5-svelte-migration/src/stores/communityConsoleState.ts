@@ -2,20 +2,65 @@ import { writable } from 'svelte/store';
 
 export type CommunityConsoleTab = 'account' | 'chats' | 'groups' | 'drive' | 'notifications';
 
-type CommunityConsoleState = {
+export type CommunityConsoleState = {
   tab: CommunityConsoleTab;
   conversationId: string;
+  returnFocusSelector: string;
 };
+
+const STORAGE_KEY = 'communityConsoleState';
 
 const initialState: CommunityConsoleState = {
   tab: 'account',
-  conversationId: ''
+  conversationId: '',
+  returnFocusSelector: ''
 };
 
-export const communityConsoleState = writable<CommunityConsoleState>(initialState);
+function isCommunityConsoleTab(value: unknown): value is CommunityConsoleTab {
+  return ['account', 'chats', 'groups', 'drive', 'notifications'].includes(String(value || ''));
+}
+
+function normalizeCommunityConsoleState(value: unknown): CommunityConsoleState {
+  if (!value || typeof value !== 'object') {
+    return initialState;
+  }
+
+  const candidate = value as Partial<CommunityConsoleState>;
+  return {
+    tab: isCommunityConsoleTab(candidate.tab) ? candidate.tab : initialState.tab,
+    conversationId: typeof candidate.conversationId === 'string' ? candidate.conversationId : initialState.conversationId,
+    returnFocusSelector: typeof candidate.returnFocusSelector === 'string' ? candidate.returnFocusSelector : initialState.returnFocusSelector
+  };
+}
+
+function readStoredCommunityConsoleState(): CommunityConsoleState {
+  if (typeof window === 'undefined') {
+    return initialState;
+  }
+
+  try {
+    return normalizeCommunityConsoleState(JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'));
+  } catch {
+    return initialState;
+  }
+}
+
+function persistCommunityConsoleState(state: CommunityConsoleState) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+export const communityConsoleState = writable<CommunityConsoleState>(readStoredCommunityConsoleState());
+
+communityConsoleState.subscribe((state) => {
+  persistCommunityConsoleState(state);
+});
 
 export function setCommunityConsoleState(next: Partial<CommunityConsoleState>) {
-  communityConsoleState.update((state) => ({ ...state, ...next }));
+  communityConsoleState.update((state) => normalizeCommunityConsoleState({ ...state, ...next }));
 }
 
 export function resetCommunityConsoleState() {

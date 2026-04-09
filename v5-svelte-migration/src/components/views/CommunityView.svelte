@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { fade, fly } from 'svelte/transition';
   import CommunityWordmark from '../ui/CommunityWordmark.svelte';
   import PostCard from './PostCard.svelte';
@@ -14,31 +14,64 @@
   let loading = true;
   let query = '';
   let announcement: { content?: string; updatedAt?: string } | null = null;
+  let postsRequestToken = 0;
+
+  function applyPostPatch(postId: string, patch: Record<string, unknown>) {
+    posts = posts.map((item) => item.id === postId ? { ...item, ...patch } : item);
+
+    if ($selectedPost?.id === postId) {
+      selectedPost.set({
+        ...$selectedPost,
+        ...patch
+      });
+    }
+  }
+
+  function handlePostCreated() {
+    void fetchPosts();
+  }
+
+  function handlePostUpdated(event: Event) {
+    const customEvent = event as CustomEvent<{ id?: string; patch?: Record<string, unknown> }>;
+    const postId = String(customEvent.detail?.id || '');
+    const patch = customEvent.detail?.patch;
+    if (!postId || !patch) return;
+    applyPostPatch(postId, patch);
+  }
 
   onMount(() => {
-    fetchPosts();
-    fetchAnnouncement();
-    window.addEventListener('post-created', fetchPosts);
-    return () => {
-      window.removeEventListener('post-created', fetchPosts);
-    };
+    void fetchPosts();
+    void fetchAnnouncement();
+    window.addEventListener('post-created', handlePostCreated);
+    window.addEventListener('community-post-updated', handlePostUpdated as EventListener);
+  });
+
+  onDestroy(() => {
+    window.removeEventListener('post-created', handlePostCreated);
+    window.removeEventListener('community-post-updated', handlePostUpdated as EventListener);
   });
 
   async function fetchPosts() {
+    const requestToken = ++postsRequestToken;
     loading = true;
     try {
       let url = '/api/community/posts?';
       if (query) url += `q=${encodeURIComponent(query)}&`;
-      
+
       const res = await communityFetch(url);
       const data = await res.json();
-      if (data.ok) {
-        posts = data.posts;
+      if (data.ok && requestToken === postsRequestToken) {
+        posts = Array.isArray(data.posts) ? data.posts : [];
       }
     } catch (e) {
+      if (requestToken === postsRequestToken) {
+        posts = [];
+      }
       console.error('Failed to fetch posts', e);
     } finally {
-      loading = false;
+      if (requestToken === postsRequestToken) {
+        loading = false;
+      }
     }
   }
 
@@ -70,13 +103,13 @@
 
   function openConsoleView(event?: Event) {
     event?.stopPropagation();
-    setCommunityConsoleState({ tab: 'account', conversationId: '' });
-    currentView.set('console');
+    setCommunityConsoleState({ tab: 'account', conversationId: '', returnFocusSelector: '[data-console-launch="community-open"]' });
+    openModal('community-console');
   }
 
   function openConsoleTab(tab: CommunityConsoleTab) {
-    setCommunityConsoleState({ tab, conversationId: '' });
-    currentView.set('console');
+    setCommunityConsoleState({ tab, conversationId: '', returnFocusSelector: '[data-console-launch="community-tab"]' });
+    openModal('community-console');
   }
 
   const consoleDestinations: Array<{
@@ -133,11 +166,12 @@
         <button
           type="button"
           on:click={openComposer}
+          data-view-trigger="true"
           class="community-action-panel__button group flex w-full items-center gap-4 rounded-[28px] px-4 py-4 text-left transition-transform duration-300 hover:scale-[1.01]"
         >
-          <button 
-            type="button" 
-            on:click={openConsoleView}
+          <button
+            type="button"
+            on:click|stopPropagation={openConsoleView}
             class="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-[20px] bg-[var(--color-primary)] text-lg font-black text-[var(--color-bg)] shadow-lg hover:scale-105 transition-transform"
             aria-label="管理个人资料"
           >
@@ -228,10 +262,11 @@
           </div>
           <button
             type="button"
+            data-console-launch="community-open"
             on:click={openConsoleView}
             class="community-action-panel__ghost rounded-full px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105"
           >
-            全部打开
+            打开控制台
           </button>
         </div>
 
@@ -239,6 +274,7 @@
           {#each consoleDestinations as item}
             <button
               type="button"
+              data-console-launch="community-tab"
               on:click={() => openConsoleTab(item.id)}
               class="community-console-tile text-left transition-transform duration-300 hover:-translate-y-1"
             >

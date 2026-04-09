@@ -11,6 +11,7 @@
   export let embedded = false;
   export let accountOnly = false;
   export let defaultTab: TabId = 'account';
+  export let openAsModal = false;
 
   type Conversation = {
     id: string;
@@ -51,11 +52,20 @@
     is_folder?: number | boolean;
     created_at?: string;
     updated_at?: string;
+    preview_status?: 'ready' | 'loading' | 'error';
   };
 
   type DriveStats = {
     quota_bytes?: number;
     used_bytes?: number;
+    available_bytes?: number;
+  };
+
+  type DriveFeedbackTone = 'info' | 'success' | 'error';
+
+  type DriveFeedback = {
+    tone: DriveFeedbackTone;
+    text: string;
   };
 
   type NotificationItem = {
@@ -92,6 +102,7 @@
   };
 
   $: availableTabs = accountOnly ? tabs.filter((tab) => tab.id === 'account') : tabs;
+  $: shouldRenderModalShell = openAsModal && !embedded;
   $: activeTabMeta = availableTabs.find((tab) => tab.id === activeTab) || availableTabs[0];
 
   let activeTab: TabId = defaultTab;
@@ -125,19 +136,86 @@
   let mobileChatView: 'list' | 'detail' = 'list';
   let chatDetailPanel: HTMLElement | null = null;
 
-  let driveStats: DriveStats = { quota_bytes: 0, used_bytes: 0 };
+  let driveStats: DriveStats = { quota_bytes: 0, used_bytes: 0, available_bytes: 0 };
   let driveUsagePercent = 0;
   let driveItems: DriveItem[] = [];
   let drivePath: Array<{ id: string | null; name: string }> = [{ id: null, name: '根目录' }];
   let loadingDrive = false;
   let driveError = '';
   let uploadingDrive = false;
+  let driveFeedback: DriveFeedback | null = null;
 
   let notifications: NotificationItem[] = [];
   let loadingNotifications = false;
   let notificationError = '';
 
   let initializedForUserId = '';
+  let shellRef: HTMLElement | null = null;
+  let closeButtonRef: HTMLButtonElement | null = null;
+  let shellFocusPrimed = false;
+
+  function getFocusableShellItems() {
+    if (!shellRef) {
+      return [];
+    }
+
+    return Array.from(
+      shellRef.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )
+    ).filter((element) => element.getAttribute('aria-hidden') !== 'true');
+  }
+
+  function handleShellKeydown(event: KeyboardEvent) {
+    if (!shouldRenderModalShell) {
+      return;
+    }
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      handleClose();
+      return;
+    }
+
+    if (event.key !== 'Tab') {
+      return;
+    }
+
+    const items = getFocusableShellItems();
+    if (items.length === 0) {
+      event.preventDefault();
+      shellRef?.focus();
+      return;
+    }
+
+    const firstItem = items[0];
+    const lastItem = items[items.length - 1];
+    const current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+    if (event.shiftKey) {
+      if (!current || current === firstItem || !shellRef?.contains(current)) {
+        event.preventDefault();
+        lastItem.focus();
+      }
+      return;
+    }
+
+    if (!current || current === lastItem || !shellRef?.contains(current)) {
+      event.preventDefault();
+      firstItem.focus();
+    }
+  }
+
+  $: if (shouldRenderModalShell && shellRef && !shellFocusPrimed) {
+    shellFocusPrimed = true;
+    tick().then(() => {
+      (closeButtonRef || getFocusableShellItems()[0] || shellRef)?.focus();
+    });
+  }
+
+  $: if (!shouldRenderModalShell) {
+    shellFocusPrimed = false;
+  }
 
   onMount(() => {
     const handleConsoleTabRequest = (event: Event) => {
@@ -194,7 +272,11 @@
   }
 
   async function focusMobileChatDetail() {
-    if (!embedded || typeof window === 'undefined' || window.innerWidth >= 1280) {
+    if (typeof window === 'undefined' || window.innerWidth >= 1280) {
+      return;
+    }
+
+    if (!embedded && !shouldRenderModalShell) {
       return;
     }
 
@@ -367,6 +449,51 @@
     }
   }
 
+  function setDriveFeedback(text: string, tone: DriveFeedbackTone = 'info') {
+    driveFeedback = text ? { text, tone } : null;
+  }
+
+  function clearDriveFeedback() {
+    driveFeedback = null;
+  }
+
+  function normalizeDriveStats(stats?: DriveStats | null) {
+    const quotaBytes = Math.max(0, Number(stats?.quota_bytes || 0));
+    const usedBytes = Math.max(0, Number(stats?.used_bytes || 0));
+    return {
+      quota_bytes: quotaBytes,
+      used_bytes: usedBytes,
+      available_bytes: Math.max(0, quotaBytes - usedBytes)
+    };
+  }
+
+  function isImageMimeType(item?: DriveItem | null) {
+    return String(item?.mime_type || '').toLowerCase().startsWith('image/');
+  }
+
+  function isMediaMimeType(item?: DriveItem | null) {
+    const mime = String(item?.mime_type || '').toLowerCase();
+    return mime.startsWith('audio/') || mime.startsWith('video/') || isImageMimeType(item);
+  }
+
+  function describeDriveItem(item: DriveItem) {
+    if (item.is_folder) return '文件夹';
+    if (isImageMimeType(item)) return '图片';
+    const mime = String(item.mime_type || '').toLowerCase();
+    if (mime.startsWith('video/')) return '视频';
+    if (mime.startsWith('audio/')) return '音频';
+    return item.mime_type || '文件';
+  }
+
+  function getDriveItemOpenLabel(item: DriveItem) {
+    if (item.is_folder) return '打开';
+    if (isImageMimeType(item)) return '查看图片';
+    const mime = String(item.mime_type || '').toLowerCase();
+    if (mime.startsWith('video/')) return '播放视频';
+    if (mime.startsWith('audio/')) return '播放音频';
+    return '打开文件';
+  }
+
   async function loadDriveInfo() {
     if (!$isAuthenticated) return;
 
@@ -374,7 +501,7 @@
       const res = await communityFetch('/api/community/drive/info');
       const data = await res.json();
       if (data.ok) {
-        driveStats = data.stats || { quota_bytes: 0, used_bytes: 0 };
+        driveStats = normalizeDriveStats(data.stats);
       } else {
         driveError = data.msg || '网盘信息没加载出来。';
       }
@@ -382,6 +509,13 @@
       console.error('Failed to load drive info', error);
       driveError = '网盘信息没加载出来。';
     }
+  }
+
+  function mapDriveItems(files: DriveItem[] = []) {
+    return files.map((item) => ({
+      ...item,
+      preview_status: item.is_folder || !isMediaMimeType(item) || !isImageMimeType(item) ? 'ready' : 'loading'
+    }));
   }
 
   async function loadDriveList(parentId: string | null = drivePath[drivePath.length - 1]?.id || null) {
@@ -397,13 +531,17 @@
         driveError = data.msg || '这个目录没加载出来。';
         return;
       }
-      driveItems = Array.isArray(data.files) ? data.files : [];
+      driveItems = mapDriveItems(Array.isArray(data.files) ? data.files : []);
     } catch (error) {
       console.error('Failed to load drive list', error);
       driveError = '这个目录没加载出来。';
     } finally {
       loadingDrive = false;
     }
+  }
+
+  async function refreshDriveData() {
+    await Promise.allSettled([loadDriveInfo(), loadDriveList()]);
   }
 
   async function enterFolder(item: DriveItem) {
@@ -425,6 +563,8 @@
     const name = prompt('新文件夹叫什么？');
     if (!name || !name.trim()) return;
 
+    clearDriveFeedback();
+
     try {
       const res = await communityFetch('/api/community/drive/mkdir', {
         method: 'POST',
@@ -437,18 +577,23 @@
       const data = await res.json();
       if (!data.ok) {
         driveError = data.msg || '文件夹没建成功。';
+        setDriveFeedback(driveError, 'error');
         return;
       }
       await loadDriveList();
+      setDriveFeedback(`已创建文件夹“${name.trim()}”。`, 'success');
     } catch (error) {
       console.error('Failed to create folder', error);
       driveError = '文件夹没建成功。';
+      setDriveFeedback(driveError, 'error');
     }
   }
 
   async function renameDriveItem(item: DriveItem) {
     const nextName = prompt('改成什么名字？', item.name);
     if (!nextName || !nextName.trim() || nextName.trim() === item.name) return;
+
+    clearDriveFeedback();
 
     try {
       const res = await communityFetch('/api/community/drive/rename', {
@@ -459,17 +604,22 @@
       const data = await res.json();
       if (!data.ok) {
         driveError = data.msg || '改名没成功。';
+        setDriveFeedback(driveError, 'error');
         return;
       }
       await loadDriveList();
+      setDriveFeedback(`已将“${item.name}”改名为“${nextName.trim()}”。`, 'success');
     } catch (error) {
       console.error('Failed to rename drive item', error);
       driveError = '改名没成功。';
+      setDriveFeedback(driveError, 'error');
     }
   }
 
   async function deleteDriveItem(item: DriveItem) {
     if (!confirm(`确定删除“${item.name}”吗？`)) return;
+
+    clearDriveFeedback();
 
     try {
       const res = await communityFetch('/api/community/drive/delete', {
@@ -480,12 +630,15 @@
       const data = await res.json();
       if (!data.ok) {
         driveError = data.msg || '删除没成功。';
+        setDriveFeedback(driveError, 'error');
         return;
       }
-      await Promise.allSettled([loadDriveInfo(), loadDriveList()]);
+      await refreshDriveData();
+      setDriveFeedback(`已删除“${item.name}”。`, 'success');
     } catch (error) {
       console.error('Failed to delete drive item', error);
       driveError = '删除没成功。';
+      setDriveFeedback(driveError, 'error');
     }
   }
 
@@ -501,6 +654,7 @@
 
     uploadingDrive = true;
     driveError = '';
+    setDriveFeedback(`正在上传“${file.name}”…`, 'info');
 
     try {
       const formData = new FormData();
@@ -515,12 +669,15 @@
       const data = await res.json();
       if (!data.ok) {
         driveError = data.msg || '文件没传上去。';
+        setDriveFeedback(driveError, 'error');
         return;
       }
-      await Promise.allSettled([loadDriveInfo(), loadDriveList()]);
+      await refreshDriveData();
+      setDriveFeedback(`“${file.name}”已上传，可继续整理或预览。`, 'success');
     } catch (error) {
       console.error('Failed to upload drive file', error);
       driveError = '文件没传上去。';
+      setDriveFeedback(driveError, 'error');
     } finally {
       uploadingDrive = false;
       input.value = '';
@@ -775,32 +932,66 @@
     ? Math.min(100, Math.round(((driveStats.used_bytes || 0) / driveStats.quota_bytes) * 100))
     : 0;
 
+  function markDrivePreviewReady(itemId: string) {
+    driveItems = driveItems.map((item) =>
+      item.id === itemId ? { ...item, preview_status: 'ready' } : item
+    );
+  }
+
+  function markDrivePreviewError(itemId: string) {
+    driveItems = driveItems.map((item) =>
+      item.id === itemId ? { ...item, preview_status: 'error' } : item
+    );
+  }
+
+  function restoreLaunchFocus() {
+    if (typeof document === 'undefined') {
+      return;
+    }
+
+    const selector = $communityConsoleState.returnFocusSelector;
+    if (!selector) {
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      const target = document.querySelector<HTMLElement>(selector);
+      target?.focus();
+    });
+  }
+
   function handleClose() {
     if (embedded) {
       return;
     }
 
+    restoreLaunchFocus();
     resetCommunityConsoleState();
     closeModal();
   }
 </script>
 
-<div class={embedded ? 'relative z-0' : 'fixed inset-0 z-[10000] overflow-y-auto xl:overflow-hidden xl:flex xl:items-center xl:justify-center p-4 md:p-6'} transition:fade={{ duration: 220 }}>
+<div class={embedded ? 'relative z-0' : shouldRenderModalShell ? 'fixed inset-0 z-[10000] overflow-y-auto p-4 md:p-6' : 'fixed inset-0 z-[10000] overflow-y-auto xl:overflow-hidden xl:flex xl:items-center xl:justify-center p-4 md:p-6'} transition:fade={{ duration: 220 }}>
   {#if !embedded}
-    <!-- svelte-ignore a11y-click-events-have-key-events -->
-    <!-- svelte-ignore a11y-no-static-element-interactions -->
-    <div class="fixed inset-0 bg-black/60 backdrop-blur-xl" on:click={handleClose}></div>
+    <button type="button" class="fixed inset-0 bg-black/60 backdrop-blur-xl" on:click={handleClose} aria-label="关闭消息台"></button>
   {/if}
 
   <section
-    class="relative z-10 flex w-full flex-col text-[var(--color-text)] {embedded ? 'overflow-visible bg-transparent' : 'mx-auto xl:overflow-hidden xl:h-[min(90vh,56rem)] max-w-6xl rounded-[36px] border border-white/12 bg-[rgba(var(--color-bg-rgb),0.92)] shadow-[0_24px_60px_rgba(var(--shadow-rgb),0.16)] backdrop-blur-[20px]'}"
+    bind:this={shellRef}
+    data-modal-shell={shouldRenderModalShell ? 'true' : undefined}
+    role={shouldRenderModalShell ? 'dialog' : undefined}
+    aria-modal={shouldRenderModalShell ? 'true' : undefined}
+    aria-labelledby={shouldRenderModalShell ? 'community-console-title' : undefined}
+    tabindex={shouldRenderModalShell ? '-1' : undefined}
+    class="relative z-10 flex w-full flex-col text-[var(--color-text)] {embedded ? 'overflow-visible bg-transparent' : shouldRenderModalShell ? 'mx-auto min-h-[calc(100svh-2rem)] max-w-6xl rounded-[36px] border border-white/12 bg-[rgba(var(--color-bg-rgb),0.92)] shadow-[0_24px_60px_rgba(var(--shadow-rgb),0.16)] backdrop-blur-[20px]' : 'mx-auto xl:overflow-hidden xl:h-[min(90vh,56rem)] max-w-6xl rounded-[36px] border border-white/12 bg-[rgba(var(--color-bg-rgb),0.92)] shadow-[0_24px_60px_rgba(var(--shadow-rgb),0.16)] backdrop-blur-[20px]'}"
     transition:fly={{ y: 36, duration: 360 }}
+    on:keydown={handleShellKeydown}
   >
     {#if !embedded}
-    <header class="flex items-center justify-between gap-4 border-b border-white/10 px-5 py-4 md:px-6">
+    <header class="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-white/10 bg-[rgba(var(--color-bg-rgb),0.92)] px-5 py-4 backdrop-blur-[20px] md:px-6">
       <div>
         <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">{embedded ? '社区消息台' : '个人面板'}</p>
-        <h2 class="mt-1 text-2xl font-black tracking-tight">{accountOnly ? '账号面板' : '聊天 / 群组 / 网盘 / 提醒'}</h2>
+        <h2 id="community-console-title" class="mt-1 text-2xl font-black tracking-tight">{accountOnly ? '账号面板' : '聊天 / 群组 / 网盘 / 提醒'}</h2>
       </div>
 
       <div class="flex items-center gap-3">
@@ -810,7 +1001,7 @@
           </div>
         {/if}
         {#if !embedded}
-          <button type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={handleClose}>
+          <button bind:this={closeButtonRef} data-modal-initial-focus="true" type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={handleClose}>
             关闭
           </button>
         {/if}
@@ -819,8 +1010,8 @@
     {/if}
 
     <div class="{embedded ? 'space-y-5' : 'xl:flex-1 xl:min-h-0 xl:overflow-hidden'}">
-      <div class="{embedded ? 'space-y-5' : 'xl:flex xl:flex-col xl:h-full xl:min-h-0'}">
-        <div class="rounded-[28px] border border-white/12 bg-[rgba(255,255,255,0.08)] p-3 shadow-[0_18px_42px_rgba(var(--shadow-rgb),0.12)] backdrop-blur-[18px] {activeTab === 'chats' && mobileChatView === 'detail' ? 'hidden xl:block' : ''} {embedded ? '' : 'mx-4 mt-4 md:mx-5 md:mt-5'}">
+      <div class="{embedded ? 'space-y-5' : shouldRenderModalShell ? 'min-h-full space-y-5 pb-5' : 'xl:flex xl:flex-col xl:h-full xl:min-h-0'}">
+        <div class="rounded-[28px] border border-white/12 bg-[rgba(255,255,255,0.08)] p-3 shadow-[0_18px_42px_rgba(var(--shadow-rgb),0.12)] backdrop-blur-[18px] {activeTab === 'chats' && mobileChatView === 'detail' ? 'hidden xl:block' : ''} {embedded ? '' : shouldRenderModalShell ? 'mx-1 mt-4 md:mx-2 md:mt-5' : 'mx-4 mt-4 md:mx-5 md:mt-5'}">
           <div class="console-tab-shell flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between">
             <div class="console-tab-rail xl:max-w-[19rem]">
               <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">{tabHero[activeTab].eyebrow}</p>
@@ -862,7 +1053,7 @@
           {/if}
         </div>
 
-      <div class="{embedded ? 'space-y-6' : 'px-5 pb-5 pt-1 md:px-6 md:pb-6 xl:flex-1 xl:min-h-0 xl:overflow-y-auto'}">
+      <div class="{embedded ? 'space-y-6' : shouldRenderModalShell ? 'space-y-6 px-5 pb-5 pt-1 md:px-6 md:pb-6' : 'px-5 pb-5 pt-1 md:px-6 md:pb-6 xl:flex-1 xl:min-h-0 xl:overflow-y-auto'}">
         {#if activeTab === 'account'}
           <div class="space-y-6">
             {#if !$isAuthenticated}
@@ -1203,6 +1394,7 @@
                     <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">网盘情况</p>
                     <h3 class="mt-2 text-3xl font-black tracking-tight">{formatBytes(driveStats.used_bytes || 0)} / {formatBytes(driveStats.quota_bytes || 0)}</h3>
                     <p class="mt-2 text-sm font-medium opacity-65">旧网盘接口已接回前端，这里可以直接浏览、上传、重命名和删除。</p>
+                    <p class="mt-2 text-xs font-bold opacity-55">剩余可用 {formatBytes(driveStats.available_bytes || 0)}</p>
                   </div>
 
                   <div class="flex flex-wrap gap-3">
@@ -1213,7 +1405,7 @@
                     <button type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105" on:click={createFolder}>
                       新建文件夹
                     </button>
-                    <button type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105" on:click={() => Promise.allSettled([loadDriveInfo(), loadDriveList()])}>
+                    <button type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105" on:click={refreshDriveData}>
                       刷新
                     </button>
                   </div>
@@ -1223,7 +1415,11 @@
                   <div class="h-3 overflow-hidden rounded-full bg-white/10">
                     <div class="h-full rounded-full bg-[var(--color-primary)] transition-[width] duration-300" style="width: {driveUsagePercent}%"></div>
                   </div>
-                  <p class="mt-2 text-[10px] font-black uppercase tracking-[0.18em] opacity-35">已用 {driveUsagePercent}%</p>
+                  <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-[10px] font-black uppercase tracking-[0.18em] opacity-35">
+                    <span>已用 {driveUsagePercent}%</span>
+                    <span>已占用 {formatBytes(driveStats.used_bytes || 0)}</span>
+                    <span>剩余 {formatBytes(driveStats.available_bytes || 0)}</span>
+                  </div>
                 </div>
               </section>
 
@@ -1235,6 +1431,10 @@
                     </button>
                   {/each}
                 </div>
+
+                {#if driveFeedback}
+                  <p class="mt-4 rounded-2xl border px-4 py-3 text-sm font-bold {driveFeedback.tone === 'success' ? 'border-emerald-400/20 bg-emerald-500/10 text-emerald-100' : driveFeedback.tone === 'error' ? 'border-red-400/20 bg-red-500/10 text-red-200' : 'border-white/10 bg-[rgba(255,255,255,0.06)] text-[var(--color-text)]/85'}">{driveFeedback.text}</p>
+                {/if}
 
                 {#if driveError}
                   <p class="mt-4 rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-200">{driveError}</p>
@@ -1248,16 +1448,41 @@
                   {:else if driveItems.length > 0}
                     {#each driveItems as item (item.id)}
                       <article class="flex flex-col gap-4 rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.06)] p-4 md:flex-row md:items-center md:justify-between">
-                        <div class="min-w-0">
-                          <div class="flex items-center gap-3">
-                            <div class="flex h-11 w-11 items-center justify-center rounded-[16px] bg-[var(--color-primary)] text-sm font-black text-[var(--color-bg)]">
-                              {item.is_folder ? 'DIR' : 'FILE'}
+                        <div class="min-w-0 flex-1">
+                          <div class="flex items-start gap-3">
+                            <div class="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-[16px] bg-[var(--color-primary)] text-sm font-black text-[var(--color-bg)]">
+                              {#if isImageMimeType(item) && item.url}
+                                <img
+                                  src={item.url}
+                                  alt={item.name}
+                                  class="h-full w-full object-cover"
+                                  loading="lazy"
+                                  on:load={() => markDrivePreviewReady(item.id)}
+                                  on:error={() => markDrivePreviewError(item.id)}
+                                />
+                              {:else}
+                                {item.is_folder ? 'DIR' : isMediaMimeType(item) ? 'MEDIA' : 'FILE'}
+                              {/if}
                             </div>
-                            <div class="min-w-0">
+                            <div class="min-w-0 flex-1">
                               <p class="truncate text-sm font-black">{item.name}</p>
                               <p class="mt-1 text-[10px] font-black uppercase tracking-[0.18em] opacity-35">
-                                {item.is_folder ? '文件夹' : item.mime_type || '文件'} {#if !item.is_folder}· {formatBytes(item.size || 0)}{/if}
+                                {describeDriveItem(item)} {#if !item.is_folder}· {formatBytes(item.size || 0)}{/if}
                               </p>
+                              {#if !item.is_folder && item.updated_at}
+                                <p class="mt-2 text-xs font-medium opacity-45">最近更新于 {formatDate(item.updated_at)}</p>
+                              {/if}
+                              {#if isMediaMimeType(item) && !item.is_folder}
+                                <p class="mt-2 text-xs font-bold opacity-55">
+                                  {#if item.preview_status === 'loading'}
+                                    媒体预览加载中…
+                                  {:else if item.preview_status === 'error'}
+                                    媒体状态异常，可能无法直接预览。
+                                  {:else}
+                                    媒体可直接打开预览。
+                                  {/if}
+                                </p>
+                              {/if}
                             </div>
                           </div>
                         </div>
@@ -1265,11 +1490,11 @@
                         <div class="flex flex-wrap gap-2">
                           {#if item.is_folder}
                             <button type="button" class="rounded-full bg-[var(--color-primary)] px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105" on:click={() => enterFolder(item)}>
-                              打开
+                              {getDriveItemOpenLabel(item)}
                             </button>
                           {:else if item.url}
                             <a href={item.url} target="_blank" rel="noreferrer" class="rounded-full bg-[var(--color-primary)] px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105">
-                              打开
+                              {getDriveItemOpenLabel(item)}
                             </a>
                           {/if}
                           <button type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={() => renameDriveItem(item)}>

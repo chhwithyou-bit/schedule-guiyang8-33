@@ -5,6 +5,10 @@
   import { openModal } from '../../stores/modalState';
   import { setCommunityConsoleState } from '../../stores/communityConsoleState';
 
+  function goHome() {
+    currentView.set('community');
+  }
+
   const SHOW_THRESHOLD = 60;
   const HIDE_THRESHOLD = 96;
 
@@ -14,13 +18,13 @@
   let isScrolled = false;
 
   function openConsoleView() {
-    setCommunityConsoleState({ tab: 'account', conversationId: '' });
-    currentView.set('console');
+    setCommunityConsoleState({ tab: 'account', conversationId: '', returnFocusSelector: '[data-console-launch="header-account"]' });
+    openModal('community-console');
   }
 
   function openConsoleTab(tab: 'account' | 'chats') {
-    setCommunityConsoleState({ tab, conversationId: '' });
-    currentView.set('console');
+    setCommunityConsoleState({ tab, conversationId: '', returnFocusSelector: '[data-console-launch="header-tab"]' });
+    openModal('community-console');
   }
 
   onMount(() => {
@@ -70,23 +74,30 @@
 >
   <div class="site-header-shell {isScrolled ? 'is-scrolled' : ''} max-w-7xl mx-auto flex items-center justify-between">
     <!-- Logo -->
-    <div class="group cursor-pointer">
+    <button
+      type="button"
+      on:click={goHome}
+      class="group rounded-full px-2 py-1 text-left transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
+      aria-label="返回社区首页"
+    >
       <h1 class="text-2xl font-black tracking-tighter transition-transform group-hover:scale-110">
         8<span class="text-[var(--color-primary)]">社区</span>
       </h1>
-    </div>
+    </button>
 
     <!-- Navigation / Profile -->
     <div class="flex items-center gap-6">
       {#if $isAuthenticated}
         <div class="header-switch-shell hidden items-center gap-2 p-1 md:flex">
           <button
+            data-console-launch="header-account"
             on:click={openConsoleView}
             class="header-switch {($currentView === 'console') ? 'is-active' : ''}"
           >
             个人
           </button>
           <button
+            data-console-launch="header-tab"
             on:click={() => openConsoleTab('chats')}
             class="header-switch {($currentView === 'console') ? 'is-active-soft' : ''}"
           >

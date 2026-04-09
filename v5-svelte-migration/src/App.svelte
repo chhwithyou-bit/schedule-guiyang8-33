@@ -4,6 +4,7 @@
    * Updated: 2026-03-29
    */
   import { onMount, tick } from 'svelte';
+  import { get } from 'svelte/store';
   import { gsap } from 'gsap';
   import Lenis from '@studio-freight/lenis';
   import { currentView, themeInitialized } from './stores/appState';
@@ -32,6 +33,8 @@
   let lenis: Lenis;
   let lenisFrame = 0;
   let mainContent: HTMLElement;
+  let modalRegion: HTMLElement | null = null;
+  let previousModalId: string | null = null;
   let isLoading = true;
   let lenisStarted = false;
   let backgroundReady = false;
@@ -109,6 +112,87 @@
         markReady();
       }
     }
+  }
+
+  function handleGlobalKeydown(event: KeyboardEvent) {
+    const active = document.activeElement;
+    if (!(active instanceof HTMLElement)) {
+      return;
+    }
+
+    if (event.key === 'Enter' && active.dataset.viewTrigger === 'true' && !event.defaultPrevented) {
+      event.preventDefault();
+      active.click();
+    }
+  }
+
+  function collectFocusableElements(container: HTMLElement) {
+    return Array.from(
+      container.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), summary, [tabindex]:not([tabindex="-1"])'
+      )
+    ).filter((element) => !element.hasAttribute('disabled') && element.getAttribute('aria-hidden') !== 'true');
+  }
+
+  function handleModalFocus(event: KeyboardEvent) {
+    const modalId = get(activeModal);
+    if (!modalId || event.key !== 'Tab' || !modalRegion) {
+      return;
+    }
+
+    const focusableElements = collectFocusableElements(modalRegion);
+    if (focusableElements.length === 0) {
+      event.preventDefault();
+      modalRegion.focus();
+      return;
+    }
+
+    const firstElement = focusableElements[0];
+    const lastElement = focusableElements[focusableElements.length - 1];
+    const current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+    if (event.shiftKey) {
+      if (!current || current === firstElement || !modalRegion.contains(current)) {
+        event.preventDefault();
+        lastElement.focus();
+      }
+      return;
+    }
+
+    if (!current || current === lastElement || !modalRegion.contains(current)) {
+      event.preventDefault();
+      firstElement.focus();
+    }
+  }
+
+  function syncModalAccessibility(modalId: string | null) {
+    if (typeof document === 'undefined' || !mainContent) {
+      return;
+    }
+
+    if (modalId) {
+      mainContent.setAttribute('aria-hidden', 'true');
+      document.body.classList.add('modal-open');
+      return;
+    }
+
+    mainContent.removeAttribute('aria-hidden');
+    document.body.classList.remove('modal-open');
+    modalRegion = null;
+  }
+
+  async function focusModalShell() {
+    await tick();
+
+    const shell = document.querySelector<HTMLElement>('[data-modal-shell="true"]');
+    if (!shell) {
+      return;
+    }
+
+    modalRegion = shell;
+    const focusableElements = collectFocusableElements(shell);
+    const initialFocusTarget = shell.querySelector<HTMLElement>('[data-modal-initial-focus="true"]');
+    (initialFocusTarget || focusableElements[0] || shell).focus();
   }
 
   async function startAssembly() {
@@ -190,6 +274,17 @@
 
   $: canFinishLoading = $themeInitialized && (backgroundReady || backgroundFailed);
 
+  $: {
+    const modalId = $activeModal;
+    syncModalAccessibility(modalId);
+
+    if (modalId && modalId !== previousModalId) {
+      void focusModalShell();
+    }
+
+    previousModalId = modalId;
+  }
+
   onMount(() => {
     preloadWallpaper();
 
@@ -202,7 +297,12 @@
       }
     }, 5000);
 
+    window.addEventListener('keydown', handleGlobalKeydown);
+    window.addEventListener('keydown', handleModalFocus);
+
     return () => {
+      window.removeEventListener('keydown', handleGlobalKeydown);
+      window.removeEventListener('keydown', handleModalFocus);
       clearTimeout(failSafe);
       if (lenisFrame) {
         cancelAnimationFrame(lenisFrame);
@@ -219,6 +319,7 @@
 <div
   class="app-container font-sans text-[var(--color-text)] min-h-screen relative overflow-hidden selection:bg-[var(--color-primary)] selection:text-[var(--color-button-text)]"
 >
+  <a href="#main-content" class="skip-link">跳到主要内容</a>
   <div class="app-background {backgroundReady ? 'is-ready' : ''}" aria-hidden="true"></div>
 
   <ThemeSwitcher />
@@ -231,7 +332,7 @@
     bind:this={mainContent}
     class="main-content-assembly {(isLoading || !$themeInitialized) ? 'opacity-0' : 'opacity-100'}"
   >
-    <main class="view-wrapper pt-40 pb-40 px-6 md:px-12 md:pt-44 w-full max-w-7xl mx-auto">
+    <main id="main-content" tabindex="-1" class="view-wrapper pt-40 pb-40 px-6 md:px-12 md:pt-44 w-full max-w-7xl mx-auto">
       <PageTransition url={$currentView}>
         <svelte:component this={viewMap[$currentView]} />
       </PageTransition>
@@ -249,6 +350,8 @@
     <AuthModal />
   {:else if $activeModal === 'comm-post'}
     <PostModal />
+  {:else if $activeModal === 'community-console'}
+    <CommunityConsole openAsModal={true} />
   {/if}
 </div>
 
@@ -329,6 +432,31 @@
     .app-container::before {
       background-position: 18% 10%, 82% 12%;
     }
+  }
+
+  .skip-link {
+    position: fixed;
+    left: 1rem;
+    top: 1rem;
+    z-index: 7000;
+    border-radius: 999px;
+    background: var(--color-primary);
+    color: var(--color-button-text);
+    font-size: 0.75rem;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    opacity: 0;
+    padding: 0.85rem 1.2rem;
+    pointer-events: none;
+    text-transform: uppercase;
+    transform: translateY(-0.5rem);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+
+  .skip-link:focus {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
   }
 
   .main-content-assembly {

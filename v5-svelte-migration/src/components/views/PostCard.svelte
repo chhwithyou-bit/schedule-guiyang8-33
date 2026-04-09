@@ -8,6 +8,16 @@
   export let post: any;
   let isLiking = false;
 
+  function emitPostUpdated(patch: Record<string, unknown>) {
+    if (typeof window === 'undefined') return;
+    window.dispatchEvent(new CustomEvent('community-post-updated', {
+      detail: {
+        id: post.id,
+        patch
+      }
+    }));
+  }
+
   function safeJsonArray(json: string) {
     try {
       const arr = JSON.parse(json);
@@ -32,6 +42,7 @@
   
   function handleProfileClick(e: MouseEvent) {
     e.stopPropagation();
+    selectedPost.set(null);
     const currentUser = get(user);
     if (currentUser && currentUser.id === post.user_id) {
       setCommunityConsoleState({ tab: 'account', conversationId: '' });
@@ -87,8 +98,14 @@
       });
       const data = await res.json();
       if (data.ok) {
-        post.viewer_liked = data.action === 'liked';
-        post.like_count = (post.like_count || 0) + (data.action === 'liked' ? 1 : -1);
+        const nextLiked = data.action === 'liked';
+        const nextLikeCount = Math.max(0, (post.like_count || 0) + (nextLiked ? 1 : -1));
+        post.viewer_liked = nextLiked;
+        post.like_count = nextLikeCount;
+        emitPostUpdated({
+          viewer_liked: nextLiked,
+          like_count: nextLikeCount
+        });
       }
     } catch (e) {
       console.error('Like failed', e);

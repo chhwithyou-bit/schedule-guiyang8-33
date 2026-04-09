@@ -1,15 +1,64 @@
 <script lang="ts">
+  import { onMount, tick } from 'svelte';
   import { fade, fly } from 'svelte/transition';
   import { closeModal } from '../../stores/modalState';
   import { user, isAuthenticated } from '../../stores/appState';
   import { openModal } from '../../stores/modalState';
   import { communityFetch } from '../../lib/communityApi';
 
+  let shellRef: HTMLElement | null = null;
+  let contentInput: HTMLTextAreaElement | null = null;
   let content = '';
   let media: any[] = [];
   let loading = false;
   let error = '';
   let fileInput: HTMLInputElement;
+
+  function getFocusableElements() {
+    if (!shellRef) return [];
+
+    return Array.from(
+      shellRef.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), textarea:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )
+    ).filter((element) => element.getAttribute('aria-hidden') !== 'true');
+  }
+
+  function handleKeydown(event: KeyboardEvent) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeModal();
+      return;
+    }
+
+    if (event.key !== 'Tab') {
+      return;
+    }
+
+    const focusableElements = getFocusableElements();
+    if (focusableElements.length === 0) {
+      event.preventDefault();
+      shellRef?.focus();
+      return;
+    }
+
+    const firstElement = focusableElements[0];
+    const lastElement = focusableElements[focusableElements.length - 1];
+    const current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+    if (event.shiftKey) {
+      if (!current || current === firstElement || !shellRef?.contains(current)) {
+        event.preventDefault();
+        lastElement.focus();
+      }
+      return;
+    }
+
+    if (!current || current === lastElement || !shellRef?.contains(current)) {
+      event.preventDefault();
+      firstElement.focus();
+    }
+  }
 
   async function handleFileUpload(e: Event) {
     const files = (e.target as HTMLInputElement).files;
@@ -81,29 +130,44 @@
   function openFilePicker() {
     fileInput?.click();
   }
+
+  onMount(() => {
+    void tick().then(() => {
+      requestAnimationFrame(() => {
+        contentInput?.focus();
+      });
+    });
+  });
 </script>
 
-<div 
+<div
   class="fixed inset-0 z-[10000] flex items-center justify-center p-6"
   transition:fade={{ duration: 300 }}
 >
-  <!-- svelte-ignore a11y-click-events-have-key-events -->
-  <!-- svelte-ignore a11y-no-static-element-interactions -->
-  <div class="absolute inset-0 bg-black/60 backdrop-blur-xl" on:click={closeModal}></div>
+  <button type="button" class="absolute inset-0 bg-black/60 backdrop-blur-xl" on:click={closeModal} aria-label="关闭发帖弹窗"></button>
 
-  <div 
+  <div
+    bind:this={shellRef}
+    data-modal-shell="true"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="post-modal-title"
+    tabindex="-1"
     class="relative w-full max-w-xl bg-[var(--color-bg,#231b22)] text-[var(--color-text,#fff4ed)] rounded-[40px] p-8 shadow-2xl overflow-hidden border border-white/10"
     transition:fly={{ y: 50, duration: 600, easing: (t) => t * (2 - t) }}
+    on:keydown={handleKeydown}
   >
     <div class="relative z-10">
       <div class="flex items-center justify-between mb-8">
-        <h2 class="text-3xl font-black tracking-tighter uppercase text-[var(--color-text,#fff4ed)]">发点近况</h2>
+        <h2 id="post-modal-title" class="text-3xl font-black tracking-tighter uppercase text-[var(--color-text,#fff4ed)]">发点近况</h2>
         <button on:click={closeModal} class="p-2 opacity-20 hover:opacity-100 transition-opacity text-[var(--color-text,#fff4ed)]">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
       </div>
 
-      <textarea 
+      <textarea
+        bind:this={contentInput}
+        data-modal-initial-focus="true"
         bind:value={content}
         placeholder="今天想说什么，直接写下来。"
         class="w-full h-40 px-6 py-6 rounded-3xl border border-white/30 bg-white/15 text-[var(--color-text,#fff4ed)] placeholder:text-[var(--color-text,#fff4ed)]/40 caret-[var(--color-primary,#fac7b7)] outline-none focus:border-[var(--color-primary,#fac7b7)] focus:bg-white/20 focus:ring-2 focus:ring-[var(--color-primary,#fac7b7)]/30 transition-all font-semibold text-lg resize-none mb-6"

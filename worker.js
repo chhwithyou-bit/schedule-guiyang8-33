@@ -443,13 +443,77 @@ async function ensureDriveSchema(env) {
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
       `),
-      env.COMMUNITY_DB.prepare("CREATE INDEX IF NOT EXISTS idx_drive_files_user ON drive_files(user_id, parent_id)")
+      env.COMMUNITY_DB.prepare("CREATE INDEX IF NOT EXISTS idx_drive_files_user ON drive_files(user_id, parent_id)"),
+      env.COMMUNITY_DB.prepare("CREATE INDEX IF NOT EXISTS idx_drive_files_parent ON drive_files(parent_id)")
     ]);
   })().catch(error => {
     driveSetupPromise = null;
     throw error;
   });
   return driveSetupPromise;
+}
+
+function normalizeDriveName(value, fallback = '未命名文件') {
+  return String(value || '')
+    .replace(/[\u0000-\u001f\u007f]+/g, ' ')
+    .replace(/[\\/]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 120) || fallback;
+}
+
+function normalizeDriveStatsRecord(stats) {
+  const quotaBytes = Math.max(0, Number(stats?.quota_bytes || 0));
+  const usedBytes = Math.max(0, Number(stats?.used_bytes || 0));
+  return {
+    quota_bytes: quotaBytes,
+    used_bytes: usedBytes,
+    available_bytes: Math.max(0, quotaBytes - usedBytes),
+  };
+}
+
+function isDrivePreviewableMime(mimeType) {
+  const mime = String(mimeType || '').toLowerCase();
+  return mime.startsWith('image/') || mime.startsWith('audio/') || mime.startsWith('video/');
+}
+
+async function getUserDriveStats(env, userId) {
+  await ensureDriveSchema(env);
+  const stats = await env.COMMUNITY_DB.prepare("SELECT quota_bytes, used_bytes FROM user_drive_stats WHERE user_id = ?").bind(userId).first();
+  return normalizeDriveStatsRecord(stats);
+}
+
+async function collectDriveEntriesForDeletion(env, userId, initialIds) {
+  const queue = Array.from(new Set((Array.isArray(initialIds) ? initialIds : []).map(id => String(id || '').trim()).filter(Boolean)));
+  const visited = new Set();
+  const collected = [];
+
+  while (queue.length) {
+    const currentId = queue.shift();
+    if (!currentId || visited.has(currentId)) continue;
+    visited.add(currentId);
+
+    const entry = await env.COMMUNITY_DB.prepare(`
+      SELECT id, user_id, name, size, mime_type, url, parent_id, is_folder, created_at, updated_at
+      FROM drive_files
+      WHERE id = ? AND user_id = ?
+      LIMIT 1
+    `).bind(currentId, userId).first();
+
+    if (!entry) continue;
+    collected.push(entry);
+
+    if (Number(entry.is_folder || 0)) {
+      const children = await env.COMMUNITY_DB.prepare(`
+        SELECT id FROM drive_files WHERE parent_id = ? AND user_id = ?
+      `).bind(entry.id, userId).all();
+      for (const child of children.results || []) {
+        if (child?.id && !visited.has(child.id)) queue.push(child.id);
+      }
+    }
+  }
+
+  return collected;
 }
 
 async function ensureCommunityMessagingSchema(env) {
@@ -1375,8 +1439,7 @@ export default {
             if (url.pathname === '/api/community/drive/info' && request.method === 'GET') {
         const user = await getAuth();
         if (!user) return jsonResp({ ok: false, msg: '请先登录' }, 401);
-        await ensureDriveSchema(env);
-        const stats = await env.COMMUNITY_DB.prepare("SELECT quota_bytes, used_bytes FROM user_drive_stats WHERE user_id = ?").bind(user.id).first() || { quota_bytes: 0, used_bytes: 0 };
+        const stats = await getUserDriveStats(env, user.id);
         return jsonResp({ ok: true, stats });
       }
 
@@ -1388,10 +1451,15 @@ export default {
         let query = "SELECT id, name, size, mime_type, url, parent_id, is_folder, created_at, updated_at FROM drive_files WHERE user_id = ?";
         if (parentId) query += " AND parent_id = ?";
         else query += " AND parent_id IS NULL";
-        query += " ORDER BY is_folder DESC, created_at DESC";
+        query += " ORDER BY is_folder DESC, updated_at DESC, created_at DESC";
         const stmt = parentId ? env.COMMUNITY_DB.prepare(query).bind(user.id, parentId) : env.COMMUNITY_DB.prepare(query).bind(user.id);
         const files = await stmt.all();
-        return jsonResp({ ok: true, files: files.results || [] });
+        const normalizedFiles = (files.results || []).map(file => ({
+          ...file,
+          name: normalizeDriveName(file.name, file.is_folder ? '未命名文件夹' : '未命名文件'),
+          previewable: !file.is_folder && isDrivePreviewableMime(file.mime_type)
+        }));
+        return jsonResp({ ok: true, files: normalizedFiles });
       }
 
       if (url.pathname === '/api/community/drive/mkdir' && request.method === 'POST') {
@@ -1399,11 +1467,26 @@ export default {
         if (!user) return jsonResp({ ok: false, msg: '请先登录' }, 401);
         await ensureDriveSchema(env);
         const { name, parent_id } = await request.json();
+        const normalizedName = normalizeDriveName(name, '新文件夹');
+        const parentId = parent_id ? String(parent_id).trim() : null;
+
+        if (parentId) {
+          const parent = await env.COMMUNITY_DB.prepare("SELECT id, is_folder FROM drive_files WHERE id = ? AND user_id = ?").bind(parentId, user.id).first();
+          if (!parent || !Number(parent.is_folder || 0)) return jsonResp({ ok: false, msg: '目标目录不存在' }, 404);
+        }
+
+        const duplicate = await env.COMMUNITY_DB.prepare(`
+          SELECT id FROM drive_files
+          WHERE user_id = ? AND name = ? AND ((parent_id IS NULL AND ? IS NULL) OR parent_id = ?)
+          LIMIT 1
+        `).bind(user.id, normalizedName, parentId, parentId).first();
+        if (duplicate) return jsonResp({ ok: false, msg: '同名文件夹已存在' }, 409);
+
         const id = crypto.randomUUID();
         await env.COMMUNITY_DB.prepare(
           "INSERT INTO drive_files (id, user_id, name, parent_id, is_folder) VALUES (?, ?, ?, ?, 1)"
-        ).bind(id, user.id, name, parent_id || null).run();
-        return jsonResp({ ok: true, id });
+        ).bind(id, user.id, normalizedName, parentId).run();
+        return jsonResp({ ok: true, id, folder: { id, name: normalizedName, parent_id: parentId, is_folder: 1 } });
       }
 
       if (url.pathname === '/api/community/drive/delete' && request.method === 'POST') {
@@ -1411,41 +1494,46 @@ export default {
         if (!user) return jsonResp({ ok: false, msg: '请先登录' }, 401);
         await ensureDriveSchema(env);
         const { ids } = await request.json();
-        if (!ids || !ids.length) return jsonResp({ ok: true });
-        
-        let freedSpace = 0;
-        const CHUNK_SIZE = 50;
-        for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
-          const chunkIds = ids.slice(i, i + CHUNK_SIZE);
-          const placeholders = chunkIds.map(() => '?').join(',');
+        if (!ids || !ids.length) return jsonResp({ ok: true, deleted: 0, freed_bytes: 0 });
 
-          const files = await env.COMMUNITY_DB.prepare(`SELECT id, size, url, is_folder FROM drive_files WHERE id IN (${placeholders}) AND user_id = ?`).bind(...chunkIds, user.id).all();
+        const entries = await collectDriveEntriesForDeletion(env, user.id, ids);
+        if (entries.length === 0) return jsonResp({ ok: false, msg: '没有找到可删除的文件' }, 404);
 
-          if (files && files.results && files.results.length > 0) {
-            const foundIds = [];
-            for (const file of files.results) {
-              foundIds.push(file.id);
-              if (!file.is_folder) {
-                freedSpace += file.size;
-                if (env.COMMUNITY_R2 && file.url) {
-                  try {
-                     const fileId = extractCommunityMediaFileId(file.url);
-                     if (fileId) await env.COMMUNITY_R2.delete(fileId);
-                  } catch(e){}
-                }
-              }
+        const fileEntries = entries.filter(entry => !Number(entry.is_folder || 0));
+        const freedSpace = fileEntries.reduce((sum, entry) => sum + Math.max(0, Number(entry.size || 0)), 0);
+        const deleteIds = entries.map(entry => entry.id);
+        const placeholders = deleteIds.map(() => '?').join(',');
+
+        await env.COMMUNITY_DB.prepare(`DELETE FROM drive_files WHERE id IN (${placeholders}) AND user_id = ?`).bind(...deleteIds, user.id).run();
+
+        for (const entry of fileEntries) {
+          const fileId = extractCommunityMediaFileId(entry.url);
+          if (!fileId) continue;
+          try {
+            if (env.COMMUNITY_R2) {
+              await deleteCommunityCacheEntry(env, fileId).catch(() => env.COMMUNITY_R2.delete(fileId));
             }
-
-            if (foundIds.length > 0) {
-              const deletePlaceholders = foundIds.map(() => '?').join(',');
-              await env.COMMUNITY_DB.prepare(`DELETE FROM drive_files WHERE id IN (${deletePlaceholders}) AND user_id = ?`).bind(...foundIds, user.id).run();
-            }
-          }
+          } catch (e) {}
         }
+
         if (freedSpace > 0) {
-          await env.COMMUNITY_DB.prepare("UPDATE user_drive_stats SET used_bytes = MAX(0, used_bytes - ?) WHERE user_id = ?").bind(freedSpace, user.id).run();
+          await env.COMMUNITY_DB.prepare(`
+            INSERT INTO user_drive_stats (user_id, quota_bytes, used_bytes, updated_at)
+            VALUES (?, 0, 0, CURRENT_TIMESTAMP)
+            ON CONFLICT(user_id) DO UPDATE SET
+              used_bytes = MAX(0, user_drive_stats.used_bytes - ?),
+              updated_at = CURRENT_TIMESTAMP
+          `).bind(user.id, freedSpace).run();
         }
-        return jsonResp({ ok: true });
+
+        const stats = await getUserDriveStats(env, user.id);
+        return jsonResp({
+          ok: true,
+          deleted: deleteIds.length,
+          freed_bytes: freedSpace,
+          deleted_items: entries.map(entry => ({ id: entry.id, name: entry.name, is_folder: !!entry.is_folder })),
+          stats
+        });
       }
 
       if (url.pathname === '/api/community/drive/rename' && request.method === 'POST') {
@@ -1453,20 +1541,31 @@ export default {
         if (!user) return jsonResp({ ok: false, msg: '请先登录' }, 401);
         await ensureDriveSchema(env);
         const { id, name } = await request.json();
-        await env.COMMUNITY_DB.prepare("UPDATE drive_files SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?").bind(name, id, user.id).run();
-        return jsonResp({ ok: true });
+        const entryId = String(id || '').trim();
+        const normalizedName = normalizeDriveName(name);
+        if (!entryId) return jsonResp({ ok: false, msg: '缺少文件 ID' }, 400);
+
+        const existing = await env.COMMUNITY_DB.prepare(`
+          SELECT id, name, parent_id, is_folder FROM drive_files WHERE id = ? AND user_id = ?
+        `).bind(entryId, user.id).first();
+        if (!existing) return jsonResp({ ok: false, msg: '文件不存在' }, 404);
+        if (existing.name === normalizedName) return jsonResp({ ok: true, item: { ...existing, name: normalizedName } });
+
+        const duplicate = await env.COMMUNITY_DB.prepare(`
+          SELECT id FROM drive_files
+          WHERE user_id = ? AND id != ? AND name = ? AND ((parent_id IS NULL AND ? IS NULL) OR parent_id = ?)
+          LIMIT 1
+        `).bind(user.id, entryId, normalizedName, existing.parent_id, existing.parent_id).first();
+        if (duplicate) return jsonResp({ ok: false, msg: '当前目录下已有同名文件' }, 409);
+
+        await env.COMMUNITY_DB.prepare("UPDATE drive_files SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?").bind(normalizedName, entryId, user.id).run();
+        return jsonResp({ ok: true, item: { ...existing, id: entryId, name: normalizedName } });
       }
 
       if (url.pathname === '/api/community/drive/upload' && request.method === 'POST') {
         const user = await getAuth();
         if (!user) return jsonResp({ ok: false, msg: '请先登录' }, 401);
         await ensureDriveSchema(env);
-        
-        const stats = await env.COMMUNITY_DB.prepare("SELECT quota_bytes, used_bytes FROM user_drive_stats WHERE user_id = ?").bind(user.id).first() || { quota_bytes: 0, used_bytes: 0 };
-        const contentLength = Number(request.headers.get('content-length') || 0);
-        if (stats.used_bytes + contentLength > stats.quota_bytes) {
-           return jsonResp({ ok: false, msg: '空间不足' }, 403);
-        }
         if (!env.COMMUNITY_R2) return jsonResp({ ok: false, msg: '存储未配置' }, 500);
 
         try {
@@ -1474,25 +1573,72 @@ export default {
           const file = formData.get('file');
           const parent_id = formData.get('parent_id') || null;
           if (!file || !file.name) return jsonResp({ ok: false, msg: '没有收到文件' }, 400);
+          if (typeof file.size !== 'number' || file.size <= 0) return jsonResp({ ok: false, msg: '文件内容为空' }, 400);
+
+          const normalizedName = normalizeDriveName(file.name);
+          const parentId = parent_id ? String(parent_id).trim() : null;
+          if (parentId) {
+            const parent = await env.COMMUNITY_DB.prepare("SELECT id, is_folder FROM drive_files WHERE id = ? AND user_id = ?").bind(parentId, user.id).first();
+            if (!parent || !Number(parent.is_folder || 0)) return jsonResp({ ok: false, msg: '上传目录不存在' }, 404);
+          }
+
+          const stats = await getUserDriveStats(env, user.id);
+          if (stats.quota_bytes <= 0) {
+            return jsonResp({ ok: false, msg: '当前账号还没有可用网盘配额' }, 403);
+          }
+          if (stats.used_bytes + file.size > stats.quota_bytes) {
+            return jsonResp({
+              ok: false,
+              msg: `空间不足，还剩 ${Math.max(0, stats.available_bytes || 0)} 字节可用`,
+              stats
+            }, 403);
+          }
+
+          const duplicate = await env.COMMUNITY_DB.prepare(`
+            SELECT id FROM drive_files
+            WHERE user_id = ? AND name = ? AND ((parent_id IS NULL AND ? IS NULL) OR parent_id = ?)
+            LIMIT 1
+          `).bind(user.id, normalizedName, parentId, parentId).first();
+          if (duplicate) return jsonResp({ ok: false, msg: '当前目录下已有同名文件' }, 409);
 
           const id = crypto.randomUUID();
-          const ext = file.name.split('.').pop() || 'bin';
-          const r2Key = `drive-${user.id}-${id}.${ext}`;
-          
+          const ext = normalizedName.includes('.') ? normalizedName.split('.').pop() : 'bin';
+          const r2Key = `drive-${user.id}-${id}.${ext || 'bin'}`;
+
           await env.COMMUNITY_R2.put(r2Key, file.stream(), {
             httpMetadata: { contentType: file.type || 'application/octet-stream' }
           });
           const fileUrl = `/api/community/media/${r2Key}`;
-          
+
           await env.COMMUNITY_DB.prepare(
             "INSERT INTO drive_files (id, user_id, name, size, mime_type, url, parent_id, is_folder) VALUES (?, ?, ?, ?, ?, ?, ?, 0)"
-          ).bind(id, user.id, file.name, file.size, file.type || '', fileUrl, parent_id).run();
-          
-          await env.COMMUNITY_DB.prepare(
-            "INSERT INTO user_drive_stats (user_id, quota_bytes, used_bytes) VALUES (?, 0, ?) ON CONFLICT(user_id) DO UPDATE SET used_bytes = used_bytes + excluded.used_bytes"
-          ).bind(user.id, file.size).run();
-          
-          return jsonResp({ ok: true, id, url: fileUrl });
+          ).bind(id, user.id, normalizedName, file.size, file.type || '', fileUrl, parentId).run();
+
+          await env.COMMUNITY_DB.prepare(`
+            INSERT INTO user_drive_stats (user_id, quota_bytes, used_bytes, updated_at)
+            VALUES (?, 0, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(user_id) DO UPDATE SET
+              used_bytes = user_drive_stats.used_bytes + excluded.used_bytes,
+              updated_at = CURRENT_TIMESTAMP
+          `).bind(user.id, file.size).run();
+
+          const nextStats = await getUserDriveStats(env, user.id);
+          return jsonResp({
+            ok: true,
+            id,
+            file: {
+              id,
+              name: normalizedName,
+              size: file.size,
+              mime_type: file.type || '',
+              url: fileUrl,
+              parent_id: parentId,
+              is_folder: 0,
+              previewable: isDrivePreviewableMime(file.type || '')
+            },
+            url: fileUrl,
+            stats: nextStats
+          });
         } catch(e) {
           return jsonResp({ ok: false, msg: '上传失败：' + e.message }, 500);
         }

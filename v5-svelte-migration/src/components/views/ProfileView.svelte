@@ -1,5 +1,6 @@
 <script lang="ts">
   import { fade, fly } from 'svelte/transition';
+  import { onMount, onDestroy } from 'svelte';
   import { tick } from 'svelte';
   import { currentView, selectedProfile, isAuthenticated, user } from '../../stores/appState';
   import { openModal } from '../../stores/modalState';
@@ -14,6 +15,8 @@
   let followingCount = 0;
   let profileScrollEl: HTMLDivElement;
   let lastProfileId = '';
+  let profileRequestToken = 0;
+  let postsRequestToken = 0;
 
   let uploadingAvatar = false;
   let uploadingBackground = false;
@@ -134,6 +137,22 @@
     await Promise.all([fetchProfileData(), fetchUserPosts()]);
   }
 
+  function handlePostUpdated(event: Event) {
+    const customEvent = event as CustomEvent<{ id?: string; patch?: Record<string, unknown> }>;
+    const postId = String(customEvent.detail?.id || '');
+    const patch = customEvent.detail?.patch;
+    if (!postId || !patch) return;
+    posts = posts.map((item) => item.id === postId ? { ...item, ...patch } : item);
+  }
+
+  onMount(() => {
+    window.addEventListener('community-post-updated', handlePostUpdated as EventListener);
+  });
+
+  onDestroy(() => {
+    window.removeEventListener('community-post-updated', handlePostUpdated as EventListener);
+  });
+
   function scrollProfileToTop() {
     profileScrollEl?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
     if (typeof window !== 'undefined') {
@@ -143,14 +162,20 @@
 
   async function fetchProfileData() {
     if (!$selectedProfile) return;
+    const requestToken = ++profileRequestToken;
+    const profileId = $selectedProfile.id || $selectedProfile.user_id;
     try {
-      const res = await communityFetch(`/api/community/profile?id=${$selectedProfile.id || $selectedProfile.user_id}`);
+      const res = await communityFetch(`/api/community/profile?id=${profileId}`);
       const data = await res.json();
-      if (data.ok) {
-        selectedProfile.set(data.user);
-        isFollowing = data.user.viewer_is_following;
-        followerCount = data.user.followers_count || 0;
-        followingCount = data.user.following_count || 0;
+      if (data.ok && requestToken === profileRequestToken && currentProfileId === profileId) {
+        const nextUser = data.user || {};
+        selectedProfile.set({
+          ...$selectedProfile,
+          ...nextUser
+        });
+        isFollowing = Boolean(nextUser.viewer_is_following);
+        followerCount = nextUser.followers_count || 0;
+        followingCount = nextUser.following_count || 0;
       }
     } catch (e) {
       console.error('Failed to fetch profile', e);
@@ -159,17 +184,24 @@
 
   async function fetchUserPosts() {
     if (!$selectedProfile) return;
+    const requestToken = ++postsRequestToken;
+    const profileId = $selectedProfile.id || $selectedProfile.user_id;
     loading = true;
     try {
-      const res = await communityFetch(`/api/community/posts?userId=${$selectedProfile.id || $selectedProfile.user_id}`);
+      const res = await communityFetch(`/api/community/posts?userId=${profileId}`);
       const data = await res.json();
-      if (data.ok) {
-        posts = data.posts;
+      if (data.ok && requestToken === postsRequestToken && currentProfileId === profileId) {
+        posts = Array.isArray(data.posts) ? data.posts : [];
       }
     } catch (e) {
+      if (requestToken === postsRequestToken && currentProfileId === profileId) {
+        posts = [];
+      }
       console.error('Failed to fetch user posts', e);
     } finally {
-      loading = false;
+      if (requestToken === postsRequestToken && currentProfileId === profileId) {
+        loading = false;
+      }
     }
   }
 
@@ -187,7 +219,12 @@
       const data = await res.json();
       if (data.ok) {
         isFollowing = data.action === 'followed';
-        followerCount += isFollowing ? 1 : -1;
+        followerCount = Math.max(0, followerCount + (isFollowing ? 1 : -1));
+        syncProfileSurface({
+          viewer_is_following: isFollowing,
+          followers_count: followerCount,
+          following_count: followingCount
+        });
       }
     } catch (e) {
       console.error('Follow failed', e);

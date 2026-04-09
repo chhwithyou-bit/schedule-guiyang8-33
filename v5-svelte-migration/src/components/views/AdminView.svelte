@@ -11,6 +11,9 @@
   let nodeSources: any[] = [];
   let proxyNodes: any[] = [];
   let nodePassword = '';
+  let nodesPasswordConfigured = false;
+  let statusMessage = '';
+  let statusTone: 'success' | 'error' | 'info' = 'info';
   let nodeSourceForm = {
     source_label: '',
     source_type: 'manual',
@@ -28,38 +31,52 @@
       const res = await communityFetch('/api/community/admin/data');
       const data = await res.json();
       if (data.ok) {
-        reports = data.reports;
-        users = data.users;
-        announcement = data.announcement;
+        reports = Array.isArray(data.reports) ? data.reports : [];
+        users = Array.isArray(data.users) ? data.users : [];
+        announcement = data.announcement || { content: '', updatedAt: '' };
         nodeSources = Array.isArray(data.node_sources) ? data.node_sources : [];
         proxyNodes = Array.isArray(data.proxy_nodes) ? data.proxy_nodes : [];
+        nodesPasswordConfigured = Boolean(data.nodes_password_configured);
+      } else {
+        statusTone = 'error';
+        statusMessage = '管理数据没有成功返回。';
       }
     } catch (e) {
       console.error('Failed to fetch admin data', e);
+      statusTone = 'error';
+      statusMessage = '管理数据加载失败，请稍后再试。';
     } finally {
       loading = false;
     }
   }
 
   async function handleAction(action: string, target_type: string, target_id: string, extra: any = {}, skipConfirm = false) {
-    if (!skipConfirm && !confirm(`确认执行这项管理操作吗？\n${action}`)) return;
+    if (!skipConfirm && !confirm(`确认执行这项管理操作吗？\n${action}`)) return false;
     try {
+      statusMessage = '';
+      statusTone = 'info';
       const res = await communityFetch('/api/community/admin/action', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action, target_type, target_id, ...extra })
       });
       const data = await res.json();
-      if (data.ok) {
+      if (res.ok && data.ok) {
         if (Array.isArray(data.node_sources)) nodeSources = data.node_sources;
         if (Array.isArray(data.proxy_nodes)) proxyNodes = data.proxy_nodes;
-        if (!skipConfirm) alert('操作已完成。');
-        fetchAdminData();
-      } else {
-        alert('操作没成功：' + data.msg);
+        statusTone = 'success';
+        statusMessage = `操作已完成：${action}`;
+        await fetchAdminData();
+        return true;
       }
+
+      statusTone = 'error';
+      statusMessage = '操作没成功：' + (data.msg || '请稍后再试');
+      return false;
     } catch (e: any) {
-      alert('发生错误：' + e.message);
+      statusTone = 'error';
+      statusMessage = '发生错误：' + e.message;
+      return false;
     }
   }
 
@@ -68,32 +85,46 @@
   }
 
   async function saveNodePassword() {
-    if (!nodePassword.trim()) return;
-    await handleAction('set_nodes_password', 'system', 'nodes', { new_password: nodePassword.trim() }, true);
-    alert('节点访问密码已更新。');
-    nodePassword = '';
+    if (!nodePassword.trim()) {
+      statusTone = 'error';
+      statusMessage = '先输入新的节点访问密码。';
+      return;
+    }
+
+    const ok = await handleAction('set_nodes_password', 'system', 'nodes', { new_password: nodePassword.trim() }, true);
+    if (ok) {
+      statusTone = 'success';
+      statusMessage = '节点访问密码已更新。';
+      nodesPasswordConfigured = true;
+      nodePassword = '';
+    }
   }
 
   async function createNodeSource() {
     if (!nodeSourceForm.source_label.trim()) {
-      alert('先填来源名称。');
+      statusTone = 'error';
+      statusMessage = '先填来源名称。';
       return;
     }
     if (nodeSourceForm.source_type === 'manual' && !nodeSourceForm.source_content.trim()) {
-      alert('手工来源需要节点内容。');
+      statusTone = 'error';
+      statusMessage = '手工来源需要节点内容。';
       return;
     }
     if (nodeSourceForm.source_type !== 'manual' && !nodeSourceForm.source_url.trim() && !nodeSourceForm.source_content.trim()) {
-      alert('至少给一个订阅链接或原始内容。');
+      statusTone = 'error';
+      statusMessage = '至少给一个订阅链接或原始内容。';
       return;
     }
 
-    await handleAction('create_node_source', 'node_source', nodeSourceForm.source_label.trim(), {
+    const ok = await handleAction('create_node_source', 'node_source', nodeSourceForm.source_label.trim(), {
       source_label: nodeSourceForm.source_label.trim(),
       source_type: nodeSourceForm.source_type,
       source_url: nodeSourceForm.source_url.trim(),
       source_content: nodeSourceForm.source_content
     }, true);
+
+    if (!ok) return;
 
     nodeSourceForm = {
       source_label: '',
@@ -101,19 +132,31 @@
       source_url: '',
       source_content: ''
     };
-    alert('节点来源已保存。');
+    statusTone = 'success';
+    statusMessage = '节点来源已保存。';
   }
 
   function formatSize(bytes: number) {
     if (!bytes) return '0 GB';
     return (bytes / (1024 ** 3)).toFixed(1) + ' GB';
   }
+
+  function statusClass(tone: 'success' | 'error' | 'info') {
+    if (tone === 'success') return 'border-emerald-400/20 bg-emerald-500/10 text-emerald-100';
+    if (tone === 'error') return 'border-red-400/20 bg-red-500/10 text-red-100';
+    return 'border-white/10 bg-white/5 text-[var(--color-text,#fff4ed)]';
+  }
 </script>
 
 <div class="admin-view pb-40">
-  <div class="flex items-end justify-between mb-12">
-    <AnimatedHeading text="管理后台" className="text-[12vw]" />
-    <div class="flex gap-2 mb-2">
+  <div class="flex items-end justify-between mb-12 gap-6 flex-wrap">
+    <div>
+      <AnimatedHeading text="管理后台" className="text-[12vw]" />
+      <p class="mt-4 max-w-3xl text-sm font-medium leading-7 opacity-70">
+        把举报处理、用户处置、站内公告和节点运营都收在同一处，方便管理员快速巡检并留下明确反馈。
+      </p>
+    </div>
+    <div class="flex gap-2 mb-2 flex-wrap">
       <button on:click={() => activeTab = 'reports'} class="px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all {activeTab === 'reports' ? 'bg-[var(--color-primary)] text-white shadow-xl' : 'bg-neutral-100 dark:bg-neutral-900 opacity-40'}">举报</button>
       <button on:click={() => activeTab = 'users'} class="px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all {activeTab === 'users' ? 'bg-[var(--color-primary)] text-white shadow-xl' : 'bg-neutral-100 dark:bg-neutral-900 opacity-40'}">用户</button>
       <button on:click={() => activeTab = 'announcement'} class="px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all {activeTab === 'announcement' ? 'bg-[var(--color-primary)] text-white shadow-xl' : 'bg-neutral-100 dark:bg-neutral-900 opacity-40'}">公告</button>
@@ -125,6 +168,34 @@
     <div class="py-20 text-center opacity-20 font-black text-4xl uppercase tracking-tighter italic">正在加载…</div>
   {:else}
     <div class="space-y-6">
+      <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4" aria-label="管理后台概览统计">
+        <article class="p-6 rounded-[32px] bg-white dark:bg-neutral-950 border border-neutral-100 dark:border-neutral-900 shadow-sm">
+          <p class="text-[10px] font-black uppercase tracking-widest opacity-30">待处理举报</p>
+          <p class="mt-3 text-3xl font-black tracking-tight">{reports.length}</p>
+          <p class="mt-2 text-sm font-medium opacity-55">当前仍需人工确认的举报项目。</p>
+        </article>
+        <article class="p-6 rounded-[32px] bg-white dark:bg-neutral-950 border border-neutral-100 dark:border-neutral-900 shadow-sm">
+          <p class="text-[10px] font-black uppercase tracking-widest opacity-30">用户数量</p>
+          <p class="mt-3 text-3xl font-black tracking-tight">{users.length}</p>
+          <p class="mt-2 text-sm font-medium opacity-55">已同步到管理视图的账号总数。</p>
+        </article>
+        <article class="p-6 rounded-[32px] bg-white dark:bg-neutral-950 border border-neutral-100 dark:border-neutral-900 shadow-sm">
+          <p class="text-[10px] font-black uppercase tracking-widest opacity-30">节点来源</p>
+          <p class="mt-3 text-3xl font-black tracking-tight">{nodeSources.length}</p>
+          <p class="mt-2 text-sm font-medium opacity-55">正在维护的来源记录数量。</p>
+        </article>
+        <article class="p-6 rounded-[32px] bg-white dark:bg-neutral-950 border border-neutral-100 dark:border-neutral-900 shadow-sm">
+          <p class="text-[10px] font-black uppercase tracking-widest opacity-30">节点密码</p>
+          <p class="mt-3 text-3xl font-black tracking-tight">{nodesPasswordConfigured ? '已配置' : '未配置'}</p>
+          <p class="mt-2 text-sm font-medium opacity-55">前台节点页是否具备统一访问密码。</p>
+        </article>
+      </section>
+
+      {#if statusMessage}
+        <div class={`rounded-[28px] border px-5 py-4 text-sm font-bold ${statusClass(statusTone)}`} role="status" aria-live="polite">
+          {statusMessage}
+        </div>
+      {/if}
       {#if activeTab === 'reports'}
         <div class="grid grid-cols-1 gap-4">
           {#each reports as r}
@@ -201,6 +272,10 @@
             <div>
               <p class="text-[10px] font-black uppercase tracking-widest opacity-30">访问控制</p>
               <h3 class="mt-2 text-2xl font-black tracking-tight">统一访问密码</h3>
+            </div>
+            <div class="rounded-[28px] border border-black/5 dark:border-white/5 bg-neutral-50 dark:bg-neutral-900 px-5 py-4">
+              <p class="text-[10px] font-black uppercase tracking-widest opacity-30">当前状态</p>
+              <p class="mt-2 text-sm font-medium opacity-65">{nodesPasswordConfigured ? '已存在统一访问密码，更新后前台将使用新密码。' : '当前还没有统一访问密码，前台节点页将无法解锁。'}</p>
             </div>
             <input bind:value={nodePassword} type="text" placeholder="输入新的访问密码" class="w-full rounded-2xl bg-white/15 border border-white/30 px-5 py-4 font-medium outline-none focus:ring-2 focus:ring-[var(--color-primary)]" style="background-color: rgba(255, 255, 255, 0.18);" />
             <button on:click={saveNodePassword} class="w-full py-4 rounded-2xl bg-[var(--color-primary)] text-white font-black uppercase tracking-widest shadow-lg transition-transform hover:scale-[1.01]">更新密码</button>

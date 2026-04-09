@@ -21,6 +21,17 @@
   let reportInputEl: HTMLTextAreaElement;
   let lastLoadedPostId = '';
   let lastRequestedSurfaceKey = '';
+  let commentsRequestToken = 0;
+
+  function emitPostUpdated(patch: Record<string, unknown>) {
+    if (typeof window === 'undefined' || !$selectedPost?.id) return;
+    window.dispatchEvent(new CustomEvent('community-post-updated', {
+      detail: {
+        id: $selectedPost.id,
+        patch
+      }
+    }));
+  }
 
   $: currentPostId = $selectedPost?.id || '';
 
@@ -44,6 +55,15 @@
   }
 
   function handleProfileClick(user: any) {
+    selectedPost.update((current) => current
+      ? {
+          ...current,
+          __focusComments: false,
+          __openReportComposer: false
+        }
+      : current
+    );
+
     selectedProfile.set({
       id: user.id || user.user_id,
       username: user.username,
@@ -100,17 +120,24 @@
 
   async function fetchComments() {
     if (!$selectedPost) return;
+    const requestToken = ++commentsRequestToken;
+    const postId = $selectedPost.id;
     loading = true;
     try {
-      const res = await communityFetch(`/api/community/comments?postId=${$selectedPost.id}`);
+      const res = await communityFetch(`/api/community/comments?postId=${postId}`);
       const data = await res.json();
-      if (data.ok) {
-        comments = data.comments;
+      if (data.ok && requestToken === commentsRequestToken && $selectedPost?.id === postId) {
+        comments = Array.isArray(data.comments) ? data.comments : [];
       }
     } catch (e) {
+      if (requestToken === commentsRequestToken && $selectedPost?.id === postId) {
+        comments = [];
+      }
       console.error('Failed to fetch comments', e);
     } finally {
-      loading = false;
+      if (requestToken === commentsRequestToken && $selectedPost?.id === postId) {
+        loading = false;
+      }
     }
   }
 
@@ -134,17 +161,19 @@
       });
       const data = await res.json();
       if (data.ok) {
+        const nextCommentCount = ($selectedPost?.comment_count || 0) + 1;
         newComment = '';
-        await fetchComments();
         selectedPost.update((current) => current
           ? {
               ...current,
-              comment_count: (current.comment_count || 0) + 1,
+              comment_count: nextCommentCount,
               __focusComments: true,
               __openReportComposer: false
             }
           : current
         );
+        emitPostUpdated({ comment_count: nextCommentCount });
+        await fetchComments();
       }
     } catch (e) {
       console.error('Failed to post comment', e);
@@ -187,6 +216,7 @@
             }
           : current
         );
+        emitPostUpdated({ __openReportComposer: false });
       } else {
         reportMessage = data.msg || '举报没有发出去。';
       }

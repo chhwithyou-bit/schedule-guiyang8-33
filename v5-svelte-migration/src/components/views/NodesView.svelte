@@ -56,12 +56,19 @@
   let infoMessage = '';
   let errorMessage = '';
   let revealRef: HTMLElement | null = null;
+  let hasCachedPassword = false;
+
+  $: availableClientCount = clientCards.filter((client) => Boolean(clientLinks[client.id])).length;
+  $: sourceCount = sources.length;
+  $: hasSubscription = Boolean(subscriptionUrl);
+  $: hasRawBundle = Boolean(rawBundle.trim());
 
   onMount(() => {
     if (typeof window === 'undefined') return;
     const cached = localStorage.getItem('proxyNodesPassword');
     if (cached) {
       password = cached;
+      hasCachedPassword = true;
       void unlockNodes(true);
     }
   });
@@ -79,7 +86,7 @@
     try {
       const res = await fetch(`/api/nodes?pwd=${encodeURIComponent(password.trim())}`);
       const data: NodePayload = await res.json();
-      if (!data.ok) {
+      if (!res.ok || !data.ok) {
         authed = false;
         nodes = [];
         sources = [];
@@ -97,6 +104,7 @@
       rawBundle = data.raw || '';
       clientLinks = data.clients || {};
       localStorage.setItem('proxyNodesPassword', password.trim());
+      hasCachedPassword = true;
       infoMessage = nodes.length ? `已解锁 ${nodes.length} 条节点。` : '密码通过了，但还没有可用节点。';
 
       requestAnimationFrame(() => {
@@ -140,9 +148,14 @@
     subscriptionUrl = '';
     rawBundle = '';
     clientLinks = {};
+    hasCachedPassword = false;
     localStorage.removeItem('proxyNodesPassword');
     infoMessage = '已清除本地访问密码。';
     errorMessage = '';
+  }
+
+  function describeSource(source: NodeSource) {
+    return `${source.label} · ${source.source_type} · ${source.node_count || 0} 条`;
   }
 </script>
 
@@ -153,9 +166,14 @@
       <p class="mt-4 max-w-3xl text-sm font-medium leading-7 opacity-70 md:text-base">
         管理员维护节点源后，普通用户在这里输入统一密码，就能复制订阅、导出配置，或者直接尝试打开目标客户端。
       </p>
+      <div class="mt-5 flex flex-wrap gap-3 text-[11px] font-black uppercase tracking-[0.24em] opacity-55">
+        <span class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.06)] px-4 py-2">订阅分发</span>
+        <span class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.06)] px-4 py-2">客户端跳转</span>
+        <span class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.06)] px-4 py-2">来源透明展示</span>
+      </div>
     </div>
 
-    <form on:submit|preventDefault={() => unlockNodes()} class="w-full xl:max-w-md">
+    <form on:submit|preventDefault={() => unlockNodes()} class="w-full xl:max-w-md" aria-label="节点访问表单">
       <div class="rounded-[32px] border border-white/12 bg-[rgba(255,255,255,0.08)] p-3 shadow-xl backdrop-blur-[18px]">
         <div class="flex flex-col gap-3 sm:flex-row">
           <input
@@ -187,6 +205,29 @@
 
   {#if authed}
     <div bind:this={revealRef} class="space-y-6">
+      <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4" aria-label="节点概览统计">
+        <article class="rounded-[32px] border border-white/10 bg-[rgba(255,255,255,0.08)] p-5 shadow-xl backdrop-blur-[18px]">
+          <p class="text-[10px] font-black uppercase tracking-[0.28em] opacity-35">已解锁节点</p>
+          <p class="mt-3 text-3xl font-black tracking-tight">{nodes.length}</p>
+          <p class="mt-2 text-sm font-medium opacity-65">当前可复制或导出的可用节点数。</p>
+        </article>
+        <article class="rounded-[32px] border border-white/10 bg-[rgba(255,255,255,0.08)] p-5 shadow-xl backdrop-blur-[18px]">
+          <p class="text-[10px] font-black uppercase tracking-[0.28em] opacity-35">节点来源</p>
+          <p class="mt-3 text-3xl font-black tracking-tight">{sourceCount}</p>
+          <p class="mt-2 text-sm font-medium opacity-65">后台当前启用或保留的来源记录。</p>
+        </article>
+        <article class="rounded-[32px] border border-white/10 bg-[rgba(255,255,255,0.08)] p-5 shadow-xl backdrop-blur-[18px]">
+          <p class="text-[10px] font-black uppercase tracking-[0.28em] opacity-35">客户端方案</p>
+          <p class="mt-3 text-3xl font-black tracking-tight">{availableClientCount}</p>
+          <p class="mt-2 text-sm font-medium opacity-65">当前接口返回的一键跳转入口数量。</p>
+        </article>
+        <article class="rounded-[32px] border border-white/10 bg-[rgba(255,255,255,0.08)] p-5 shadow-xl backdrop-blur-[18px]">
+          <p class="text-[10px] font-black uppercase tracking-[0.28em] opacity-35">本机记忆</p>
+          <p class="mt-3 text-3xl font-black tracking-tight">{hasCachedPassword ? '已保存' : '未保存'}</p>
+          <p class="mt-2 text-sm font-medium opacity-65">清除密码后会移除本地自动解锁能力。</p>
+        </article>
+      </section>
+
       <section class="rounded-[40px] border border-white/10 bg-[rgba(255,255,255,0.08)] p-6 shadow-xl backdrop-blur-[18px]">
         <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -195,15 +236,30 @@
             <p class="mt-2 text-sm font-medium opacity-70">支持主流客户端。浏览器里能做的优先做成一键，不能自动粘贴的就退回到复制方案。</p>
           </div>
           <div class="flex flex-wrap gap-3">
-            <button type="button" class="rounded-full bg-[var(--color-primary)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105" on:click={() => copyText(subscriptionUrl, '订阅地址')}>
+            <button type="button" class="rounded-full bg-[var(--color-primary)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-45" on:click={() => copyText(subscriptionUrl, '订阅地址')} disabled={!hasSubscription}>
               复制订阅
             </button>
-            <button type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105" on:click={() => copyText(rawBundle, '原始节点')}>
+            <button type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-45" on:click={() => copyText(rawBundle, '原始节点')} disabled={!hasRawBundle}>
               复制原始节点
             </button>
             <button type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform hover:scale-105" on:click={resetAccess}>
               清除密码
             </button>
+          </div>
+        </div>
+
+        <div class="mt-5 grid gap-3 md:grid-cols-3">
+          <div class="rounded-[28px] border border-white/10 bg-[rgba(255,255,255,0.04)] px-4 py-4">
+            <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">订阅地址</p>
+            <p class="mt-2 break-all text-sm font-medium opacity-70">{hasSubscription ? subscriptionUrl : '当前接口没有返回可复制订阅地址。'}</p>
+          </div>
+          <div class="rounded-[28px] border border-white/10 bg-[rgba(255,255,255,0.04)] px-4 py-4">
+            <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">原始节点</p>
+            <p class="mt-2 text-sm font-medium opacity-70">{hasRawBundle ? `已聚合 ${nodes.length} 条原始节点，可一键复制。` : '当前没有可聚合的原始节点内容。'}</p>
+          </div>
+          <div class="rounded-[28px] border border-white/10 bg-[rgba(255,255,255,0.04)] px-4 py-4">
+            <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">兼容客户端</p>
+            <p class="mt-2 text-sm font-medium opacity-70">已提供 {availableClientCount} 个可跳转入口，不可跳转的客户端会保留复制方案。</p>
           </div>
         </div>
       </section>
@@ -215,10 +271,10 @@
             <h4 class="mt-2 text-xl font-black tracking-tight">{client.label}</h4>
             <p class="mt-2 text-sm font-medium opacity-70">{client.detail}</p>
             <div class="mt-5 flex flex-wrap gap-2">
-              <button type="button" class="rounded-full bg-[var(--color-primary)] px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105" on:click={() => openClient(client.id)}>
-                打开客户端
+              <button type="button" class="rounded-full bg-[var(--color-primary)] px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-45" on:click={() => openClient(client.id)} disabled={!clientLinks[client.id]}>
+                {clientLinks[client.id] ? '打开客户端' : '暂未接入'}
               </button>
-              <button type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={() => copyText(subscriptionUrl, `${client.label} 订阅地址`)}>
+              <button type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-45" on:click={() => copyText(subscriptionUrl, `${client.label} 订阅地址`)} disabled={!hasSubscription}>
                 复制链接
               </button>
             </div>
@@ -275,7 +331,7 @@
           {#if sources.length > 0}
             <div class="space-y-4">
               {#each sources as source, index (source.id)}
-                <article in:fly={{ y: 18, duration: 360, delay: index * 20 }} class="rounded-[28px] border border-white/10 bg-[rgba(255,255,255,0.04)] p-5">
+                <article in:fly={{ y: 18, duration: 360, delay: index * 20 }} class="rounded-[28px] border border-white/10 bg-[rgba(255,255,255,0.04)] p-5" aria-label={describeSource(source)}>
                   <div class="flex items-start justify-between gap-3">
                     <div>
                       <h4 class="text-lg font-black tracking-tight">{source.label}</h4>
@@ -285,11 +341,20 @@
                       {source.enabled ? '启用中' : '已关闭'}
                     </span>
                   </div>
-                  {#if source.last_error}
-                    <p class="mt-3 text-sm font-medium text-red-200/90">{source.last_error}</p>
-                  {:else}
-                    <p class="mt-3 text-sm font-medium opacity-65">最后更新：{source.updated_at || '未记录'}</p>
-                  {/if}
+                  <div class="mt-4 grid gap-3 md:grid-cols-2">
+                    <div>
+                      <p class="text-[10px] font-black uppercase tracking-[0.18em] opacity-35">最近状态</p>
+                      {#if source.last_error}
+                        <p class="mt-2 text-sm font-medium text-red-200/90">{source.last_error}</p>
+                      {:else}
+                        <p class="mt-2 text-sm font-medium opacity-65">解析正常，可参与当前节点池分发。</p>
+                      {/if}
+                    </div>
+                    <div>
+                      <p class="text-[10px] font-black uppercase tracking-[0.18em] opacity-35">更新时间</p>
+                      <p class="mt-2 text-sm font-medium opacity-65">{source.updated_at || '未记录'}</p>
+                    </div>
+                  </div>
                 </article>
               {/each}
             </div>

@@ -97,9 +97,41 @@ test('community composer is visible and posts with auth headers', async ({ page 
 
   const composer = page.locator('textarea[placeholder="今天想说什么，直接写下来。"]');
   await expect(composer).toBeVisible();
+  await expect(composer).toBeFocused({ timeout: 15000 });
   await composer.fill('Playwright composer smoke test');
   await page.getByRole('button', { name: '发出去', exact: true }).click();
 
   await expect(page.locator('article')).toContainText('Playwright composer smoke test');
   await expect.poll(() => page.evaluate(() => window.didSeeComposeAuth())).toBe(true);
+});
+
+test('community composer traps focus and restores trigger focus after close', async ({ page }) => {
+  await page.goto('/');
+  try {
+    const btn = page.locator('button[data-theme-id="theme-default"]');
+    if (await btn.isVisible({ timeout: 2000 })) {
+      await btn.click();
+      await page.waitForTimeout(1200);
+    }
+  } catch (e) {}
+
+  const trigger = page.getByRole('button', { name: '发一条', exact: true });
+  await trigger.click();
+
+  const dialog = page.getByRole('dialog', { name: '发点近况' });
+  const composer = page.locator('textarea[placeholder="今天想说什么，直接写下来。"]');
+  await expect(dialog).toBeVisible();
+  await expect(composer).toBeFocused({ timeout: 15000 });
+
+  const closeButton = dialog.locator('button').first();
+
+  await page.keyboard.press('Shift+Tab');
+  await expect(closeButton).toBeFocused();
+
+  await page.keyboard.press('Tab');
+  await expect(composer).toBeFocused({ timeout: 15000 });
+
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(trigger).toBeFocused();
 });
