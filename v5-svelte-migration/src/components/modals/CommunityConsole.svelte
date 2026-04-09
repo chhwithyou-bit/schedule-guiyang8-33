@@ -226,10 +226,24 @@
       }
     };
 
+    const handleDocumentKeydown = (event: KeyboardEvent) => {
+      if (!shouldRenderModalShell || !shellRef) {
+        return;
+      }
+
+      if (!shellRef.contains(document.activeElement) && document.activeElement !== shellRef) {
+        return;
+      }
+
+      handleShellKeydown(event);
+    };
+
     window.addEventListener('community-console-tab-request', handleConsoleTabRequest as EventListener);
+    document.addEventListener('keydown', handleDocumentKeydown);
 
     return () => {
       window.removeEventListener('community-console-tab-request', handleConsoleTabRequest as EventListener);
+      document.removeEventListener('keydown', handleDocumentKeydown);
     };
   });
 
@@ -511,10 +525,10 @@
     }
   }
 
-  function mapDriveItems(files: DriveItem[] = []) {
+  function mapDriveItems(files: DriveItem[] = []): DriveItem[] {
     return files.map((item) => ({
       ...item,
-      preview_status: item.is_folder || !isMediaMimeType(item) || !isImageMimeType(item) ? 'ready' : 'loading'
+      preview_status: (item.is_folder || !isMediaMimeType(item) || !isImageMimeType(item) ? 'ready' : 'loading') as DriveItem['preview_status']
     }));
   }
 
@@ -982,10 +996,8 @@
     role={shouldRenderModalShell ? 'dialog' : undefined}
     aria-modal={shouldRenderModalShell ? 'true' : undefined}
     aria-labelledby={shouldRenderModalShell ? 'community-console-title' : undefined}
-    tabindex={shouldRenderModalShell ? '-1' : undefined}
     class="relative z-10 flex w-full flex-col text-[var(--color-text)] {embedded ? 'overflow-visible bg-transparent' : shouldRenderModalShell ? 'mx-auto min-h-[calc(100svh-2rem)] max-w-6xl rounded-[36px] border border-white/12 bg-[rgba(var(--color-bg-rgb),0.92)] shadow-[0_24px_60px_rgba(var(--shadow-rgb),0.16)] backdrop-blur-[20px]' : 'mx-auto xl:overflow-hidden xl:h-[min(90vh,56rem)] max-w-6xl rounded-[36px] border border-white/12 bg-[rgba(var(--color-bg-rgb),0.92)] shadow-[0_24px_60px_rgba(var(--shadow-rgb),0.16)] backdrop-blur-[20px]'}"
     transition:fly={{ y: 36, duration: 360 }}
-    on:keydown={handleShellKeydown}
   >
     {#if !embedded}
     <header class="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-white/10 bg-[rgba(var(--color-bg-rgb),0.92)] px-5 py-4 backdrop-blur-[20px] md:px-6">

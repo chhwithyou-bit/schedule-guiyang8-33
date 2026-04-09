@@ -132,11 +132,29 @@
   }
 
   onMount(() => {
+    const handleDocumentKeydown = (event: KeyboardEvent) => {
+      if (!shellRef) {
+        return;
+      }
+
+      if (!shellRef.contains(document.activeElement) && document.activeElement !== shellRef) {
+        return;
+      }
+
+      handleKeydown(event);
+    };
+
+    document.addEventListener('keydown', handleDocumentKeydown);
+
     void tick().then(() => {
       requestAnimationFrame(() => {
         contentInput?.focus();
       });
     });
+
+    return () => {
+      document.removeEventListener('keydown', handleDocumentKeydown);
+    };
   });
 </script>
 
@@ -155,7 +173,6 @@
     tabindex="-1"
     class="relative w-full max-w-xl bg-[var(--color-bg,#231b22)] text-[var(--color-text,#fff4ed)] rounded-[40px] p-8 shadow-2xl overflow-hidden border border-white/10"
     transition:fly={{ y: 50, duration: 600, easing: (t) => t * (2 - t) }}
-    on:keydown={handleKeydown}
   >
     <div class="relative z-10">
       <div class="flex items-center justify-between mb-8">

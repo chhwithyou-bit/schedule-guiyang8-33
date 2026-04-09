@@ -242,16 +242,17 @@
       tl.from(
         '.liquid-bar-dock',
         {
-          x: -20,
-          y: -16,
-          scale: 0.96,
+          x: -16,
+          y: -12,
+          scale: 0.985,
+          filter: 'blur(10px)',
           opacity: 0,
-          duration: 0.42,
-          ease: 'power2.out',
+          duration: 0.52,
+          ease: 'power3.out',
           transformOrigin: 'top left',
-          clearProps: 'transform,opacity'
+          clearProps: 'transform,opacity,filter'
         },
-        '-=0.4'
+        '-=0.42'
       );
 
       tl.from(
