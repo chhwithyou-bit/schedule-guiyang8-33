@@ -7,7 +7,7 @@
   import { get } from 'svelte/store';
   import { gsap } from 'gsap';
   import Lenis from '@studio-freight/lenis';
-  import { currentView, themeInitialized } from './stores/appState';
+  import { currentView, selectedProfile, themeInitialized, clearSelectedProfile } from './stores/appState';
   import { activeModal } from './stores/modalState';
 
   import CustomCursor from './components/ui/CustomCursor.svelte';
@@ -275,6 +275,8 @@
 
   $: canFinishLoading = $themeInitialized && (backgroundReady || backgroundFailed);
 
+  let previousView = '';
+
   $: {
     const modalId = $activeModal;
     syncModalAccessibility(modalId);
@@ -284,6 +286,16 @@
     }
 
     previousModalId = modalId;
+  }
+
+  $: {
+    const nextView = $currentView;
+
+    if (previousView && nextView !== previousView && $selectedProfile) {
+      clearSelectedProfile();
+    }
+
+    previousView = nextView;
   }
 
   onMount(() => {
