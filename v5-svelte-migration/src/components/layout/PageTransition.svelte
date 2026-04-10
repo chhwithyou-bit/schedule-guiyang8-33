@@ -101,6 +101,7 @@
   {#key url}
     <div
       class="content-container"
+      data-view-surface={url}
       in:smoothTransition
       out:smoothTransition
       on:introstart={(e) => runIntro(e.currentTarget)}
@@ -120,13 +121,16 @@
     min-height: 100vh;
     overflow-x: clip;
     overflow-y: visible;
+    isolation: isolate;
   }
 
   .content-container {
+    position: relative;
     width: 100%;
     min-height: inherit;
     overflow: visible;
     backface-visibility: hidden;
+    isolation: isolate;
   }
 
   .page-transition-wash {
