@@ -124,7 +124,7 @@
             class="liquid-panel"
             role="dialog"
             aria-modal="true"
-            aria-label="液态导航菜单"
+            aria-label="快速导航菜单"
             tabindex="-1"
           >
             <div class="liquid-panel-scroll">
@@ -141,21 +141,21 @@
 
               <section class="liquid-hero">
                 <div class="liquid-hero-copy">
-                  <p class="liquid-hero-kicker">Current capsule</p>
+                  <p class="liquid-hero-kicker">当前入口</p>
                   <h2>{currentNav.label}</h2>
                   <p>{currentNav.detail}</p>
                 </div>
 
                 <div class="liquid-hero-badges" aria-hidden="true">
                   <span>{currentNav.capsule}</span>
-                  <span>Real route</span>
+                  <span>{currentNav.href}</span>
                 </div>
               </section>
 
               <section class="liquid-section">
                 <div class="liquid-section-head">
                   <p class="liquid-section-kicker">Quick jump</p>
-                  <span>主入口</span>
+                  <span>页面入口</span>
                 </div>
 
                 <div class="liquid-nav-grid">
@@ -176,36 +176,34 @@
               <section class="liquid-section liquid-action-stack">
                 <div class="liquid-section-head">
                   <p class="liquid-section-kicker">Utility actions</p>
-                  <span>快捷处理</span>
+                  <span>常用直达</span>
                 </div>
 
                 <div class="liquid-console-split">
-                  <a href="/console" class="liquid-console-btn is-primary" on:click={close}>
+                  <a href="/console/chats" class="liquid-console-btn is-primary" on:click={close}>
                     <span class="liquid-action-copy">
-                      <strong>个人面板</strong>
-                      <small>继续沿用当前交互语义，但入口变成真实 URL。</small>
+                      <strong>进入聊天</strong>
+                      <small>直接前往 /console/chats 查看会话和未读消息。</small>
                     </span>
-                    <span class="liquid-action-glyph" aria-hidden="true">◦</span>
+                    <span class="liquid-action-glyph" aria-hidden="true">↗</span>
                   </a>
 
-                  <a href="/console" class="liquid-console-btn" on:click={close}>
+                  <a href="/console/groups" class="liquid-console-btn" on:click={close}>
                     <span class="liquid-action-copy">
-                      <strong>消息选项卡</strong>
-                      <small>保持消息入口可达，便于后续细分 console 子路由。</small>
+                      <strong>查看群组</strong>
+                      <small>直接前往 /console/groups 处理发现、加入和群组入口。</small>
                     </span>
                     <span class="liquid-action-glyph" aria-hidden="true">↗</span>
                   </a>
                 </div>
 
-                {#if isActive('/community')}
-                  <a href="/community" class="liquid-compose-btn" on:click={close}>
-                    <span class="liquid-action-copy">
-                      <strong>+ 发一条</strong>
-                      <small>{isAuthenticated ? '回到社区后继续使用原发帖交互。' : '先到社区，再进入原登录/发帖流程。'}</small>
-                    </span>
-                    <span class="liquid-action-glyph" aria-hidden="true">+</span>
-                  </a>
-                {/if}
+                <a href="/community" class="liquid-compose-btn" on:click={close}>
+                  <span class="liquid-action-copy">
+                    <strong>去社区发布</strong>
+                    <small>{isAuthenticated ? '回到 /community 继续发布和浏览动态。' : '先前往 /login 登录，再回到 /community 发布内容。'}</small>
+                  </span>
+                  <span class="liquid-action-glyph" aria-hidden="true">+</span>
+                </a>
               </section>
             </div>
           </div>

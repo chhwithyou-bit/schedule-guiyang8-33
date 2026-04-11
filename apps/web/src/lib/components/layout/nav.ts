@@ -13,51 +13,51 @@ export const topLevelNavItems: NavItem[] = [
   {
     href: '/community',
     label: '社区',
-    eyebrow: '8community',
-    detail: '用真实 URL 承接原来的社区主入口，不改帖子和个人详情的细节路径。',
+    eyebrow: 'community',
+    detail: '社区首页通过 /community 承接动态、帖子和个人主页等公开内容。',
     short: '看近况',
-    capsule: '社交流动'
+    capsule: '社区首页'
   },
   {
     href: '/console',
     label: '消息台',
     shortLabel: '消息',
-    eyebrow: 'main console',
-    detail: '个人、消息和账户入口都改成真实页面路由，不再依赖 currentView 切换。',
-    short: '开消息台',
-    capsule: '消息中枢'
+    eyebrow: 'console',
+    detail: '消息台首页把聊天、群组和网盘拆成真实子路由，方便直接进入对应页面。',
+    short: '看入口',
+    capsule: '消息与群组'
   },
   {
     href: '/schedule',
     label: '课表',
-    eyebrow: 'today flow',
-    detail: '课表页仍保持原有信息密度，只把切换动作迁移到标准 URL。',
+    eyebrow: 'schedule',
+    detail: '课表页通过 /schedule 提供固定入口，便于回退、深链和回归验证。',
     short: '看安排',
-    capsule: '今日节奏'
+    capsule: '课程安排'
   },
   {
     href: '/xiangqi',
     label: '象棋',
-    eyebrow: 'slow game',
-    detail: '象棋入口改为独立页面地址，回退和深链行为更稳定。',
+    eyebrow: 'xiangqi',
+    detail: '象棋通过独立页面地址进入，方便收藏、返回和继续对局。',
     short: '开一局',
-    capsule: '慢一点'
+    capsule: '对局入口'
   },
   {
     href: '/nodes',
     label: '节点',
-    eyebrow: 'proxy hub',
-    detail: '节点与订阅入口改成真实路由，方便回归和部署核对。',
-    short: '开节点',
-    capsule: '通道切换'
+    eyebrow: 'nodes',
+    detail: '节点和订阅统一放在 /nodes，部署后可以直接核对入口是否可用。',
+    short: '看订阅',
+    capsule: '节点订阅'
   },
   {
     href: '/admin',
     label: '管理',
-    eyebrow: 'control room',
-    detail: '后台入口改为标准路由，仅在管理员可见时展示。',
-    short: '巡一下',
-    capsule: '管理视角',
+    eyebrow: 'admin',
+    detail: '后台入口保持标准路由，仅在管理员身份下显示。',
+    short: '去后台',
+    capsule: '管理后台',
     requiresAdmin: true
   }
 ];

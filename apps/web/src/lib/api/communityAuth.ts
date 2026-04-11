@@ -29,6 +29,10 @@ export function readStoredCommunitySession(): CommunitySession | null {
   }
 }
 
+export function isCommunityAdmin(session: CommunitySession | null | undefined) {
+  return session?.role === 'admin' || session?.role === 'owner';
+}
+
 export function getCommunityAuthHeaders(headers: HeadersInit = {}): Headers {
   const resolvedHeaders = new Headers(headers);
   const session = readStoredCommunitySession();

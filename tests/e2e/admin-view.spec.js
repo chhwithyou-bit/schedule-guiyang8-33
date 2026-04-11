@@ -1,18 +1,6 @@
 const { test, expect } = require('@playwright/test');
 
-test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => {
-    localStorage.setItem('siteTheme', 'theme-default');
-    localStorage.setItem('commUser', JSON.stringify({
-      id: 'owner-1',
-      username: 'owner',
-      passHash: 'playwright-session',
-      role: 'owner',
-      xp: 999,
-      level: 9
-    }));
-  });
-
+async function mockApi(page) {
   await page.route('**/api/**', async route => {
     const req = route.request();
     const url = new URL(req.url());
@@ -55,7 +43,25 @@ test.beforeEach(async ({ page }) => {
         announcement: {
           content: '系统维护通知',
           updatedAt: '2026-04-03T00:00:00.000Z'
-        }
+        },
+        node_sources: [
+          {
+            id: 'source-1',
+            label: '校园订阅',
+            source_type: 'subscription',
+            node_count: 1,
+            updated_at: '2026-04-03T00:00:00.000Z'
+          }
+        ],
+        proxy_nodes: [
+          {
+            name: 'Guiyang Relay',
+            protocol: 'vmess',
+            source_label: '校园订阅',
+            raw: 'vmess://example'
+          }
+        ],
+        nodes_password_configured: true
       });
     }
 
@@ -65,24 +71,66 @@ test.beforeEach(async ({ page }) => {
 
     return fulfill({ ok: true });
   });
-});
+}
 
-test('admin view uses dark surfaces instead of white paper cards', async ({ page }) => {
-  await page.goto('/');
-  await page.locator('#liquidBar .liquid-trigger').click();
-  await page.locator('#liquidBar .liquid-nav-btn', { hasText: '管理' }).click();
-
-  await expect(page.getByText('管理后台')).toBeVisible();
-  await expect(page.getByText('举报原因：恶意内容')).toBeVisible();
-
-  const backgroundColor = await page.getByText('举报原因：恶意内容').evaluate((node) => {
-    let current = node.parentElement;
-    while (current && typeof current.className === 'string' && !current.className.includes('rounded')) {
-      current = current.parentElement;
-    }
-
-    return current ? window.getComputedStyle(current).backgroundColor : '';
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('siteTheme', 'theme-default');
+    localStorage.removeItem('commUser');
   });
 
-  expect(backgroundColor).not.toBe('rgb(255, 255, 255)');
+  await mockApi(page);
+});
+
+test('admin route renders migrated admin console for owner users', async ({ page }) => {
+  await page.addInitScript((role) => {
+    localStorage.removeItem('commUser');
+    localStorage.setItem('commUser', JSON.stringify({
+      id: `${role}-1`,
+      username: role,
+      passHash: 'playwright-session',
+      role,
+      xp: 999,
+      level: 9
+    }));
+  }, 'owner');
+
+  await page.goto('/admin');
+
+  await expect(page.getByRole('heading', { name: '管理后台' })).toBeVisible();
+  await expect(page.getByText('举报原因：恶意内容')).toBeVisible();
+  await expect(page.getByLabel('管理后台概览统计')).toContainText('待处理举报');
+  await page.getByRole('button', { name: '节点', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '已配置来源' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '校园订阅' })).toBeVisible();
+
+  await expect(page.locator('.admin-card').first()).toBeVisible();
+});
+
+test('admin route hides management content from non-admin users', async ({ page }) => {
+  await page.addInitScript((role) => {
+    localStorage.removeItem('commUser');
+    localStorage.setItem('commUser', JSON.stringify({
+      id: `${role}-1`,
+      username: role,
+      passHash: 'playwright-session',
+      role,
+      xp: 999,
+      level: 9
+    }));
+  }, 'user');
+
+  await page.goto('/admin');
+
+  await expect(page.getByRole('heading', { name: '管理后台' })).toBeVisible();
+  await expect(page.getByText('当前账号没有管理权限。')).toBeVisible();
+  await expect(page.getByText('举报原因：恶意内容')).toHaveCount(0);
+});
+
+test('admin route asks guests to log in before entering', async ({ page }) => {
+  await page.goto('/admin');
+
+  await expect(page.getByRole('heading', { name: '管理后台' })).toBeVisible();
+  await expect(page.getByText('请先登录社区账号，再进入 /admin。')).toBeVisible();
+  await expect(page.getByText('举报原因：恶意内容')).toHaveCount(0);
 });

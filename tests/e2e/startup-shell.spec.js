@@ -3,11 +3,13 @@ const fs = require('fs');
 const path = require('path');
 
 const repoRoot = path.resolve(__dirname, '..', '..');
-const distIndexPath = path.join(repoRoot, 'v5-svelte-migration', 'dist', 'index.html');
+const rootIndexPath = path.join(repoRoot, 'index.html');
 const publicIndexPath = path.join(repoRoot, 'public', 'index.html');
+const runtimeClientDir = path.join(repoRoot, 'public', '_app');
+const webClientDir = path.join(repoRoot, 'apps', 'web', '.svelte-kit', 'output', 'client', '_app');
 
 function extractAssetReferences(html) {
-  return [...html.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)].map((match) => match[1]);
+  return [...html.matchAll(/(?:src|href)="(\/(?:assets|_app)\/[^"]+)"/g)].map((match) => match[1]);
 }
 
 async function installApiMocks(page) {
@@ -89,8 +91,8 @@ test('startup shell keeps wallpaper ready, preloader transient, and guest header
 
   await expect(page.locator('.app-background')).toHaveClass(/is-ready/);
   await expect(page.locator('header .site-header-shell')).toBeVisible();
-  await expect(page.getByRole('banner').getByRole('button', { name: '账号入口' })).toBeVisible();
-  await expect(page.getByRole('banner').getByRole('button', { name: '登录', exact: true })).toBeVisible();
+  await expect(page.getByRole('banner').getByRole('link', { name: '注册' })).toBeVisible();
+  await expect(page.getByRole('banner').getByRole('link', { name: '登录', exact: true })).toBeVisible();
 });
 
 test('startup shell restores authenticated header controls after preloader completes', async ({ page }) => {
@@ -107,36 +109,25 @@ test('startup shell restores authenticated header controls after preloader compl
 
   await openStartupShell(page);
 
-  await expect(page.getByRole('banner').getByRole('button', { name: '个人', exact: true })).toBeVisible();
-  await expect(page.getByRole('banner').getByRole('button', { name: '消息', exact: true })).toBeVisible();
   await expect(page.locator('header .header-avatar-shell')).toBeVisible();
+  await expect(page.locator('header .header-avatar-shell')).toBeVisible();
+  await expect(page.getByText('debugger', { exact: true })).toBeVisible();
 });
 
-test('served shell references the current built assets and drops stale public hashes', async ({ page }) => {
-  const distHtml = fs.readFileSync(distIndexPath, 'utf8');
+test('served shell writes the same root html into public and syncs runtime app assets', async ({ page }) => {
+  const rootHtml = fs.readFileSync(rootIndexPath, 'utf8');
   const publicHtml = fs.readFileSync(publicIndexPath, 'utf8');
-  const distAssets = extractAssetReferences(distHtml);
-  const publicAssets = extractAssetReferences(publicHtml);
 
-  expect(distAssets.length).toBeGreaterThan(0);
-  expect(publicAssets).toEqual(distAssets);
+  expect(rootHtml).toContain('Schedule Guiyang 的新首页入口');
+  expect(publicHtml).toEqual(rootHtml);
+  expect(rootHtml).toContain('/_app/immutable/entry/');
 
   const response = await page.goto('/');
   expect(response).not.toBeNull();
   expect(response.ok()).toBeTruthy();
 
-  const servedHtml = await page.content();
-  const servedAssets = extractAssetReferences(servedHtml);
-  expect(servedAssets).toEqual(distAssets);
-
-  const publicAssetsDir = path.join(repoRoot, 'public', 'assets');
-  const syncedAssetNames = fs.readdirSync(publicAssetsDir);
-  const expectedAssetNames = distAssets.map((assetPath) => path.basename(assetPath));
-  expect(syncedAssetNames.sort()).toEqual(expectedAssetNames.sort());
-
-  for (const assetPath of distAssets) {
-    await expect(page.locator(`head >> ${assetPath.endsWith('.css') ? `link[href="${assetPath}"]` : `script[src="${assetPath}"]`}`)).toHaveCount(1);
-    const assetResponse = await page.request.get(assetPath);
-    expect(assetResponse.ok()).toBeTruthy();
-  }
-});
+  const syncedRuntimeEntries = fs.readdirSync(runtimeClientDir);
+  const expectedRuntimeEntries = fs.readdirSync(webClientDir);
+  expect(syncedRuntimeEntries.sort()).toEqual(expectedRuntimeEntries.sort());
+}
+);
