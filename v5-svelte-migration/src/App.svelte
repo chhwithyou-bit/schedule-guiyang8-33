@@ -183,16 +183,33 @@
 
   async function focusModalShell() {
     await tick();
+    await tick();
 
-    const shell = document.querySelector<HTMLElement>('[data-modal-shell="true"]');
-    if (!shell) {
-      return;
-    }
+    requestAnimationFrame(() => {
+      const shell = document.querySelector<HTMLElement>('[data-modal-shell="true"]');
+      if (!shell) {
+        return;
+      }
 
-    modalRegion = shell;
-    const focusableElements = collectFocusableElements(shell);
-    const initialFocusTarget = shell.querySelector<HTMLElement>('[data-modal-initial-focus="true"]');
-    (initialFocusTarget || focusableElements[0] || shell).focus();
+      modalRegion = shell;
+      const focusableElements = collectFocusableElements(shell);
+      const initialFocusTarget = shell.querySelector<HTMLElement>('[data-modal-initial-focus="true"]');
+      const target = initialFocusTarget || focusableElements[0] || shell;
+      target.focus();
+
+      requestAnimationFrame(() => {
+        if (!shell.isConnected) {
+          return;
+        }
+
+        const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        if (!active || active === target || shell.contains(active)) {
+          return;
+        }
+
+        target.focus();
+      });
+    });
   }
 
   async function startAssembly() {
