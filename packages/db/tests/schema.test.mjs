@@ -4,6 +4,7 @@ import {
   comments,
   conversationMembers,
   conversations,
+  createCommunityD1Repositories,
   createCommunityRepositories,
   follows,
   likes,
@@ -41,6 +42,15 @@ test('repository factory returns core repositories', () => {
     'notifications',
     'posts',
     'reports',
+    'users',
+  ]);
+});
+
+test('d1 repository factory returns chat repositories', () => {
+  const repos = createCommunityD1Repositories({});
+  assert.deepEqual(Object.keys(repos).sort(), [
+    'conversationMembers',
+    'conversations',
     'users',
   ]);
 });

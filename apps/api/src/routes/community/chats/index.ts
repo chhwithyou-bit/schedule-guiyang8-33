@@ -1,4 +1,4 @@
-import { createCommunityD1Repositories } from '@schedule-guiyang/db';
+import { createCommunityD1Repositories } from '@schedule-guiyang/db/community-d1';
 import {
   getCommunityAuthUser,
   getCommunityLevelFromXp,

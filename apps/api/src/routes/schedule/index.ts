@@ -1,6 +1,6 @@
 export type SchedulePayload = {
   ok?: boolean;
-  S?: Array<Array<{ s?: string; t?: string; k?: string } | null>>;
+  S?: Array<Array<{ s?: string; t?: string; k?: string } | null>> | null;
   EV?: Record<string, string[]>;
   SJ?: Record<string, string>;
 };
@@ -11,31 +11,22 @@ export interface ScheduleStore {
 }
 
 const SCHEDULE_KEY = 'schedule_data';
+const EMPTY_SCHEDULE_JSON = '{"S":null}';
 
-export async function readSchedule(store: ScheduleStore): Promise<SchedulePayload> {
-  const raw = (await store.get(SCHEDULE_KEY)) || '{}';
+export async function readScheduleRaw(store?: Pick<ScheduleStore, 'get'> | null): Promise<string> {
+  return (await store?.get(SCHEDULE_KEY)) || EMPTY_SCHEDULE_JSON;
+}
+
+export async function readSchedule(store?: Pick<ScheduleStore, 'get'> | null): Promise<SchedulePayload> {
+  const raw = await readScheduleRaw(store);
 
   try {
-    const parsed = JSON.parse(raw) as SchedulePayload;
-    return {
-      ok: true,
-      S: Array.isArray(parsed.S) ? parsed.S : [],
-      EV: parsed.EV && typeof parsed.EV === 'object' ? parsed.EV : {},
-      SJ: parsed.SJ && typeof parsed.SJ === 'object' ? parsed.SJ : {}
-    };
+    return JSON.parse(raw) as SchedulePayload;
   } catch {
-    return { ok: true, S: [], EV: {}, SJ: {} };
+    return { S: null };
   }
 }
 
-export async function writeSchedule(store: ScheduleStore, payload: SchedulePayload): Promise<SchedulePayload> {
-  const normalized = {
-    ok: true,
-    S: Array.isArray(payload?.S) ? payload.S : [],
-    EV: payload?.EV && typeof payload.EV === 'object' ? payload.EV : {},
-    SJ: payload?.SJ && typeof payload.SJ === 'object' ? payload.SJ : {}
-  };
-
-  await store.put(SCHEDULE_KEY, JSON.stringify(normalized));
-  return normalized;
+export async function writeScheduleRaw(store: Pick<ScheduleStore, 'put'>, raw: string): Promise<void> {
+  await store.put(SCHEDULE_KEY, raw);
 }
