@@ -45,8 +45,7 @@
     if (storedTheme) {
       chooseTheme(readStoredTheme());
     } else {
-      applyTheme(DEFAULT_THEME_ID);
-      showThemePicker = true;
+      chooseTheme(DEFAULT_THEME_ID);
     }
 
     const img = new Image();

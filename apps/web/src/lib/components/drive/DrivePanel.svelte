@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import {
     describeDriveItem,
     formatDriveBytes,
@@ -41,13 +42,34 @@
   export let onSubmitDelete: () => void = () => {};
   export let onDraftNameChange: (value: string) => void = () => {};
 
+  let nameInputRef: HTMLInputElement | null = null;
+  let lastFocusKey = '';
+
   $: usagePercent = stats.quota_bytes ? Math.min(100, Math.round(((stats.used_bytes || 0) / stats.quota_bytes) * 100)) : 0;
+  $: {
+    const focusKey =
+      activeDialog === 'create' ? 'create' : activeDialog === 'rename' && selectedItem ? `rename:${selectedItem.id}` : '';
+
+    if (focusKey && focusKey !== lastFocusKey) {
+      lastFocusKey = focusKey;
+      void focusDialogField();
+    } else if (!focusKey) {
+      lastFocusKey = '';
+      nameInputRef = null;
+    }
+  }
 
   function handleFileChange(event: Event) {
     const input = event.currentTarget as HTMLInputElement;
     const file = input.files?.[0];
     if (file) onUpload(file);
     input.value = '';
+  }
+
+  async function focusDialogField() {
+    await tick();
+    nameInputRef?.focus();
+    nameInputRef?.select();
   }
 </script>
 
@@ -107,13 +129,13 @@
           <label>
             <span>文件夹名称</span>
             <input
+              bind:this={nameInputRef}
               name="folder-name"
               type="text"
               value={draftName}
               on:input={(event) => onDraftNameChange((event.currentTarget as HTMLInputElement).value)}
               placeholder="例如：Uploads"
               maxlength="120"
-              autofocus
             />
           </label>
           <div class="drive-panel__dialog-actions">
@@ -128,12 +150,12 @@
           <label>
             <span>新名称</span>
             <input
+              bind:this={nameInputRef}
               name="rename-name"
               type="text"
               value={draftName}
               on:input={(event) => onDraftNameChange((event.currentTarget as HTMLInputElement).value)}
               maxlength="120"
-              autofocus
             />
           </label>
           <div class="drive-panel__dialog-actions">

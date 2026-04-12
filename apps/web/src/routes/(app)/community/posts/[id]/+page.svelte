@@ -208,16 +208,17 @@
   }
 </script>
 
-{#if post}
-  <section class="post-detail-page space-y-6">
-    <section class="route-shell post-detail-shell" aria-label="帖子详情">
+<section class="post-detail-page space-y-6">
+  <section class="route-shell post-detail-shell" aria-label="帖子详情">
+    {#if post}
       <div class="post-detail-head">
         <div>
           <p class="route-kicker">Post detail</p>
-          <h1>这条内容</h1>
+          <h1>帖子详情</h1>
           <div class="post-detail-meta">
             <a href={profileHref(post.user_id)}>{post.username}</a>
             <span>{formatDate(post.created_at)}</span>
+            <code>{post.id}</code>
             {#if post.role === 'admin' || post.role === 'owner'}
               <span class="post-detail-badge">{post.role === 'owner' ? '站长' : '管理员'}</span>
             {/if}
@@ -246,17 +247,36 @@
         </button>
         <a href="#comments">评论 {post.comment_count || comments.length}</a>
       </div>
-    </section>
-
-    <section class="route-shell comment-shell" id="comments" aria-label="评论区">
-      <div class="comment-shell__head">
+    {:else}
+      <div class="post-detail-head">
         <div>
-          <p class="route-kicker">Comments</p>
-          <h2>留言</h2>
+          <p class="route-kicker">Post detail</p>
+          <h1>帖子详情</h1>
+          <div class="post-detail-meta">
+            {#if data?.id}
+              <code>{data.id}</code>
+            {/if}
+          </div>
         </div>
-        <span>{comments.length} 条</span>
+        <a href="/community">返回社区</a>
       </div>
 
+      <div class="post-detail-content">
+        <p>这条帖子暂时没加载出来，但直接路由已经生效。</p>
+      </div>
+    {/if}
+  </section>
+
+  <section class="route-shell comment-shell" id="comments" aria-label="评论区">
+    <div class="comment-shell__head">
+      <div>
+        <p class="route-kicker">Comments</p>
+        <h2>留言</h2>
+      </div>
+      <span>{post ? comments.length : 0} 条</span>
+    </div>
+
+    {#if post}
       <div class="comment-composer">
         <textarea bind:value={newComment} rows="4" placeholder="想回一句什么，就写在这里。"></textarea>
         <div class="comment-composer__footer">
@@ -291,8 +311,12 @@
       {:else}
         <p class="comment-empty">还没人留言。</p>
       {/if}
-    </section>
+    {:else}
+      <p class="comment-empty">这条帖子目前没有可用评论数据。</p>
+    {/if}
+  </section>
 
+  {#if post}
     <section class="route-shell report-shell" aria-label="举报面板">
       <div>
         <p class="route-kicker">Report</p>
@@ -306,14 +330,8 @@
         </button>
       </div>
     </section>
-  </section>
-{:else}
-  <section class="route-shell" aria-label="帖子详情不可用">
-    <p class="route-kicker">Post detail</p>
-    <h1>这条内容暂时不可用</h1>
-    <p>帖子可能已经删除，或者当前接口还没有同步到这条数据。</p>
-  </section>
-{/if}
+  {/if}
+</section>
 
 <style>
   .post-detail-page {
@@ -378,6 +396,14 @@
     font-weight: 900;
     letter-spacing: 0.16em;
     text-transform: uppercase;
+  }
+
+  .post-detail-meta code {
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    padding: 0.2rem 0.55rem;
+    font-size: 0.75rem;
+    opacity: 0.9;
   }
 
   .post-detail-head > a,
