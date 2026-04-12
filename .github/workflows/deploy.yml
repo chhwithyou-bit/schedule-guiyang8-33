@@ -18,17 +18,12 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
-          cache-dependency-path: |
-            package-lock.json
-            v5-svelte-migration/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install root dependencies
         run: npm ci
-
-      - name: Install legacy web dependencies
-        run: npm --prefix ./v5-svelte-migration ci
 
       - name: Check new workspace packages
         run: |
@@ -36,7 +31,7 @@ jobs:
           npm run check:api
           npm run check:db
 
-      - name: Build web compatibility shell
+      - name: Build web runtime shell
         run: npm run build:web:runtime
 
       - name: Verify unit tests
@@ -44,6 +39,7 @@ jobs:
 
       - name: Initialize D1 Database and R2
         env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_API_KEY: ${{ secrets.CF_AUTH_KEY }}
           CLOUDFLARE_EMAIL: ${{ secrets.CF_AUTH_EMAIL }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -59,6 +55,7 @@ jobs:
 
       - name: Deploy to Cloudflare Workers
         env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_API_KEY: ${{ secrets.CF_AUTH_KEY }}
           CLOUDFLARE_EMAIL: ${{ secrets.CF_AUTH_EMAIL }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
