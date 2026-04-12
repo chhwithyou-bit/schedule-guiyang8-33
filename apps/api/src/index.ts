@@ -22,6 +22,13 @@ import { buildCommunityDiscovery } from './routes/community/discovery';
 import { toggleCommunityFollow, getCommunityProfile, updateCommunityProfile } from './routes/community/follows';
 import { createCommunityGroup, joinCommunityGroup, listCommunityGroups } from './routes/community/groups';
 import { readCommunityMedia, uploadCommunityMedia } from './routes/community/media';
+import {
+  handleCommunityLinkPreview,
+  handleCommunityMediaCacheStats,
+  handleCommunityMediaCacheWarm,
+  handleCommunityTestDrive,
+  handleCommunityUpload
+} from './routes/community/media/side-paths';
 import { listCommunityNotifications } from './routes/community/notifications';
 import { createCommunityPost, deleteCommunityPost, listCommunityPosts, toggleCommunityLike } from './routes/community/posts';
 import { handleMusicUpdate, readMusicPlaylist, serveMusicFile, type MusicBucket } from './routes/music';
@@ -29,7 +36,10 @@ import { readScheduleRaw, writeScheduleRaw } from './routes/schedule';
 
 type KvLike = {
   get(key: string): Promise<string | null>;
+  get<T = unknown>(key: string, options: { type: 'json' }): Promise<T | null>;
   put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>;
+  delete(key: string): Promise<void>;
+  list(options?: { prefix?: string; cursor?: string }): Promise<{ keys?: Array<{ name: string }>; cursor?: string; list_complete?: boolean }>;
 };
 
 type CommunityR2Like = {
@@ -250,6 +260,26 @@ app.post('/api/community/auth', async (c) => {
   return c.json(result.body, result.status as 200 | 400 | 401 | 403 | 409 | 500);
 });
 
+app.post('/api/community/register', async (c) => {
+  const body = await c.req.json();
+  const result = await handleCommunityAuth(c.env as CommunityAuthEnv, { ...body, action: 'register' });
+  return c.json(result.body, result.status as 200 | 400 | 401 | 403 | 409 | 500);
+});
+
+app.post('/api/community/login', async (c) => {
+  const body = await c.req.json();
+  const result = await handleCommunityAuth(c.env as CommunityAuthEnv, { ...body, action: 'login' });
+  return c.json(result.body, result.status as 200 | 400 | 401 | 403 | 409 | 500);
+});
+
+app.get('/api/community/me', async (c) => {
+  const user = await getCommunityAuthUser(c.env as CommunityAuthEnv, c.req.raw);
+  if (!user) {
+    return c.json({ ok: false, msg: '请先登录' }, 401);
+  }
+  return c.json({ ok: true, user }, 200);
+});
+
 app.get('/api/community/posts', async (c) => {
   const result = await listCommunityPosts(c.env as CommunityAuthEnv, c.req.raw);
   return c.json(result.body, result.status as 200 | 400 | 401 | 404 | 500);
@@ -439,23 +469,28 @@ app.post('/api/community/drive/upload', async (c) => {
 });
 
 app.post('/api/community/upload', async (c) => {
-  const user = await requireCommunityUser(c.env, c.req.raw);
-  if (!user) return c.json({ ok: false, msg: '请先登录' }, 401);
-  try {
-    const bytes = await c.req.arrayBuffer();
-    const contentType = c.req.header('content-type') || 'image/jpeg';
-    const storageEnv = await buildCommunityStorageEnv(asCommunityDriveEnv(c.env));
-    const result = await uploadCommunityMedia(storageEnv, user.id, {
-      fileName: `img_${Date.now()}`,
-      contentType,
-      size: bytes.byteLength,
-      bytes
-    });
-    return c.json({ ok: true, fileId: result.fileId, id: result.id, url: result.url, fromDrive: true, backend: result.backend, cacheStatus: result.cacheStatus, file: result.file }, 200);
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : 'Drive 发布失败';
-    return c.json({ ok: false, msg: `Drive 发布失败: ${msg}` }, 500);
-  }
+  const result = await handleCommunityUpload(c.env as CommunityAuthEnv & Env, c.req.raw);
+  return c.json(result.body, result.status as 200 | 401 | 500);
+});
+
+app.get('/api/community/media-cache-stats', async (c) => {
+  const result = await handleCommunityMediaCacheStats(c.env as CommunityAuthEnv & Env, c.req.raw);
+  return c.json(result.body, result.status as 200 | 403);
+});
+
+app.post('/api/community/media-cache-warm', async (c) => {
+  const result = await handleCommunityMediaCacheWarm(c.env as CommunityAuthEnv & Env, c.req.raw);
+  return c.json(result.body, result.status as 200 | 403);
+});
+
+app.get('/api/community/test-drive', async (c) => {
+  const result = await handleCommunityTestDrive(c.env as CommunityAuthEnv & Env);
+  return c.json(result.body, result.status as 200);
+});
+
+app.get('/api/community/link-preview', async (c) => {
+  const result = await handleCommunityLinkPreview(c.req.raw);
+  return c.json(result.body, result.status as 200 | 400);
 });
 
 app.get('/api/community/media/:fileId{.+}', async (c) => {
