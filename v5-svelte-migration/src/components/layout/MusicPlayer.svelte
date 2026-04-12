@@ -207,8 +207,8 @@
     return Math.min(OPEN_WIDTH_REM * getRootFontSize(), window.innerWidth - PANEL_MARGIN * 2);
   }
 
-  function getOpenHeight(listOpen = isListOpen) {
-    const preferred = (OPEN_BASE_HEIGHT_REM + (listOpen ? OPEN_LIST_EXTRA_REM : 0)) * getRootFontSize();
+  function getOpenHeight() {
+    const preferred = OPEN_BASE_HEIGHT_REM * getRootFontSize();
     if (typeof window === 'undefined') return preferred;
     return Math.min(preferred, window.innerHeight - PANEL_MARGIN * 2);
   }
@@ -298,8 +298,6 @@
     return clampPosition(nextLeft, nextTop, closed.width, closed.height);
   }
 
-  $: panelInlineStyle = getPanelInlineStyle(panelLeft, panelTop, isOpen, isListOpen, panelAnchorX, panelAnchorY);
-
   function getPanelInlineStyle(pLeft: number, pTop: number, open: boolean, listOpen: boolean, aX: string, aY: string) {
     const { width, height } = getPanelSize(open, listOpen);
     const originX = aX === 'right' ? '100%' : '0%';
@@ -347,7 +345,6 @@
 
       loadState = 'ready';
       await tick();
-      await attemptAutoplayForCurrentTrack();
     } catch (error) {
       console.error('Failed to load music playlist', error);
       playlist = [];
@@ -570,20 +567,6 @@
     await openPlayer(false);
   }
 
-  function handleBubblePointerDown(event: PointerEvent) {
-    if (event.button !== 0) return;
-    event.stopPropagation();
-    // On mobile, touch-action: none handles scroll prevention. 
-    // We avoid preventDefault() here to ensure the 'click' event still fires.
-    beginDragging(event.clientX, event.clientY, event.currentTarget as HTMLElement, event.pointerId);
-  }
-
-  function handleBubbleMouseDown(event: MouseEvent) {
-    if (isDragging || event.button !== 0) return;
-    event.stopPropagation();
-    beginDragging(event.clientX, event.clientY, event.currentTarget as HTMLElement);
-  }
-
   async function toggleList(event: Event) {
     if (shouldCancelControlClick(event)) return;
 
@@ -592,6 +575,10 @@
       return;
     }
 
+<<<<<<< HEAD
+    const previousRect = measurePanelRect();
+=======
+>>>>>>> origin/main
     const nextListOpen = !isListOpen;
 
     isListOpen = nextListOpen;
@@ -600,7 +587,22 @@
     await tick();
 
     const nextRect = measurePanelRect();
+<<<<<<< HEAD
+    let nextLeft = panelLeft;
+    let nextTop = panelTop;
+
+    if (panelAnchorX === 'right') {
+      nextLeft += previousRect.width - nextRect.width;
+    }
+
+    if (panelAnchorY === 'bottom') {
+      nextTop += previousRect.height - nextRect.height;
+    }
+
+    const clamped = clampPosition(nextLeft, nextTop, nextRect.width, nextRect.height);
+=======
     const clamped = clampPosition(panelLeft, panelTop, nextRect.width, nextRect.height);
+>>>>>>> origin/main
     panelLeft = clamped.left;
     panelTop = clamped.top;
     syncAnchor(panelLeft, panelTop, nextRect.width, nextRect.height);
@@ -633,11 +635,19 @@
     beginDragging(event.clientX, event.clientY, event.currentTarget as HTMLElement, event.pointerId);
   }
 
+<<<<<<< HEAD
+  function handleDragHandleClick(event: Event) {
+    if (shouldCancelControlClick(event)) return;
+    if (isOpen) {
+      void closePlayer();
+    }
+=======
   function handleDragMouseDown(event: MouseEvent) {
     if (event.button !== 0) return;
     event.stopPropagation();
     event.preventDefault();
     beginDragging(event.clientX, event.clientY, event.currentTarget as HTMLElement);
+>>>>>>> origin/main
   }
 
   function handleDragHandleClick(event: Event) {
@@ -670,6 +680,8 @@
     panelTop = next.top;
   }
 
+<<<<<<< HEAD
+=======
   function handleGlobalMouseMove(event: MouseEvent) {
     if ((!isDragArmed && !isDragging) || dragPointerId !== null) return;
 
@@ -685,6 +697,7 @@
     panelTop = next.top;
   }
 
+>>>>>>> origin/main
   function finishDragging(event?: PointerEvent | MouseEvent) {
     if (!isDragArmed && !isDragging) return;
     if (event && 'pointerId' in event && dragPointerId !== null && event.pointerId !== dragPointerId) return;
@@ -782,8 +795,6 @@
   on:pointermove={handleGlobalPointerMove}
   on:pointerup={finishDragging}
   on:pointercancel={finishDragging}
-  on:mousemove={handleGlobalMouseMove}
-  on:mouseup={finishDragging}
   on:keydown={handleWidgetKeydown}
 />
 
@@ -804,7 +815,7 @@
   class:dragging={isDragging}
   data-anchor-x={panelAnchorX}
   data-anchor-y={panelAnchorY}
-  style={panelInlineStyle}
+  style={getPanelInlineStyle(panelLeft, panelTop, isOpen, isListOpen, panelAnchorX, panelAnchorY)}
 >
   <div class="mp-shell {isOpen ? 'open' : 'closed'}">
     {#if isOpen}
@@ -821,7 +832,10 @@
               type="button"
               aria-label="拖动播放器"
               on:pointerdown={handleDragPointerDown}
+<<<<<<< HEAD
+=======
               on:mousedown={handleDragMouseDown}
+>>>>>>> origin/main
               on:click={handleDragHandleClick}
             ></button>
             <span></span>
@@ -968,14 +982,14 @@
               {#each filteredTracks as track}
                 <button
                   type="button"
-                  class="mp-track-row mp-li {track.url === currentTrack.url ? 'is-active' : ''}"
-                  on:click={(event) => handleTrackSelect(playlist.findIndex((item) => item.url === track.url), event)}
+                  class="mp-track-row mp-li {playlist.findIndex((item) => item === track) === currentIndex ? 'is-active' : ''}"
+                  on:click={(event) => handleTrackSelect(playlist.findIndex((item) => item === track), event)}
                 >
                   <div class="mp-track-copy">
                     <strong>{track.name}</strong>
                     <span>{track.artist}</span>
                   </div>
-                  <small>{track.url === currentTrack.url ? (isPlaying ? '正在听' : '已选中') : '播放'}</small>
+                  <small>{playlist.findIndex((item) => item === track) === currentIndex ? (isPlaying ? '正在听' : '已选中') : '播放'}</small>
                 </button>
               {/each}
             {:else}
@@ -1097,10 +1111,13 @@
     clip: rect(0, 0, 0, 0);
     white-space: nowrap;
     border: 0;
+<<<<<<< HEAD
+=======
   }
 
   .mp-bubble:active {
     cursor: grabbing;
+>>>>>>> origin/main
   }
 
   .mp-bubble-ring {

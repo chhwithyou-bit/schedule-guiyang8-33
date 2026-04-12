@@ -206,13 +206,40 @@
     }
   }
 
+<<<<<<< HEAD
+  async function primeShellFocus() {
+    await tick();
+
+    window.requestAnimationFrame(() => {
+      closeButtonRef?.focus();
+
+      window.requestAnimationFrame(() => {
+        if (!shouldRenderModalShell || !closeButtonRef) {
+          return;
+        }
+
+        const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        if (active === closeButtonRef) {
+          return;
+        }
+
+        if (!active || active === shellRef || !shellRef?.contains(active)) {
+          closeButtonRef.focus();
+        }
+=======
   $: if (shouldRenderModalShell && shellRef && !shellFocusPrimed) {
     shellFocusPrimed = true;
     tick().then(() => {
       requestAnimationFrame(() => {
         (closeButtonRef || getFocusableShellItems()[0] || shellRef)?.focus();
+>>>>>>> origin/main
       });
     });
+  }
+
+  $: if (shouldRenderModalShell && closeButtonRef && !shellFocusPrimed) {
+    shellFocusPrimed = true;
+    void primeShellFocus();
   }
 
   $: if (!shouldRenderModalShell) {
@@ -1001,7 +1028,10 @@
     <header class="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-white/10 bg-[rgba(var(--color-bg-rgb),0.92)] px-5 py-4 backdrop-blur-[20px] md:px-6">
       <div>
         <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">{embedded ? '社区消息台' : '控制台导航'}</p>
-        <h2 id="community-console-title" class="mt-1 text-2xl font-black tracking-tight">{accountOnly ? '账号面板' : '聊天 / 群组 / 网盘 / 提醒'}</h2>
+        <h2 id="community-console-title" class="mt-1 text-2xl font-black tracking-tight">聊天 / 群组 / 网盘 / 提醒</h2>
+        {#if activeTab === 'account'}
+          <p class="mt-2 inline-flex rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] opacity-75">个人面板</p>
+        {/if}
       </div>
 
       <div class="flex items-center gap-3">

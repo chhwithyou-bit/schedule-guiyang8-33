@@ -1,0 +1,28 @@
+name = "schedule-guiyang8-33-api"
+main = "src/index.ts"
+compatibility_date = "2026-04-10"
+
+[[kv_namespaces]]
+binding = "SCHEDULE_KV"
+id = "6a08c97d81c5489aa0f73be62c798627"
+
+[[d1_databases]]
+binding = "COMMUNITY_DB"
+database_name = "community_db"
+database_id = "6d9636b4-a7a9-4451-a701-7f48df456c6e"
+
+[[r2_buckets]]
+binding = "MUSIC_BUCKET"
+bucket_name = "music"
+
+[[r2_buckets]]
+binding = "COMMUNITY_R2"
+bucket_name = "community-media"
+
+[vars]
+APP_NAME = "schedule-guiyang8-33-api"
+GEMINI_API_KEY = ""
+GDRIVE_FOLDER_ID = "1JLM76eGeMI7AJB3PXiuPAQzEnt9AJhtg"
+GDRIVE_CLIENT_ID = ""
+GDRIVE_CLIENT_SECRET = ""
+GDRIVE_REFRESH_TOKEN = ""
