@@ -206,6 +206,7 @@
     }
   }
 
+<<<<<<< HEAD
   async function primeShellFocus() {
     await tick();
 
@@ -225,6 +226,13 @@
         if (!active || active === shellRef || !shellRef?.contains(active)) {
           closeButtonRef.focus();
         }
+=======
+  $: if (shouldRenderModalShell && shellRef && !shellFocusPrimed) {
+    shellFocusPrimed = true;
+    tick().then(() => {
+      requestAnimationFrame(() => {
+        (closeButtonRef || getFocusableShellItems()[0] || shellRef)?.focus();
+>>>>>>> origin/main
       });
     });
   }
@@ -979,13 +987,8 @@
     );
   }
 
-  function restoreLaunchFocus() {
-    if (typeof document === 'undefined') {
-      return;
-    }
-
-    const selector = $communityConsoleState.returnFocusSelector;
-    if (!selector) {
+  function restoreLaunchFocus(selector: string) {
+    if (typeof document === 'undefined' || !selector) {
       return;
     }
 
@@ -1000,9 +1003,10 @@
       return;
     }
 
-    restoreLaunchFocus();
+    const returnFocusSelector = $communityConsoleState.returnFocusSelector;
     resetCommunityConsoleState();
     closeModal();
+    restoreLaunchFocus(returnFocusSelector);
   }
 </script>
 

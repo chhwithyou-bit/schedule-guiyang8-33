@@ -13,10 +13,10 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
           cache: 'npm'
@@ -41,6 +41,17 @@ jobs:
 
       - name: Verify unit tests
         run: npm run test:unit
+
+          echo "Attempting to create D1 Database..."
+          wrangler d1 create community_db || true
+
+          # 执行建表 SQL
+          echo "Executing schema.sql..."
+          wrangler d1 execute community_db --remote --file=./schema.sql || true
+
+          # 尝试创建 R2 存储桶
+          echo "Attempting to create R2 Bucket..."
+          wrangler r2 bucket create community-media || true
 
       - name: Deploy to Cloudflare Workers
         env:

@@ -9,6 +9,7 @@ id = "6a08c97d81c5489aa0f73be62c798627"
 [[rules]]
 type = "Text"
 globs = ["**/*.html"]
+fallthrough = false
 fallbacks = []
 
 [assets]
