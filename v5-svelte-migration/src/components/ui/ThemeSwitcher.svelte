@@ -271,11 +271,11 @@
 <!-- Initial Access Palette Picker -->
 {#if showInitPanel}
   <div class="fixed inset-0 z-[1000010] flex items-center justify-center overflow-hidden bg-[var(--color-bg)] p-4 md:p-6">
-    <div class="aura-shell aura-shell--picker w-full max-w-5xl">
+    <div class="aura-shell aura-shell--picker w-full max-w-5xl" role="dialog" aria-modal="true" aria-labelledby="theme-picker-title">
       <div class="aura-picker-copy">
         <div class="max-w-xl">
           <p class="aura-kicker">Theme Archive</p>
-          <h2 class="text-[2rem] md:text-[2.8rem] font-black text-[#fff4ed] tracking-[-0.04em] leading-none">Pick Your Aura</h2>
+          <h2 id="theme-picker-title" class="text-[2rem] md:text-[2.8rem] font-black text-[#fff4ed] tracking-[-0.04em] leading-none">Pick Your Aura</h2>
           <p class="mt-2 text-[13px] md:text-[14px] text-[rgba(255,244,237,0.72)] leading-6">
             先选一种今天网站的气色，整站背景、阴影和发光会一起切换。
           </p>
@@ -292,7 +292,7 @@
             type="button"
             on:click|preventDefault|stopPropagation={(e) => handleThemeSwitch(theme.id, e, true)}
             data-theme-id={theme.id}
-            class="aura-card group relative overflow-hidden rounded-[28px] md:rounded-[40px] border border-white/10 bg-white/5 text-left transition-all duration-500 hover:scale-[1.02] hover:border-white/25 active:scale-[0.985]"
+            class="aura-card group relative overflow-hidden rounded-[28px] md:rounded-[40px] border border-white/10 bg-white/5 text-left transition-all duration-500 hover:scale-[1.015] hover:border-white/25 active:scale-[0.985]"
             style="--aura-a: {theme.primary}; --aura-b: {theme.secondary}; --aura-ink: {theme.accent}; --aura-bg: {theme.bg};"
           >
             <div class="aura-card-bg"></div>
@@ -342,6 +342,16 @@
     gap: 1.3rem;
     align-items: center;
     justify-items: center;
+    padding: 1.1rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 2.25rem;
+    background:
+      linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)),
+      linear-gradient(180deg, rgba(var(--color-bg-rgb), 0.42), rgba(var(--color-bg-rgb), 0.24));
+    box-shadow:
+      0 28px 64px rgba(var(--shadow-rgb), 0.22),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(24px) saturate(1.06);
   }
 
   .aura-picker-copy {
@@ -363,6 +373,9 @@
 
   .aura-card {
     min-height: clamp(12rem, 25vh, 15rem);
+    box-shadow:
+      0 18px 38px rgba(var(--shadow-rgb), 0.16),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12);
   }
 
   .aura-card-content {
@@ -408,9 +421,10 @@
     transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1), filter 0.9s ease;
   }
 
-  .aura-card:hover .aura-card-bg {
-    transform: scale(1.05);
-    filter: saturate(1.06);
+  .aura-card:hover .aura-card-bg,
+  .aura-card:focus-visible .aura-card-bg {
+    transform: scale(1.04);
+    filter: saturate(1.04);
   }
 
   .aura-card-noise {
@@ -446,6 +460,11 @@
     border: 1px solid rgba(255, 255, 255, 0.18);
     background: rgba(0, 0, 0, 0.14);
     color: rgba(255, 255, 255, 0.72);
+  }
+
+  .aura-card:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.82);
+    outline-offset: 4px;
   }
 
   .aura-swatches {

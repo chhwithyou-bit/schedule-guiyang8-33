@@ -1,9 +1,8 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
   import { fade, fly } from 'svelte/transition';
-  import { closeModal } from '../../stores/modalState';
+  import { closeModal, openModal } from '../../stores/modalState';
   import { user, isAuthenticated } from '../../stores/appState';
-  import { openModal } from '../../stores/modalState';
   import { communityFetch } from '../../lib/communityApi';
 
   let shellRef: HTMLElement | null = null;
@@ -110,7 +109,6 @@
         content = '';
         media = [];
         closeModal();
-        // Trigger a refresh event or update a store
         window.dispatchEvent(new CustomEvent('post-created'));
       } else {
         error = data.msg || '这条动态没有发出去。';
@@ -159,10 +157,10 @@
 </script>
 
 <div
-  class="fixed inset-0 z-[10000] flex items-center justify-center p-6"
-  transition:fade={{ duration: 300 }}
+  class="post-modal-frame fixed inset-0 z-[10000] flex items-center justify-center p-4 sm:p-6"
+  transition:fade={{ duration: 260 }}
 >
-  <button type="button" class="absolute inset-0 bg-black/60 backdrop-blur-xl" on:click={closeModal} aria-label="关闭发帖弹窗"></button>
+  <button type="button" class="post-modal-backdrop absolute inset-0" on:click={closeModal} aria-label="关闭发帖弹窗"></button>
 
   <div
     bind:this={shellRef}
@@ -171,13 +169,13 @@
     aria-modal="true"
     aria-labelledby="post-modal-title"
     tabindex="-1"
-    class="relative w-full max-w-xl bg-[var(--color-bg,#231b22)] text-[var(--color-text,#fff4ed)] rounded-[40px] p-8 shadow-2xl overflow-hidden border border-white/10"
-    transition:fly={{ y: 50, duration: 600, easing: (t) => t * (2 - t) }}
+    class="post-modal-shell relative w-full max-w-xl overflow-hidden rounded-[36px] p-6 text-[var(--color-text,#fff4ed)] sm:p-8"
+    transition:fly={{ y: 32, duration: 360, easing: (t) => t * (2 - t) }}
   >
     <div class="relative z-10">
-      <div class="flex items-center justify-between mb-8">
-        <h2 id="post-modal-title" class="text-3xl font-black tracking-tighter uppercase text-[var(--color-text,#fff4ed)]">发点近况</h2>
-        <button on:click={closeModal} class="p-2 opacity-20 hover:opacity-100 transition-opacity text-[var(--color-text,#fff4ed)]">
+      <div class="mb-8 flex items-center justify-between gap-4">
+        <h2 id="post-modal-title" class="text-3xl font-black uppercase tracking-tighter text-[var(--color-text,#fff4ed)]">发点近况</h2>
+        <button on:click={closeModal} class="post-modal-close p-2 transition-all text-[var(--color-text,#fff4ed)]" aria-label="关闭发帖弹窗">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
       </div>
@@ -187,11 +185,10 @@
         data-modal-initial-focus="true"
         bind:value={content}
         placeholder="今天想说什么，直接写下来。"
-        class="w-full h-40 px-6 py-6 rounded-3xl border border-white/30 bg-white/15 text-[var(--color-text,#fff4ed)] placeholder:text-[var(--color-text,#fff4ed)]/40 caret-[var(--color-primary,#fac7b7)] outline-none focus:border-[var(--color-primary,#fac7b7)] focus:bg-white/20 focus:ring-2 focus:ring-[var(--color-primary,#fac7b7)]/30 transition-all font-semibold text-lg resize-none mb-6"
-        style="background-color: rgba(255, 255, 255, 0.18);"
+        class="post-modal-textarea mb-6 h-40 w-full resize-none rounded-3xl px-6 py-6 text-lg font-semibold text-[var(--color-text,#fff4ed)] placeholder:text-[var(--color-text,#fff4ed)]/40 caret-[var(--color-primary,#fac7b7)] outline-none transition-all"
       ></textarea>
 
-      <div class="mb-6 rounded-[28px] border border-white/15 bg-white/10 p-5" style="background-color: rgba(255, 255, 255, 0.12);">
+      <div class="post-modal-status-panel mb-6 rounded-[28px] p-5">
         <div class="flex items-center justify-between gap-4">
           <div>
             <p class="text-sm font-black uppercase tracking-[0.24em] opacity-60">发帖面板</p>
@@ -207,13 +204,14 @@
       </div>
 
       {#if media.length > 0}
-        <div class="grid grid-cols-4 gap-4 mb-6">
+        <div class="mb-6 grid grid-cols-4 gap-4">
           {#each media as item, i}
-            <div class="relative aspect-square rounded-2xl overflow-hidden group">
-              <img src={item.url} alt="Preview" class="w-full h-full object-cover" />
-              <button 
+            <div class="post-modal-media-item relative aspect-square overflow-hidden rounded-2xl group">
+              <img src={item.url} alt="Preview" class="h-full w-full object-cover" />
+              <button
                 on:click={() => removeMedia(i)}
-                class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
+                class="post-modal-media-remove absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100"
+                aria-label="移除图片"
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
               </button>
@@ -223,35 +221,35 @@
       {/if}
 
       {#if error}
-        <p class="mb-6 rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-200">
+        <p class="post-modal-error mb-6 rounded-2xl px-4 py-3 text-sm font-bold text-red-100">
           {error}
         </p>
       {/if}
 
-      <div class="flex items-center justify-between">
+      <div class="flex items-center justify-between gap-4">
         <div class="flex gap-4">
-          <button 
+          <button
             on:click={openFilePicker}
-            class="w-14 h-14 flex items-center justify-center rounded-2xl bg-white/15 border border-white/30 hover:scale-110 active:scale-95 transition-all text-xl shadow-sm"
-            style="background-color: rgba(255, 255, 255, 0.18);"
+            class="post-modal-media-trigger flex h-14 w-14 items-center justify-center rounded-2xl text-xl transition-all"
             title="加图片"
+            aria-label="添加图片"
           >
-            🖼️
+            <span aria-hidden="true">+</span>
           </button>
-          <input 
-            type="file" 
-            accept="image/*" 
-            multiple 
-            class="hidden" 
-            bind:this={fileInput} 
-            on:change={handleFileUpload} 
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            class="hidden"
+            bind:this={fileInput}
+            on:change={handleFileUpload}
           />
         </div>
 
-        <button 
+        <button
           on:click={handleSubmit}
           disabled={loading || (!content.trim() && media.length === 0)}
-          class="px-10 py-5 bg-[var(--color-primary,#fac7b7)] text-[var(--color-button-text,#231b22)] font-black text-lg rounded-2xl shadow-lg hover:scale-[1.05] active:scale-95 transition-all disabled:opacity-30 disabled:hover:scale-100"
+          class="post-modal-submit rounded-2xl px-10 py-5 text-lg font-black transition-all disabled:opacity-30 disabled:hover:scale-100"
         >
           {loading ? '正在发出…' : '发出去'}
         </button>
@@ -259,3 +257,92 @@
     </div>
   </div>
 </div>
+
+<style>
+  .post-modal-frame {
+    isolation: isolate;
+  }
+
+  .post-modal-backdrop {
+    background:
+      radial-gradient(circle at top, rgba(var(--glow-primary-rgb), 0.12), transparent 42%),
+      linear-gradient(180deg, rgba(12, 10, 13, 0.38), rgba(12, 10, 13, 0.62));
+    backdrop-filter: blur(16px);
+  }
+
+  .post-modal-shell {
+    border: 1px solid rgba(var(--glow-primary-rgb), 0.12);
+    background:
+      linear-gradient(145deg, rgba(var(--glow-primary-rgb), 0.12), rgba(var(--glow-secondary-rgb), 0.08)),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(var(--color-bg-rgb), 0.18)),
+      rgba(var(--color-bg-rgb), 0.84);
+    box-shadow:
+      0 28px 80px rgba(var(--shadow-rgb), 0.26),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(22px) saturate(1.05);
+  }
+
+  .post-modal-close,
+  .post-modal-media-trigger {
+    border: 1px solid rgba(var(--glow-primary-rgb), 0.14);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(var(--color-bg-rgb), 0.12)),
+      rgba(var(--color-bg-rgb), 0.2);
+    box-shadow:
+      0 10px 24px rgba(var(--shadow-rgb), 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  }
+
+  .post-modal-close {
+    opacity: 0.72;
+  }
+
+  .post-modal-close:hover,
+  .post-modal-media-trigger:hover,
+  .post-modal-submit:hover {
+    transform: translateY(-1px);
+  }
+
+  .post-modal-textarea,
+  .post-modal-status-panel,
+  .post-modal-media-item,
+  .post-modal-error {
+    border: 1px solid rgba(var(--glow-primary-rgb), 0.12);
+    background:
+      linear-gradient(145deg, rgba(var(--glow-primary-rgb), 0.08), rgba(var(--glow-secondary-rgb), 0.05)),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(var(--color-bg-rgb), 0.12)),
+      rgba(var(--color-bg-rgb), 0.18);
+    box-shadow:
+      0 18px 42px rgba(var(--shadow-rgb), 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(16px);
+  }
+
+  .post-modal-textarea:focus {
+    border-color: rgba(var(--glow-primary-rgb), 0.32);
+    box-shadow:
+      0 0 0 2px rgba(var(--glow-primary-rgb), 0.16),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+
+  .post-modal-media-remove {
+    background: linear-gradient(180deg, rgba(12, 10, 13, 0.16), rgba(12, 10, 13, 0.5));
+    backdrop-filter: blur(12px);
+  }
+
+  .post-modal-error {
+    border-color: rgba(248, 113, 113, 0.24);
+    background:
+      linear-gradient(145deg, rgba(248, 113, 113, 0.16), rgba(127, 29, 29, 0.12)),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(127, 29, 29, 0.16)),
+      rgba(69, 10, 10, 0.24);
+  }
+
+  .post-modal-submit {
+    background: var(--color-primary, #fac7b7);
+    color: var(--color-button-text, #231b22);
+    box-shadow:
+      0 16px 34px rgba(var(--shadow-rgb), 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  }
+</style>
