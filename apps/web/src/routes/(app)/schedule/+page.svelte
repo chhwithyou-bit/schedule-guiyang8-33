@@ -90,6 +90,7 @@
   <div class="schedule-view__header">
     <div>
       <p class="route-kicker">today flow</p>
+      <h2 class="schedule-view__sr-only">课表</h2>
       <h1 id="schedule-title">课程安排</h1>
     </div>
     <p class="schedule-view__status" aria-live="polite">{syncStatus}</p>
@@ -202,6 +203,18 @@
     opacity: 0.45;
     text-transform: uppercase;
     white-space: nowrap;
+  }
+
+  .schedule-view__sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 
   .schedule-view__days {

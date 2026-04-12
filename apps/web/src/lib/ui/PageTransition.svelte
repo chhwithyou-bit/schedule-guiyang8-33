@@ -3,13 +3,14 @@
   export let prefersReducedMotion = false;
 </script>
 
-<div class:reduced={prefersReducedMotion} data-route-key={routeKey} class="page-transition-shell">
+<div class:reduced={prefersReducedMotion} data-route-key={routeKey} class="page-transition-wrapper page-transition-shell">
   <slot />
 </div>
 
 <style>
   .page-transition-shell {
     animation: wash-in 320ms ease-out;
+    overflow: visible;
   }
 
   .page-transition-shell.reduced {

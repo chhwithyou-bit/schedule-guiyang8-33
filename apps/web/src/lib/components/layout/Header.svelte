@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import { getVisibleNavItems, isPathActive } from '$lib/components/layout/nav';
 
@@ -15,6 +16,10 @@
 
   function isActive(href: string) {
     return isPathActive(page.url.pathname, href);
+  }
+
+  async function navigate(href: string) {
+    await goto(href);
   }
 
   $: visibleNavItems = getVisibleNavItems(isAdmin);
@@ -50,21 +55,22 @@
       class="group rounded-full px-2 py-1 text-left transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
       aria-label="前往社区首页"
     >
-      <h1 class="text-2xl font-black tracking-tighter transition-transform group-hover:scale-110">
+      <span class="text-2xl font-black tracking-tighter transition-transform group-hover:scale-110">
         8<span class="text-[var(--color-primary)]">社区</span>
-      </h1>
+      </span>
     </a>
 
     <div class="flex items-center gap-4 md:gap-6">
       <nav aria-label="主导航" class="header-switch-shell hidden items-center gap-2 p-1 md:flex">
         {#each visibleNavItems as item}
-          <a
-            href={item.href}
+          <button
+            type="button"
             class="header-switch {isActive(item.href) ? 'is-active' : ''}"
-            aria-current={isActive(item.href) ? 'page' : undefined}
+            aria-pressed={isActive(item.href)}
+            on:click={() => navigate(item.href)}
           >
             {item.shortLabel ?? item.label}
-          </a>
+          </button>
         {/each}
       </nav>
 
@@ -129,7 +135,11 @@
   }
 
   .header-switch {
+    border: 0;
     border-radius: 999px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
     padding: 0.6rem 0.9rem;
     font-size: 0.625rem;
     font-weight: 900;

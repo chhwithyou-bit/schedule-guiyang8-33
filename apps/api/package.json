@@ -4,8 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev",
-    "build": "wrangler deploy --dry-run",
+    "dev": "XDG_CONFIG_HOME=../../.wrangler-home wrangler dev",
+    "build": "XDG_CONFIG_HOME=../../.wrangler-home wrangler deploy --dry-run",
     "check": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {

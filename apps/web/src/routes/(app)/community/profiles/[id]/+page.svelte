@@ -154,8 +154,8 @@
   }
 </script>
 
-{#if user}
-  <section class="profile-page space-y-6">
+<section class="profile-page space-y-6">
+  {#if user}
     <section class="route-shell profile-hero" aria-label="个人主页详情">
       <div class="profile-hero__media">
         {#if user.background_url}
@@ -168,7 +168,11 @@
         <div class="profile-hero__topbar">
           <div>
             <p class="route-kicker">Profile detail</p>
-            <h1>{user.username}</h1>
+            <h1>个人主页</h1>
+            <div class="profile-hero__identity-line">
+              <strong>{user.username}</strong>
+              <code>{user.id}</code>
+            </div>
           </div>
           <a href="/community">返回社区</a>
         </div>
@@ -283,14 +287,29 @@
         <p class="profile-posts__empty">回头再来看看，这里还没有公开内容。</p>
       {/if}
     </section>
-  </section>
-{:else}
-  <section class="route-shell" aria-label="个人主页不可用">
-    <p class="route-kicker">Profile detail</p>
-    <h1>这个主页暂时不可用</h1>
-    <p>资料可能不存在，或者接口还没有同步到这条数据。</p>
-  </section>
-{/if}
+  {:else}
+    <section class="route-shell profile-hero" aria-label="个人主页详情">
+      <div class="profile-hero__content">
+        <div class="profile-hero__topbar">
+          <div>
+            <p class="route-kicker">Profile detail</p>
+            <h1>个人主页</h1>
+            {#if data?.id}
+              <div class="profile-hero__identity-line">
+                <code>{data.id}</code>
+              </div>
+            {/if}
+          </div>
+          <a href="/community">返回社区</a>
+        </div>
+
+        <div class="profile-summary">
+          <p>这个用户资料暂时没加载出来，但直接路由已经生效。</p>
+        </div>
+      </div>
+    </section>
+  {/if}
+</section>
 
 <style>
   .profile-page {
@@ -369,6 +388,25 @@
     font-size: clamp(1.8rem, 4vw, 2.8rem);
     font-weight: 900;
     letter-spacing: -0.03em;
+  }
+
+  .profile-hero__identity-line {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-top: 0.75rem;
+  }
+
+  .profile-hero__identity-line strong {
+    font-size: 1.1rem;
+    font-weight: 900;
+  }
+
+  .profile-hero__identity-line code {
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    padding: 0.35rem 0.65rem;
   }
 
   .profile-hero__topbar > a,
