@@ -209,7 +209,9 @@
   $: if (shouldRenderModalShell && shellRef && !shellFocusPrimed) {
     shellFocusPrimed = true;
     tick().then(() => {
-      (closeButtonRef || getFocusableShellItems()[0] || shellRef)?.focus();
+      requestAnimationFrame(() => {
+        (closeButtonRef || getFocusableShellItems()[0] || shellRef)?.focus();
+      });
     });
   }
 
@@ -958,13 +960,8 @@
     );
   }
 
-  function restoreLaunchFocus() {
-    if (typeof document === 'undefined') {
-      return;
-    }
-
-    const selector = $communityConsoleState.returnFocusSelector;
-    if (!selector) {
+  function restoreLaunchFocus(selector: string) {
+    if (typeof document === 'undefined' || !selector) {
       return;
     }
 
@@ -979,9 +976,10 @@
       return;
     }
 
-    restoreLaunchFocus();
+    const returnFocusSelector = $communityConsoleState.returnFocusSelector;
     resetCommunityConsoleState();
     closeModal();
+    restoreLaunchFocus(returnFocusSelector);
   }
 </script>
 

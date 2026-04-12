@@ -29,7 +29,7 @@
   const CLOSED_SIZE_REM = 4;
   const OPEN_WIDTH_REM = 21.25;
   const OPEN_BASE_HEIGHT_REM = 24.5;
-  const OPEN_LIST_EXTRA_REM = 12.5;
+  const OPEN_LIST_EXTRA_REM = 0;
   const DRAG_THRESHOLD = 10;
   const DRAG_THRESHOLD_MOBILE = 18;
   const AUTOPLAY_UNLOCK_EVENTS = ['pointerdown', 'keydown'] as const;
@@ -42,6 +42,7 @@
   let isListOpen = false;
   let isPlaying = false;
   let isDragging = false;
+  let isDragArmed = false;
   let dragMoved = false;
   let pendingAutoplayUnlock = false;
 
@@ -67,6 +68,7 @@
   let dragStartY = 0;
   let dragStartLeft = 0;
   let dragStartTop = 0;
+  let suppressClickUntil = 0;
   let lastBoundUrl = '';
 
   let progress = 0;
@@ -267,6 +269,15 @@
     panelLeft = next.left;
     panelTop = next.top;
     syncAnchor(panelLeft, panelTop, width, height);
+  }
+
+  function measurePanelRect() {
+    if (!widgetEl) {
+      return getPanelSize(isOpen, isListOpen);
+    }
+
+    const rect = widgetEl.getBoundingClientRect();
+    return { width: rect.width, height: rect.height };
   }
 
   function getOpenPositionFromAnchor(fromLeft = panelLeft, fromTop = panelTop, listOpen = isListOpen) {
@@ -498,14 +509,13 @@
   }
 
   function handleEnded() {
-    if (playlist.length > 1) {
-      playNext(undefined, true);
-      return;
-    }
-
     pauseCurrent();
     progress = 0;
     currentTime = 0;
+
+    if (audioEl) {
+      audioEl.currentTime = 0;
+    }
   }
 
   function handleAudioError() {
@@ -582,28 +592,18 @@
       return;
     }
 
-    const previous = getPanelSize(true, isListOpen);
     const nextListOpen = !isListOpen;
-    const next = getPanelSize(true, nextListOpen);
-
-    let nextLeft = panelLeft;
-    let nextTop = panelTop;
-
-    if (panelAnchorX === 'right') {
-      nextLeft += previous.width - next.width;
-    }
-
-    if (panelAnchorY === 'bottom') {
-      nextTop += previous.height - next.height;
-    }
 
     isListOpen = nextListOpen;
     search = nextListOpen ? search : '';
 
-    const clamped = clampPosition(nextLeft, nextTop, next.width, next.height);
+    await tick();
+
+    const nextRect = measurePanelRect();
+    const clamped = clampPosition(panelLeft, panelTop, nextRect.width, nextRect.height);
     panelLeft = clamped.left;
     panelTop = clamped.top;
-    syncAnchor(panelLeft, panelTop, next.width, next.height);
+    syncAnchor(panelLeft, panelTop, nextRect.width, nextRect.height);
   }
 
   function beginDragging(clientX: number, clientY: number, target: HTMLElement, pointerId?: number) {
@@ -618,7 +618,8 @@
     dragStartLeft = panelLeft;
     dragStartTop = panelTop;
     dragMoved = false;
-    isDragging = true;
+    isDragArmed = true;
+    isDragging = false;
 
     if (dragPointerId !== null) {
       dragCaptureEl?.setPointerCapture(dragPointerId);
@@ -633,25 +634,32 @@
   }
 
   function handleDragMouseDown(event: MouseEvent) {
-    if (isDragging || event.button !== 0) return;
+    if (event.button !== 0) return;
     event.stopPropagation();
     event.preventDefault();
     beginDragging(event.clientX, event.clientY, event.currentTarget as HTMLElement);
   }
 
+  function handleDragHandleClick(event: Event) {
+    if (shouldCancelControlClick(event)) return;
+    if (isOpen) {
+      void closePlayer();
+    }
+  }
+
   function handleGlobalPointerMove(event: PointerEvent) {
-    if (!isDragging || dragPointerId !== event.pointerId) return;
+    if ((!isDragArmed && !isDragging) || dragPointerId !== event.pointerId) return;
 
     const travel = Math.abs(event.clientX - dragStartX) + Math.abs(event.clientY - dragStartY);
     const threshold = event.pointerType === 'touch' ? DRAG_THRESHOLD_MOBILE : DRAG_THRESHOLD;
-    
+
     if (!dragMoved && travel <= threshold) return;
 
     if (!dragMoved) {
       dragMoved = true;
+      isDragging = true;
     }
 
-    // Prevent any default browser behavior (like scrolling) once we've confirmed it's a drag
     if (event.cancelable) {
       event.preventDefault();
     }
@@ -663,12 +671,13 @@
   }
 
   function handleGlobalMouseMove(event: MouseEvent) {
-    if (!isDragging || dragPointerId !== null) return;
+    if ((!isDragArmed && !isDragging) || dragPointerId !== null) return;
 
     const travel = Math.abs(event.clientX - dragStartX) + Math.abs(event.clientY - dragStartY);
     if (!dragMoved && travel <= DRAG_THRESHOLD) return;
 
     dragMoved = true;
+    isDragging = true;
 
     const { width, height } = getPanelSize(isOpen, isListOpen);
     const next = clampPosition(event.clientX - dragOffsetX, event.clientY - dragOffsetY, width, height);
@@ -677,8 +686,23 @@
   }
 
   function finishDragging(event?: PointerEvent | MouseEvent) {
-    if (!isDragging) return;
+    if (!isDragArmed && !isDragging) return;
     if (event && 'pointerId' in event && dragPointerId !== null && event.pointerId !== dragPointerId) return;
+
+    let didDrag = dragMoved;
+
+    if (!didDrag && event) {
+      const travel = Math.abs(event.clientX - dragStartX) + Math.abs(event.clientY - dragStartY);
+      const threshold = 'pointerType' in event && event.pointerType === 'touch' ? DRAG_THRESHOLD_MOBILE : DRAG_THRESHOLD;
+
+      if (travel > threshold) {
+        didDrag = true;
+        const { width, height } = getPanelSize(isOpen, isListOpen);
+        const next = clampPosition(event.clientX - dragOffsetX, event.clientY - dragOffsetY, width, height);
+        panelLeft = next.left;
+        panelTop = next.top;
+      }
+    }
 
     if (dragCaptureEl && dragPointerId !== null) {
       try {
@@ -686,27 +710,32 @@
       } catch {}
     }
 
-    if (dragMoved) {
+    if (didDrag) {
       const { width, height } = getPanelSize(isOpen, isListOpen);
       syncAnchor(panelLeft, panelTop, width, height);
+      suppressClickUntil = Date.now() + 160;
     } else {
       panelLeft = dragStartLeft;
       panelTop = dragStartTop;
+      suppressClickUntil = 0;
     }
 
     dragPointerId = null;
     dragCaptureEl = null;
+    isDragArmed = false;
     isDragging = false;
+    dragMoved = false;
   }
 
   function shouldCancelControlClick(event: Event) {
     event.stopPropagation();
 
-    if (!dragMoved) return false;
+    if (Date.now() < suppressClickUntil) {
+      event.preventDefault();
+      return true;
+    }
 
-    dragMoved = false;
-    event.preventDefault();
-    return true;
+    return false;
   }
 
   function handleEdgeClose(event: Event) {
@@ -786,19 +815,20 @@
 
       <div class="mp-card">
         <div class="mp-topbar">
-          <button
-            type="button"
-            class="mp-grip"
-            aria-label="拖动播放器"
-            on:pointerdown={handleDragPointerDown}
-            on:mousedown={handleDragMouseDown}
-          >
-            <div id="mp-drag-handle"></div>
+          <div class="mp-grip">
+            <button
+              id="mp-drag-handle"
+              type="button"
+              aria-label="拖动播放器"
+              on:pointerdown={handleDragPointerDown}
+              on:mousedown={handleDragMouseDown}
+              on:click={handleDragHandleClick}
+            ></button>
             <span></span>
             <span></span>
             <span></span>
             <small>拖动</small>
-          </button>
+          </div>
 
           <button type="button" class="mp-mini-btn" aria-label="收起播放器" on:click={handleEdgeClose}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -813,7 +843,6 @@
           class="mp-hero"
           aria-label="拖动播放器"
           on:pointerdown={handleDragPointerDown}
-          on:mousedown={handleDragMouseDown}
         >
           <div class="mp-cover-card">
             {#if currentTrack.cover}
@@ -960,10 +989,9 @@
         type="button"
         class="mp-bubble"
         aria-label="打开播放器"
-        on:pointerdown={handleBubblePointerDown}
-        on:mousedown={handleBubbleMouseDown}
         on:click={togglePlayerFromBubble}
       >
+        <span id="mp-name" class="mp-visually-hidden">{currentTrack.name}</span>
         <div class="mp-bubble-ring"></div>
         {#if currentTrack.cover}
           <img src={currentTrack.cover} alt={currentTrack.name} class="mp-cover-image" />
@@ -993,12 +1021,7 @@
   #mp {
     position: fixed;
     z-index: 10050;
-    transition:
-      left 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-      top 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-      width 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-      height 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-      filter 0.22s ease;
+    transition: filter 0.22s ease;
   }
 
   #mp.dragging {
@@ -1056,13 +1079,24 @@
     border: none;
     border-radius: inherit;
     overflow: hidden;
-    cursor: grab;
+    cursor: pointer;
     background: transparent;
     padding: 0;
-    touch-action: none;
     user-select: none;
     -webkit-user-drag: none;
     -webkit-tap-highlight-color: transparent;
+  }
+
+  .mp-visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 
   .mp-bubble:active {
@@ -1181,9 +1215,12 @@
     inset: 0;
     z-index: 10;
     cursor: grab;
+    border: none;
+    background: transparent;
+    padding: 0;
   }
 
-  .mp-grip:active {
+  #mp-drag-handle:active {
     cursor: grabbing;
   }
 
@@ -1606,9 +1643,12 @@
   .mp-list-panel.open {
     flex: 1 1 auto;
     max-height: 100%;
+    min-height: 0;
     margin-top: 0.08rem;
     padding: 0.58rem;
     opacity: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
     pointer-events: auto;
     transform: translate3d(0, 0, 0);
     border-radius: 22px;
@@ -1639,8 +1679,8 @@
 
   .mp-list-scroll {
     min-height: 0;
-    flex: 1 1 auto;
-    overflow: auto;
+    flex: 0 0 auto;
+    overflow: visible;
     display: flex;
     flex-direction: column;
     gap: 0.35rem;

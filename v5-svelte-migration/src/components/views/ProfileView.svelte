@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { fade, fly } from 'svelte/transition';
+  import { fly } from 'svelte/transition';
   import { onMount, onDestroy } from 'svelte';
   import { tick } from 'svelte';
-  import { currentView, selectedProfile, isAuthenticated, user } from '../../stores/appState';
+  import { currentView, selectedProfile, isAuthenticated, user, clearSelectedProfile } from '../../stores/appState';
   import { openModal } from '../../stores/modalState';
   import PostCard from './PostCard.svelte';
   import { communityFetch, persistCommunitySession } from '../../lib/communityApi';
@@ -14,6 +14,7 @@
   let followerCount = 0;
   let followingCount = 0;
   let profileScrollEl: HTMLDivElement;
+  let profileSurfaceEl: HTMLDivElement;
   let lastProfileId = '';
   let profileRequestToken = 0;
   let postsRequestToken = 0;
@@ -23,6 +24,24 @@
 
   $: viewedProfileUserId = $selectedProfile?.id || $selectedProfile?.user_id || '';
   $: isOwnProfile = Boolean($isAuthenticated && $user?.id && viewedProfileUserId && $user.id === viewedProfileUserId);
+  $: currentProfileId = $selectedProfile?.id || $selectedProfile?.user_id || '';
+
+  function resetProfileSurface() {
+    posts = [];
+    loading = true;
+    isFollowing = false;
+    followerCount = 0;
+    followingCount = 0;
+    uploadingAvatar = false;
+    uploadingBackground = false;
+  }
+
+  function primeProfileSurface() {
+    isFollowing = Boolean($selectedProfile?.viewer_is_following);
+    followerCount = Number($selectedProfile?.followers_count || 0);
+    followingCount = Number($selectedProfile?.following_count || 0);
+    loading = true;
+  }
 
   function syncProfileSurface(patch: Record<string, unknown>) {
     if ($selectedProfile) {
@@ -120,20 +139,23 @@
   }
 
 
-  $: currentProfileId = $selectedProfile?.id || $selectedProfile?.user_id || '';
-
   $: if (currentProfileId && currentProfileId !== lastProfileId) {
     lastProfileId = currentProfileId;
+    primeProfileSurface();
     void refreshProfileSurface();
   }
 
   $: if (!currentProfileId) {
     lastProfileId = '';
+    profileRequestToken += 1;
+    postsRequestToken += 1;
+    resetProfileSurface();
   }
 
   async function refreshProfileSurface() {
     await tick();
     scrollProfileToTop();
+    profileSurfaceEl?.focus();
     await Promise.all([fetchProfileData(), fetchUserPosts()]);
   }
 
@@ -147,6 +169,7 @@
 
   onMount(() => {
     window.addEventListener('community-post-updated', handlePostUpdated as EventListener);
+    tick().then(() => profileSurfaceEl?.focus());
   });
 
   onDestroy(() => {
@@ -251,7 +274,7 @@
         tab: 'chats',
         conversationId: data.conversation?.id || ''
       });
-      selectedProfile.set(null);
+      clearSelectedProfile();
       currentView.set('console');
     } catch (e) {
       console.error('Direct chat failed', e);
@@ -259,199 +282,288 @@
   }
 
   function close() {
-    selectedProfile.set(null);
+    clearSelectedProfile();
+  }
+
+  function handleOverlayKeydown(event: KeyboardEvent) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      close();
+    }
   }
 </script>
 
 {#if $selectedProfile}
-  <div 
-    class="fixed inset-0 z-[7000] flex flex-col bg-[var(--color-bg)] overflow-hidden"
+  <div
+    bind:this={profileSurfaceEl}
+    class="fixed inset-0 z-[7000] overflow-hidden bg-[var(--color-bg)]/92 backdrop-blur-md"
+    role="dialog"
+    aria-modal="true"
+    aria-label={`${$selectedProfile.username || '用户'} 的个人主页`}
+    tabindex="-1"
+    on:keydown={handleOverlayKeydown}
     transition:fly={{ y: 100, duration: 600, easing: (t) => t * (2 - t) }}
   >
-    <!-- Background Header -->
-    <div class="relative h-[14rem] flex-shrink-0 sm:h-[17rem] md:h-80 group">
-      {#if isOwnProfile}
-        <div class="absolute right-4 top-4 z-20 transition-opacity sm:right-6 sm:top-6">
-            <div class="relative overflow-hidden rounded-full bg-black/50 px-4 py-2 text-xs font-bold text-white backdrop-blur-xl hover:bg-black/70 border border-white/20">
-              {uploadingBackground ? '上传中...' : '更换壁纸'}
-              <input type="file" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" on:change={handleBackgroundUpload} disabled={uploadingBackground} />
-            </div>
-        </div>
-      {/if}
-      {#if $selectedProfile.background_url}
-        <img src={$selectedProfile.background_url} alt="Background" class="w-full h-full object-cover" />
-      {:else}
-        <div class="w-full h-full bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.18),transparent_36%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02)),linear-gradient(160deg,#0d1330,#1f2947_55%,#121828)] opacity-95"></div>
-      {/if}
-
-      <div class="absolute inset-0 bg-gradient-to-b from-black/15 via-black/10 to-[var(--color-bg)]/88"></div>
-      
-      <!-- Back Button -->
-      <button 
-        on:click={close}
-        class="absolute left-4 top-4 rounded-full bg-black/25 p-3 text-white backdrop-blur-xl transition-transform hover:scale-110 sm:left-6 sm:top-6"
-      >
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-      </button>
-
-      <!-- Profile Header Overlay -->
-      <div class="absolute bottom-0 left-4 right-4 translate-y-1/2 sm:left-6 sm:right-6 md:left-12 md:right-12">
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div class="flex items-end gap-4 sm:gap-6">
-            <div class="h-28 w-28 overflow-hidden rounded-[36px] border-4 border-white/20 bg-white/10 p-2 shadow-2xl sm:h-32 sm:w-32 md:h-40 md:w-40 md:rounded-[48px] relative group backdrop-blur-xl">
-              
-              <div class="flex h-full w-full items-center justify-center overflow-hidden rounded-[28px] bg-white/5 md:rounded-[40px]">
-                {#if $selectedProfile.avatar_url}
-                  <img src={$selectedProfile.avatar_url} alt="Avatar" class="w-full h-full object-cover" />
-                {:else}
-                  <span class="text-4xl font-black text-[var(--color-primary)]">
-                    {$selectedProfile.username?.slice(0, 1).toUpperCase()}
-                  </span>
-                {/if}
-              </div>
-              {#if isOwnProfile}
-                <label class="absolute bottom-2 right-2 z-10 flex min-h-9 min-w-9 cursor-pointer items-center justify-center rounded-full bg-black/60 px-3 text-[11px] font-black text-white shadow-lg backdrop-blur-xl transition-transform hover:scale-105 md:bottom-3 md:right-3 border border-white/20">
-                  {uploadingAvatar ? '上传中' : '更换'}
-                  <input type="file" accept="image/*" class="absolute inset-0 h-full w-full cursor-pointer opacity-0" on:change={handleAvatarUpload} disabled={uploadingAvatar} />
-                </label>
-              {/if}
-            </div>
-
-            <div class="pb-2 text-white">
-              <p class="text-[10px] font-black uppercase tracking-[0.24em] text-white/55">个人主页</p>
-              <h1 class="mt-2 text-3xl font-black tracking-tighter sm:text-4xl md:text-5xl">{$selectedProfile.username}</h1>
-              <p class="mt-2 text-[11px] font-black uppercase tracking-[0.22em] text-white/60">
-                {#if $selectedProfile.background_url}
-                  当前壁纸已启用
-                {:else}
-                  使用默认背景
-                {/if}
-              </p>
-            </div>
-          </div>
-
-          <div class="flex flex-wrap items-center gap-3">
-            {#if isOwnProfile}
-              <label class="relative inline-flex cursor-pointer items-center gap-2 self-start rounded-full border border-white/30 bg-white/15 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-white/85 backdrop-blur-xl transition-transform hover:scale-105 sm:self-end" style="background-color: rgba(255, 255, 255, 0.18);">
-                {uploadingAvatar ? '头像上传中' : '上传头像'}
-                <input type="file" accept="image/*" class="absolute inset-0 h-full w-full cursor-pointer opacity-0" on:change={handleAvatarUpload} disabled={uploadingAvatar} />
-              </label>
-              <label class="relative inline-flex cursor-pointer items-center gap-2 self-start rounded-full border border-white/30 bg-white/15 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-white/85 backdrop-blur-xl transition-transform hover:scale-105 sm:self-end" style="background-color: rgba(255, 255, 255, 0.18);">
-                {uploadingBackground ? '壁纸上传中' : '上传壁纸'}
-                <input type="file" accept="image/*" class="absolute inset-0 h-full w-full cursor-pointer opacity-0" on:change={handleBackgroundUpload} disabled={uploadingBackground} />
-              </label>
-            {/if}
+    <div bind:this={profileScrollEl} class="h-full overflow-y-auto px-4 pb-16 pt-6 sm:px-6 sm:pb-20 sm:pt-8 md:px-10 lg:px-12">
+      <div class="mx-auto max-w-5xl">
+        <section class="profile-shell overflow-hidden rounded-[32px] md:rounded-[40px]">
+          <div class="profile-hero relative min-h-[19rem] sm:min-h-[22rem] md:min-h-[26rem]">
             {#if $selectedProfile.background_url}
-              <a
-                href={$selectedProfile.background_url}
-                target="_blank"
-                rel="noreferrer"
-                class="inline-flex items-center gap-2 self-start rounded-full border border-white/15 bg-black/25 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-white/80 backdrop-blur-xl transition-transform hover:scale-105 sm:self-end"
-              >
-                查看壁纸
-              </a>
+              <img src={$selectedProfile.background_url} alt="Background" class="absolute inset-0 h-full w-full object-cover" />
+            {:else}
+              <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.18),transparent_36%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02)),linear-gradient(160deg,#0d1330,#1f2947_55%,#121828)] opacity-95"></div>
             {/if}
-          </div>
-        </div>
-      </div>
-    </div>
 
-    <!-- Main Content Area -->
-    <div bind:this={profileScrollEl} class="flex-1 overflow-y-auto px-4 pb-16 pt-20 sm:px-6 sm:pt-24 md:px-12 md:pt-28 md:pb-20">
-      <div class="max-w-4xl mx-auto">
-        <!-- Stats & Info -->
-        <div class="mb-10 flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
-          <div class="flex-1">
-            <div class="flex items-center gap-3 mb-2">
-              <h2 class="text-3xl font-black tracking-tighter sm:text-4xl">{$selectedProfile.username}</h2>
-              {#if $selectedProfile.role === 'admin'}
-                <span class="px-2 py-1 rounded-lg bg-[var(--color-primary)] text-[10px] text-white font-black uppercase tracking-widest">管理员</span>
-              {/if}
-            </div>
-            <p class="text-sm font-bold opacity-30 uppercase tracking-[0.2em] mb-4">
-              LV.{$selectedProfile.level || 1} · XP.{$selectedProfile.xp || 0}
-            </p>
-            <p class="max-w-2xl text-base font-medium leading-relaxed opacity-70">
-              {$selectedProfile.signature || '这个人还没写自我介绍。'}
-            </p>
-          </div>
+            <div class="absolute inset-0 bg-gradient-to-b from-black/18 via-black/18 to-[var(--color-bg)]/92"></div>
+            <div class="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/18 to-transparent"></div>
 
-          <div class="flex flex-wrap items-center gap-5">
-            <div class="text-center">
-              <p class="text-2xl font-black tracking-tighter">{followingCount}</p>
-              <p class="text-[10px] font-black opacity-30 uppercase tracking-widest">关注中</p>
-            </div>
-            <div class="text-center">
-              <p class="text-2xl font-black tracking-tighter">{followerCount}</p>
-              <p class="text-[10px] font-black opacity-30 uppercase tracking-widest">关注者</p>
-            </div>
-            
-            {#if $user && $user.id !== ($selectedProfile.id || $selectedProfile.user_id)}
-              <div class="ml-4 flex flex-wrap gap-3">
-                <button 
-                  on:click={startDirectChat}
-                  class="px-8 py-4 rounded-2xl border border-white/10 bg-white/5 font-black text-sm tracking-widest uppercase transition-all hover:scale-105"
+            <div class="relative z-[1] flex min-h-[inherit] flex-col p-4 sm:p-6 md:p-8">
+              <div class="flex items-start justify-between gap-4">
+                <button
+                  on:click={close}
+                  class="profile-hero__control inline-flex h-12 w-12 items-center justify-center rounded-full text-white transition-transform hover:scale-105"
+                  aria-label="关闭个人主页"
                 >
-                  打个招呼
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
                 </button>
-                <button 
-                  on:click={toggleFollow}
-                  class="px-8 py-4 rounded-2xl font-black text-sm tracking-widest uppercase transition-all
-                         {isFollowing ? 'bg-white/10 border border-white/10 opacity-60' : 'bg-[var(--color-primary)] text-white shadow-lg scale-105'}"
-                >
-                  {isFollowing ? '取消关注' : '关注一下'}
-                </button>
+
+                <div class="flex flex-wrap justify-end gap-2.5">
+                  {#if $selectedProfile.background_url}
+                    <a
+                      href={$selectedProfile.background_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      class="profile-hero__control inline-flex min-h-11 items-center gap-2 rounded-full px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-white/80 transition-transform hover:scale-[1.02]"
+                    >
+                      查看壁纸
+                    </a>
+                  {/if}
+                </div>
               </div>
-            {/if}
-          </div>
-        </div>
 
-        <section class="mb-10 grid gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(18rem,0.7fr)]">
-          <div class="rounded-[28px] border border-white/10 bg-white/5 p-5 shadow-xl backdrop-blur-xl">
-            <p class="text-[10px] font-black uppercase tracking-[0.22em] opacity-35">个性签名</p>
-            <p class="mt-3 text-sm font-medium leading-7 opacity-75 sm:text-base">
-              {$selectedProfile.signature || '这里还没有留下自定义签名。'}
-            </p>
-          </div>
+              <div class="mt-auto pt-16 sm:pt-20 md:pt-24">
+                <div class="profile-identity-card rounded-[30px] p-4 sm:p-5 md:p-6">
+                  <div class="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+                    <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:gap-5 md:gap-6">
+                      <div class="profile-avatar-frame relative h-28 w-28 overflow-hidden rounded-[32px] p-2 shadow-2xl sm:h-32 sm:w-32 md:h-40 md:w-40 md:rounded-[42px]">
+                        <div class="flex h-full w-full items-center justify-center overflow-hidden rounded-[24px] bg-white/5 md:rounded-[34px]">
+                          {#if $selectedProfile.avatar_url}
+                            <img src={$selectedProfile.avatar_url} alt="Avatar" class="h-full w-full object-cover" />
+                          {:else}
+                            <span class="text-4xl font-black text-[var(--color-primary)]">
+                              {$selectedProfile.username?.slice(0, 1).toUpperCase()}
+                            </span>
+                          {/if}
+                        </div>
+                        {#if isOwnProfile}
+                          <label class="profile-avatar-action absolute bottom-2 right-2 z-10 flex min-h-9 min-w-9 cursor-pointer items-center justify-center rounded-full px-3 text-[11px] font-black text-white transition-transform hover:scale-105 md:bottom-3 md:right-3">
+                            {uploadingAvatar ? '上传中' : '更换'}
+                            <input type="file" accept="image/*" class="absolute inset-0 h-full w-full cursor-pointer opacity-0" on:change={handleAvatarUpload} disabled={uploadingAvatar} />
+                          </label>
+                        {/if}
+                      </div>
 
-          <div class="rounded-[28px] border border-white/10 bg-white/5 p-5 shadow-xl backdrop-blur-xl">
-            <p class="text-[10px] font-black uppercase tracking-[0.22em] opacity-35">主页壁纸</p>
-            <p class="mt-3 text-sm font-medium leading-7 opacity-70">
-              {#if $selectedProfile.background_url}
-                这张壁纸会作为个人主页头图显示，点击顶部按钮可以单独打开查看。
-              {:else}
-                还没设置自定义壁纸，现在展示的是默认背景。
-              {/if}
-            </p>
+                      <div class="min-w-0 text-white">
+                        <p class="text-[10px] font-black uppercase tracking-[0.24em] text-white/52">个人主页</p>
+                        <h1 class="mt-2 break-words text-3xl font-black tracking-tighter sm:text-4xl md:text-5xl">{$selectedProfile.username}</h1>
+                        <div class="mt-3 flex flex-wrap items-center gap-2.5 text-[11px] font-black uppercase tracking-[0.18em] text-white/62">
+                          <span class="rounded-full border border-white/10 bg-white/8 px-3 py-1.5">
+                            {#if $selectedProfile.background_url}
+                              当前壁纸已启用
+                            {:else}
+                              使用默认背景
+                            {/if}
+                          </span>
+                          <span class="rounded-full border border-white/10 bg-white/8 px-3 py-1.5">
+                            LV.{$selectedProfile.level || 1} · XP.{$selectedProfile.xp || 0}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2.5 lg:max-w-[22rem] lg:justify-end">
+                      {#if isOwnProfile}
+                        <label class="profile-identity-chip relative inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-[1.02]">
+                          {uploadingAvatar ? '头像上传中' : '上传头像'}
+                          <input type="file" accept="image/*" class="absolute inset-0 h-full w-full cursor-pointer opacity-0" on:change={handleAvatarUpload} disabled={uploadingAvatar} />
+                        </label>
+                        <label class="profile-identity-chip relative inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform hover:scale-[1.02]">
+                          {uploadingBackground ? '壁纸上传中' : '上传壁纸'}
+                          <input type="file" accept="image/*" class="absolute inset-0 h-full w-full cursor-pointer opacity-0" on:change={handleBackgroundUpload} disabled={uploadingBackground} />
+                        </label>
+                      {/if}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
-        <!-- Post Feed -->
-        <div class="space-y-8">
-          <h3 class="text-xl font-black uppercase tracking-tighter border-b border-neutral-100 dark:border-neutral-900 pb-4 mb-8">
-            发过的内容
-            <span class="ml-2 text-sm opacity-30">({posts.length})</span>
-          </h3>
+        <div class="mx-auto max-w-4xl px-1 pt-6 sm:pt-8 md:pt-10">
+          <div class="profile-summary-panel mb-10 rounded-[30px] p-5 sm:p-6">
+            <div class="flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
+              <div class="flex-1">
+                <div class="mb-2 flex flex-wrap items-center gap-3">
+                  <h2 class="text-3xl font-black tracking-tighter sm:text-4xl">{$selectedProfile.username}</h2>
+                  {#if $selectedProfile.role === 'admin'}
+                    <span class="rounded-lg bg-[var(--color-primary)] px-2 py-1 text-[10px] font-black uppercase tracking-widest text-white">管理员</span>
+                  {/if}
+                </div>
+                <p class="max-w-2xl text-base font-medium leading-relaxed opacity-72">
+                  {$selectedProfile.signature || '这个人还没写自我介绍。'}
+                </p>
+              </div>
 
-          {#if loading}
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {#each Array(4) as _}
-                <div class="h-64 rounded-[32px] bg-white/5 border border-white/5 animate-pulse"></div>
-              {/each}
+              <div class="flex flex-wrap items-center gap-3 sm:gap-5">
+                <div class="profile-stat-chip text-center">
+                  <p class="text-2xl font-black tracking-tighter">{followingCount}</p>
+                  <p class="text-[10px] font-black uppercase tracking-widest opacity-35">关注中</p>
+                </div>
+                <div class="profile-stat-chip text-center">
+                  <p class="text-2xl font-black tracking-tighter">{followerCount}</p>
+                  <p class="text-[10px] font-black uppercase tracking-widest opacity-35">关注者</p>
+                </div>
+
+                {#if $user && $user.id !== ($selectedProfile.id || $selectedProfile.user_id)}
+                  <div class="flex flex-wrap gap-3 sm:ml-2">
+                    <button
+                      on:click={startDirectChat}
+                      class="profile-action-button rounded-2xl px-6 py-3 text-sm font-black uppercase tracking-[0.18em] transition-all hover:-translate-y-0.5"
+                    >
+                      打个招呼
+                    </button>
+                    <button
+                      on:click={toggleFollow}
+                      class:is-active={!isFollowing}
+                      class="profile-action-button rounded-2xl px-6 py-3 text-sm font-black uppercase tracking-[0.18em] transition-all hover:-translate-y-0.5"
+                    >
+                      {isFollowing ? '取消关注' : '关注一下'}
+                    </button>
+                  </div>
+                {/if}
+              </div>
             </div>
-          {:else if posts.length > 0}
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {#each posts as post (post.id)}
-                <PostCard {post} />
-              {/each}
+          </div>
+
+          <section class="mb-10 grid gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(18rem,0.7fr)]">
+            <div class="profile-info-card rounded-[28px] p-5">
+              <p class="text-[10px] font-black uppercase tracking-[0.22em] opacity-35">个性签名</p>
+              <p class="mt-3 text-sm font-medium leading-7 opacity-75 sm:text-base">
+                {$selectedProfile.signature || '这里还没有留下自定义签名。'}
+              </p>
             </div>
-          {:else}
-            <div class="py-24 text-center opacity-20 font-black uppercase tracking-widest text-sm">
-              这里暂时还没有公开内容。
+
+            <div class="profile-info-card rounded-[28px] p-5">
+              <p class="text-[10px] font-black uppercase tracking-[0.22em] opacity-35">主页壁纸</p>
+              <p class="mt-3 text-sm font-medium leading-7 opacity-70">
+                {#if $selectedProfile.background_url}
+                  这张壁纸会作为个人主页头图显示，点击顶部按钮可以单独打开查看。
+                {:else}
+                  还没设置自定义壁纸，现在展示的是默认背景。
+                {/if}
+              </p>
             </div>
-          {/if}
+          </section>
+
+          <div class="space-y-8">
+            <h3 class="border-b border-neutral-100 pb-4 text-xl font-black uppercase tracking-tighter dark:border-neutral-900">
+              发过的内容
+              <span class="ml-2 text-sm opacity-30">({posts.length})</span>
+            </h3>
+
+            {#if loading}
+              <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                {#each Array(4) as _}
+                  <div class="h-64 rounded-[32px] border border-white/5 bg-white/5 animate-pulse"></div>
+                {/each}
+              </div>
+            {:else if posts.length > 0}
+              <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                {#each posts as post (post.id)}
+                  <PostCard {post} />
+                {/each}
+              </div>
+            {:else}
+              <div class="py-24 text-center text-sm font-black uppercase tracking-widest opacity-20">
+                这里暂时还没有公开内容。
+              </div>
+            {/if}
+          </div>
         </div>
       </div>
     </div>
   </div>
 {/if}
+
+<style>
+  .profile-shell,
+  .profile-summary-panel,
+  .profile-info-card {
+    border: 1px solid rgba(var(--glow-primary-rgb), 0.14);
+    background:
+      linear-gradient(145deg, rgba(var(--glow-primary-rgb), 0.14), rgba(var(--glow-secondary-rgb), 0.08)),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(var(--color-bg-rgb), 0.18)),
+      rgba(var(--color-bg-rgb), 0.3);
+    box-shadow:
+      0 22px 54px rgba(var(--shadow-rgb), 0.16),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(18px) saturate(1.05);
+  }
+
+  .profile-hero__control,
+  .profile-identity-chip,
+  .profile-stat-chip,
+  .profile-action-button,
+  .profile-avatar-action,
+  .profile-identity-card {
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow:
+      0 14px 30px rgba(var(--shadow-rgb), 0.14),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(18px) saturate(1.06);
+  }
+
+  .profile-hero__control,
+  .profile-identity-chip,
+  .profile-stat-chip,
+  .profile-action-button,
+  .profile-avatar-action {
+    background:
+      linear-gradient(145deg, rgba(var(--glow-primary-rgb), 0.14), rgba(var(--glow-secondary-rgb), 0.08)),
+      rgba(var(--color-bg-rgb), 0.22);
+  }
+
+  .profile-identity-card {
+    background:
+      linear-gradient(160deg, rgba(8, 10, 20, 0.16), rgba(var(--color-bg-rgb), 0.4)),
+      rgba(var(--color-bg-rgb), 0.18);
+  }
+
+  .profile-avatar-frame {
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background:
+      linear-gradient(145deg, rgba(var(--glow-primary-rgb), 0.2), rgba(var(--glow-secondary-rgb), 0.1)),
+      rgba(var(--color-bg-rgb), 0.24);
+    box-shadow:
+      0 24px 42px rgba(var(--shadow-rgb), 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.14);
+    backdrop-filter: blur(20px) saturate(1.08);
+  }
+
+  .profile-action-button.is-active {
+    background: var(--color-primary);
+    border-color: rgba(var(--glow-primary-rgb), 0.34);
+    box-shadow:
+      0 18px 36px rgba(var(--shadow-rgb), 0.18),
+      0 10px 24px rgba(var(--glow-primary-rgb), 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.16);
+    color: white;
+  }
+
+  @media (max-width: 640px) {
+    .profile-summary-panel {
+      padding: 1.25rem;
+    }
+  }
+</style>

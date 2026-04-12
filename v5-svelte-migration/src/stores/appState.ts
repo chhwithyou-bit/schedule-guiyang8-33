@@ -19,3 +19,7 @@ export const selectedPost = writable<any>(null);
 
 // Profile Store
 export const selectedProfile = writable<any>(null);
+
+export function clearSelectedProfile() {
+  selectedProfile.set(null);
+}
