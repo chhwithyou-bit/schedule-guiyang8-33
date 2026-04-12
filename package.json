@@ -1,10 +1,23 @@
 {
   "name": "schedule-guiyang8-33",
   "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "wrangler dev",
-    "dev:test": "wrangler dev --port 8787 --ip 127.0.0.1",
-    "test:unit": "node --test 'tests/unit/**/*.test.mjs'",
+    "build:web": "npm run build --workspace @schedule-guiyang/web",
+    "build:api": "npm run build --workspace @schedule-guiyang/api",
+    "build:web:runtime": "node --input-type=module -e \"import fs from 'node:fs';import path from 'node:path';const publicAssets=path.join(process.cwd(),'public','assets');fs.rmSync(publicAssets,{recursive:true,force:true});fs.mkdirSync(publicAssets,{recursive:true});\" && npm run build --workspace @schedule-guiyang/web && node --input-type=module -e \"import fs from 'node:fs';import path from 'node:path';import { pathToFileURL } from 'node:url';const root=process.cwd();const webDir=path.join(root,'apps','web');const outputDir=path.join(webDir,'.svelte-kit','output');const clientDir=path.join(outputDir,'client');const publicDir=path.join(root,'public');const appAssetsSrc=path.join(clientDir,'_app');const appAssetsDest=path.join(publicDir,'_app');const serverMod=await import(pathToFileURL(path.join(outputDir,'server','index.js')).href);const manifestMod=await import(pathToFileURL(path.join(outputDir,'server','manifest-full.js')).href);const server=new serverMod.Server(manifestMod.manifest);await server.init({env:process.env,read:()=>null});const response=await server.respond(new Request('http://schedule-guiyang.local/'),{getClientAddress(){return '127.0.0.1';},locals:{},platform:{env:process.env},read:()=>null});if(!response.ok){throw new Error('Failed to render runtime shell: '+response.status);}let html=await response.text();html=html.replaceAll('./_app/','/_app/');fs.mkdirSync(publicDir,{recursive:true});fs.rmSync(appAssetsDest,{recursive:true,force:true});fs.cpSync(appAssetsSrc,appAssetsDest,{recursive:true});fs.writeFileSync(path.join(root,'index.html'),html);fs.writeFileSync(path.join(publicDir,'index.html'),html);console.log('Prepared runtime shell from apps/web build output');\"",
+    "dev": "npm run build:web:runtime && XDG_CONFIG_HOME=.wrangler-home wrangler dev",
+    "dev:test": "npm run build:web:runtime && XDG_CONFIG_HOME=.wrangler-home wrangler dev --port ${PLAYWRIGHT_PORT:-8787} --ip 127.0.0.1",
+    "dev:web": "npm run dev --workspace @schedule-guiyang/web",
+    "dev:api": "npm run dev --workspace @schedule-guiyang/api",
+    "deploy": "npm run build:web:runtime && XDG_CONFIG_HOME=.wrangler-home wrangler deploy",
+    "check:web": "npm run check --workspace @schedule-guiyang/web",
+    "check:api": "npm run check --workspace @schedule-guiyang/api",
+    "check:db": "npm run check --workspace @schedule-guiyang/db",
+    "test:unit": "node --test tests/unit/*.test.mjs",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:install": "playwright install chromium"
