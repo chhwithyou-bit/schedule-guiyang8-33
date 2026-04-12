@@ -253,7 +253,7 @@
         <div>
           <p class="section-kicker">创建群聊</p>
           <h2>建一个新群</h2>
-          <p>保留 legacy console 的建群能力，但改成直出页面表单，创建后立即回到发现与已加入列表。</p>
+          <p>建群能力已经切到独立页面表单，创建后会立即回到发现与已加入列表。</p>
         </div>
 
         <label class="field-block">

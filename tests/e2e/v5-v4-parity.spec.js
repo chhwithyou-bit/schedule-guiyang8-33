@@ -17,8 +17,8 @@ test.beforeEach(async ({ page }) => {
   await settleTheme(page);
 });
 
-test.describe('route-first migration parity', () => {
-  test('community route is the stable primary entry instead of the legacy shell home', async ({ page }) => {
+test.describe('route-native runtime parity', () => {
+  test('community route is the stable primary entry', async ({ page }) => {
     await page.goto('/community');
 
     await expect(page.getByRole('heading', { name: '社区' })).toBeVisible();
@@ -52,7 +52,7 @@ test.describe('route-first migration parity', () => {
     await expect(page).toHaveURL(/\/community\/profiles\/user-2$/);
   });
 
-  test('console hub replaces the old all-in-one legacy modal entrypoint', async ({ page }) => {
+  test('console hub exposes the split route-native entrypoints', async ({ page }) => {
     await page.goto('/console');
 
     await expect(page.getByRole('heading', { name: '消息、群组、网盘' })).toBeVisible();

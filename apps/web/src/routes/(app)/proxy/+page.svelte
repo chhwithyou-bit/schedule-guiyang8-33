@@ -7,7 +7,7 @@
         role: 'user',
         parts: [
           {
-            text: '用一句话说明这个代理页现在已经迁移为 apps/web 的 route-native 精简版本。'
+            text: '用一句话说明这个代理页现在是 apps/web 下的 route-native 调试页。'
           }
         ]
       }
@@ -84,14 +84,14 @@
     <div>
       <p class="route-kicker">Proxy tools</p>
       <h1 id="proxy-title">代理服务</h1>
-      <p>这里不再只是占位说明，而是直接给出可用的 Gemini 代理调试页，继续沿用旧 Worker 的 <code>{GEMINI_PROXY_PATH}</code> POST JSON 契约。</p>
+      <p>这里直接提供可用的 Gemini 代理调试页，沿用 <code>{GEMINI_PROXY_PATH}</code> 的 POST JSON 契约。</p>
     </div>
     <div class="proxy-page__summary" aria-label="代理页范围说明">
       <p class="proxy-page__summary-label">route-native 精简版</p>
       <ul>
-        <li>保留现有 worker API，不额外改动鉴权和上游协议。</li>
+        <li>保留现有 API 契约，不额外改动鉴权和上游协议。</li>
         <li>提供示例请求体、原始响应预览和状态提示。</li>
-        <li>便于后续把更多 proxy 工具继续拆到 apps/web 下。</li>
+        <li>便于后续把更多 proxy 工具继续收进 apps/web。</li>
       </ul>
     </div>
   </header>
