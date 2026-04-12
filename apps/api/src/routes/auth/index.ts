@@ -1,4 +1,7 @@
-import { sha256Hex } from '../../middleware/auth/hash';
+import { sha256Hex } from '../../middleware/auth/hash.ts';
+
+const COMMUNITY_LEVEL_THRESHOLDS = [0, 10, 25, 45, 70, 100, 140, 190, 250, 325, 415, 520, 640, 780, 940, 1120, 1325, 1555, 1810, 2090];
+const DEFAULT_COMMUNITY_OWNER_USERS = 'admin';
 
 export interface D1PreparedStatement {
   bind(...values: unknown[]): D1PreparedStatement;
@@ -12,6 +15,8 @@ export interface D1DatabaseLike {
 
 export interface CommunityAuthEnv {
   COMMUNITY_DB: D1DatabaseLike;
+  COMMUNITY_OWNER_USERS?: string;
+  COMMUNITY_OWNER_IDS?: string;
 }
 
 export type CommunityAuthAction = 'register' | 'login';
@@ -33,6 +38,92 @@ export type CommunityAuthUser = {
   avatar_url?: string | null;
   background_url?: string | null;
 };
+
+function parseIdentityList(value: string | undefined) {
+  return new Set(
+    String(value || '')
+      .split(',')
+      .map((item) => item.trim().toLowerCase())
+      .filter(Boolean)
+  );
+}
+
+export function getCommunityLevelFromXp(xpValue: unknown) {
+  const xp = Math.max(0, Number(xpValue || 0));
+  for (let i = COMMUNITY_LEVEL_THRESHOLDS.length - 1; i >= 0; i -= 1) {
+    if (xp >= COMMUNITY_LEVEL_THRESHOLDS[i]) return i + 1;
+  }
+  return 1;
+}
+
+export function normalizeCommunityRole(user: Record<string, unknown> | null | undefined, env: Pick<CommunityAuthEnv, 'COMMUNITY_OWNER_USERS' | 'COMMUNITY_OWNER_IDS'>) {
+  const baseRole = String(user?.role || 'user').trim().toLowerCase();
+  if (baseRole !== 'admin') return 'user';
+
+  const ownerUsers = parseIdentityList(env.COMMUNITY_OWNER_USERS || DEFAULT_COMMUNITY_OWNER_USERS);
+  const ownerIds = parseIdentityList(env.COMMUNITY_OWNER_IDS);
+  const username = String(user?.username || '').trim().toLowerCase();
+  const id = String(user?.id || '').trim().toLowerCase();
+
+  return ownerUsers.has(username) || ownerIds.has(id) ? 'owner' : 'admin';
+}
+
+export function withCommunityRole<T extends Record<string, unknown> | null>(user: T, env: Pick<CommunityAuthEnv, 'COMMUNITY_OWNER_USERS' | 'COMMUNITY_OWNER_IDS'>): T {
+  if (!user) return user;
+  const role = normalizeCommunityRole(user, env);
+  return (role === user.role ? user : { ...user, role }) as T;
+}
+
+export function withCommunityLevel<T extends Record<string, unknown> | null>(entity: T): T {
+  if (!entity) return entity;
+  const xp = Math.max(0, Number(entity.xp || 0));
+  const level = getCommunityLevelFromXp(xp);
+  return (entity.xp === xp && entity.level === level ? entity : { ...entity, xp, level }) as T;
+}
+
+export async function resolveCommunityUserFromAuthHeader(env: CommunityAuthEnv, authorization: string | null | undefined) {
+  const auth = String(authorization || '');
+  if (!auth.startsWith('Bearer ')) return null;
+
+  const raw = auth.slice(7);
+  const sep = raw.indexOf(':');
+  if (sep === -1) return null;
+
+  const rawUser = raw.slice(0, sep);
+  const passHash = raw.slice(sep + 1);
+  let username = rawUser;
+
+  try {
+    username = decodeURIComponent(rawUser);
+  } catch {
+    username = rawUser;
+  }
+
+  const user = await env.COMMUNITY_DB.prepare(
+    'SELECT id, username, role, xp, level, signature, avatar_url, background_url, is_banned, password_hash FROM users WHERE username = ? AND password_hash = ?'
+  )
+    .bind(username, passHash)
+    .first<Record<string, unknown>>();
+
+  if (!user || user.is_banned) return null;
+
+  return buildCommunityAuthUser(user, username, passHash, env);
+}
+
+function buildCommunityAuthUser(record: Record<string, unknown>, username: string, passHash: string, env: Pick<CommunityAuthEnv, 'COMMUNITY_OWNER_USERS' | 'COMMUNITY_OWNER_IDS'>): CommunityAuthUser {
+  const normalizedRecord = withCommunityLevel(withCommunityRole(record, env));
+  return {
+    id: String(normalizedRecord?.id || ''),
+    username,
+    passHash,
+    role: String(normalizedRecord?.role || 'user'),
+    level: Number(normalizedRecord?.level || 1),
+    xp: Number(normalizedRecord?.xp || 0),
+    signature: typeof normalizedRecord?.signature === 'string' ? normalizedRecord.signature : null,
+    avatar_url: typeof normalizedRecord?.avatar_url === 'string' ? normalizedRecord.avatar_url : null,
+    background_url: typeof normalizedRecord?.background_url === 'string' ? normalizedRecord.background_url : null
+  };
+}
 
 export async function handleCommunityAuth(env: CommunityAuthEnv, body: CommunityAuthRequest) {
   const action = body.action;
@@ -86,18 +177,7 @@ export async function handleCommunityAuth(env: CommunityAuthEnv, body: Community
       return { status: 403, body: { ok: false, msg: '账号已被封禁' } };
     }
 
-    const user: CommunityAuthUser = {
-      id: String(record.id || ''),
-      username,
-      passHash,
-      role: String(record.role || 'user'),
-      level: Number(record.level || 1),
-      xp: Number(record.xp || 0),
-      signature: typeof record.signature === 'string' ? record.signature : null,
-      avatar_url: typeof record.avatar_url === 'string' ? record.avatar_url : null,
-      background_url: typeof record.background_url === 'string' ? record.background_url : null
-    };
-
+    const user = buildCommunityAuthUser(record, username, passHash, env);
     return { status: 200, body: { ok: true, user } };
   }
 
