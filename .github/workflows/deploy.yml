@@ -10,10 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
 
@@ -39,20 +39,9 @@ jobs:
           echo "Attempting to create D1 Database..."
           wrangler d1 create community_db || true
           
-          # 尝试获取 D1 数据库的 ID
-          DB_ID=$(wrangler d1 info community_db --json | grep -o '"uuid": "[^"]*' | cut -d'"' -f4)
-          
-          if [ -n "$DB_ID" ]; then
-            echo "Database ID found: $DB_ID"
-            # 动态替换 wrangler.toml 中的占位符
-            sed -i "s/在这里填入你创建的D1数据库的ID/$DB_ID/g" wrangler.toml
-            
-            # 执行建表 SQL
-            echo "Executing schema.sql..."
-            wrangler d1 execute community_db --remote --file=./schema.sql || true
-          else
-            echo "Warning: Could not find Database ID."
-          fi
+          # 执行建表 SQL
+          echo "Executing schema.sql..."
+          wrangler d1 execute community_db --remote --file=./schema.sql || true
           
           # 尝试创建 R2 存储桶
           echo "Attempting to create R2 Bucket..."
