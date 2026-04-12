@@ -37,7 +37,7 @@ jobs:
           npm run check:db
 
       - name: Build web compatibility shell
-        run: npm run build:web:compat
+        run: npm run build:web:runtime
 
       - name: Verify unit tests
         run: npm run test:unit
