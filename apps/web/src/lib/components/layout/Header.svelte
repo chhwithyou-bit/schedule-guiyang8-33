@@ -67,6 +67,7 @@
             type="button"
             class="header-switch {isActive(item.href) ? 'is-active' : ''}"
             aria-pressed={isActive(item.href)}
+            aria-label={`前往${item.label}`}
             on:click={() => navigate(item.href)}
           >
             {item.shortLabel ?? item.label}
