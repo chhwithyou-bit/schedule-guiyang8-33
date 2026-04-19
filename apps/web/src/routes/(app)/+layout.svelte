@@ -2,20 +2,17 @@
   import { onMount } from 'svelte';
   import Header from '$lib/components/layout/Header.svelte';
   import LiquidBar from '$lib/components/layout/LiquidBar.svelte';
+  import { isCommunityAdmin, readStoredCommunitySession } from '$lib/api/communityAuth';
 
   let isAuthenticated = false;
   let isAdmin = false;
 
   onMount(() => {
-    const saved = window.localStorage.getItem('commUser');
-    if (!saved) return;
+    const session = readStoredCommunitySession();
+    if (!session) return;
 
     isAuthenticated = true;
-
-    try {
-      const user = JSON.parse(saved);
-      isAdmin = user?.role === 'admin' || user?.role === 'owner';
-    } catch {}
+    isAdmin = isCommunityAdmin(session);
   });
 </script>
 

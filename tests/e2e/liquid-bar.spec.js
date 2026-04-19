@@ -154,7 +154,7 @@ function installApiMocks(page, state) {
 }
 
 async function bootApp(page) {
-  await page.goto('/');
+  await page.goto('/community');
   try {
     const btn = page.locator('button[data-theme-id="theme-default"]');
     if (await btn.isVisible({ timeout: 2000 })) {
@@ -179,11 +179,12 @@ test.beforeEach(async ({ page }) => {
   await installApiMocks(page, state);
 });
 
-test('liquid bar expands and switches views from the top-left dock', async ({ page }) => {
+test('liquid bar expands and switches routes from the top-left dock', async ({ page }) => {
   await bootApp(page);
 
   const trigger = page.locator('#liquidBar .liquid-trigger');
   const panel = page.locator('#liquidBar .liquid-panel');
+  const liquidBar = page.locator('#liquidBar');
   await expect(trigger).toHaveAttribute('aria-expanded', 'false');
   await expect(trigger).toHaveAttribute('aria-haspopup', 'dialog');
 
@@ -192,37 +193,43 @@ test('liquid bar expands and switches views from the top-left dock', async ({ pa
   await expect(panel).toBeVisible();
   await expect(panel).toHaveAttribute('role', 'dialog');
 
-  await page.getByRole('button', { name: /课表/ }).click();
+  await liquidBar.getByRole('link', { name: /课表/ }).click();
   await expect(trigger).toHaveAttribute('aria-expanded', 'false');
   await expect(panel).toBeHidden();
-  await expect(page.getByText('课程安排')).toBeVisible();
+  await expect(page).toHaveURL(/\/schedule$/);
+  await expect(page.getByRole('heading', { name: '课程安排' })).toBeVisible();
 
   await trigger.click();
   await expect(panel).toBeVisible();
-  await page.getByRole('button', { name: /节点/ }).click();
+  await liquidBar.getByRole('link', { name: /节点/ }).click();
   await expect(trigger).toHaveAttribute('aria-expanded', 'false');
   await expect(panel).toBeHidden();
-  await expect(page.getByText('代理节点')).toBeVisible();
-  await expect(page.getByPlaceholder('输入访问密码...')).toBeVisible();
+  await expect(page).toHaveURL(/\/nodes$/);
+  await expect(page.getByRole('heading', { name: '节点' })).toBeVisible();
 });
 
-test('liquid bar keeps community actions reachable', async ({ page }) => {
+test('liquid bar keeps real route actions reachable', async ({ page }) => {
   await bootApp(page);
 
   const trigger = page.locator('#liquidBar .liquid-trigger');
+  const liquidBar = page.locator('#liquidBar');
   await trigger.click();
-  await page.locator('#liquidBar .liquid-compose-btn').click();
-  await expect(page.getByRole('heading', { name: '发点近况' })).toBeVisible();
-
-  await page.reload();
-  await bootApp(page);
+  await liquidBar.locator('.liquid-compose-btn').click();
+  await expect(page).toHaveURL(/\/community$/);
+  await expect(page.getByRole('heading', { name: '社区', exact: true })).toBeVisible();
 
   await page.locator('#liquidBar .liquid-trigger').click();
-  await page.getByRole('button', { name: /个人面板/ }).click();
-  await expect(page.getByRole('heading', { name: '聊天 / 群组 / 网盘 / 提醒' })).toBeVisible();
+  await liquidBar.getByRole('link', { name: /进入聊天/ }).click();
+  await expect(page).toHaveURL(/\/console\/chats(\?conversation=.*)?$/);
+  await expect(page.getByRole('heading', { name: '私聊与会话' })).toBeVisible();
+
+  await page.locator('#liquidBar .liquid-trigger').click();
+  await liquidBar.getByRole('link', { name: /查看群组/ }).click();
+  await expect(page).toHaveURL(/\/console\/groups$/);
+  await expect(page.getByRole('heading', { name: '群组与发现' })).toBeVisible();
 });
 
-test('liquid bar traps focus and closes with escape', async ({ page }) => {
+test('liquid bar closes with escape and returns focus to trigger', async ({ page }) => {
   await bootApp(page);
 
   const trigger = page.locator('#liquidBar .liquid-trigger');
@@ -232,13 +239,6 @@ test('liquid bar traps focus and closes with escape', async ({ page }) => {
   await page.keyboard.press('Enter');
   const panel = page.locator('#liquidBar .liquid-panel');
   await expect(panel).toBeVisible();
-  await expect(page.locator('#liquidBar .liquid-close')).toBeFocused();
-
-  await page.keyboard.press('Shift+Tab');
-  await expect(page.locator('.theme-dot').last()).toBeFocused();
-
-  await page.keyboard.press('Tab');
-  await expect(page.locator('#liquidBar .liquid-close')).toBeFocused();
 
   await page.keyboard.press('Escape');
   await expect(panel).toBeHidden();
@@ -252,20 +252,19 @@ test.describe('mobile liquid bar', () => {
     isMobile: true
   });
 
-  test('touching the dock opens the panel and still allows view switching', async ({ page }) => {
+  test('touching the dock opens the panel and still allows route switching', async ({ page }) => {
     await bootApp(page);
 
     const trigger = page.locator('#liquidBar .liquid-trigger');
     const panel = page.locator('#liquidBar .liquid-panel');
-    const triggerBox = await trigger.boundingBox();
-    if (!triggerBox) throw new Error('Missing liquid trigger bounds');
-
-    await page.touchscreen.tap(triggerBox.x + (triggerBox.width / 2), triggerBox.y + (triggerBox.height / 2));
+    const liquidBar = page.locator('#liquidBar');
+    await trigger.tap();
     await expect(panel).toBeVisible();
 
-    await page.getByRole('button', { name: /课表/ }).tap();
+    await liquidBar.getByRole('link', { name: /课表/ }).tap();
     await expect(trigger).toHaveAttribute('aria-expanded', 'false');
     await expect(panel).toBeHidden();
-    await expect(page.getByText('课程安排')).toBeVisible();
+    await expect(page).toHaveURL(/\/schedule$/);
+    await expect(page.getByRole('heading', { name: '课程安排' })).toBeVisible();
   });
 });

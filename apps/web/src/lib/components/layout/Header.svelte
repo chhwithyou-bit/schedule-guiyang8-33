@@ -48,7 +48,7 @@
     <a
       href="/community"
       class="group rounded-full px-2 py-1 text-left transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
-      aria-label="返回社区首页"
+      aria-label="前往社区首页"
     >
       <h1 class="text-2xl font-black tracking-tighter transition-transform group-hover:scale-110">
         8<span class="text-[var(--color-primary)]">社区</span>
@@ -72,19 +72,19 @@
         <a
           href="/console"
           class="header-avatar-shell {isActive('/console') ? 'is-active' : ''} flex h-10 min-w-10 items-center justify-center overflow-hidden rounded-full transition-transform hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
-          aria-label="打开个人控制台"
+          aria-label="前往消息台"
         >
           <span class="text-xs font-black text-[var(--color-primary)]">{currentNav?.label?.slice(0, 1) ?? '我'}</span>
         </a>
       {:else}
         <a
-          href="/console"
+          href="/register"
           class="hidden header-switch-shell px-4 py-2 md:inline-flex focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
         >
-          账号入口
+          注册
         </a>
         <a
-          href="/console"
+          href="/login"
           class="rounded-full bg-[var(--color-primary)] px-6 py-2.5 text-xs font-black uppercase tracking-widest text-white shadow-lg transition-all hover:scale-105 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
         >
           登录
