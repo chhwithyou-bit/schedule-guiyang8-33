@@ -1,4 +1,4 @@
-import htmlContent from './index.html';
+import htmlContent from './public/index.html';
 import { getCommunityLevelFromXp, COMMUNITY_LEVEL_THRESHOLDS } from './utils.mjs';
 
 const DEFAULT_ADMIN_USER = 'admin';
@@ -317,7 +317,99 @@ const DEFAULT_COMMUNITY_GROUPS = [
   }
 ];
 
+let communityCoreSchemaPromise = null;
 let communityMessagingSetupPromise = null;
+
+async function ensureCommunityCoreSchema(env) {
+  if (communityCoreSchemaPromise) return communityCoreSchemaPromise;
+
+  communityCoreSchemaPromise = (async () => {
+    await env.COMMUNITY_DB.batch([
+      env.COMMUNITY_DB.prepare(`
+        CREATE TABLE IF NOT EXISTS users (
+          id TEXT PRIMARY KEY,
+          username TEXT UNIQUE NOT NULL,
+          password_hash TEXT NOT NULL,
+          role TEXT DEFAULT 'user',
+          avatar_url TEXT,
+          signature TEXT,
+          background_url TEXT,
+          xp INTEGER DEFAULT 0,
+          level INTEGER DEFAULT 1,
+          is_banned INTEGER DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `),
+      env.COMMUNITY_DB.prepare(`
+        CREATE TABLE IF NOT EXISTS posts (
+          id TEXT PRIMARY KEY,
+          user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+          content TEXT,
+          media_json TEXT,
+          type TEXT DEFAULT 'post',
+          repost_id TEXT REFERENCES posts(id) ON DELETE SET NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `),
+      env.COMMUNITY_DB.prepare(`
+        CREATE TABLE IF NOT EXISTS comments (
+          id TEXT PRIMARY KEY,
+          post_id TEXT REFERENCES posts(id) ON DELETE CASCADE,
+          user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+          parent_id TEXT REFERENCES comments(id) ON DELETE CASCADE,
+          content TEXT NOT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `),
+      env.COMMUNITY_DB.prepare(`
+        CREATE TABLE IF NOT EXISTS likes (
+          post_id TEXT REFERENCES posts(id) ON DELETE CASCADE,
+          user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY(post_id, user_id)
+        )
+      `),
+      env.COMMUNITY_DB.prepare(`
+        CREATE TABLE IF NOT EXISTS follows (
+          follower_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+          following_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY(follower_id, following_id)
+        )
+      `),
+      env.COMMUNITY_DB.prepare(`
+        CREATE TABLE IF NOT EXISTS notifications (
+          id TEXT PRIMARY KEY,
+          user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+          type TEXT NOT NULL,
+          from_user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+          target_id TEXT,
+          is_read INTEGER DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `),
+      env.COMMUNITY_DB.prepare(`
+        CREATE TABLE IF NOT EXISTS reports (
+          id TEXT PRIMARY KEY,
+          user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+          target_type TEXT NOT NULL,
+          target_id TEXT NOT NULL,
+          reason TEXT,
+          status TEXT DEFAULT 'pending',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `),
+      env.COMMUNITY_DB.prepare("CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts(created_at DESC)"),
+      env.COMMUNITY_DB.prepare("CREATE INDEX IF NOT EXISTS idx_comments_post_created ON comments(post_id, created_at DESC)"),
+      env.COMMUNITY_DB.prepare("CREATE INDEX IF NOT EXISTS idx_notifications_user_created ON notifications(user_id, created_at DESC)")
+    ]);
+  })().catch(error => {
+    communityCoreSchemaPromise = null;
+    throw error;
+  });
+
+  return communityCoreSchemaPromise;
+}
 
 function buildDirectConversationKey(userA, userB) {
   return [String(userA || '').trim(), String(userB || '').trim()].sort().join(':');
@@ -327,6 +419,7 @@ let driveSetupPromise = null;
 async function ensureDriveSchema(env) {
   if (driveSetupPromise) return driveSetupPromise;
   driveSetupPromise = (async () => {
+    await ensureCommunityCoreSchema(env);
     await env.COMMUNITY_DB.batch([
       env.COMMUNITY_DB.prepare(`
         CREATE TABLE IF NOT EXISTS user_drive_stats (
@@ -350,7 +443,8 @@ async function ensureDriveSchema(env) {
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
       `),
-      env.COMMUNITY_DB.prepare("CREATE INDEX IF NOT EXISTS idx_drive_files_user ON drive_files(user_id, parent_id)")
+      env.COMMUNITY_DB.prepare("CREATE INDEX IF NOT EXISTS idx_drive_files_user ON drive_files(user_id, parent_id)"),
+      env.COMMUNITY_DB.prepare("CREATE INDEX IF NOT EXISTS idx_drive_files_parent ON drive_files(parent_id)")
     ]);
   })().catch(error => {
     driveSetupPromise = null;
@@ -359,10 +453,74 @@ async function ensureDriveSchema(env) {
   return driveSetupPromise;
 }
 
+function normalizeDriveName(value, fallback = '未命名文件') {
+  return String(value || '')
+    .replace(/[\u0000-\u001f\u007f]+/g, ' ')
+    .replace(/[\\/]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 120) || fallback;
+}
+
+function normalizeDriveStatsRecord(stats) {
+  const quotaBytes = Math.max(0, Number(stats?.quota_bytes || 0));
+  const usedBytes = Math.max(0, Number(stats?.used_bytes || 0));
+  return {
+    quota_bytes: quotaBytes,
+    used_bytes: usedBytes,
+    available_bytes: Math.max(0, quotaBytes - usedBytes),
+  };
+}
+
+function isDrivePreviewableMime(mimeType) {
+  const mime = String(mimeType || '').toLowerCase();
+  return mime.startsWith('image/') || mime.startsWith('audio/') || mime.startsWith('video/');
+}
+
+async function getUserDriveStats(env, userId) {
+  await ensureDriveSchema(env);
+  const stats = await env.COMMUNITY_DB.prepare("SELECT quota_bytes, used_bytes FROM user_drive_stats WHERE user_id = ?").bind(userId).first();
+  return normalizeDriveStatsRecord(stats);
+}
+
+async function collectDriveEntriesForDeletion(env, userId, initialIds) {
+  const queue = Array.from(new Set((Array.isArray(initialIds) ? initialIds : []).map(id => String(id || '').trim()).filter(Boolean)));
+  const visited = new Set();
+  const collected = [];
+
+  while (queue.length) {
+    const currentId = queue.shift();
+    if (!currentId || visited.has(currentId)) continue;
+    visited.add(currentId);
+
+    const entry = await env.COMMUNITY_DB.prepare(`
+      SELECT id, user_id, name, size, mime_type, url, parent_id, is_folder, created_at, updated_at
+      FROM drive_files
+      WHERE id = ? AND user_id = ?
+      LIMIT 1
+    `).bind(currentId, userId).first();
+
+    if (!entry) continue;
+    collected.push(entry);
+
+    if (Number(entry.is_folder || 0)) {
+      const children = await env.COMMUNITY_DB.prepare(`
+        SELECT id FROM drive_files WHERE parent_id = ? AND user_id = ?
+      `).bind(entry.id, userId).all();
+      for (const child of children.results || []) {
+        if (child?.id && !visited.has(child.id)) queue.push(child.id);
+      }
+    }
+  }
+
+  return collected;
+}
+
 async function ensureCommunityMessagingSchema(env) {
   if (communityMessagingSetupPromise) return communityMessagingSetupPromise;
 
   communityMessagingSetupPromise = (async () => {
+    await ensureCommunityCoreSchema(env);
     await env.COMMUNITY_DB.batch([
       env.COMMUNITY_DB.prepare(`
         CREATE TABLE IF NOT EXISTS conversations (
@@ -533,9 +691,25 @@ function getMusicPublicBaseUrl(env) {
   return String(env.MUSIC_PUBLIC_BASE_URL || DEFAULT_MUSIC_PUBLIC_BASE_URL).replace(/\/+$/, '');
 }
 
+function buildMusicProxyUrl(requestOrigin, key) {
+  const base = String(requestOrigin || '').replace(/\/+$/, '');
+  const encodedKey = encodeObjectKey(key);
+  return encodedKey ? `${base}/api/music/file/${encodedKey}` : `${base}/api/music`;
+}
+
 function buildMusicPublicUrl(env, key) {
   const encodedKey = encodeObjectKey(key);
   return encodedKey ? `${getMusicPublicBaseUrl(env)}/${encodedKey}` : getMusicPublicBaseUrl(env);
+}
+
+function buildMusicTrackUrl(env, key, requestOrigin) {
+  const normalizedKey = String(key || '').trim();
+  if (!normalizedKey) return requestOrigin ? `${String(requestOrigin).replace(/\/+$/, '')}/api/music` : getMusicPublicBaseUrl(env);
+  return requestOrigin ? buildMusicProxyUrl(requestOrigin, normalizedKey) : buildMusicPublicUrl(env, normalizedKey);
+}
+
+function isSupportedMusicObjectKey(key) {
+  return /\.(mp3|wav|m4a|aac|ogg|oga|flac|webm)$/i.test(String(key || '').trim());
 }
 
 function extractMusicObjectKey(trackUrl) {
@@ -544,13 +718,21 @@ function extractMusicObjectKey(trackUrl) {
 
   try {
     const parsed = new URL(rawUrl);
+    const proxyMatch = parsed.pathname.match(/^\/api\/music\/file\/(.+)$/);
+    if (proxyMatch) {
+      return safeDecodeURIComponent(proxyMatch[1]);
+    }
     return safeDecodeURIComponent(parsed.pathname.replace(/^\/+/, ''));
   } catch {
+    const proxyMatch = rawUrl.match(/^\/?api\/music\/file\/(.+)$/);
+    if (proxyMatch) {
+      return safeDecodeURIComponent(proxyMatch[1]);
+    }
     return safeDecodeURIComponent(rawUrl.replace(/^\/+/, ''));
   }
 }
 
-function normalizeMusicTrack(env, track, requestHost) {
+function normalizeMusicTrack(env, track, requestOrigin, requestHost) {
   if (!track || typeof track !== 'object') return track;
   const next = { ...track };
   const rawUrl = String(track.url || '').trim();
@@ -566,18 +748,18 @@ function normalizeMusicTrack(env, track, requestHost) {
     ].filter(Boolean));
 
     if (legacyHosts.has(parsed.hostname)) {
-      const objectKey = parsed.pathname.replace(/^\/+/, '');
-      if (objectKey) next.url = buildMusicPublicUrl(env, objectKey);
+      const objectKey = extractMusicObjectKey(parsed.toString());
+      if (objectKey && objectKey !== 'playlist.json') next.url = buildMusicTrackUrl(env, objectKey, requestOrigin);
     }
   } catch {
     const objectKey = rawUrl.replace(/^\/+/, '');
-    if (objectKey) next.url = buildMusicPublicUrl(env, objectKey);
+    if (objectKey && objectKey !== 'playlist.json') next.url = buildMusicTrackUrl(env, objectKey, requestOrigin);
   }
 
   return next;
 }
 
-function mergeMusicPlaylist(env, storedList, bucketObjects) {
+function mergeMusicPlaylist(env, storedList, bucketObjects, requestOrigin, requestHost) {
   const savedTracks = Array.isArray(storedList) ? storedList.filter(track => track && typeof track === 'object') : [];
   const savedByKey = new Map();
   const savedOrder = new Map();
@@ -596,14 +778,14 @@ function mergeMusicPlaylist(env, storedList, bucketObjects) {
   });
 
   const mergedBucketTracks = bucketObjects
-    .filter(obj => obj.key.toLowerCase().endsWith('.mp3'))
+    .filter(obj => isSupportedMusicObjectKey(obj.key))
     .map(obj => {
       const saved = savedByKey.get(obj.key);
       const fallbackName = safeDecodeURIComponent(obj.key.replace(/\.[^/.]+$/, '')) || '未知';
       return {
         name: (saved && String(saved.name || '').trim()) || fallbackName,
-        artist: saved && typeof saved.artist === 'string' ? saved.artist : 'R2 Drive',
-        url: buildMusicPublicUrl(env, obj.key),
+        artist: saved && typeof saved.artist === 'string' ? saved.artist : '云端歌单',
+        url: buildMusicTrackUrl(env, obj.key, requestOrigin),
       };
     })
     .sort((a, b) => {
@@ -616,7 +798,7 @@ function mergeMusicPlaylist(env, storedList, bucketObjects) {
     });
 
   const normalizedExternalTracks = externalTracks
-    .map(track => normalizeMusicTrack(env, track, ''))
+    .map(track => normalizeMusicTrack(env, track, requestOrigin, requestHost))
     .filter(track => track && String(track.url || '').trim());
 
   return [...mergedBucketTracks, ...normalizedExternalTracks];
@@ -713,7 +895,7 @@ async function uploadToDrive(env, fileBuffer, fileName, mimeType, retry = true) 
   }
 
   const data = await resp.json();
-  if (!resp.ok) throw new Error(data.error ? data.error.message : 'Upload Failed');
+  if (!resp.ok) throw new Error(data.error ? data.error.message : '上传失败');
   return data;
 }
 
@@ -1068,6 +1250,27 @@ export default {
       }
     }
 
+    if (url.pathname.startsWith('/api/music/file/') && request.method === 'GET') {
+      try {
+        const objectKey = safeDecodeURIComponent(url.pathname.replace(/^\/api\/music\/file\//, ''));
+        if (!objectKey) return jsonResp({ ok: false, msg: 'Missing music object key' }, 400);
+
+        const object = await env.MUSIC_BUCKET.get(objectKey);
+        if (!object) return jsonResp({ ok: false, msg: '找不到这首歌' }, 404);
+
+        const headers = new Headers({
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'public, max-age=3600',
+          'Accept-Ranges': 'bytes',
+          'Content-Type': object.httpMetadata?.contentType || 'audio/mpeg'
+        });
+
+        return new Response(object.body, { headers });
+      } catch (e) {
+        return jsonResp({ ok: false, msg: e.message }, 500);
+      }
+    }
+
     if (url.pathname === '/api/music') {
       if (request.method === 'GET') {
         try {
@@ -1079,7 +1282,7 @@ export default {
           }
 
           const listed = await env.MUSIC_BUCKET.list();
-          const list = mergeMusicPlaylist(env, storedList, listed.objects || []);
+          const list = mergeMusicPlaylist(env, storedList, listed.objects || [], url.origin, url.host);
           return jsonResp(list);
         } catch (e) { return jsonResp({ ok: false, msg: e.message }, 500); }
       }
@@ -1097,6 +1300,8 @@ export default {
     }
 
     if (url.pathname.startsWith('/api/community/')) {
+      await ensureCommunityCoreSchema(env);
+
       const getAuth = async () => {
         const auth = request.headers.get('Authorization') || '';
         if (!auth.startsWith('Bearer ')) return null;
@@ -1147,14 +1352,14 @@ export default {
 
         const userSql = q
           ? `
-            SELECT id, username, avatar_url, signature, COALESCE(xp, 0) AS xp, COALESCE(level, 1) AS level, COALESCE(role, 'user') AS role
+            SELECT id, username, avatar_url, background_url, signature, COALESCE(xp, 0) AS xp, COALESCE(level, 1) AS level, COALESCE(role, 'user') AS role
             FROM users
             WHERE is_banned = 0 AND (username LIKE ? OR COALESCE(signature, '') LIKE ?)
             ORDER BY xp DESC, created_at DESC
             LIMIT 8
           `
           : `
-            SELECT id, username, avatar_url, signature, COALESCE(xp, 0) AS xp, COALESCE(level, 1) AS level, COALESCE(role, 'user') AS role
+            SELECT id, username, avatar_url, background_url, signature, COALESCE(xp, 0) AS xp, COALESCE(level, 1) AS level, COALESCE(role, 'user') AS role
             FROM users
             WHERE is_banned = 0
             ORDER BY xp DESC, created_at DESC
@@ -1233,134 +1438,216 @@ export default {
 
             if (url.pathname === '/api/community/drive/info' && request.method === 'GET') {
         const user = await getAuth();
-        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
-        await ensureDriveSchema(env);
-        const stats = await env.COMMUNITY_DB.prepare("SELECT quota_bytes, used_bytes FROM user_drive_stats WHERE user_id = ?").bind(user.id).first() || { quota_bytes: 0, used_bytes: 0 };
+        if (!user) return jsonResp({ ok: false, msg: '请先登录' }, 401);
+        const stats = await getUserDriveStats(env, user.id);
         return jsonResp({ ok: true, stats });
       }
 
       if (url.pathname === '/api/community/drive/list' && request.method === 'GET') {
         const user = await getAuth();
-        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+        if (!user) return jsonResp({ ok: false, msg: '请先登录' }, 401);
         await ensureDriveSchema(env);
         const parentId = url.searchParams.get('parent_id') || null;
         let query = "SELECT id, name, size, mime_type, url, parent_id, is_folder, created_at, updated_at FROM drive_files WHERE user_id = ?";
         if (parentId) query += " AND parent_id = ?";
         else query += " AND parent_id IS NULL";
-        query += " ORDER BY is_folder DESC, created_at DESC";
+        query += " ORDER BY is_folder DESC, updated_at DESC, created_at DESC";
         const stmt = parentId ? env.COMMUNITY_DB.prepare(query).bind(user.id, parentId) : env.COMMUNITY_DB.prepare(query).bind(user.id);
         const files = await stmt.all();
-        return jsonResp({ ok: true, files: files.results || [] });
+        const normalizedFiles = (files.results || []).map(file => ({
+          ...file,
+          name: normalizeDriveName(file.name, file.is_folder ? '未命名文件夹' : '未命名文件'),
+          previewable: !file.is_folder && isDrivePreviewableMime(file.mime_type)
+        }));
+        return jsonResp({ ok: true, files: normalizedFiles });
       }
 
       if (url.pathname === '/api/community/drive/mkdir' && request.method === 'POST') {
         const user = await getAuth();
-        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+        if (!user) return jsonResp({ ok: false, msg: '请先登录' }, 401);
         await ensureDriveSchema(env);
         const { name, parent_id } = await request.json();
+        const normalizedName = normalizeDriveName(name, '新文件夹');
+        const parentId = parent_id ? String(parent_id).trim() : null;
+
+        if (parentId) {
+          const parent = await env.COMMUNITY_DB.prepare("SELECT id, is_folder FROM drive_files WHERE id = ? AND user_id = ?").bind(parentId, user.id).first();
+          if (!parent || !Number(parent.is_folder || 0)) return jsonResp({ ok: false, msg: '目标目录不存在' }, 404);
+        }
+
+        const duplicate = await env.COMMUNITY_DB.prepare(`
+          SELECT id FROM drive_files
+          WHERE user_id = ? AND name = ? AND ((parent_id IS NULL AND ? IS NULL) OR parent_id = ?)
+          LIMIT 1
+        `).bind(user.id, normalizedName, parentId, parentId).first();
+        if (duplicate) return jsonResp({ ok: false, msg: '同名文件夹已存在' }, 409);
+
         const id = crypto.randomUUID();
         await env.COMMUNITY_DB.prepare(
           "INSERT INTO drive_files (id, user_id, name, parent_id, is_folder) VALUES (?, ?, ?, ?, 1)"
-        ).bind(id, user.id, name, parent_id || null).run();
-        return jsonResp({ ok: true, id });
+        ).bind(id, user.id, normalizedName, parentId).run();
+        return jsonResp({ ok: true, id, folder: { id, name: normalizedName, parent_id: parentId, is_folder: 1 } });
       }
 
       if (url.pathname === '/api/community/drive/delete' && request.method === 'POST') {
         const user = await getAuth();
-        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+        if (!user) return jsonResp({ ok: false, msg: '请先登录' }, 401);
         await ensureDriveSchema(env);
         const { ids } = await request.json();
-        if (!ids || !ids.length) return jsonResp({ ok: true });
-        
-        let freedSpace = 0;
-        const CHUNK_SIZE = 50;
-        for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
-          const chunkIds = ids.slice(i, i + CHUNK_SIZE);
-          const placeholders = chunkIds.map(() => '?').join(',');
+        if (!ids || !ids.length) return jsonResp({ ok: true, deleted: 0, freed_bytes: 0 });
 
-          const files = await env.COMMUNITY_DB.prepare(`SELECT id, size, url, is_folder FROM drive_files WHERE id IN (${placeholders}) AND user_id = ?`).bind(...chunkIds, user.id).all();
+        const entries = await collectDriveEntriesForDeletion(env, user.id, ids);
+        if (entries.length === 0) return jsonResp({ ok: false, msg: '没有找到可删除的文件' }, 404);
 
-          if (files && files.results && files.results.length > 0) {
-            const foundIds = [];
-            for (const file of files.results) {
-              foundIds.push(file.id);
-              if (!file.is_folder) {
-                freedSpace += file.size;
-                if (env.COMMUNITY_R2 && file.url) {
-                  try {
-                     const fileId = extractCommunityMediaFileId(file.url);
-                     if (fileId) await env.COMMUNITY_R2.delete(fileId);
-                  } catch(e){}
-                }
-              }
+        const fileEntries = entries.filter(entry => !Number(entry.is_folder || 0));
+        const freedSpace = fileEntries.reduce((sum, entry) => sum + Math.max(0, Number(entry.size || 0)), 0);
+        const deleteIds = entries.map(entry => entry.id);
+        const placeholders = deleteIds.map(() => '?').join(',');
+
+        await env.COMMUNITY_DB.prepare(`DELETE FROM drive_files WHERE id IN (${placeholders}) AND user_id = ?`).bind(...deleteIds, user.id).run();
+
+        for (const entry of fileEntries) {
+          const fileId = extractCommunityMediaFileId(entry.url);
+          if (!fileId) continue;
+          try {
+            if (env.COMMUNITY_R2) {
+              await deleteCommunityCacheEntry(env, fileId).catch(() => env.COMMUNITY_R2.delete(fileId));
             }
-
-            if (foundIds.length > 0) {
-              const deletePlaceholders = foundIds.map(() => '?').join(',');
-              await env.COMMUNITY_DB.prepare(`DELETE FROM drive_files WHERE id IN (${deletePlaceholders}) AND user_id = ?`).bind(...foundIds, user.id).run();
-            }
-          }
+          } catch (e) {}
         }
+
         if (freedSpace > 0) {
-          await env.COMMUNITY_DB.prepare("UPDATE user_drive_stats SET used_bytes = MAX(0, used_bytes - ?) WHERE user_id = ?").bind(freedSpace, user.id).run();
+          await env.COMMUNITY_DB.prepare(`
+            INSERT INTO user_drive_stats (user_id, quota_bytes, used_bytes, updated_at)
+            VALUES (?, 0, 0, CURRENT_TIMESTAMP)
+            ON CONFLICT(user_id) DO UPDATE SET
+              used_bytes = MAX(0, user_drive_stats.used_bytes - ?),
+              updated_at = CURRENT_TIMESTAMP
+          `).bind(user.id, freedSpace).run();
         }
-        return jsonResp({ ok: true });
+
+        const stats = await getUserDriveStats(env, user.id);
+        return jsonResp({
+          ok: true,
+          deleted: deleteIds.length,
+          freed_bytes: freedSpace,
+          deleted_items: entries.map(entry => ({ id: entry.id, name: entry.name, is_folder: !!entry.is_folder })),
+          stats
+        });
       }
 
       if (url.pathname === '/api/community/drive/rename' && request.method === 'POST') {
         const user = await getAuth();
-        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+        if (!user) return jsonResp({ ok: false, msg: '请先登录' }, 401);
         await ensureDriveSchema(env);
         const { id, name } = await request.json();
-        await env.COMMUNITY_DB.prepare("UPDATE drive_files SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?").bind(name, id, user.id).run();
-        return jsonResp({ ok: true });
+        const entryId = String(id || '').trim();
+        const normalizedName = normalizeDriveName(name);
+        if (!entryId) return jsonResp({ ok: false, msg: '缺少文件 ID' }, 400);
+
+        const existing = await env.COMMUNITY_DB.prepare(`
+          SELECT id, name, parent_id, is_folder FROM drive_files WHERE id = ? AND user_id = ?
+        `).bind(entryId, user.id).first();
+        if (!existing) return jsonResp({ ok: false, msg: '文件不存在' }, 404);
+        if (existing.name === normalizedName) return jsonResp({ ok: true, item: { ...existing, name: normalizedName } });
+
+        const duplicate = await env.COMMUNITY_DB.prepare(`
+          SELECT id FROM drive_files
+          WHERE user_id = ? AND id != ? AND name = ? AND ((parent_id IS NULL AND ? IS NULL) OR parent_id = ?)
+          LIMIT 1
+        `).bind(user.id, entryId, normalizedName, existing.parent_id, existing.parent_id).first();
+        if (duplicate) return jsonResp({ ok: false, msg: '当前目录下已有同名文件' }, 409);
+
+        await env.COMMUNITY_DB.prepare("UPDATE drive_files SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?").bind(normalizedName, entryId, user.id).run();
+        return jsonResp({ ok: true, item: { ...existing, id: entryId, name: normalizedName } });
       }
 
       if (url.pathname === '/api/community/drive/upload' && request.method === 'POST') {
         const user = await getAuth();
-        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+        if (!user) return jsonResp({ ok: false, msg: '请先登录' }, 401);
         await ensureDriveSchema(env);
-        
-        const stats = await env.COMMUNITY_DB.prepare("SELECT quota_bytes, used_bytes FROM user_drive_stats WHERE user_id = ?").bind(user.id).first() || { quota_bytes: 0, used_bytes: 0 };
-        const contentLength = Number(request.headers.get('content-length') || 0);
-        if (stats.used_bytes + contentLength > stats.quota_bytes) {
-           return jsonResp({ ok: false, msg: '空间不足' }, 403);
-        }
         if (!env.COMMUNITY_R2) return jsonResp({ ok: false, msg: '存储未配置' }, 500);
 
         try {
           const formData = await request.formData();
           const file = formData.get('file');
           const parent_id = formData.get('parent_id') || null;
-          if (!file || !file.name) return jsonResp({ ok: false, msg: 'No file' }, 400);
+          if (!file || !file.name) return jsonResp({ ok: false, msg: '没有收到文件' }, 400);
+          if (typeof file.size !== 'number' || file.size <= 0) return jsonResp({ ok: false, msg: '文件内容为空' }, 400);
+
+          const normalizedName = normalizeDriveName(file.name);
+          const parentId = parent_id ? String(parent_id).trim() : null;
+          if (parentId) {
+            const parent = await env.COMMUNITY_DB.prepare("SELECT id, is_folder FROM drive_files WHERE id = ? AND user_id = ?").bind(parentId, user.id).first();
+            if (!parent || !Number(parent.is_folder || 0)) return jsonResp({ ok: false, msg: '上传目录不存在' }, 404);
+          }
+
+          const stats = await getUserDriveStats(env, user.id);
+          if (stats.quota_bytes <= 0) {
+            return jsonResp({ ok: false, msg: '当前账号还没有可用网盘配额' }, 403);
+          }
+          if (stats.used_bytes + file.size > stats.quota_bytes) {
+            return jsonResp({
+              ok: false,
+              msg: `空间不足，还剩 ${Math.max(0, stats.available_bytes || 0)} 字节可用`,
+              stats
+            }, 403);
+          }
+
+          const duplicate = await env.COMMUNITY_DB.prepare(`
+            SELECT id FROM drive_files
+            WHERE user_id = ? AND name = ? AND ((parent_id IS NULL AND ? IS NULL) OR parent_id = ?)
+            LIMIT 1
+          `).bind(user.id, normalizedName, parentId, parentId).first();
+          if (duplicate) return jsonResp({ ok: false, msg: '当前目录下已有同名文件' }, 409);
 
           const id = crypto.randomUUID();
-          const ext = file.name.split('.').pop() || 'bin';
-          const r2Key = `drive-${user.id}-${id}.${ext}`;
-          
+          const ext = normalizedName.includes('.') ? normalizedName.split('.').pop() : 'bin';
+          const r2Key = `drive-${user.id}-${id}.${ext || 'bin'}`;
+
           await env.COMMUNITY_R2.put(r2Key, file.stream(), {
             httpMetadata: { contentType: file.type || 'application/octet-stream' }
           });
           const fileUrl = `/api/community/media/${r2Key}`;
-          
+
           await env.COMMUNITY_DB.prepare(
             "INSERT INTO drive_files (id, user_id, name, size, mime_type, url, parent_id, is_folder) VALUES (?, ?, ?, ?, ?, ?, ?, 0)"
-          ).bind(id, user.id, file.name, file.size, file.type || '', fileUrl, parent_id).run();
-          
-          await env.COMMUNITY_DB.prepare(
-            "INSERT INTO user_drive_stats (user_id, quota_bytes, used_bytes) VALUES (?, 0, ?) ON CONFLICT(user_id) DO UPDATE SET used_bytes = used_bytes + excluded.used_bytes"
-          ).bind(user.id, file.size).run();
-          
-          return jsonResp({ ok: true, id, url: fileUrl });
+          ).bind(id, user.id, normalizedName, file.size, file.type || '', fileUrl, parentId).run();
+
+          await env.COMMUNITY_DB.prepare(`
+            INSERT INTO user_drive_stats (user_id, quota_bytes, used_bytes, updated_at)
+            VALUES (?, 0, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(user_id) DO UPDATE SET
+              used_bytes = user_drive_stats.used_bytes + excluded.used_bytes,
+              updated_at = CURRENT_TIMESTAMP
+          `).bind(user.id, file.size).run();
+
+          const nextStats = await getUserDriveStats(env, user.id);
+          return jsonResp({
+            ok: true,
+            id,
+            file: {
+              id,
+              name: normalizedName,
+              size: file.size,
+              mime_type: file.type || '',
+              url: fileUrl,
+              parent_id: parentId,
+              is_folder: 0,
+              previewable: isDrivePreviewableMime(file.type || '')
+            },
+            url: fileUrl,
+            stats: nextStats
+          });
         } catch(e) {
-          return jsonResp({ ok: false, msg: 'Upload failed: ' + e.message }, 500);
+          return jsonResp({ ok: false, msg: '上传失败：' + e.message }, 500);
         }
       }
 
       if (url.pathname === '/api/community/chats' && request.method === 'GET') {
         await ensureCommunityMessagingSchema(env);
         const user = await getAuth();
-        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+        if (!user) return jsonResp({ ok: false, msg: '请先登录' }, 401);
         const conversations = await listUserConversations(env, user.id);
         const unread_total = conversations.reduce((sum, item) => sum + Number(item?.unread_count || 0), 0);
         return jsonResp({ ok: true, conversations, unread_total });
@@ -1369,7 +1656,7 @@ export default {
       if (url.pathname === '/api/community/chats/direct' && request.method === 'POST') {
         await ensureCommunityMessagingSchema(env);
         const user = await getAuth();
-        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+        if (!user) return jsonResp({ ok: false, msg: '请先登录' }, 401);
 
         const { target_user_id } = await request.json();
         const targetId = String(target_user_id || '').trim();
@@ -1415,7 +1702,7 @@ export default {
       if (url.pathname === '/api/community/chats/messages' && request.method === 'GET') {
         await ensureCommunityMessagingSchema(env);
         const user = await getAuth();
-        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+        if (!user) return jsonResp({ ok: false, msg: '请先登录' }, 401);
 
         const conversationId = String(url.searchParams.get('conversation_id') || '').trim();
         if (!conversationId) return jsonResp({ ok: false, msg: '缺少会话 ID' }, 400);
@@ -1472,7 +1759,7 @@ export default {
       if (url.pathname === '/api/community/chats/messages' && request.method === 'POST') {
         await ensureCommunityMessagingSchema(env);
         const user = await getAuth();
-        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+        if (!user) return jsonResp({ ok: false, msg: '请先登录' }, 401);
 
         const { conversation_id, content, meta } = await request.json();
         const conversationId = String(conversation_id || '').trim();
@@ -1536,7 +1823,7 @@ export default {
       if (url.pathname === '/api/community/groups' && request.method === 'POST') {
         await ensureCommunityMessagingSchema(env);
         const user = await getAuth();
-        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+        if (!user) return jsonResp({ ok: false, msg: '请先登录' }, 401);
 
         const body = await request.json();
         const title = String(body.title || '').trim();
@@ -1576,7 +1863,7 @@ export default {
       if (url.pathname === '/api/community/groups/join' && request.method === 'POST') {
         await ensureCommunityMessagingSchema(env);
         const user = await getAuth();
-        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+        if (!user) return jsonResp({ ok: false, msg: '请先登录' }, 401);
 
         const { conversation_id } = await request.json();
         const conversationId = String(conversation_id || '').trim();
@@ -1726,11 +2013,11 @@ export default {
             const userId = url.searchParams.get('userId');
             const username = url.searchParams.get('username');
             let sql = `
-              SELECT p.*, u.username, u.avatar_url, COALESCE(u.xp, 0) as xp, COALESCE(u.level, 1) as level, COALESCE(u.role, 'user') as role,
+              SELECT p.*, COALESCE(u.username, '[账号不可用]') as username, u.avatar_url, u.background_url, COALESCE(u.signature, '') as signature, COALESCE(u.xp, 0) as xp, COALESCE(u.level, 1) as level, COALESCE(u.role, 'user') as role,
               (SELECT COUNT(*) FROM likes WHERE post_id = p.id) as like_count,
               (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comment_count,
               (SELECT COUNT(*) FROM posts WHERE repost_id = p.id) as repost_count
-              FROM posts p JOIN users u ON p.user_id = u.id 
+              FROM posts p LEFT JOIN users u ON p.user_id = u.id 
             `;
             const params = [];
             const postId = url.searchParams.get('id');
@@ -1767,7 +2054,7 @@ export default {
               const ids = posts.map(p => p.id);
               const placeholders = ids.map(() => '?').join(',');
               // Fetch latest 3 comments for each post (sqlite doesn't have row_number easily, so we just fetch all and group in JS, limit 500 total comments to prevent memory bloat)
-              const commQuery = "SELECT c.id, c.post_id, c.content, c.user_id, u.username, u.avatar_url, COALESCE(u.xp, 0) as xp, COALESCE(u.level, 1) as level FROM comments c JOIN users u ON c.user_id = u.id WHERE c.post_id IN (" + placeholders + ") ORDER BY c.created_at ASC LIMIT 500";
+              const commQuery = "SELECT c.id, c.post_id, c.content, c.user_id, u.username, u.avatar_url, u.background_url, u.signature, COALESCE(u.xp, 0) as xp, COALESCE(u.level, 1) as level FROM comments c JOIN users u ON c.user_id = u.id WHERE c.post_id IN (" + placeholders + ") ORDER BY c.created_at ASC LIMIT 500";
               const commResults = await env.COMMUNITY_DB.prepare(commQuery).bind(...ids).all();
               const comms = (commResults.results || []).map(comment => {
                 const normalizedCommentUser = withCommunityLevel(comment);
@@ -1797,7 +2084,7 @@ export default {
         }
         if (request.method === 'POST') {
           const user = await getAuth();
-          if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+          if (!user) return jsonResp({ ok: false, msg: '登录状态失效，请重新登录' }, 401);
           const { content, media, repost_id } = await request.json();
           const postId = crypto.randomUUID();
           await env.COMMUNITY_DB.prepare("INSERT INTO posts (id, user_id, content, media_json, type, repost_id) VALUES (?, ?, ?, ?, ?, ?)")
@@ -1812,11 +2099,11 @@ export default {
         }
         if (request.method === 'DELETE') {
           const user = await getAuth();
-          if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+          if (!user) return jsonResp({ ok: false, msg: '请先登录' }, 401);
           const postId = url.searchParams.get('id');
           const post = await env.COMMUNITY_DB.prepare("SELECT user_id FROM posts WHERE id = ?").bind(postId).first();
           if (!post) return jsonResp({ ok: false, msg: 'Not found' }, 404);
-          if (post.user_id !== user.id && !isCommunityAdminRole(user.role)) return jsonResp({ ok: false, msg: 'Forbidden' }, 403);
+          if (post.user_id !== user.id && !isCommunityAdminRole(user.role)) return jsonResp({ ok: false, msg: '没有权限' }, 403);
           await env.COMMUNITY_DB.prepare("DELETE FROM posts WHERE id = ?").bind(postId).run();
           return jsonResp({ ok: true });
         }
@@ -1824,7 +2111,7 @@ export default {
 
       if (url.pathname === '/api/community/like' && request.method === 'POST') {
         const user = await getAuth();
-        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+        if (!user) return jsonResp({ ok: false, msg: '请先登录' }, 401);
         const { post_id } = await request.json();
         const post = await env.COMMUNITY_DB.prepare("SELECT user_id FROM posts WHERE id = ?").bind(post_id).first();
         if (!post) return jsonResp({ ok: false }, 404);
@@ -1841,7 +2128,7 @@ export default {
 
       if (url.pathname === '/api/community/follow' && request.method === 'POST') {
         const user = await getAuth();
-        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+        if (!user) return jsonResp({ ok: false, msg: '请先登录' }, 401);
         const { following_id } = await request.json();
         try {
           await env.COMMUNITY_DB.prepare("INSERT INTO follows (follower_id, following_id) VALUES (?, ?)").bind(user.id, following_id).run();
@@ -1907,7 +2194,7 @@ export default {
         if (request.method === 'GET') {
           const postId = url.searchParams.get('postId');
           const { results } = await env.COMMUNITY_DB.prepare(`
-            SELECT c.*, u.id as user_id, u.username, u.avatar_url, COALESCE(u.xp, 0) as xp, COALESCE(u.level, 1) as level FROM comments c 
+            SELECT c.*, u.id as user_id, u.username, u.avatar_url, u.background_url, u.signature, COALESCE(u.xp, 0) as xp, COALESCE(u.level, 1) as level FROM comments c 
             JOIN users u ON c.user_id = u.id 
             WHERE c.post_id = ? ORDER BY c.created_at ASC
           `).bind(postId).all();
@@ -2024,7 +2311,7 @@ export default {
 
       if (url.pathname === '/api/community/upload' && request.method === 'POST') {
         const user = await getAuth();
-        if (!user) return jsonResp({ ok: false, msg: 'No Auth' }, 401);
+        if (!user) return jsonResp({ ok: false, msg: '请先登录' }, 401);
         const buffer = await request.arrayBuffer();
         const contentType = request.headers.get('content-type') || 'image/jpeg';
         try {
@@ -2076,7 +2363,7 @@ export default {
         // 2. 缓存未命中，从 Drive 读取
         try {
           const drive = await getFromDrive(env, fileId);
-          if (!drive.ok) throw new Error("Drive file not found");
+          if (!drive.ok) throw new Error("云端文件不存在");
           const contentType = drive.headers.get('content-type') || 'image/jpeg';
           const buf = await drive.arrayBuffer();
 
@@ -2162,7 +2449,7 @@ export default {
       }
     }
 
-    if (url.pathname.startsWith('/chess/') || url.pathname.match(/\.(js|css|png|jpg|ico)$/)) return env.ASSETS.fetch(request);
+    if (url.pathname.startsWith('/chess/') || url.pathname.startsWith('/assets/') || url.pathname.match(/\.(js|css|png|jpg|ico)$/)) return env.ASSETS.fetch(request);
     return new Response(htmlContent, { headers: { 'Content-Type': 'text/html;charset=UTF-8' } });
     }
     };
