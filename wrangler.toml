@@ -1,7 +1,6 @@
 name = "schedule-guiyang8-33"
 main = "worker.js"
 compatibility_date = "2024-01-01"
-compatibility_flags = ["nodejs_compat"]
 
 [[kv_namespaces]]
 binding = "SCHEDULE_KV"
@@ -10,11 +9,11 @@ id = "6a08c97d81c5489aa0f73be62c798627"
 [[rules]]
 type = "Text"
 globs = ["**/*.html"]
-fallthrough = false
 fallbacks = []
 
 [assets]
 directory = "./public"
+
 
 [[r2_buckets]]
 binding = "MUSIC_BUCKET"
@@ -22,7 +21,7 @@ bucket_name = "music"
 
 [[r2_buckets]]
 binding = "COMMUNITY_R2"
-bucket_name = "community-media"
+bucket_name = "community-media" # 等待创建
 
 [[d1_databases]]
 binding = "COMMUNITY_DB"
@@ -30,4 +29,9 @@ database_name = "community_db"
 database_id = "6d9636b4-a7a9-4451-a701-7f48df456c6e"
 
 [vars]
+# Google Drive Folder ID
 GDRIVE_FOLDER_ID = "1JLM76eGeMI7AJB3PXiuPAQzEnt9AJhtg"
+# Optional community media cache tuning:
+# COMMUNITY_R2_CACHE_MAX_BYTES = "6442450944"     # 6 GiB
+# COMMUNITY_R2_CACHE_MAX_ITEM_BYTES = "2097152"   # 2 MiB
+# COMMUNITY_R2_CACHE_MAX_AGE_MS = "2592000000"    # 30 days

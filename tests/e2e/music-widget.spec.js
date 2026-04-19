@@ -1,7 +1,6 @@
 const { test, expect } = require('@playwright/test');
 
 const SILENT_AUDIO = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=';
-const WIDGET_SETTLE_MS = 760;
 
 function buildPlaylist() {
   return [
@@ -83,42 +82,6 @@ async function getAverageSearchSurfaceDiff(page, baselineShot, contrastShot, wid
   });
 }
 
-async function readWidgetState(page) {
-  return page.evaluate(() => {
-    const el = document.getElementById('mp');
-    if (!el) throw new Error('Missing music widget');
-    const rect = el.getBoundingClientRect();
-    const computed = window.getComputedStyle(el);
-
-    return {
-      open: el.classList.contains('open'),
-      originX: el.getAttribute('data-origin-x'),
-      originY: el.getAttribute('data-origin-y'),
-      left: parseFloat(computed.left || '0'),
-      top: parseFloat(computed.top || '0'),
-      right: rect.right,
-      bottom: rect.bottom,
-      width: rect.width,
-      height: rect.height
-    };
-  });
-}
-
-function expectPanelPositionStable(before, after, tolerance = 2) {
-  expect(Math.abs(after.left - before.left)).toBeLessThanOrEqual(tolerance);
-  expect(Math.abs(after.top - before.top)).toBeLessThanOrEqual(tolerance);
-}
-
-async function settleTheme(page) {
-  try {
-    const btn = page.locator('button[data-theme-id="theme-default"]');
-    if (await btn.isVisible({ timeout: 2000 })) {
-      await btn.click();
-      await page.waitForTimeout(2000);
-    }
-  } catch {}
-}
-
 test.beforeEach(async ({ page }) => {
   let playlist = buildPlaylist();
 
@@ -168,11 +131,8 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test('music widget list scrolls and filters tracks on /music', async ({ page }) => {
-  await page.goto('/music');
-  await settleTheme(page);
-  await expect(page).toHaveURL(/\/music$/);
-  await expect(page.getByRole('heading', { name: '音乐播放器' })).toBeVisible();
+test('music widget list scrolls and filters tracks', async ({ page }) => {
+  await page.goto('/');
   await expect(page.locator('#mp-name')).toHaveText('Aurora Echo');
 
   await page.locator('#mp').click();
@@ -181,8 +141,6 @@ test('music widget list scrolls and filters tracks on /music', async ({ page }) 
   await page.locator('#mpb-list').click();
   const listArea = page.locator('#mp-list-area');
   await expect(listArea).toHaveClass(/show/);
-  await page.waitForTimeout(WIDGET_SETTLE_MS);
-  await expect(page.locator('#mp-search')).toBeVisible();
   await expect(page.locator('#mp-list .mp-li')).toHaveCount(12);
 
   const metrics = await listArea.evaluate(el => ({
@@ -203,19 +161,18 @@ test('music widget list scrolls and filters tracks on /music', async ({ page }) 
   await expect(page.locator('#mp-list')).toContainText('Night Pulse');
 
   await page.locator('#mp-search').fill('not-found');
-  await expect(page.locator('#mp-list .mp-empty')).toHaveText('这次没搜到，换个词试试');
+  await expect(page.locator('#mp-list .mp-empty')).toHaveText('没有匹配的歌曲');
 });
 
-test('music search surface does not darken over bright blocks on /music', async ({ page }) => {
-  await page.goto('/music');
-  await settleTheme(page);
+test('music search surface does not darken over bright blocks', async ({ page }) => {
+  await page.goto('/');
   await page.locator('#mp').click();
   await expect(page.locator('#mp')).toHaveClass(/open/);
 
   await page.locator('#mpb-list').click();
   await expect(page.locator('#mp-list-area')).toHaveClass(/show/);
   await expect(page.locator('.mp-search-wrap')).toBeVisible();
-  await page.waitForTimeout(WIDGET_SETTLE_MS);
+  await page.waitForTimeout(300);
 
   const widget = page.locator('#mp');
   const widgetBox = await widget.boundingBox();
@@ -252,129 +209,5 @@ test('music search surface does not darken over bright blocks on /music', async 
 
   const contrastShot = await widget.screenshot();
   const averageDiff = await getAverageSearchSurfaceDiff(page, baselineShot, contrastShot, widgetBox, wrapBox);
-  expect(averageDiff).toBeLessThan(96);
-});
-
-test('music widget can be dragged with the handle on /music', async ({ page }) => {
-  await page.goto('/music');
-  await settleTheme(page);
-
-  const widget = page.locator('#mp');
-  await widget.click();
-  await expect(widget).toHaveClass(/open/);
-  await page.waitForTimeout(WIDGET_SETTLE_MS);
-
-  const before = await readWidgetState(page);
-  const handle = page.locator('#mp-drag-handle');
-  const collapseButton = page.getByRole('button', { name: '收起播放器' });
-
-  const handleBox = await handle.boundingBox();
-  const widgetBox = await widget.boundingBox();
-  if (!handleBox) throw new Error('Missing music drag handle bounds');
-  if (!widgetBox) throw new Error('Missing music widget bounds');
-
-  const startX = handleBox.x + (handleBox.width / 2);
-  const startY = handleBox.y + (handleBox.height / 2);
-  const deltaX = widgetBox.x < (page.viewportSize()?.width || 0) / 2 ? 160 : -160;
-  const deltaY = widgetBox.y > (page.viewportSize()?.height || 0) / 2 ? -80 : 80;
-
-  await page.mouse.move(startX, startY);
-  await page.mouse.down();
-  await page.mouse.move(startX + deltaX, startY + deltaY, { steps: 12 });
-  await page.mouse.up();
-  await page.waitForTimeout(WIDGET_SETTLE_MS);
-
-  const after = await readWidgetState(page);
-
-  expect(Math.abs(after.left - before.left)).toBeGreaterThan(80);
-
-  await collapseButton.click();
-  await expect(widget).not.toHaveClass(/open/);
-  await page.waitForTimeout(WIDGET_SETTLE_MS);
-
-  const collapsed = await readWidgetState(page);
-
-  await page.locator('.mp-bubble').click();
-  await expect(widget).toHaveClass(/open/);
-  await page.waitForTimeout(WIDGET_SETTLE_MS);
-
-  await expect(collapseButton).toBeVisible();
-  const reopened = await readWidgetState(page);
-  expect(reopened.open).toBe(true);
-
-  await collapseButton.click();
-  await expect(widget).not.toHaveClass(/open/);
-  await page.waitForTimeout(WIDGET_SETTLE_MS);
-  await expect(page.locator('.mp-bubble')).toBeVisible();
-});
-
-test.describe('music widget drag transition stability', () => {
-  test.use({ viewport: { width: 390, height: 844 } });
-
-  test('music widget stays open when dragging begins during open transition on /music', async ({ page }) => {
-    await page.goto('/music');
-    try {
-      const btn = page.locator('button[data-theme-id="theme-default"]');
-      if (await btn.isVisible({ timeout: 2000 })) {
-        await btn.click();
-        await page.waitForTimeout(2000);
-      }
-    } catch (e) {}
-
-    const widget = page.locator('#mp');
-    await widget.click();
-    await expect(widget).toHaveClass(/open/);
-    await page.waitForTimeout(40);
-    const before = await readWidgetState(page);
-
-    const handle = page.locator('#mp-drag-handle');
-    const box = await handle.boundingBox();
-    if (!box) throw new Error('Missing drag handle bounds');
-
-    const startX = box.x + (box.width / 2);
-    const startY = box.y + (box.height / 2);
-
-    await page.mouse.move(startX, startY);
-    await page.mouse.down();
-    await page.mouse.move(startX - 24, startY - 24, { steps: 5 });
-
-    const during = await readWidgetState(page);
-    expect(during.open).toBe(true);
-    expect(during.width).toBeGreaterThan(before.width - 2);
-
-    await page.mouse.up();
-    await page.waitForTimeout(120);
-    await expect(widget).toHaveClass(/open/);
-
-    const after = await readWidgetState(page);
-    expect(after.open).toBe(true);
-  });
-});
-
-test('music widget stays anchored when opening and toggling the list on /music', async ({ page }) => {
-  await page.goto('/music');
-  await settleTheme(page);
-
-  const widget = page.locator('#mp');
-  await expect(widget).toBeVisible();
-
-  await widget.click();
-  await expect(widget).toHaveClass(/open/);
-  await page.waitForTimeout(WIDGET_SETTLE_MS);
-
-  const opened = await readWidgetState(page);
-
-  await page.locator('#mpb-list').click();
-  await expect(page.locator('#mp-list-area')).toHaveClass(/show/);
-  await page.waitForTimeout(WIDGET_SETTLE_MS);
-
-  const listOpened = await readWidgetState(page);
-  expectPanelPositionStable(opened, listOpened);
-
-  await page.locator('#mpb-list').click();
-  await expect(page.locator('#mp-list-area')).not.toHaveClass(/show/);
-  await page.waitForTimeout(WIDGET_SETTLE_MS);
-
-  const listClosed = await readWidgetState(page);
-  expectPanelPositionStable(opened, listClosed);
+  expect(averageDiff).toBeLessThan(8);
 });

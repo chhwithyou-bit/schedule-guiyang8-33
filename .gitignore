@@ -1,19 +1,7 @@
 node_modules/
-apps/*/node_modules/
-packages/*/node_modules/
-.svelte-kit/
-apps/*/.svelte-kit/
-apps/*/.wrangler/
-packages/*/dist/
-packages/*/drizzle/
 .wrangler/
-.wrangler-home/
 playwright-report/
 test-results/
-public/_app/
-public/assets/
-index.html
-public/index.html
 
 # One-off local repair scripts
 build_*.js
@@ -23,9 +11,3 @@ fix*.js
 # Local clutter
 .DS_Store
 *.log
-.aider*
-
-
-# Added by cargo
-
-/target
