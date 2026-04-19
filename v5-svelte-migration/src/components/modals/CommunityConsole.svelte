@@ -12,6 +12,8 @@
   export let accountOnly = false;
   export let defaultTab: TabId = 'account';
   export let openAsModal = false;
+  export let allowedTabs: TabId[] | null = null;
+  export let showDriveTab = false;
 
   type Conversation = {
     id: string;
@@ -101,7 +103,9 @@
     notifications: '查看最近的互动和提醒。'
   };
 
-  $: availableTabs = accountOnly ? tabs.filter((tab) => tab.id === 'account') : tabs;
+  $: availableTabs = accountOnly
+    ? tabs.filter((tab) => tab.id === 'account')
+    : tabs.filter((tab) => (showDriveTab || tab.id !== 'drive') && (!allowedTabs || allowedTabs.includes(tab.id)));
   $: shouldRenderModalShell = openAsModal && !embedded;
   $: activeTabMeta = availableTabs.find((tab) => tab.id === activeTab) || availableTabs[0];
 
@@ -153,6 +157,10 @@
   let shellRef: HTMLElement | null = null;
   let closeButtonRef: HTMLButtonElement | null = null;
   let shellFocusPrimed = false;
+
+  $: if (availableTabs.length > 0 && !availableTabs.some((tab) => tab.id === activeTab)) {
+    activeTab = availableTabs[0].id;
+  }
 
   function getFocusableShellItems() {
     if (!shellRef) {
@@ -817,7 +825,8 @@
 
   function openMyProfile() {
     if (!$user) return;
-    selectedProfile.set($user);
+    selectedProfile.set(null);
+    currentView.set('profile');
     if (!embedded) {
       handleClose();
     }
@@ -934,8 +943,8 @@
     return kind === 'group' ? '群聊' : '私聊';
   }
 
-  function openNodesView() {
-    currentView.set('nodes');
+  function openAdminView() {
+    currentView.set($isAdmin ? 'admin' : 'community');
     if (!embedded) {
       handleClose();
     }
@@ -1001,7 +1010,7 @@
     <header class="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-white/10 bg-[rgba(var(--color-bg-rgb),0.92)] px-5 py-4 backdrop-blur-[20px] md:px-6">
       <div>
         <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">{embedded ? '社区消息台' : '控制台导航'}</p>
-        <h2 id="community-console-title" class="mt-1 text-2xl font-black tracking-tight">{accountOnly ? '账号面板' : '聊天 / 群组 / 网盘 / 提醒'}</h2>
+        <h2 id="community-console-title" class="mt-1 text-2xl font-black tracking-tight">{accountOnly ? '账号面板' : '聊天 / 群组 / 提醒'}</h2>
       </div>
 
       <div class="flex items-center gap-3">
@@ -1045,8 +1054,8 @@
             </div>
 
             <div class="flex flex-wrap gap-2 lg:justify-end">
-              <button type="button" class="console-pill console-pill--ghost px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em]" on:click={openNodesView}>
-                去代理节点
+              <button type="button" class="console-pill console-pill--ghost px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em]" on:click={openAdminView}>
+                {$isAdmin ? '管理后台' : '回到社区'}
               </button>
               {#if $isAuthenticated}
                 <button type="button" class="console-pill console-pill--ghost px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em]" on:click={openMyProfile}>
@@ -1058,7 +1067,7 @@
 
           {#if !$isAuthenticated}
             <p class="mt-3 rounded-[20px] border border-white/10 bg-[rgba(255,255,255,0.06)] px-4 py-3 text-sm font-medium leading-7 opacity-75">
-              {authPrompt || '先登录，就能继续使用聊天、用户组会话和网盘。'}
+              {authPrompt || '先登录，就能继续使用聊天、群聊和互动提醒。'}
             </p>
           {/if}
         </div>
@@ -1071,14 +1080,14 @@
                 <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">先登录一下</p>
                 <h3 class="mt-3 text-3xl font-black tracking-tight">登录入口已经恢复</h3>
                 <p class="mt-3 max-w-2xl text-sm font-medium leading-7 opacity-70">
-                  现在这里会固定显示账号入口。登录后，聊天会话、群组、网盘和个人资料编辑都会在同一个面板里可见。
+                  现在这里会固定显示账号入口。登录后，你可以在这里编辑资料，也可以回社区继续聊天、群聊和查看提醒。
                 </p>
                 <div class="mt-5 flex flex-wrap gap-3">
                   <button type="button" class="console-pill console-pill--primary px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)]" on:click={openAuth}>
                     登录 / 注册
                   </button>
-                  <button type="button" class="console-pill console-pill--ghost px-5 py-3 text-xs font-black uppercase tracking-[0.2em]" on:click={openNodesView}>
-                    去代理节点页
+                  <button type="button" class="console-pill console-pill--ghost px-5 py-3 text-xs font-black uppercase tracking-[0.2em]" on:click={openAdminView}>
+                    {$isAdmin ? '打开后台管理' : '回到社区'}
                   </button>
                 </div>
               </section>
@@ -1331,8 +1340,8 @@
                   <button type="button" class="console-pill console-pill--primary px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] disabled:opacity-50" on:click={createGroup} disabled={creatingGroup}>
                     {creatingGroup ? '正在创建…' : '创建群聊'}
                   </button>
-                  <button type="button" class="console-pill console-pill--ghost px-5 py-3 text-xs font-black uppercase tracking-[0.2em]" on:click={openNodesView}>
-                    去代理节点页
+                  <button type="button" class="console-pill console-pill--ghost px-5 py-3 text-xs font-black uppercase tracking-[0.2em]" on:click={openAdminView}>
+                    {$isAdmin ? '打开后台管理' : '回到社区'}
                   </button>
                 </div>
 

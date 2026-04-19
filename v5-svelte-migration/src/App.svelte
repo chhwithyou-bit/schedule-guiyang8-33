@@ -1,40 +1,31 @@
 <script lang="ts">
-  /**
-   * 8Community V5 - Liquid Evolution
-   * Updated: 2026-03-29
-   */
   import { onMount, tick } from 'svelte';
   import { get } from 'svelte/store';
   import { gsap } from 'gsap';
   import Lenis from '@studio-freight/lenis';
-  import { currentView, selectedProfile, themeInitialized, clearSelectedProfile } from './stores/appState';
-  import { activeModal } from './stores/modalState';
 
+  import { activeModal } from './stores/modalState';
+  import { clearSelectedProfile, currentView, selectedProfile, themeInitialized } from './stores/appState';
+
+  import Header from './components/layout/Header.svelte';
+  import LiquidBar from './components/layout/LiquidBar.svelte';
+  import MusicPlayer from './components/layout/MusicPlayer.svelte';
+  import PageTransition from './components/layout/PageTransition.svelte';
+  import AuthModal from './components/modals/AuthModal.svelte';
+  import PostModal from './components/modals/PostModal.svelte';
   import CustomCursor from './components/ui/CustomCursor.svelte';
   import Preloader from './components/ui/Preloader.svelte';
   import ThemeSwitcher from './components/ui/ThemeSwitcher.svelte';
-  import Header from './components/layout/Header.svelte';
-  import PageTransition from './components/layout/PageTransition.svelte';
-  import LiquidBar from './components/layout/LiquidBar.svelte';
-  import MusicPlayer from './components/layout/MusicPlayer.svelte';
-
-  // Modals
-  import AuthModal from './components/modals/AuthModal.svelte';
-  import PostModal from './components/modals/PostModal.svelte';
-  import CommunityConsole from './components/modals/CommunityConsole.svelte';
-
-  import ScheduleView from './components/views/ScheduleView.svelte';
-  import CommunityView from './components/views/CommunityView.svelte';
-  import ConsoleView from './components/views/ConsoleView.svelte';
-  import NodesView from './components/views/NodesView.svelte';
-  import XiangqiView from './components/views/XiangqiView.svelte';
   import AdminView from './components/views/AdminView.svelte';
+  import CommunityView from './components/views/CommunityView.svelte';
+  import PersonalView from './components/views/PersonalView.svelte';
 
   let lenis: Lenis;
   let lenisFrame = 0;
   let mainContent: HTMLElement;
   let modalRegion: HTMLElement | null = null;
   let previousModalId: string | null = null;
+  let previousView = '';
   let isLoading = true;
   let lenisStarted = false;
   let backgroundReady = false;
@@ -44,11 +35,8 @@
   const WALLPAPER_SRC = '/IMG_1695.webp';
 
   const viewMap: Record<string, any> = {
-    schedule: ScheduleView,
     community: CommunityView,
-    console: ConsoleView,
-    nodes: NodesView,
-    xiangqi: XiangqiView,
+    profile: PersonalView,
     admin: AdminView
   };
 
@@ -72,8 +60,8 @@
       };
 
       lenisFrame = requestAnimationFrame(raf);
-    } catch (e) {
-      console.warn('Lenis initialization failed:', e);
+    } catch (error) {
+      console.warn('Lenis initialization failed:', error);
     }
   }
 
@@ -87,22 +75,18 @@
       backgroundReady = true;
     };
 
-    const markFailed = () => {
-      backgroundFailed = true;
-    };
-
     img.onload = async () => {
       try {
         if (typeof img.decode === 'function') {
           await img.decode();
         }
-      } catch (e) {}
+      } catch (error) {}
 
       markReady();
     };
 
     img.onerror = () => {
-      markFailed();
+      backgroundFailed = true;
     };
 
     if (img.complete) {
@@ -185,9 +169,7 @@
     await tick();
 
     const shell = document.querySelector<HTMLElement>('[data-modal-shell="true"]');
-    if (!shell) {
-      return;
-    }
+    if (!shell) return;
 
     modalRegion = shell;
     const focusableElements = collectFocusableElements(shell);
@@ -207,15 +189,13 @@
     try {
       gsap.set(mainContent, { opacity: 1 });
 
-      const tl = gsap.timeline();
-
-      tl.fromTo(
+      const timeline = gsap.timeline();
+      timeline.fromTo(
         mainContent,
         { opacity: 0.02, y: 8, filter: 'blur(10px)' },
         { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.5, ease: 'power2.out' }
       );
-
-      tl.from(
+      timeline.from(
         '.view-wrapper',
         {
           y: 26,
@@ -226,8 +206,7 @@
         },
         '-=0.34'
       );
-
-      tl.from(
+      timeline.from(
         'header',
         {
           y: -22,
@@ -238,8 +217,7 @@
         },
         '-=0.48'
       );
-
-      tl.from(
+      timeline.from(
         '.liquid-bar-dock',
         {
           x: -16,
@@ -254,8 +232,7 @@
         },
         '-=0.42'
       );
-
-      tl.from(
+      timeline.from(
         '#mp',
         {
           y: 18,
@@ -267,15 +244,15 @@
         },
         '-=0.34'
       );
-    } catch (e) {
-      console.error('Assembly animation failed, forcing visibility:', e);
-      if (mainContent) mainContent.style.opacity = '1';
+    } catch (error) {
+      console.error('Assembly animation failed, forcing visibility:', error);
+      if (mainContent) {
+        mainContent.style.opacity = '1';
+      }
     }
   }
 
   $: canFinishLoading = $themeInitialized && (backgroundReady || backgroundFailed);
-
-  let previousView = '';
 
   $: {
     const modalId = $activeModal;
@@ -290,11 +267,9 @@
 
   $: {
     const nextView = $currentView;
-
     if (previousView && nextView !== previousView && $selectedProfile) {
       clearSelectedProfile();
     }
-
     previousView = nextView;
   }
 
@@ -306,7 +281,7 @@
         console.warn('App stuck loading, triggering fail-safe...');
         backgroundFailed = true;
         themeInitialized.set(true);
-        startAssembly();
+        void startAssembly();
       }
     }, 5000);
 
@@ -323,7 +298,7 @@
       if (lenis) {
         try {
           lenis.destroy();
-        } catch (e) {}
+        } catch (error) {}
       }
     };
   });
@@ -345,7 +320,7 @@
     bind:this={mainContent}
     class="main-content-assembly {(isLoading || !$themeInitialized) ? 'opacity-0' : 'opacity-100'}"
   >
-    <main id="main-content" tabindex="-1" class="view-wrapper pt-40 pb-40 px-6 md:px-12 md:pt-44 w-full max-w-7xl mx-auto">
+    <main id="main-content" tabindex="-1" class="view-wrapper mx-auto w-full max-w-7xl px-6 pb-40 pt-40 md:px-12 md:pt-44">
       <PageTransition url={$currentView}>
         <svelte:component this={viewMap[$currentView]} />
       </PageTransition>
@@ -363,8 +338,6 @@
     <AuthModal />
   {:else if $activeModal === 'comm-post'}
     <PostModal />
-  {:else if $activeModal === 'community-console'}
-    <CommunityConsole openAsModal={true} />
   {/if}
 </div>
 
@@ -425,7 +398,6 @@
       radial-gradient(circle at 12% 18%, rgba(var(--glow-primary-rgb), 0.16), transparent 24%),
       radial-gradient(circle at 84% 12%, rgba(var(--glow-secondary-rgb), 0.18), transparent 28%);
     background-position: 12% 18%, 84% 12%;
-    background-size: auto, auto;
     background-repeat: no-repeat;
     opacity: 0.92;
   }

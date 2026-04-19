@@ -2,7 +2,6 @@
   import { currentView, selectedPost, isAuthenticated, selectedProfile } from '../../stores/appState';
   import { openModal } from '../../stores/modalState';
   import { communityFetch } from '../../lib/communityApi';
-  import { setCommunityConsoleState } from '../../stores/communityConsoleState';
   import ReliableImage from '../ui/ReliableImage.svelte';
 
   export let post: any;
@@ -43,8 +42,7 @@
     selectedPost.set(null);
     const currentUser = get(user);
     if (currentUser && currentUser.id === post.user_id) {
-      setCommunityConsoleState({ tab: 'account', conversationId: '' });
-      currentView.set('console');
+      currentView.set('profile');
       return;
     }
     selectedProfile.set({
@@ -89,14 +87,14 @@
 
     isLiking = true;
     try {
-      const res = await communityFetch('/api/community/like', {
+      const res = await communityFetch('/api/community/posts/like', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ post_id: post.id })
       });
       const data = await res.json();
       if (data.ok) {
-        const nextLiked = data.action === 'liked';
+        const nextLiked = typeof data.liked === 'boolean' ? data.liked : data.action === 'liked';
         const nextLikeCount = Math.max(0, (post.like_count || 0) + (nextLiked ? 1 : -1));
         post.viewer_liked = nextLiked;
         post.like_count = nextLikeCount;

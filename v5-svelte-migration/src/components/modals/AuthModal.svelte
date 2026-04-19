@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { fade, fly } from 'svelte/transition';
   import { closeModal } from '../../stores/modalState';
-  import { user, isAuthenticated, isAdmin } from '../../stores/appState';
+  import { isAdmin, isAuthenticated, user } from '../../stores/appState';
   import { persistCommunitySession } from '../../lib/communityApi';
 
   let usernameInput: HTMLInputElement | null = null;
@@ -12,34 +12,66 @@
   let loading = false;
   let error = '';
 
+  function buildAuthHeader(nextUsername: string, passHash: string) {
+    return `Bearer ${encodeURIComponent(nextUsername)}:${passHash}`;
+  }
+
+  async function hydrateCurrentUser(nextUsername: string, passHash: string) {
+    const res = await fetch('/api/community/me', {
+      headers: {
+        Authorization: buildAuthHeader(nextUsername, passHash)
+      }
+    });
+    const data = await res.json();
+
+    if (!res.ok || !data?.ok || !data.user) {
+      throw new Error(data?.msg || '账号已认证，但资料加载失败。');
+    }
+
+    return {
+      ...data.user,
+      passHash
+    };
+  }
+
   async function handleSubmit() {
     const normalizedUsername = username.trim();
     if (!normalizedUsername || !password) return;
+
     loading = true;
     error = '';
 
     try {
-      const res = await fetch('/api/community/auth', {
+      const endpoint = isRegister ? '/api/community/register' : '/api/community/login';
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: isRegister ? 'register' : 'login',
           username: normalizedUsername,
           password
         })
       });
       const data = await res.json();
-      if (data.ok) {
-        user.set(data.user);
-        isAuthenticated.set(true);
-        isAdmin.set(data.user?.role === 'admin' || data.user?.role === 'owner');
-        persistCommunitySession(data.user);
-        closeModal();
-      } else {
-        error = data.msg || '登录没成功，再试一次。';
+
+      if (!res.ok || !data?.ok || typeof data.token !== 'string') {
+        error = data?.msg || '登录没有成功，再试一次。';
+        return;
       }
-    } catch (e: any) {
-      error = e.message || '现在连不上，稍后再试。';
+
+      const [tokenUsername = normalizedUsername, passHash = ''] = data.token.split(':');
+      if (!passHash) {
+        throw new Error('认证成功，但没有拿到可用会话。');
+      }
+
+      const nextUser = await hydrateCurrentUser(tokenUsername, passHash);
+
+      user.set(nextUser);
+      isAuthenticated.set(true);
+      isAdmin.set(nextUser?.role === 'admin' || nextUser?.role === 'owner');
+      persistCommunitySession(nextUser);
+      closeModal();
+    } catch (nextError: any) {
+      error = nextError?.message || '现在连不上，稍后再试。';
     } finally {
       loading = false;
     }
@@ -63,67 +95,66 @@
     aria-labelledby="auth-modal-title"
     aria-describedby="auth-modal-description"
     tabindex="-1"
-    class="relative w-full max-w-md bg-[var(--color-bg,#231b22)] text-[var(--color-text,#fff4ed)] rounded-[40px] p-10 shadow-2xl overflow-hidden border border-white/10"
+    class="relative w-full max-w-md overflow-hidden rounded-[40px] border border-white/10 bg-[var(--color-bg,#231b22)] p-10 text-[var(--color-text,#fff4ed)] shadow-2xl"
     transition:fly={{ y: 50, duration: 600, easing: (t) => t * (2 - t) }}
   >
     <div class="relative z-10">
-      <h2 id="auth-modal-title" class="text-4xl font-black tracking-tighter mb-2 uppercase text-[var(--color-text,#fff4ed)]">
+      <h2 id="auth-modal-title" class="mb-2 text-4xl font-black uppercase tracking-tighter text-[var(--color-text,#fff4ed)]">
         {isRegister ? '来这里安个家' : '回来就好'}
       </h2>
-      <p id="auth-modal-description" class="text-sm opacity-40 font-bold uppercase tracking-widest mb-8 text-[var(--color-text,#fff4ed)]">
+      <p id="auth-modal-description" class="mb-8 text-sm font-bold uppercase tracking-widest text-[var(--color-text,#fff4ed)] opacity-40">
         {isRegister ? '起个名字，就能开始发帖聊天。' : '登上账号，继续刚才的内容。'}
       </p>
 
       <form on:submit|preventDefault={handleSubmit} class="space-y-4">
         <div>
-          <label class="block text-[10px] font-black uppercase tracking-widest opacity-30 mb-2 ml-4 text-[var(--color-text,#fff4ed)]" for="username">用户名</label>
+          <label class="mb-2 ml-4 block text-[10px] font-black uppercase tracking-widest text-[var(--color-text,#fff4ed)] opacity-30" for="username">用户名</label>
           <input
             bind:this={usernameInput}
             id="username"
             type="text"
             bind:value={username}
             placeholder="想让大家怎么叫你"
-            class="w-full px-6 py-4 rounded-2xl bg-white/15 border border-white/30 text-[var(--color-text,#fff4ed)] placeholder:text-[var(--color-text,#fff4ed)]/40 focus:ring-2 focus:ring-[var(--color-primary,#fac7b7)] transition-all font-bold outline-none"
+            class="w-full rounded-2xl border border-white/30 bg-white/15 px-6 py-4 font-bold text-[var(--color-text,#fff4ed)] outline-none transition-all placeholder:text-[var(--color-text,#fff4ed)]/40 focus:ring-2 focus:ring-[var(--color-primary,#fac7b7)]"
             style="background-color: rgba(255, 255, 255, 0.18);"
           />
         </div>
 
         <div>
-          <label class="block text-[10px] font-black uppercase tracking-widest opacity-30 mb-2 ml-4 text-[var(--color-text,#fff4ed)]" for="password">密码</label>
-          <input 
+          <label class="mb-2 ml-4 block text-[10px] font-black uppercase tracking-widest text-[var(--color-text,#fff4ed)] opacity-30" for="password">密码</label>
+          <input
             id="password"
-            type="password" 
+            type="password"
             bind:value={password}
-            placeholder="输一个你记得住的"
-            class="w-full px-6 py-4 rounded-2xl bg-white/15 border border-white/30 text-[var(--color-text,#fff4ed)] placeholder:text-[var(--color-text,#fff4ed)]/40 focus:ring-2 focus:ring-[var(--color-primary,#fac7b7)] transition-all font-bold outline-none"
+            placeholder="输入一个你记得住的"
+            class="w-full rounded-2xl border border-white/30 bg-white/15 px-6 py-4 font-bold text-[var(--color-text,#fff4ed)] outline-none transition-all placeholder:text-[var(--color-text,#fff4ed)]/40 focus:ring-2 focus:ring-[var(--color-primary,#fac7b7)]"
             style="background-color: rgba(255, 255, 255, 0.18);"
           />
         </div>
 
         {#if error}
-          <p class="text-red-500 text-xs font-bold px-4 py-2 bg-red-50 dark:bg-red-900/20 rounded-xl">{error}</p>
+          <p class="rounded-xl bg-red-50 px-4 py-2 text-xs font-bold text-red-500 dark:bg-red-900/20">{error}</p>
         {/if}
 
-        <button 
-          type="submit" 
+        <button
+          type="submit"
           disabled={loading}
-          class="w-full py-5 bg-[var(--color-primary,#fac7b7)] text-[var(--color-button-text,#231b22)] font-black text-lg rounded-2xl shadow-lg hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
+          class="w-full rounded-2xl bg-[var(--color-primary,#fac7b7)] py-5 text-lg font-black text-[var(--color-button-text,#231b22)] shadow-lg transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50"
         >
-          {loading ? '正在处理…' : (isRegister ? '注册并进入' : '登录')}
+          {loading ? '正在处理...' : (isRegister ? '注册并进入' : '登录')}
         </button>
       </form>
 
       <div class="mt-8 text-center">
-        <button 
+        <button
           on:click={() => isRegister = !isRegister}
-          class="text-[10px] font-black uppercase tracking-widest opacity-30 hover:opacity-100 transition-opacity"
+          class="text-[10px] font-black uppercase tracking-widest opacity-30 transition-opacity hover:opacity-100"
         >
           {isRegister ? '已经有账号了，直接登录' : '还没有账号？现在注册'}
         </button>
       </div>
     </div>
 
-    <!-- Decorative Liquid Element -->
-    <div class="absolute -right-20 -top-20 w-64 h-64 rounded-full bg-[var(--color-primary)] opacity-5 blur-3xl pointer-events-none"></div>
+    <div class="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-[var(--color-primary)] opacity-5 blur-3xl"></div>
   </div>
 </div>

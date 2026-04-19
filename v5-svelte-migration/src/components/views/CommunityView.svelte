@@ -1,20 +1,32 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
-  import { fade, fly } from 'svelte/transition';
+  import { onDestroy, onMount } from 'svelte';
   import CommunityWordmark from '../ui/CommunityWordmark.svelte';
+  import CommunityConsole from '../modals/CommunityConsole.svelte';
   import PostCard from './PostCard.svelte';
   import PostDetail from './PostDetail.svelte';
   import ProfileView from './ProfileView.svelte';
   import { currentView, isAuthenticated, selectedPost, selectedProfile, user } from '../../stores/appState';
-  import { setCommunityConsoleState, type CommunityConsoleTab } from '../../stores/communityConsoleState';
   import { openModal } from '../../stores/modalState';
   import { communityFetch } from '../../lib/communityApi';
+  import { communityViewState, setCommunityViewState, type CommunitySection } from '../../stores/communityViewState';
+  import { setCommunityConsoleState } from '../../stores/communityConsoleState';
 
   let posts: any[] = [];
-  let loading = true;
+  let loadingPosts = true;
+  let loadingDiscovery = false;
   let query = '';
   let announcement: { content?: string; updatedAt?: string } | null = null;
+  let discoveredUsers: any[] = [];
+  let discoveredGroups: any[] = [];
   let postsRequestToken = 0;
+  let discoveryRequestToken = 0;
+
+  const sections: Array<{ id: CommunitySection; label: string; detail: string }> = [
+    { id: 'feed', label: '动态', detail: '最新帖子和发帖入口' },
+    { id: 'discovery', label: '发现', detail: '搜索用户和群组' },
+    { id: 'messages', label: '消息', detail: '私聊和群聊' },
+    { id: 'notifications', label: '通知', detail: '互动提醒' }
+  ];
 
   function applyPostPatch(postId: string, patch: Record<string, unknown>) {
     posts = posts.map((item) => item.id === postId ? { ...item, ...patch } : item);
@@ -25,6 +37,130 @@
         ...patch
       });
     }
+  }
+
+  function openComposer() {
+    if (!$isAuthenticated) {
+      openModal('auth');
+      return;
+    }
+
+    openModal('comm-post');
+  }
+
+  function openSection(section: CommunitySection) {
+    if (section === 'messages') {
+      setCommunityConsoleState({ tab: 'chats', conversationId: '' });
+      setCommunityViewState({ section, messageTab: 'chats' });
+      return;
+    }
+
+    setCommunityViewState({ section });
+  }
+
+  async function fetchPosts() {
+    const requestToken = ++postsRequestToken;
+    loadingPosts = true;
+
+    try {
+      const suffix = query.trim() ? `?q=${encodeURIComponent(query.trim())}` : '';
+      const res = await communityFetch(`/api/community/posts${suffix}`);
+      const data = await res.json();
+
+      if (data.ok && requestToken === postsRequestToken) {
+        posts = Array.isArray(data.posts) ? data.posts : [];
+      }
+    } catch (error) {
+      if (requestToken === postsRequestToken) {
+        posts = [];
+      }
+      console.error('Failed to fetch posts', error);
+    } finally {
+      if (requestToken === postsRequestToken) {
+        loadingPosts = false;
+      }
+    }
+  }
+
+  async function fetchAnnouncement() {
+    try {
+      const res = await communityFetch('/api/community/announcement');
+      const data = await res.json();
+      if (data.ok) {
+        announcement = data.announcement;
+      }
+    } catch (error) {
+      console.error('Failed to fetch announcement', error);
+    }
+  }
+
+  async function fetchDiscovery() {
+    const requestToken = ++discoveryRequestToken;
+    loadingDiscovery = true;
+
+    try {
+      const suffix = query.trim() ? `?q=${encodeURIComponent(query.trim())}` : '';
+      const res = await communityFetch(`/api/community/discovery${suffix}`);
+      const data = await res.json();
+
+      if (data.ok && requestToken === discoveryRequestToken) {
+        discoveredUsers = Array.isArray(data.users) ? data.users : [];
+        discoveredGroups = Array.isArray(data.groups) ? data.groups : [];
+      }
+    } catch (error) {
+      if (requestToken === discoveryRequestToken) {
+        discoveredUsers = [];
+        discoveredGroups = [];
+      }
+      console.error('Failed to fetch discovery', error);
+    } finally {
+      if (requestToken === discoveryRequestToken) {
+        loadingDiscovery = false;
+      }
+    }
+  }
+
+  function handleSearch(event: Event) {
+    event.preventDefault();
+    void fetchPosts();
+    void fetchDiscovery();
+  }
+
+  async function handleJoinGroup(groupId: string) {
+    if (!$isAuthenticated) {
+      openModal('auth');
+      return;
+    }
+
+    try {
+      const res = await communityFetch('/api/community/groups/join', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversation_id: groupId })
+      });
+      const data = await res.json();
+      if (!data.ok) return;
+
+      setCommunityConsoleState({ tab: 'groups', conversationId: groupId });
+      setCommunityViewState({ section: 'messages', messageTab: 'groups' });
+    } catch (error) {
+      console.error('Failed to join group', error);
+    }
+  }
+
+  function openUserProfile(profile: any) {
+    selectedProfile.set({
+      id: profile.id || profile.user_id,
+      username: profile.username,
+      avatar_url: profile.avatar_url,
+      role: profile.role,
+      signature: profile.signature,
+      background_url: profile.background_url
+    });
+  }
+
+  function openMyProfile() {
+    currentView.set('profile');
   }
 
   function handlePostCreated() {
@@ -41,6 +177,7 @@
 
   onMount(() => {
     void fetchPosts();
+    void fetchDiscovery();
     void fetchAnnouncement();
     window.addEventListener('post-created', handlePostCreated);
     window.addEventListener('community-post-updated', handlePostUpdated as EventListener);
@@ -50,314 +187,221 @@
     window.removeEventListener('post-created', handlePostCreated);
     window.removeEventListener('community-post-updated', handlePostUpdated as EventListener);
   });
-
-  async function fetchPosts() {
-    const requestToken = ++postsRequestToken;
-    loading = true;
-    try {
-      let url = '/api/community/posts?';
-      if (query) url += `q=${encodeURIComponent(query)}&`;
-
-      const res = await communityFetch(url);
-      const data = await res.json();
-      if (data.ok && requestToken === postsRequestToken) {
-        posts = Array.isArray(data.posts) ? data.posts : [];
-      }
-    } catch (e) {
-      if (requestToken === postsRequestToken) {
-        posts = [];
-      }
-      console.error('Failed to fetch posts', e);
-    } finally {
-      if (requestToken === postsRequestToken) {
-        loading = false;
-      }
-    }
-  }
-
-  function handleSearch(e: Event) {
-    e.preventDefault();
-    fetchPosts();
-  }
-
-  async function fetchAnnouncement() {
-    try {
-      const res = await communityFetch('/api/community/announcement');
-      const data = await res.json();
-      if (data.ok) {
-        announcement = data.announcement;
-      }
-    } catch (e) {
-      console.error('Failed to fetch announcement', e);
-    }
-  }
-
-  function openComposer() {
-    if (!$isAuthenticated) {
-      openModal('auth');
-      return;
-    }
-
-    openModal('comm-post');
-  }
-
-  function openConsoleView(event?: Event) {
-    event?.stopPropagation();
-    setCommunityConsoleState({ tab: 'account', conversationId: '', returnFocusSelector: '[data-console-launch="community-open"]' });
-    openModal('community-console');
-  }
-
-  function openConsoleTab(tab: CommunityConsoleTab) {
-    setCommunityConsoleState({ tab, conversationId: '', returnFocusSelector: '[data-console-launch="community-tab"]' });
-    openModal('community-console');
-  }
-
-  const consoleDestinations: Array<{
-    id: CommunityConsoleTab;
-    label: string;
-    title: string;
-    detail: string;
-  }> = [
-    {
-      id: 'chats',
-      label: '聊天',
-      title: '私聊消息',
-      detail: '直接回到最近会话，不用先进控制台。'
-    },
-    {
-      id: 'groups',
-      label: '群组',
-      title: '群聊与创建',
-      detail: '建群、回群、继续聊，分区更清楚。'
-    },
-    {
-      id: 'drive',
-      label: '网盘',
-      title: '文件中转站',
-      detail: '上传和整理文件，单独放一格更直观。'
-    },
-    {
-      id: 'notifications',
-      label: '提醒',
-      title: '互动提醒',
-      detail: '最新提及、互动和通知统一查看。'
-    }
-  ];
 </script>
 
-<div class="community-view">
-  <section class="community-hero-shell mb-10 grid gap-6 rounded-[36px] p-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(22rem,0.95fr)] xl:items-stretch xl:p-6">
-    <div class="community-hero-copy rounded-[30px] px-1 py-2 md:px-2 md:py-3">
-      <h1 class="sr-only">8community</h1>
+<div class="community-view space-y-8">
+  <section class="community-hero-shell rounded-[36px] p-5 xl:grid xl:grid-cols-[minmax(0,1.2fr)_minmax(20rem,0.8fr)] xl:gap-6 xl:p-6">
+    <div class="community-hero-copy">
       <p class="text-[10px] font-black uppercase tracking-[0.32em] opacity-35">正在发生</p>
       <CommunityWordmark class="mt-3 max-w-[min(56rem,100%)]" />
       <p class="mt-4 max-w-2xl text-sm font-medium leading-7 opacity-70 md:text-base">
-        近况、照片、碎碎念都能直接发。入口已经提到上面，抬手就能写，不用再去底下翻。
+        社区现在只保留内容、发现、消息和通知四个子区。发帖、聊天、群聊和个人资料编辑都还在，但入口比旧站收得更清楚。
       </p>
+
       <div class="mt-5 flex flex-wrap gap-3">
-        <span class="community-hero-chip rounded-full px-4 py-2 text-[11px] font-black uppercase tracking-[0.2em] opacity-70">说近况</span>
-        <span class="community-hero-chip rounded-full px-4 py-2 text-[11px] font-black uppercase tracking-[0.2em] opacity-70">挂图片</span>
-        <span class="community-hero-chip rounded-full px-4 py-2 text-[11px] font-black uppercase tracking-[0.2em] opacity-70">找得到</span>
+        <button type="button" on:click={openComposer} class="community-primary rounded-full px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)]">
+          {$isAuthenticated ? '发一条' : '登录后发帖'}
+        </button>
+        <button
+          type="button"
+          on:click={openMyProfile}
+          class="community-secondary rounded-full px-5 py-3 text-xs font-black uppercase tracking-[0.2em]"
+          disabled={!$isAuthenticated}
+        >
+          我的资料
+        </button>
       </div>
     </div>
 
-    <div class="community-action-panel rounded-[32px] p-4 md:p-5">
-      {#if $isAuthenticated}
-        <div class="community-action-panel__button community-action-panel__button--composer group flex items-center gap-4 rounded-[28px] px-4 py-4 text-left">
+    <div class="community-summary-panel mt-6 rounded-[32px] p-5 xl:mt-0">
+      <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">社区分区</p>
+      <div class="mt-4 grid gap-3 sm:grid-cols-2">
+        {#each sections as section}
           <button
             type="button"
-            on:click={openConsoleView}
-            class="community-action-panel__avatar flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-[20px] text-lg font-black text-[var(--color-bg)] transition-transform duration-300 hover:scale-105"
-            aria-label="管理个人资料"
+            on:click={() => openSection(section.id)}
+            class="community-section-card {$communityViewState.section === section.id ? 'is-active' : ''} rounded-[24px] p-4 text-left"
           >
-            {#if $user?.avatar_url}
-              <img src={$user.avatar_url} alt={$user.username || 'user'} class="h-full w-full rounded-[20px] object-cover" />
-            {:else}
-              {$user?.username?.slice(0, 1).toUpperCase() || 'U'}
-            {/if}
+            <span class="text-[10px] font-black uppercase tracking-[0.22em] opacity-35">{section.label}</span>
+            <strong class="mt-2 block text-lg font-black tracking-tight">{section.detail}</strong>
           </button>
-
-          <button
-            type="button"
-            on:click={openComposer}
-            data-view-trigger="true"
-            class="community-action-panel__composer-main min-w-0 flex-1 text-left"
-            aria-label="打开社区发帖面板"
-          >
-            <p class="text-xs font-black uppercase tracking-[0.22em] opacity-40">
-              {$user?.username || '你'} 正准备发帖
-            </p>
-            <p class="mt-1 text-lg font-black tracking-tight">
-              今天发生了什么，直接写下来。
-            </p>
-            <p class="mt-2 text-sm font-medium opacity-60">
-              文字和图片都行，发出去之后页面会立刻刷新。
-            </p>
-          </button>
-
-          <button
-            type="button"
-            on:click={openComposer}
-            class="community-action-panel__pill hidden rounded-full px-4 py-2 text-[11px] font-black uppercase tracking-[0.2em] opacity-70 transition-transform duration-300 hover:-translate-y-0.5 md:block"
-          >
-            去发帖
-          </button>
-        </div>
-      {:else}
-        <div
-          class="community-action-panel__button group flex w-full items-center gap-4 rounded-[28px] px-4 py-4 text-left transition-transform duration-300"
-        >
-          <div class="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-[20px] bg-[var(--color-primary)] text-lg font-black text-[var(--color-bg)] shadow-lg">
-            ?
-          </div>
-
-          <div class="min-w-0 flex-1">
-            <p class="text-xs font-black uppercase tracking-[0.22em] opacity-40">
-              先登录，再来发一条
-            </p>
-            <p class="mt-1 text-lg font-black tracking-tight">
-              登录之后，就能把近况发到社区里。
-            </p>
-            <p class="mt-2 text-sm font-medium opacity-60">
-              登录后点击下方按钮就能打开发帖面板。
-            </p>
-          </div>
-        </div>
-      {/if}
-
-      <div class="community-action-panel__toolbar mt-4 flex flex-wrap gap-3">
-        {#if $isAuthenticated}
-          <button
-            type="button"
-            on:click={openComposer}
-            class="community-action-panel__primary rounded-full px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] transition-transform duration-300 hover:-translate-y-0.5"
-          >
-            发一条
-          </button>
-        {:else}
-          <button
-            type="button"
-            on:click={() => openModal('auth')}
-            class="community-action-panel__primary rounded-full px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] transition-transform duration-300 hover:-translate-y-0.5"
-          >
-            登录
-          </button>
-          <button
-            type="button"
-            on:click={() => openModal('auth')}
-            class="community-action-panel__ghost rounded-full px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform duration-300 hover:-translate-y-0.5"
-          >
-            注册
-          </button>
-        {/if}
-        <button
-          type="button"
-          on:click={fetchPosts}
-          class="community-action-panel__ghost rounded-full px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition-transform duration-300 hover:-translate-y-0.5"
-        >
-          刷新动态
-        </button>
-      </div>
-
-      <div class="community-console-panel mt-5 rounded-[28px] p-4 md:p-5">
-        <div class="mb-4 flex items-center justify-between gap-3">
-          <div>
-            <p class="text-[10px] font-black uppercase tracking-[0.22em] opacity-35">控制台分区</p>
-            <p class="mt-1 text-sm font-medium opacity-65">聊天、群组、网盘和提醒直接分到选项卡；资料编辑进个人面板。</p>
-          </div>
-          <button
-            type="button"
-            data-console-launch="community-open"
-            on:click={openConsoleView}
-            class="community-action-panel__ghost rounded-full px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-transform duration-300 hover:-translate-y-0.5"
-          >
-            打开控制台
-          </button>
-        </div>
-
-        <div class="community-console-grid">
-          {#each consoleDestinations as item}
-            <button
-              type="button"
-              data-console-launch="community-tab"
-              on:click={() => openConsoleTab(item.id)}
-              class="community-console-tile text-left transition-transform duration-300 hover:-translate-y-1"
-            >
-              <span class="community-console-tile__eyebrow">{item.label}</span>
-              <strong class="mt-3 block text-base font-black tracking-tight">{item.title}</strong>
-              <span class="mt-2 block text-sm font-medium leading-6 opacity-65">{item.detail}</span>
-            </button>
-          {/each}
-        </div>
+        {/each}
       </div>
     </div>
   </section>
 
-  {#if announcement?.content}
-    <section class="community-notice-panel mb-10 rounded-[32px] px-6 py-5 md:px-7 md:py-6">
-      <div class="community-notice-panel__inner flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+  <section class="community-shell rounded-[32px] p-4 md:p-5">
+    <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+      <div>
+        <p class="text-[10px] font-black uppercase tracking-[0.28em] opacity-35">社区导航</p>
+        <h2 class="mt-2 text-2xl font-black tracking-tight">动态、发现、消息、通知</h2>
+      </div>
+
+      <form on:submit={handleSearch} class="relative w-full md:max-w-sm">
+        <input
+          type="text"
+          bind:value={query}
+          placeholder="搜索帖子、用户或群组..."
+          class="community-search-input w-full rounded-2xl px-6 py-4 font-medium text-[var(--color-text,#fff4ed)] outline-none transition-all placeholder:text-[var(--color-text,#fff4ed)]/40 focus:ring-2 focus:ring-[var(--color-primary,#fac7b7)]"
+        />
+        <button type="submit" class="absolute right-4 top-1/2 -translate-y-1/2 opacity-40 transition-opacity hover:opacity-100">
+          搜索
+        </button>
+      </form>
+    </div>
+
+    <div class="mt-5 flex flex-wrap gap-3">
+      {#each sections as section}
+        <button
+          type="button"
+          on:click={() => openSection(section.id)}
+          class="community-pill {$communityViewState.section === section.id ? 'is-active' : ''} rounded-full px-4 py-2 text-[11px] font-black uppercase tracking-[0.18em]"
+        >
+          {section.label}
+        </button>
+      {/each}
+    </div>
+  </section>
+
+  {#if $communityViewState.section === 'feed'}
+    {#if announcement?.content}
+      <section class="community-shell rounded-[32px] px-6 py-5 md:px-7 md:py-6">
+        <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div>
+            <p class="text-[10px] font-black uppercase tracking-[0.28em] opacity-35">站内公告</p>
+            <p class="mt-2 max-w-3xl text-sm font-medium leading-7 opacity-80 md:text-base">
+              {announcement.content}
+            </p>
+          </div>
+          {#if announcement.updatedAt}
+            <p class="text-[10px] font-black uppercase tracking-[0.22em] opacity-30">
+              {new Date(announcement.updatedAt).toLocaleString('zh-CN')}
+            </p>
+          {/if}
+        </div>
+      </section>
+    {/if}
+
+    <section class="community-shell rounded-[32px] p-5">
+      <div class="flex items-center justify-between gap-4">
         <div>
-          <p class="text-[10px] font-black uppercase tracking-[0.28em] opacity-35">站内公告</p>
-          <p class="mt-2 max-w-3xl text-sm font-medium leading-7 opacity-80 md:text-base">
-            {announcement.content}
+          <p class="text-[10px] font-black uppercase tracking-[0.28em] opacity-35">最新动态</p>
+          <p class="mt-2 text-sm font-medium opacity-60">
+            {loadingPosts ? '正在同步最新帖子...' : `当前可见 ${posts.length} 条动态`}
           </p>
         </div>
-        {#if announcement.updatedAt}
-          <p class="text-[10px] font-black uppercase tracking-[0.22em] opacity-30">
-            {new Date(announcement.updatedAt).toLocaleString('zh-CN')}
-          </p>
+        <button type="button" on:click={fetchPosts} class="community-secondary rounded-full px-5 py-3 text-xs font-black uppercase tracking-[0.2em]">
+          刷新
+        </button>
+      </div>
+
+      {#if loadingPosts}
+        <div class="mt-6 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {#each Array(6) as _}
+            <div class="h-80 animate-pulse rounded-[32px] border border-white/10 bg-white/5"></div>
+          {/each}
+        </div>
+      {:else if posts.length > 0}
+        <div class="mt-6 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {#each posts as post (post.id)}
+            <PostCard {post} />
+          {/each}
+        </div>
+      {:else}
+        <div class="mt-6 rounded-[28px] border border-white/10 bg-white/5 px-5 py-10 text-center text-sm font-medium opacity-70">
+          这里还没有你想看的内容。要不要先发第一条？
+        </div>
+      {/if}
+    </section>
+  {/if}
+
+  {#if $communityViewState.section === 'discovery'}
+    <section class="community-shell rounded-[32px] p-5 md:p-6">
+      <div class="flex items-center justify-between gap-4">
+        <div>
+          <p class="text-[10px] font-black uppercase tracking-[0.28em] opacity-35">发现</p>
+          <h2 class="mt-2 text-2xl font-black tracking-tight">搜索用户和群组</h2>
+        </div>
+        {#if loadingDiscovery}
+          <span class="text-xs font-black uppercase tracking-[0.22em] opacity-35">同步中</span>
         {/if}
+      </div>
+
+      <div class="mt-6 grid gap-6 xl:grid-cols-2">
+        <div class="space-y-4">
+          <div class="flex items-center justify-between gap-3">
+            <h3 class="text-xl font-black tracking-tight">用户</h3>
+            <span class="text-[10px] font-black uppercase tracking-[0.22em] opacity-35">{discoveredUsers.length} 位</span>
+          </div>
+
+          {#if discoveredUsers.length > 0}
+            <div class="grid gap-4">
+              {#each discoveredUsers as profile (profile.id)}
+                <button type="button" on:click={() => openUserProfile(profile)} class="community-discovery-card rounded-[28px] p-4 text-left">
+                  <div class="flex items-center gap-4">
+                    <div class="h-14 w-14 overflow-hidden rounded-[20px] bg-white/10">
+                      {#if profile.avatar_url}
+                        <img src={profile.avatar_url} alt={profile.username} class="h-full w-full object-cover" />
+                      {/if}
+                    </div>
+                    <div class="min-w-0 flex-1">
+                      <p class="truncate text-lg font-black tracking-tight">{profile.username}</p>
+                      <p class="mt-1 text-sm font-medium opacity-65">{profile.signature || '这个人还没有写签名。'}</p>
+                    </div>
+                  </div>
+                </button>
+              {/each}
+            </div>
+          {:else}
+            <div class="rounded-[28px] border border-white/10 bg-white/5 px-5 py-8 text-sm font-medium opacity-70">
+              这里还没有搜到用户，换个关键词试试。
+            </div>
+          {/if}
+        </div>
+
+        <div class="space-y-4">
+          <div class="flex items-center justify-between gap-3">
+            <h3 class="text-xl font-black tracking-tight">群组</h3>
+            <span class="text-[10px] font-black uppercase tracking-[0.22em] opacity-35">{discoveredGroups.length} 个</span>
+          </div>
+
+          {#if discoveredGroups.length > 0}
+            <div class="grid gap-4">
+              {#each discoveredGroups as group (group.id)}
+                <div class="community-discovery-card rounded-[28px] p-4">
+                  <div class="flex items-start justify-between gap-4">
+                    <div class="min-w-0 flex-1">
+                      <p class="truncate text-lg font-black tracking-tight">{group.title}</p>
+                      <p class="mt-1 text-sm font-medium opacity-65">{group.description || '这个群组还没有描述。'}</p>
+                      <p class="mt-3 text-[10px] font-black uppercase tracking-[0.22em] opacity-35">{group.member_count || 0} 位成员</p>
+                    </div>
+                    <button type="button" on:click={() => handleJoinGroup(group.id)} class="community-secondary rounded-full px-4 py-2 text-[11px] font-black uppercase tracking-[0.18em]">
+                      {group.joined ? '打开群聊' : '加入并聊天'}
+                    </button>
+                  </div>
+                </div>
+              {/each}
+            </div>
+          {:else}
+            <div class="rounded-[28px] border border-white/10 bg-white/5 px-5 py-8 text-sm font-medium opacity-70">
+              这里还没有搜到群组，换个关键词试试。
+            </div>
+          {/if}
+        </div>
       </div>
     </section>
   {/if}
 
-  <div class="community-feed-shell mb-12 flex flex-col gap-4 rounded-[32px] px-5 py-5 md:flex-row md:items-end md:justify-between md:px-6">
-    <div>
-      <p class="text-[10px] font-black uppercase tracking-[0.28em] opacity-35">最新动态</p>
-      <p class="mt-2 text-sm font-medium opacity-60">
-        {loading ? '正在同步大家刚发的内容…' : `现在一共看得到 ${posts.length} 条动态`}
-      </p>
-    </div>
+  {#if $communityViewState.section === 'messages'}
+    <section class="community-shell rounded-[32px] p-3 md:p-4">
+      <CommunityConsole embedded={true} defaultTab={$communityViewState.messageTab} allowedTabs={['chats', 'groups']} />
+    </section>
+  {/if}
 
-    <form on:submit={handleSearch} class="community-feed-search relative w-full md:max-w-xs">
-      <input
-        type="text"
-        bind:value={query}
-        placeholder="搜帖子内容..."
-        class="community-feed-search__input w-full rounded-2xl px-6 py-4 font-medium text-[var(--color-text,#fff4ed)] outline-none transition-all placeholder:text-[var(--color-text,#fff4ed)]/40 focus:ring-2 focus:ring-[var(--color-primary,#fac7b7)]"
-      />
-      <button type="submit" class="community-feed-search__submit absolute right-4 top-1/2 -translate-y-1/2 text-[var(--color-text,#fff4ed)] opacity-30 transition-opacity hover:opacity-100">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-      </button>
-    </form>
-  </div>
-
-  {#if loading}
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {#each Array(6) as _}
-        <div class="h-80 rounded-[32px] bg-white/5 border border-white/10 animate-pulse"></div>
-      {/each}
-    </div>
-  {:else if posts.length > 0}
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {#each posts as post (post.id)}
-        <div in:fly={{ y: 20, duration: 500 }}>
-          <PostCard {post} />
-        </div>
-      {/each}
-    </div>
-  {:else}
-    <div class="py-32 text-center" in:fade>
-      <div class="text-6xl mb-4">· · ·</div>
-      <p class="text-xl font-bold opacity-30 uppercase tracking-widest">这里还没有你想看的内容。</p>
-      <button
-        type="button"
-        on:click={openComposer}
-        class="mt-8 rounded-full bg-[var(--color-primary)] px-6 py-3 text-xs font-black uppercase tracking-[0.22em] text-[var(--color-bg)] shadow-lg transition-transform hover:scale-105"
-      >
-        {$isAuthenticated ? '那就先发第一条' : '登录后发帖'}
-      </button>
-    </div>
+  {#if $communityViewState.section === 'notifications'}
+    <section class="community-shell rounded-[32px] p-3 md:p-4">
+      <CommunityConsole embedded={true} defaultTab="notifications" allowedTabs={['notifications']} />
+    </section>
   {/if}
 
   {#if $selectedPost}
@@ -371,10 +415,11 @@
 
 <style>
   .community-hero-shell,
-  .community-action-panel,
-  .community-notice-panel,
-  .community-feed-shell {
+  .community-shell,
+  .community-summary-panel,
+  .community-discovery-card {
     position: relative;
+    overflow: hidden;
     border: 1px solid rgba(255, 255, 255, 0.12);
     background:
       linear-gradient(145deg, rgba(var(--glow-primary-rgb), 0.14) 0% 42%, rgba(var(--glow-secondary-rgb), 0.1) 42% 100%),
@@ -387,32 +432,28 @@
     backdrop-filter: blur(18px) saturate(1.08);
   }
 
-  .community-hero-shell::before,
-  .community-action-panel::before,
-  .community-notice-panel::before,
-  .community-feed-shell::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
+  .community-primary,
+  .community-secondary,
+  .community-pill,
+  .community-section-card {
+    border: 1px solid rgba(255, 255, 255, 0.1);
     background:
-      radial-gradient(circle at top left, rgba(var(--glow-primary-rgb), 0.18), transparent 36%),
-      radial-gradient(circle at 82% 18%, rgba(var(--glow-secondary-rgb), 0.12), transparent 28%);
-    opacity: 0.9;
-    pointer-events: none;
+      linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(var(--color-bg-rgb), 0.08)),
+      rgba(var(--color-bg-rgb), 0.14);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
   }
 
-  .community-hero-copy,
-  .community-console-panel,
-  .community-notice-panel__inner {
-    position: relative;
-    z-index: 1;
+  .community-primary {
+    background:
+      radial-gradient(circle at top left, rgba(255, 255, 255, 0.26), transparent 38%),
+      linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 86%, white 14%), var(--color-primary));
+    box-shadow:
+      0 16px 30px rgba(var(--shadow-rgb), 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.24);
   }
 
-  .community-hero-chip,
-  .community-action-panel__pill,
-  .community-action-panel__ghost,
-  .community-console-tile__eyebrow {
+  .community-search-input {
     border: 1px solid rgba(255, 255, 255, 0.1);
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(var(--color-bg-rgb), 0.08)),
@@ -420,111 +461,22 @@
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
   }
 
-  .community-action-panel__button,
-  .community-console-panel,
-  .community-feed-search__input {
-    border: 1px solid rgba(255, 255, 255, 0.1);
+  .community-pill.is-active,
+  .community-section-card.is-active {
+    border-color: rgba(var(--glow-primary-rgb), 0.26);
     background:
-      linear-gradient(145deg, rgba(var(--glow-primary-rgb), 0.1), rgba(var(--glow-secondary-rgb), 0.06)),
-      rgba(var(--color-bg-rgb), 0.14);
+      linear-gradient(135deg, rgba(var(--glow-primary-rgb), 0.2), rgba(var(--glow-secondary-rgb), 0.12)),
+      rgba(var(--color-bg-rgb), 0.24);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.1),
-      0 12px 28px rgba(var(--shadow-rgb), 0.08);
+      0 14px 28px rgba(var(--shadow-rgb), 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.18);
   }
 
-  .community-action-panel__button,
-  .community-console-panel,
-  .community-console-tile,
-  .community-feed-search__input,
-  .community-action-panel__primary,
-  .community-action-panel__ghost {
-    position: relative;
-    z-index: 1;
-  }
-
-  .community-action-panel__button--composer {
-    align-items: stretch;
-  }
-
-  .community-action-panel__composer-main {
-    align-self: stretch;
-  }
-
-  .community-action-panel__avatar,
-  .community-action-panel__primary {
-    background:
-      linear-gradient(145deg, rgba(var(--glow-primary-rgb), 0.95), rgba(var(--glow-secondary-rgb), 0.72)),
-      var(--color-primary);
-    box-shadow:
-      0 18px 30px rgba(var(--shadow-rgb), 0.18),
-      inset 0 1px 0 rgba(255, 255, 255, 0.28);
-  }
-
-  .community-action-panel__toolbar {
-    position: relative;
-    z-index: 1;
-    align-items: center;
-  }
-
-  .community-console-panel {
-    overflow: hidden;
-  }
-
-  .community-console-grid {
-    display: grid;
-    gap: 0.95rem;
-    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
-  }
-
-  .community-console-tile {
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 1.5rem;
-    padding: 1.1rem;
-    background:
-      linear-gradient(145deg, rgba(var(--glow-primary-rgb), 0.1), rgba(var(--glow-secondary-rgb), 0.06)),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(var(--color-bg-rgb), 0.12)),
-      rgba(var(--color-bg-rgb), 0.12);
-    box-shadow:
-      0 16px 28px rgba(var(--shadow-rgb), 0.11),
-      inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  }
-
-  .community-console-tile:hover {
-    box-shadow:
-      0 22px 36px rgba(var(--shadow-rgb), 0.14),
-      inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  }
-
-  .community-console-tile__eyebrow {
-    display: inline-flex;
-    border-radius: 999px;
-    padding: 0.35rem 0.65rem;
-    font-size: 0.6rem;
-    font-weight: 900;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    opacity: 0.72;
-  }
-
-  .community-feed-shell {
-    z-index: 1;
-  }
-
-  .community-feed-search__input {
-    padding-right: 3.5rem;
-  }
-
-  @media (max-width: 767px) {
-    .community-hero-shell {
-      padding: 1rem;
-    }
-
-    .community-action-panel {
-      padding: 1rem;
-    }
-
-    .community-console-grid {
-      grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
-    }
+  .community-primary:hover,
+  .community-secondary:hover,
+  .community-pill:hover,
+  .community-section-card:hover,
+  .community-discovery-card:hover {
+    transform: translateY(-1px);
   }
 </style>

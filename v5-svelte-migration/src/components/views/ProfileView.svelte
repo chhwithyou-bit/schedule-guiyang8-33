@@ -7,6 +7,7 @@
   import PostCard from './PostCard.svelte';
   import { communityFetch, persistCommunitySession } from '../../lib/communityApi';
   import { setCommunityConsoleState } from '../../stores/communityConsoleState';
+  import { setCommunityViewState } from '../../stores/communityViewState';
 
   let posts: any[] = [];
   let loading = true;
@@ -274,8 +275,12 @@
         tab: 'chats',
         conversationId: data.conversation?.id || ''
       });
+      setCommunityViewState({
+        section: 'messages',
+        messageTab: 'chats'
+      });
       clearSelectedProfile();
-      currentView.set('console');
+      currentView.set('community');
     } catch (e) {
       console.error('Direct chat failed', e);
     }

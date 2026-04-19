@@ -1,13 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
 
-  import { currentView, user, isAuthenticated, isAdmin } from '../../stores/appState';
+  import { currentView, isAdmin, isAuthenticated, user } from '../../stores/appState';
   import { openModal } from '../../stores/modalState';
   import { setCommunityConsoleState } from '../../stores/communityConsoleState';
-
-  function goHome() {
-    currentView.set('community');
-  }
+  import { setCommunityViewState } from '../../stores/communityViewState';
 
   const SHOW_THRESHOLD = 60;
   const HIDE_THRESHOLD = 96;
@@ -17,29 +14,34 @@
   let isVisible = true;
   let isScrolled = false;
 
-  function openConsoleView() {
-    setCommunityConsoleState({ tab: 'account', conversationId: '', returnFocusSelector: '[data-console-launch="header-account"]' });
-    openModal('community-console');
+  function goHome() {
+    setCommunityViewState({ section: 'feed', messageTab: 'chats' });
+    currentView.set('community');
   }
 
-  function openConsoleTab(tab: 'account' | 'chats') {
-    setCommunityConsoleState({ tab, conversationId: '', returnFocusSelector: '[data-console-launch="header-tab"]' });
-    openModal('community-console');
+  function goProfile() {
+    currentView.set('profile');
+  }
+
+  function goMessages() {
+    setCommunityConsoleState({ tab: 'chats', conversationId: '', returnFocusSelector: '[data-header-target="messages"]' });
+    setCommunityViewState({ section: 'messages', messageTab: 'chats' });
+    currentView.set('community');
   }
 
   onMount(() => {
-    // Auth init
     const saved = localStorage.getItem('commUser');
     if (saved) {
       try {
-        const u = JSON.parse(saved);
-        user.set(u);
+        const nextUser = JSON.parse(saved);
+        user.set(nextUser);
         isAuthenticated.set(true);
-        isAdmin.set(u.role === 'admin' || u.role === 'owner');
-      } catch (e) {}
+        isAdmin.set(nextUser.role === 'admin' || nextUser.role === 'owner');
+      } catch (error) {
+        console.error('Failed to restore session', error);
+      }
     }
 
-    // Basic scroll hide/show logic
     const handleScroll = () => {
       if (y <= SHOW_THRESHOLD) {
         isVisible = true;
@@ -69,11 +71,10 @@
 <svelte:window bind:scrollY={y} />
 
 <header
-  class="fixed top-0 left-0 right-0 z-[5000] px-6 md:px-12 py-6 transition-all duration-300
+  class="fixed left-0 right-0 top-0 z-[5000] px-6 py-6 transition-all duration-300 md:px-12
          {isVisible ? 'translate-y-0' : '-translate-y-full'}"
 >
-  <div class="site-header-shell {isScrolled ? 'is-scrolled' : ''} max-w-7xl mx-auto flex items-center justify-between">
-    <!-- Logo -->
+  <div class="site-header-shell {isScrolled ? 'is-scrolled' : ''} mx-auto flex max-w-7xl items-center justify-between">
     <button
       type="button"
       on:click={goHome}
@@ -85,46 +86,40 @@
       </h1>
     </button>
 
-    <!-- Navigation / Profile -->
-    <div class="flex items-center gap-6">
+    <div class="flex items-center gap-3 md:gap-4">
       {#if $isAuthenticated}
         <div class="header-switch-shell hidden items-center gap-2 p-1 md:flex">
           <button
             type="button"
-            data-console-launch="header-account"
-            on:click={openConsoleView}
-            class="header-switch {($currentView === 'console') ? 'is-active' : ''}"
+            data-header-target="profile"
+            on:click={goProfile}
+            class="header-switch {$currentView === 'profile' ? 'is-active' : ''}"
           >
             个人
           </button>
           <button
             type="button"
-            data-console-launch="header-tab"
-            on:click={() => openConsoleTab('chats')}
-            class="header-switch {($currentView === 'console') ? 'is-active-soft' : ''}"
+            data-header-target="messages"
+            on:click={goMessages}
+            class="header-switch {$currentView === 'community' ? 'is-active-soft' : ''}"
           >
             消息
           </button>
         </div>
+
         <button
           type="button"
-          on:click={openConsoleView}
-          class="header-avatar-shell {($currentView === 'console') ? 'is-active' : ''} flex h-10 w-10 items-center justify-center overflow-hidden rounded-full"
-          aria-label="打开个人面板"
+          on:click={goProfile}
+          class="header-avatar-shell {$currentView === 'profile' ? 'is-active' : ''} flex h-10 w-10 items-center justify-center overflow-hidden rounded-full"
+          aria-label="打开个人页面"
         >
-          {#if $user.avatar_url}
-            <img src={$user.avatar_url} alt="" class="w-full h-full object-cover" />
+          {#if $user?.avatar_url}
+            <img src={$user.avatar_url} alt="" class="h-full w-full object-cover" />
           {:else}
-            <span class="text-xs font-black text-[var(--color-primary)]">{$user.username.slice(0,1).toUpperCase()}</span>
+            <span class="text-xs font-black text-[var(--color-primary)]">{$user?.username?.slice(0, 1)?.toUpperCase() || 'U'}</span>
           {/if}
         </button>
       {:else}
-        <button
-          on:click={openConsoleView}
-          class="hidden header-switch-shell md:inline-flex"
-        >
-          账号入口
-        </button>
         <button
           type="button"
           on:click={() => openModal('auth')}
@@ -190,11 +185,6 @@
     font-weight: 900;
     letter-spacing: 0.18em;
     text-transform: uppercase;
-    transition:
-      transform 0.22s ease,
-      background 0.22s ease,
-      border-color 0.22s ease,
-      box-shadow 0.22s ease;
   }
 
   .header-switch {

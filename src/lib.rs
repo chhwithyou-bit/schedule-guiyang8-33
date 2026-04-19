@@ -955,8 +955,49 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             db.prepare("INSERT INTO users (id, username, password_hash, role) VALUES (?, ?, ?, ?)")
                 .bind(&[id.into(), username.into(), pass_hash.clone().into(), role.into()])?
                 .run().await?;
-            
+
             utils::json_resp(json!({"ok": true, "token": format!("{}:{}", username, pass_hash)}), 200)
+        })
+        .post_async("/api/community/auth", |mut req, ctx| async move {
+            let body: Value = req.json().await?;
+            let action = body["action"].as_str().unwrap_or("login");
+            let username = body["username"].as_str().unwrap_or("");
+            let password = body["password"].as_str().unwrap_or("");
+
+            if action == "register" {
+                if username.len() < 2 || password.len() < 6 {
+                    return utils::json_resp(json!({"ok": false, "msg": "用户名或密码太短"}), 400);
+                }
+
+                let db = ctx.env.d1("COMMUNITY_DB")?;
+                let existing = db.prepare("SELECT 1 FROM users WHERE username = ?").bind(&[username.into()])?.first::<Value>(None).await?;
+                if existing.is_some() {
+                    return utils::json_resp(json!({"ok": false, "msg": "用户名已存在"}), 400);
+                }
+
+                let id = Uuid::new_v4().to_string();
+                let pass_hash = utils::sha256_hex(password);
+                let role = if username == "admin" { "owner" } else { "user" };
+
+                db.prepare("INSERT INTO users (id, username, password_hash, role) VALUES (?, ?, ?, ?)")
+                    .bind(&[id.into(), username.into(), pass_hash.clone().into(), role.into()])?
+                    .run().await?;
+
+                return utils::json_resp(json!({"ok": true, "token": format!("{}:{}", username, pass_hash)}), 200);
+            }
+
+            let pass_hash = utils::sha256_hex(password);
+            let db = ctx.env.d1("COMMUNITY_DB")?;
+            let user = find_user_by_credentials(&db, username, &pass_hash).await?;
+
+            if let Some(u) = user {
+                if u.is_banned == 1 {
+                    return utils::json_resp(json!({"ok": false, "msg": "账号已被封禁"}), 403);
+                }
+                utils::json_resp(json!({"ok": true, "token": format!("{}:{}", username, pass_hash)}), 200)
+            } else {
+                utils::json_resp(json!({"ok": false, "msg": "用户名或密码错误"}), 401)
+            }
         })
         .post_async("/api/community/login", |mut req, ctx| async move {
             let body: Value = req.json().await?;
@@ -1146,6 +1187,44 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                     }
                 }
                 utils::json_resp(json!({"ok": true, "liked": true}), 200)
+            }
+        })
+        .post_async("/api/community/like", |mut req, ctx| async move {
+            let db = ctx.env.d1("COMMUNITY_DB")?;
+            let user = get_auth(&req, &db).await?;
+            let user = match user {
+                Some(u) => u,
+                None => return utils::json_resp(json!({"ok": false}), 401)
+            };
+
+            let body: Value = req.json().await?;
+            let post_id = body["post_id"].as_str().unwrap_or("");
+
+            let existing = db.prepare("SELECT 1 FROM likes WHERE post_id = ? AND user_id = ?")
+                .bind(&[post_id.into(), user.id.clone().into()])?
+                .first::<Value>(None)
+                .await?;
+
+            if existing.is_some() {
+                db.prepare("DELETE FROM likes WHERE post_id = ? AND user_id = ?")
+                    .bind(&[post_id.into(), user.id.into()])?
+                    .run()
+                    .await?;
+                utils::json_resp(json!({"ok": true, "action": "unliked", "liked": false}), 200)
+            } else {
+                db.prepare("INSERT INTO likes (post_id, user_id) VALUES (?, ?)")
+                    .bind(&[post_id.into(), user.id.clone().into()])?
+                    .run()
+                    .await?;
+
+                let target = db.prepare("SELECT user_id FROM posts WHERE id = ?").bind(&[post_id.into()])?.first::<Value>(None).await?;
+                if let Some(t) = target {
+                    if let Some(tid) = t["user_id"].as_str() {
+                        add_notify(&db, tid, "like", &user.id, post_id).await?;
+                    }
+                }
+
+                utils::json_resp(json!({"ok": true, "action": "liked", "liked": true}), 200)
             }
         })
         .get_async("/api/community/comments", |req, ctx| async move {
@@ -1490,6 +1569,16 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                 let node_sources = read_node_sources(&kv).await.unwrap_or_default();
                 let proxy_nodes = read_proxy_nodes(&kv).await.unwrap_or_default();
                 let password_configured = !read_node_password_hash(&kv).await.unwrap_or_default().is_empty();
+                let drive_folder_id = ctx.env.var("GDRIVE_FOLDER_ID").ok().map(|value| value.to_string()).unwrap_or_default();
+                let community_bucket = ctx.env.bucket("COMMUNITY_R2")?;
+                let cache_listing = community_bucket.list().execute().await?;
+                let mut r2_sample_keys: Vec<String> = Vec::new();
+                for object in cache_listing.objects() {
+                    r2_sample_keys.push(object.key());
+                    if r2_sample_keys.len() >= 6 {
+                        break;
+                    }
+                }
 
                 utils::json_resp(json!({
                     "ok": true,
@@ -1498,7 +1587,14 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                     "announcement": serde_json::from_str::<Value>(&announcement).unwrap_or(json!({"content": "", "updatedAt": null})),
                     "node_sources": node_sources,
                     "proxy_nodes": proxy_nodes,
-                    "nodes_password_configured": password_configured
+                    "nodes_password_configured": password_configured,
+                    "media_storage": {
+                        "mode": "google-drive-origin-r2-cache",
+                        "drive_folder_id": drive_folder_id,
+                        "drive_folder_configured": !drive_folder_id.trim().is_empty(),
+                        "r2_sample_count": r2_sample_keys.len(),
+                        "r2_sample_keys": r2_sample_keys
+                    }
                 }), 200)
             } else {
                 utils::json_resp(json!({"ok": false}), 401)
@@ -2114,16 +2210,22 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                 );
             }
 
-            let bucket = ctx.env.bucket("COMMUNITY_R2")?;
-            let key = format!("{}-{}", Uuid::new_v4(), detected_name);
-
-            bucket.put(&key, bytes).execute().await?;
+            let drive_resp = match upload_to_drive(&ctx.env, bytes, &detected_name, &detected_mime).await {
+                Ok(resp) => resp,
+                Err(_) => {
+                    return utils::json_resp(json!({"ok": false, "msg": "云端图片上传失败"}), 503);
+                }
+            };
+            let drive_file_id = drive_resp["id"].as_str().unwrap_or_default().to_string();
+            if drive_file_id.is_empty() {
+                return utils::json_resp(json!({"ok": false, "msg": "云端图片上传失败"}), 500);
+            }
 
             utils::json_resp(json!({
                 "ok": true,
-                "fileId": key,
-                "url": format!("/api/community/media/{}", key),
-                "fromDrive": false
+                "fileId": drive_file_id,
+                "url": format!("/api/community/media/{}", drive_file_id),
+                "fromDrive": true
             }), 200)
         })
         .get_async("/api/community/media/:key", |req, ctx| async move {

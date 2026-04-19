@@ -3,46 +3,42 @@
   import AnimatedHeading from '../ui/AnimatedHeading.svelte';
   import { communityFetch } from '../../lib/communityApi';
 
+  type AdminTab = 'reports' | 'users' | 'announcement' | 'media';
+
+  let activeTab: AdminTab = 'reports';
+  let loading = true;
   let reports: any[] = [];
   let users: any[] = [];
   let announcement = { content: '', updatedAt: '' };
-  let loading = true;
-  let activeTab = 'reports';
-  let nodeSources: any[] = [];
-  let proxyNodes: any[] = [];
-  let nodePassword = '';
-  let nodesPasswordConfigured = false;
+  let mediaStorage: {
+    mode?: string;
+    drive_folder_id?: string;
+    drive_folder_configured?: boolean;
+    r2_sample_count?: number;
+    r2_sample_keys?: string[];
+  } = {};
   let statusMessage = '';
   let statusTone: 'success' | 'error' | 'info' = 'info';
-  let nodeSourceForm = {
-    source_label: '',
-    source_type: 'manual',
-    source_url: '',
-    source_content: ''
-  };
-
-  onMount(async () => {
-    await fetchAdminData();
-  });
 
   async function fetchAdminData() {
     loading = true;
+
     try {
       const res = await communityFetch('/api/community/admin/data');
       const data = await res.json();
-      if (data.ok) {
-        reports = Array.isArray(data.reports) ? data.reports : [];
-        users = Array.isArray(data.users) ? data.users : [];
-        announcement = data.announcement || { content: '', updatedAt: '' };
-        nodeSources = Array.isArray(data.node_sources) ? data.node_sources : [];
-        proxyNodes = Array.isArray(data.proxy_nodes) ? data.proxy_nodes : [];
-        nodesPasswordConfigured = Boolean(data.nodes_password_configured);
-      } else {
+      if (!data.ok) {
         statusTone = 'error';
-        statusMessage = '管理数据没有成功返回。';
+        statusMessage = data.msg || '管理数据没有成功返回。';
+        return;
       }
-    } catch (e) {
-      console.error('Failed to fetch admin data', e);
+
+      reports = Array.isArray(data.reports) ? data.reports : [];
+      users = Array.isArray(data.users) ? data.users : [];
+      announcement = data.announcement || { content: '', updatedAt: '' };
+      mediaStorage = data.media_storage || {};
+      statusMessage = '';
+    } catch (error) {
+      console.error('Failed to fetch admin data', error);
       statusTone = 'error';
       statusMessage = '管理数据加载失败，请稍后再试。';
     } finally {
@@ -51,94 +47,47 @@
   }
 
   async function handleAction(action: string, target_type: string, target_id: string, extra: any = {}, skipConfirm = false) {
-    if (!skipConfirm && !confirm(`确认执行这项管理操作吗？\n${action}`)) return false;
+    if (!skipConfirm && !confirm(`确认执行这项管理操作吗？\n${action}`)) {
+      return false;
+    }
+
     try {
-      statusMessage = '';
       statusTone = 'info';
+      statusMessage = '';
+
       const res = await communityFetch('/api/community/admin/action', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action, target_type, target_id, ...extra })
       });
       const data = await res.json();
-      if (res.ok && data.ok) {
-        if (Array.isArray(data.node_sources)) nodeSources = data.node_sources;
-        if (Array.isArray(data.proxy_nodes)) proxyNodes = data.proxy_nodes;
-        statusTone = 'success';
-        statusMessage = `操作已完成：${action}`;
-        await fetchAdminData();
-        return true;
+
+      if (!res.ok || !data.ok) {
+        statusTone = 'error';
+        statusMessage = `操作没有成功：${data.msg || '请稍后再试'}`;
+        return false;
       }
 
+      statusTone = 'success';
+      statusMessage = `操作已完成：${action}`;
+      await fetchAdminData();
+      return true;
+    } catch (error: any) {
       statusTone = 'error';
-      statusMessage = '操作没成功：' + (data.msg || '请稍后再试');
-      return false;
-    } catch (e: any) {
-      statusTone = 'error';
-      statusMessage = '发生错误：' + e.message;
+      statusMessage = `发生错误：${error.message || error}`;
       return false;
     }
   }
 
   async function updateAnnouncement() {
-    await handleAction('set_announcement', 'system', 'announcement', { content: announcement.content });
-  }
-
-  async function saveNodePassword() {
-    if (!nodePassword.trim()) {
-      statusTone = 'error';
-      statusMessage = '先输入新的节点访问密码。';
-      return;
-    }
-
-    const ok = await handleAction('set_nodes_password', 'system', 'nodes', { new_password: nodePassword.trim() }, true);
-    if (ok) {
-      statusTone = 'success';
-      statusMessage = '节点访问密码已更新。';
-      nodesPasswordConfigured = true;
-      nodePassword = '';
-    }
-  }
-
-  async function createNodeSource() {
-    if (!nodeSourceForm.source_label.trim()) {
-      statusTone = 'error';
-      statusMessage = '先填来源名称。';
-      return;
-    }
-    if (nodeSourceForm.source_type === 'manual' && !nodeSourceForm.source_content.trim()) {
-      statusTone = 'error';
-      statusMessage = '手工来源需要节点内容。';
-      return;
-    }
-    if (nodeSourceForm.source_type !== 'manual' && !nodeSourceForm.source_url.trim() && !nodeSourceForm.source_content.trim()) {
-      statusTone = 'error';
-      statusMessage = '至少给一个订阅链接或原始内容。';
-      return;
-    }
-
-    const ok = await handleAction('create_node_source', 'node_source', nodeSourceForm.source_label.trim(), {
-      source_label: nodeSourceForm.source_label.trim(),
-      source_type: nodeSourceForm.source_type,
-      source_url: nodeSourceForm.source_url.trim(),
-      source_content: nodeSourceForm.source_content
-    }, true);
-
-    if (!ok) return;
-
-    nodeSourceForm = {
-      source_label: '',
-      source_type: 'manual',
-      source_url: '',
-      source_content: ''
-    };
-    statusTone = 'success';
-    statusMessage = '节点来源已保存。';
+    await handleAction('set_announcement', 'system', 'announcement', {
+      content: announcement.content
+    });
   }
 
   function formatSize(bytes: number) {
     if (!bytes) return '0 GB';
-    return (bytes / (1024 ** 3)).toFixed(1) + ' GB';
+    return `${(bytes / (1024 ** 3)).toFixed(1)} GB`;
   }
 
   function statusClass(tone: 'success' | 'error' | 'info') {
@@ -146,48 +95,53 @@
     if (tone === 'error') return 'border-red-400/20 bg-red-500/10 text-red-100';
     return 'border-white/10 bg-white/5 text-[var(--color-text,#fff4ed)]';
   }
+
+  onMount(() => {
+    void fetchAdminData();
+  });
 </script>
 
-<div class="admin-view pb-40">
-  <div class="flex items-end justify-between mb-12 gap-6 flex-wrap">
+<section class="admin-view pb-40">
+  <div class="mb-12 flex flex-wrap items-end justify-between gap-6">
     <div>
       <AnimatedHeading text="管理后台" className="text-[12vw]" />
       <p class="mt-4 max-w-3xl text-sm font-medium leading-7 opacity-70">
-        把举报处理、用户处置、站内公告和节点运营都收在同一处，方便管理员快速巡检并留下明确反馈。
+        后台现在只保留审核、公告和媒体运维，不再暴露旧节点模块。用户治理、举报处理和图片存储链路都从这里统一处理。
       </p>
     </div>
-    <div class="flex gap-2 mb-2 flex-wrap">
-      <button on:click={() => activeTab = 'reports'} class="px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all {activeTab === 'reports' ? 'bg-[var(--color-primary)] text-white shadow-xl' : 'bg-neutral-100 dark:bg-neutral-900 opacity-40'}">举报</button>
-      <button on:click={() => activeTab = 'users'} class="px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all {activeTab === 'users' ? 'bg-[var(--color-primary)] text-white shadow-xl' : 'bg-neutral-100 dark:bg-neutral-900 opacity-40'}">用户</button>
-      <button on:click={() => activeTab = 'announcement'} class="px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all {activeTab === 'announcement' ? 'bg-[var(--color-primary)] text-white shadow-xl' : 'bg-neutral-100 dark:bg-neutral-900 opacity-40'}">公告</button>
-      <button on:click={() => activeTab = 'nodes'} class="px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all {activeTab === 'nodes' ? 'bg-[var(--color-primary)] text-white shadow-xl' : 'bg-neutral-100 dark:bg-neutral-900 opacity-40'}">节点</button>
+
+    <div class="mb-2 flex flex-wrap gap-2">
+      <button on:click={() => activeTab = 'reports'} class="admin-tab {activeTab === 'reports' ? 'is-active' : ''}">举报</button>
+      <button on:click={() => activeTab = 'users'} class="admin-tab {activeTab === 'users' ? 'is-active' : ''}">用户</button>
+      <button on:click={() => activeTab = 'announcement'} class="admin-tab {activeTab === 'announcement' ? 'is-active' : ''}">公告</button>
+      <button on:click={() => activeTab = 'media'} class="admin-tab {activeTab === 'media' ? 'is-active' : ''}">媒体</button>
     </div>
   </div>
 
   {#if loading}
-    <div class="py-20 text-center opacity-20 font-black text-4xl uppercase tracking-tighter italic">正在加载…</div>
+    <div class="py-20 text-center text-4xl font-black uppercase tracking-tighter opacity-20 italic">正在加载...</div>
   {:else}
     <div class="space-y-6">
       <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4" aria-label="管理后台概览统计">
-        <article class="p-6 rounded-[32px] bg-white dark:bg-neutral-950 border border-neutral-100 dark:border-neutral-900 shadow-sm">
+        <article class="admin-card p-6">
           <p class="text-[10px] font-black uppercase tracking-widest opacity-30">待处理举报</p>
           <p class="mt-3 text-3xl font-black tracking-tight">{reports.length}</p>
           <p class="mt-2 text-sm font-medium opacity-55">当前仍需人工确认的举报项目。</p>
         </article>
-        <article class="p-6 rounded-[32px] bg-white dark:bg-neutral-950 border border-neutral-100 dark:border-neutral-900 shadow-sm">
+        <article class="admin-card p-6">
           <p class="text-[10px] font-black uppercase tracking-widest opacity-30">用户数量</p>
           <p class="mt-3 text-3xl font-black tracking-tight">{users.length}</p>
-          <p class="mt-2 text-sm font-medium opacity-55">已同步到管理视图的账号总数。</p>
+          <p class="mt-2 text-sm font-medium opacity-55">已经同步到管理视图的账号总数。</p>
         </article>
-        <article class="p-6 rounded-[32px] bg-white dark:bg-neutral-950 border border-neutral-100 dark:border-neutral-900 shadow-sm">
-          <p class="text-[10px] font-black uppercase tracking-widest opacity-30">节点来源</p>
-          <p class="mt-3 text-3xl font-black tracking-tight">{nodeSources.length}</p>
-          <p class="mt-2 text-sm font-medium opacity-55">正在维护的来源记录数量。</p>
+        <article class="admin-card p-6">
+          <p class="text-[10px] font-black uppercase tracking-widest opacity-30">Drive 原始存储</p>
+          <p class="mt-3 text-3xl font-black tracking-tight">{mediaStorage.drive_folder_configured ? '已配置' : '未配置'}</p>
+          <p class="mt-2 text-sm font-medium opacity-55">帖子图片的原始文件存储位置。</p>
         </article>
-        <article class="p-6 rounded-[32px] bg-white dark:bg-neutral-950 border border-neutral-100 dark:border-neutral-900 shadow-sm">
-          <p class="text-[10px] font-black uppercase tracking-widest opacity-30">节点密码</p>
-          <p class="mt-3 text-3xl font-black tracking-tight">{nodesPasswordConfigured ? '已配置' : '未配置'}</p>
-          <p class="mt-2 text-sm font-medium opacity-55">前台节点页是否具备统一访问密码。</p>
+        <article class="admin-card p-6">
+          <p class="text-[10px] font-black uppercase tracking-widest opacity-30">R2 缓存样本</p>
+          <p class="mt-3 text-3xl font-black tracking-tight">{mediaStorage.r2_sample_count || 0}</p>
+          <p class="mt-2 text-sm font-medium opacity-55">当前抓到的缓存对象样本数。</p>
         </article>
       </section>
 
@@ -196,167 +150,189 @@
           {statusMessage}
         </div>
       {/if}
+
       {#if activeTab === 'reports'}
         <div class="grid grid-cols-1 gap-4">
-          {#each reports as r}
-            <div class="p-8 rounded-[40px] bg-white dark:bg-neutral-950 border border-neutral-100 dark:border-neutral-900 shadow-sm flex items-center justify-between">
+          {#each reports as report}
+            <div class="admin-card flex items-center justify-between gap-6 p-8">
               <div>
-                <p class="text-[10px] font-black uppercase tracking-widest opacity-30 mb-1">{r.target_type} · {r.target_id}</p>
-                <p class="text-xl font-bold tracking-tight mb-2">举报原因：{r.reason}</p>
-                <p class="text-xs font-medium opacity-40">提交人：{r.user_id}</p>
+                <p class="mb-1 text-[10px] font-black uppercase tracking-widest opacity-30">{report.target_type} / {report.target_id}</p>
+                <p class="mb-2 text-xl font-bold tracking-tight">举报原因：{report.reason}</p>
+                <p class="text-xs font-medium opacity-40">提交人：{report.user_id}</p>
               </div>
               <div class="flex gap-2">
-                <button on:click={() => handleAction('delete_item', r.target_type, r.target_id, { report_id: r.id })} class="px-6 py-3 rounded-xl bg-red-500 text-white font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-transform">删除内容</button>
-                <button on:click={() => handleAction('resolve_report', 'report', r.id)} class="px-6 py-3 rounded-xl bg-neutral-100 dark:bg-neutral-800 font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-transform">处理完成</button>
+                <button on:click={() => handleAction('delete_item', report.target_type, report.target_id, { report_id: report.id })} class="admin-danger px-6 py-3">删除内容</button>
+                <button on:click={() => handleAction('resolve_report', 'report', report.id)} class="admin-ghost px-6 py-3">处理完成</button>
               </div>
             </div>
           {:else}
-            <div class="py-20 text-center opacity-20 font-black text-sm uppercase tracking-widest">现在没有待处理举报。</div>
+            <div class="py-20 text-center text-sm font-black uppercase tracking-widest opacity-20">现在没有待处理举报。</div>
           {/each}
         </div>
+      {/if}
 
-      {:else if activeTab === 'users'}
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {#each users as u}
-            <div class="p-8 rounded-[40px] bg-white dark:bg-neutral-950 border border-neutral-100 dark:border-neutral-900 shadow-sm">
-              <div class="flex items-center gap-4 mb-6">
-                <div class="w-12 h-12 rounded-2xl bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center font-black text-xl overflow-hidden">
-                  {#if u.avatar_url} <img src={u.avatar_url} alt="" class="w-full h-full object-cover" /> {:else} {u.username.slice(0,1)} {/if}
+      {#if activeTab === 'users'}
+        <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {#each users as account}
+            <div class="admin-card p-8">
+              <div class="mb-6 flex items-center gap-4">
+                <div class="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-neutral-100 text-xl font-black dark:bg-neutral-800">
+                  {#if account.avatar_url}
+                    <img src={account.avatar_url} alt="" class="h-full w-full object-cover" />
+                  {:else}
+                    {account.username.slice(0, 1)}
+                  {/if}
                 </div>
                 <div class="flex-1">
-                  <h4 class="font-black text-lg">{u.username} <span class="text-[10px] opacity-30 ml-2 font-mono uppercase tracking-widest">{u.role}</span></h4>
-                  <p class="text-[10px] font-bold opacity-30 uppercase tracking-widest">网盘：{formatSize(u.drive_used)} / {formatSize(u.drive_quota)}</p>
+                  <h4 class="text-lg font-black">{account.username} <span class="ml-2 font-mono text-[10px] uppercase tracking-widest opacity-30">{account.role}</span></h4>
+                  <p class="text-[10px] font-bold uppercase tracking-widest opacity-30">媒体配额：{formatSize(account.drive_used)} / {formatSize(account.drive_quota)}</p>
                 </div>
                 <div class="flex items-center gap-2">
-                  {#if u.is_banned}
-                    <button on:click={() => handleAction('unban_user', 'user', u.id)} class="text-[10px] font-black text-green-500 uppercase tracking-widest">解除封禁</button>
+                  {#if account.is_banned}
+                    <button on:click={() => handleAction('unban_user', 'user', account.id)} class="text-[10px] font-black uppercase tracking-widest text-green-500">解除封禁</button>
                   {:else}
-                    <button on:click={() => handleAction('ban_user', 'user', u.id)} class="text-[10px] font-black text-red-500 uppercase tracking-widest">封禁</button>
+                    <button on:click={() => handleAction('ban_user', 'user', account.id)} class="text-[10px] font-black uppercase tracking-widest text-red-500">封禁</button>
                   {/if}
                 </div>
               </div>
+
               <div class="grid grid-cols-2 gap-2">
-                <button on:click={() => { const p = prompt('输入新密码'); if(p) handleAction('reset_password', 'user', u.id, { new_password: p }) }} class="py-3 rounded-xl bg-neutral-100 dark:bg-neutral-900 text-[9px] font-black uppercase tracking-widest">重置密码</button>
-                <button on:click={() => { const q = prompt('输入新的网盘配额，单位 GB'); if(q) handleAction('set_drive_quota', 'user', u.id, { quota_gb: q }) }} class="py-3 rounded-xl bg-neutral-100 dark:bg-neutral-900 text-[9px] font-black uppercase tracking-widest">修改配额</button>
-                {#if u.role === 'user'}
-                  <button on:click={() => handleAction('grant_admin', 'user', u.id)} class="py-3 rounded-xl bg-[var(--color-primary)] text-white text-[9px] font-black uppercase tracking-widest col-span-2">设为管理员</button>
-                {:else if u.role === 'admin'}
-                  <button on:click={() => handleAction('revoke_admin', 'user', u.id)} class="py-3 rounded-xl bg-neutral-200 dark:bg-neutral-800 text-[9px] font-black uppercase tracking-widest col-span-2">撤掉管理员</button>
+                <button on:click={() => { const nextPassword = prompt('输入新密码'); if (nextPassword) void handleAction('reset_password', 'user', account.id, { new_password: nextPassword }); }} class="admin-ghost py-3">重置密码</button>
+                <button on:click={() => { const nextQuota = prompt('输入新的媒体配额（GB）'); if (nextQuota) void handleAction('set_drive_quota', 'user', account.id, { quota_gb: nextQuota }); }} class="admin-ghost py-3">修改配额</button>
+                {#if account.role === 'user'}
+                  <button on:click={() => handleAction('grant_admin', 'user', account.id)} class="admin-primary col-span-2 py-3">设为管理员</button>
+                {:else if account.role === 'admin'}
+                  <button on:click={() => handleAction('revoke_admin', 'user', account.id)} class="admin-ghost col-span-2 py-3">撤掉管理员</button>
                 {/if}
               </div>
             </div>
           {/each}
         </div>
+      {/if}
 
-      {:else if activeTab === 'announcement'}
-        <div class="p-10 rounded-[48px] bg-white dark:bg-neutral-950 border border-neutral-100 dark:border-neutral-900 shadow-sm max-w-2xl mx-auto">
-          <h3 class="text-2xl font-black uppercase tracking-tighter mb-8">站内公告</h3>
+      {#if activeTab === 'announcement'}
+        <div class="admin-card mx-auto max-w-2xl p-10">
+          <h3 class="mb-8 text-2xl font-black uppercase tracking-tighter">站内公告</h3>
           <textarea
             bind:value={announcement.content}
             placeholder="想告诉全站什么，就写在这里。"
-            class="w-full h-48 p-6 rounded-3xl bg-white/15 border border-white/30 text-[var(--color-text,#fff4ed)] placeholder:text-[var(--color-text,#fff4ed)]/40 focus:ring-2 focus:ring-[var(--color-primary,#fac7b7)] transition-all font-bold resize-none mb-6 outline-none"
+            class="mb-6 h-48 w-full resize-none rounded-3xl border border-white/30 bg-white/15 p-6 font-bold text-[var(--color-text,#fff4ed)] outline-none transition-all placeholder:text-[var(--color-text,#fff4ed)]/40 focus:ring-2 focus:ring-[var(--color-primary,#fac7b7)]"
             style="background-color: rgba(255, 255, 255, 0.18);"
           ></textarea>
-          <button
-            on:click={updateAnnouncement}
-            class="w-full py-5 bg-[var(--color-primary)] text-white font-black text-lg rounded-2xl shadow-lg hover:scale-[1.02] active:scale-95 transition-all"
-          >
-            更新公告
-          </button>
-          <p class="text-center mt-6 text-[10px] font-bold opacity-20 uppercase tracking-widest">上次更新：{announcement.updatedAt || '还没有更新过'}</p>
+          <button on:click={updateAnnouncement} class="admin-primary w-full py-5 text-lg">更新公告</button>
+          <p class="mt-6 text-center text-[10px] font-bold uppercase tracking-widest opacity-20">上次更新：{announcement.updatedAt || '还没有更新过'}</p>
         </div>
+      {/if}
 
-      {:else if activeTab === 'nodes'}
-        <div class="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-          <section class="p-8 rounded-[40px] bg-white dark:bg-neutral-950 border border-neutral-100 dark:border-neutral-900 shadow-sm space-y-5">
-            <div>
-              <p class="text-[10px] font-black uppercase tracking-widest opacity-30">访问控制</p>
-              <h3 class="mt-2 text-2xl font-black tracking-tight">统一访问密码</h3>
+      {#if activeTab === 'media'}
+        <div class="grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+          <section class="admin-card p-8">
+            <p class="text-[10px] font-black uppercase tracking-widest opacity-30">媒体链路</p>
+            <h3 class="mt-2 text-2xl font-black tracking-tight">Google Drive 原始存储 + R2 缓存</h3>
+            <div class="mt-6 grid gap-4 sm:grid-cols-2">
+              <article class="rounded-[28px] border border-white/10 bg-white/5 p-5">
+                <p class="text-[10px] font-black uppercase tracking-widest opacity-30">原始存储</p>
+                <p class="mt-2 text-xl font-black tracking-tight">{mediaStorage.drive_folder_configured ? 'Google Drive 已接通' : 'Google Drive 未接通'}</p>
+                <p class="mt-2 text-sm font-medium opacity-65 break-all">{mediaStorage.drive_folder_id || '当前没有读取到文件夹 ID。'}</p>
+              </article>
+              <article class="rounded-[28px] border border-white/10 bg-white/5 p-5">
+                <p class="text-[10px] font-black uppercase tracking-widest opacity-30">缓存分发</p>
+                <p class="mt-2 text-xl font-black tracking-tight">R2 样本对象 {mediaStorage.r2_sample_count || 0} 个</p>
+                <p class="mt-2 text-sm font-medium opacity-65">帖子图片会先写入 Drive，再通过 `/api/community/media/:key` 命中 R2/边缘缓存。</p>
+              </article>
             </div>
-            <div class="rounded-[28px] border border-black/5 dark:border-white/5 bg-neutral-50 dark:bg-neutral-900 px-5 py-4">
-              <p class="text-[10px] font-black uppercase tracking-widest opacity-30">当前状态</p>
-              <p class="mt-2 text-sm font-medium opacity-65">{nodesPasswordConfigured ? '已存在统一访问密码，更新后前台将使用新密码。' : '当前还没有统一访问密码，前台节点页将无法解锁。'}</p>
-            </div>
-            <input bind:value={nodePassword} type="text" placeholder="输入新的访问密码" class="w-full rounded-2xl bg-white/15 border border-white/30 px-5 py-4 font-medium outline-none focus:ring-2 focus:ring-[var(--color-primary)]" style="background-color: rgba(255, 255, 255, 0.18);" />
-            <button on:click={saveNodePassword} class="w-full py-4 rounded-2xl bg-[var(--color-primary)] text-white font-black uppercase tracking-widest shadow-lg transition-transform hover:scale-[1.01]">更新密码</button>
 
-            <div class="pt-4 border-t border-black/5 dark:border-white/5">
-              <p class="text-[10px] font-black uppercase tracking-widest opacity-30">新增来源</p>
-              <div class="mt-4 space-y-3">
-                <input bind:value={nodeSourceForm.source_label} type="text" placeholder="来源名称" class="w-full rounded-2xl bg-white/15 border border-white/30 px-5 py-4 font-medium outline-none focus:ring-2 focus:ring-[var(--color-primary)]" style="background-color: rgba(255, 255, 255, 0.18);" />
-                <select bind:value={nodeSourceForm.source_type} class="w-full rounded-2xl bg-white/15 border border-white/30 px-5 py-4 font-medium outline-none focus:ring-2 focus:ring-[var(--color-primary)]" style="background-color: rgba(255, 255, 255, 0.18);">
-                  <option value="manual">手工粘贴</option>
-                  <option value="community">社区来源</option>
-                  <option value="subscription">订阅链接</option>
-                </select>
-                {#if nodeSourceForm.source_type !== 'manual'}
-                  <input bind:value={nodeSourceForm.source_url} type="text" placeholder="订阅链接（可选，支持远程抓取）" class="w-full rounded-2xl bg-white/15 border border-white/30 px-5 py-4 font-medium outline-none focus:ring-2 focus:ring-[var(--color-primary)]" style="background-color: rgba(255, 255, 255, 0.18);" />
-                {/if}
-                <textarea bind:value={nodeSourceForm.source_content} placeholder="把 ss/vmess/trojan/vless/ssr 节点内容粘到这里；订阅型来源也可直接先贴内容" class="h-48 w-full rounded-3xl bg-white/15 border border-white/30 px-5 py-4 font-medium outline-none focus:ring-2 focus:ring-[var(--color-primary)]" style="background-color: rgba(255, 255, 255, 0.18);"></textarea>
-                <button on:click={createNodeSource} class="w-full py-4 rounded-2xl bg-neutral-950 dark:bg-white text-white dark:text-black font-black uppercase tracking-widest shadow-lg transition-transform hover:scale-[1.01]">保存来源并解析</button>
-              </div>
-            </div>
+            <button on:click={fetchAdminData} class="admin-primary mt-6 px-6 py-3">刷新媒体状态</button>
           </section>
 
-          <section class="space-y-4">
-            <div class="p-8 rounded-[40px] bg-white dark:bg-neutral-950 border border-neutral-100 dark:border-neutral-900 shadow-sm">
-              <div class="flex items-center justify-between gap-4">
-                <div>
-                  <p class="text-[10px] font-black uppercase tracking-widest opacity-30">来源列表</p>
-                  <h3 class="mt-2 text-2xl font-black tracking-tight">已配置来源</h3>
-                </div>
-                <p class="text-[10px] font-black uppercase tracking-widest opacity-30">{nodeSources.length} 个</p>
+          <section class="admin-card p-8">
+            <div class="flex items-center justify-between gap-4">
+              <div>
+                <p class="text-[10px] font-black uppercase tracking-widest opacity-30">缓存样本</p>
+                <h3 class="mt-2 text-2xl font-black tracking-tight">R2 当前返回的对象键</h3>
               </div>
-              <div class="mt-6 space-y-3">
-                {#each nodeSources as source}
-                  <article class="p-5 rounded-[28px] bg-neutral-50 dark:bg-neutral-900 border border-neutral-100 dark:border-neutral-800">
-                    <div class="flex items-start justify-between gap-4">
-                      <div>
-                        <h4 class="text-lg font-black tracking-tight">{source.label}</h4>
-                        <p class="mt-2 text-[10px] font-black uppercase tracking-widest opacity-40">{source.source_type} · {source.node_count || 0} 条</p>
-                        <p class="mt-2 text-sm font-medium opacity-60">{source.updated_at || '未记录更新时间'}</p>
-                        {#if source.last_error}
-                          <p class="mt-2 text-sm font-medium text-red-500">{source.last_error}</p>
-                        {/if}
-                      </div>
-                      <div class="flex gap-2">
-                        <button on:click={() => handleAction('delete_node_source', 'node_source', source.id, { source_id: source.id })} class="px-4 py-2 rounded-xl bg-red-500 text-white text-[10px] font-black uppercase tracking-widest">删除</button>
-                      </div>
-                    </div>
-                  </article>
-                {:else}
-                  <div class="py-12 text-center text-sm font-bold opacity-35 uppercase tracking-widest">还没有节点来源。</div>
-                {/each}
-              </div>
+              <span class="text-[10px] font-black uppercase tracking-widest opacity-30">{mediaStorage.r2_sample_count || 0} 个</span>
             </div>
 
-            <div class="p-8 rounded-[40px] bg-white dark:bg-neutral-950 border border-neutral-100 dark:border-neutral-900 shadow-sm">
-              <div class="flex items-center justify-between gap-4">
-                <div>
-                  <p class="text-[10px] font-black uppercase tracking-widest opacity-30">节点池</p>
-                  <h3 class="mt-2 text-2xl font-black tracking-tight">当前可分发节点</h3>
-                </div>
-                <p class="text-[10px] font-black uppercase tracking-widest opacity-30">{proxyNodes.length} 条</p>
-              </div>
-              <div class="mt-6 space-y-3 max-h-[32rem] overflow-auto pr-2">
-                {#each proxyNodes as node}
-                  <article class="p-5 rounded-[28px] bg-neutral-50 dark:bg-neutral-900 border border-neutral-100 dark:border-neutral-800">
-                    <div class="flex items-start justify-between gap-4">
-                      <div class="min-w-0">
-                        <h4 class="truncate text-lg font-black tracking-tight">{node.name}</h4>
-                        <p class="mt-2 text-[10px] font-black uppercase tracking-widest opacity-40">{node.protocol} · {node.source_label || '未标记来源'}</p>
-                        <p class="mt-2 break-all text-sm font-medium opacity-60">{node.raw}</p>
-                      </div>
-                    </div>
-                  </article>
-                {:else}
-                  <div class="py-12 text-center text-sm font-bold opacity-35 uppercase tracking-widest">现在还没有节点。</div>
+            {#if mediaStorage.r2_sample_keys?.length}
+              <div class="mt-6 space-y-3">
+                {#each mediaStorage.r2_sample_keys as cacheKey}
+                  <div class="rounded-[24px] border border-white/10 bg-white/5 px-4 py-3 font-mono text-xs opacity-80">
+                    {cacheKey}
+                  </div>
                 {/each}
               </div>
-            </div>
+            {:else}
+              <div class="mt-6 rounded-[28px] border border-white/10 bg-white/5 px-5 py-8 text-sm font-medium opacity-70">
+                这里暂时还没有抓到缓存对象样本。可以先让前台访问一些帖子图片，再回来刷新看看。
+              </div>
+            {/if}
           </section>
         </div>
       {/if}
     </div>
   {/if}
-</div>
+</section>
+
+<style>
+  .admin-card {
+    border-radius: 40px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background:
+      linear-gradient(145deg, rgba(var(--glow-primary-rgb), 0.14) 0% 42%, rgba(var(--glow-secondary-rgb), 0.1) 42% 100%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(var(--color-bg-rgb), 0.16)),
+      rgba(var(--color-bg-rgb), 0.16);
+    box-shadow:
+      0 20px 48px rgba(var(--shadow-rgb), 0.14),
+      inset 0 1px 0 rgba(255, 255, 255, 0.14),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.05);
+    backdrop-filter: blur(18px) saturate(1.08);
+  }
+
+  .admin-tab,
+  .admin-primary,
+  .admin-ghost,
+  .admin-danger {
+    border-radius: 16px;
+    font-size: 0.75rem;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    transition: transform 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .admin-tab {
+    padding: 0.75rem 1.5rem;
+    opacity: 0.45;
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .admin-tab.is-active {
+    opacity: 1;
+    background: var(--color-primary);
+    color: white;
+    box-shadow: 0 18px 30px rgba(var(--shadow-rgb), 0.18);
+  }
+
+  .admin-primary {
+    background: var(--color-primary);
+    color: white;
+    box-shadow: 0 18px 30px rgba(var(--shadow-rgb), 0.18);
+  }
+
+  .admin-ghost {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .admin-danger {
+    background: rgb(239 68 68);
+    color: white;
+  }
+
+  .admin-tab:hover,
+  .admin-primary:hover,
+  .admin-ghost:hover,
+  .admin-danger:hover {
+    transform: translateY(-1px);
+  }
+</style>
