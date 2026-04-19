@@ -1,4 +1,4 @@
-import webAppWorker from './apps/web/.svelte-kit/cloudflare/_worker.js';
+import htmlContent from './public/index.html';
 import { getCommunityLevelFromXp, COMMUNITY_LEVEL_THRESHOLDS } from './utils.mjs';
 
 const DEFAULT_ADMIN_USER = 'admin';
@@ -2449,12 +2449,7 @@ export default {
       }
     }
 
-    if (
-      url.pathname.startsWith('/chess/') ||
-      url.pathname.startsWith('/assets/') ||
-      url.pathname.startsWith('/_app/') ||
-      url.pathname.match(/\.(js|css|png|jpg|jpeg|webp|ico|svg|woff2?)$/)
-    ) return env.ASSETS.fetch(request);
-    return webAppWorker.fetch(request, env, ctx);
+    if (url.pathname.startsWith('/chess/') || url.pathname.startsWith('/assets/') || url.pathname.match(/\.(js|css|png|jpg|ico)$/)) return env.ASSETS.fetch(request);
+    return new Response(htmlContent, { headers: { 'Content-Type': 'text/html;charset=UTF-8' } });
     }
     };

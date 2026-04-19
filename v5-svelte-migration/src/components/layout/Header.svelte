@@ -110,7 +110,7 @@
           type="button"
           on:click={openConsoleView}
           class="header-avatar-shell {($currentView === 'console') ? 'is-active' : ''} flex h-10 w-10 items-center justify-center overflow-hidden rounded-full"
-          aria-label="打开账号入口"
+          aria-label="打开个人面板"
         >
           {#if $user.avatar_url}
             <img src={$user.avatar_url} alt="" class="w-full h-full object-cover" />

@@ -1,11 +1,4 @@
 node_modules/
-apps/*/node_modules/
-packages/*/node_modules/
-.svelte-kit/
-apps/*/.svelte-kit/
-apps/*/.wrangler/
-packages/*/dist/
-packages/*/drizzle/
 .wrangler/
 playwright-report/
 test-results/

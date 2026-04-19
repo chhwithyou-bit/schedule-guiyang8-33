@@ -286,16 +286,12 @@
   }
 
   function handleOverlayKeydown(event: KeyboardEvent) {
-    if (!$selectedProfile || event.key !== 'Escape') {
-      return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      close();
     }
-
-    event.preventDefault();
-    close();
   }
 </script>
-
-<svelte:window on:keydown={handleOverlayKeydown} />
 
 {#if $selectedProfile}
   <div
@@ -305,6 +301,7 @@
     aria-modal="true"
     aria-label={`${$selectedProfile.username || '用户'} 的个人主页`}
     tabindex="-1"
+    on:keydown={handleOverlayKeydown}
     transition:fly={{ y: 100, duration: 600, easing: (t) => t * (2 - t) }}
   >
     <div bind:this={profileScrollEl} class="h-full overflow-y-auto px-4 pb-16 pt-6 sm:px-6 sm:pb-20 sm:pt-8 md:px-10 lg:px-12">

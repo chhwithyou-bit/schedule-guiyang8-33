@@ -1,5 +1,5 @@
 name = "schedule-guiyang8-33"
-main = "worker.js"
+main = "build/worker/shim.mjs"
 compatibility_date = "2024-01-01"
 
 [[kv_namespaces]]
@@ -9,6 +9,7 @@ id = "6a08c97d81c5489aa0f73be62c798627"
 [[rules]]
 type = "Text"
 globs = ["**/*.html"]
+fallthrough = false
 fallbacks = []
 
 [assets]
@@ -30,3 +31,5 @@ database_id = "6d9636b4-a7a9-4451-a701-7f48df456c6e"
 [vars]
 GDRIVE_FOLDER_ID = "1JLM76eGeMI7AJB3PXiuPAQzEnt9AJhtg"
 
+[build]
+command = "if ! command -v cargo >/dev/null 2>&1; then curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal && . $HOME/.cargo/env; fi && rustup target add wasm32-unknown-unknown && cargo install -q worker-build --version '^0.7' && worker-build --release"

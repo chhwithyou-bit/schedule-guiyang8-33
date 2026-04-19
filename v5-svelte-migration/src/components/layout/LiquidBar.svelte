@@ -274,15 +274,6 @@
 
     killActiveTimeline();
 
-    if (afterClose) {
-      isExpanded = false;
-      isPanelMounted = false;
-      isAnimating = false;
-      clearAnimatedProps();
-      flushPendingAfterClose();
-      return;
-    }
-
     if (!shellRef || !surfaceRef) {
       isExpanded = false;
       finishClose();
@@ -399,16 +390,10 @@
     }
   }
 
-  function closeLiquidBarFromKeyboard() {
-    void closeLiquidBar(() => {
-      triggerRef?.focus();
-    });
-  }
-
   function handlePanelKeydown(event: KeyboardEvent) {
     if (event.key === 'Escape') {
       event.preventDefault();
-      closeLiquidBarFromKeyboard();
+      void closeLiquidBar();
       return;
     }
 
@@ -498,7 +483,7 @@
 
       if (event.key === 'Escape') {
         event.preventDefault();
-        closeLiquidBarFromKeyboard();
+        void closeLiquidBar();
         return;
       }
 
@@ -651,9 +636,9 @@
                 </div>
 
                 <div class="liquid-console-split">
-                  <button type="button" data-console-launch="liquid-account" class="liquid-console-btn is-primary" aria-label="个人面板" on:click={() => openConsoleTab('account')}>
+                  <button type="button" data-console-launch="liquid-account" class="liquid-console-btn is-primary" on:click={() => openConsoleTab('account')}>
                     <span class="liquid-action-copy">
-                      <strong>账号资料</strong>
+                      <strong>个人面板</strong>
                       <small>资料、头像和账号设置单独进。</small>
                     </span>
                     <span class="liquid-action-glyph" aria-hidden="true">◦</span>

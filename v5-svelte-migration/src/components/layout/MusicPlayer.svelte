@@ -29,6 +29,7 @@
   const CLOSED_SIZE_REM = 4;
   const OPEN_WIDTH_REM = 21.25;
   const OPEN_BASE_HEIGHT_REM = 24.5;
+  const OPEN_LIST_EXTRA_REM = 0;
   const DRAG_THRESHOLD = 10;
   const DRAG_THRESHOLD_MOBILE = 18;
   const AUTOPLAY_UNLOCK_EVENTS = ['pointerdown', 'keydown'] as const;
@@ -206,8 +207,8 @@
     return Math.min(OPEN_WIDTH_REM * getRootFontSize(), window.innerWidth - PANEL_MARGIN * 2);
   }
 
-  function getOpenHeight() {
-    const preferred = OPEN_BASE_HEIGHT_REM * getRootFontSize();
+  function getOpenHeight(listOpen = isListOpen) {
+    const preferred = (OPEN_BASE_HEIGHT_REM + (listOpen ? OPEN_LIST_EXTRA_REM : 0)) * getRootFontSize();
     if (typeof window === 'undefined') return preferred;
     return Math.min(preferred, window.innerHeight - PANEL_MARGIN * 2);
   }
@@ -297,6 +298,8 @@
     return clampPosition(nextLeft, nextTop, closed.width, closed.height);
   }
 
+  $: panelInlineStyle = getPanelInlineStyle(panelLeft, panelTop, isOpen, isListOpen, panelAnchorX, panelAnchorY);
+
   function getPanelInlineStyle(pLeft: number, pTop: number, open: boolean, listOpen: boolean, aX: string, aY: string) {
     const { width, height } = getPanelSize(open, listOpen);
     const originX = aX === 'right' ? '100%' : '0%';
@@ -344,6 +347,7 @@
 
       loadState = 'ready';
       await tick();
+      await attemptAutoplayForCurrentTrack();
     } catch (error) {
       console.error('Failed to load music playlist', error);
       playlist = [];
@@ -505,14 +509,13 @@
   }
 
   function handleEnded() {
-    if (playlist.length > 1) {
-      playNext(undefined, true);
-      return;
-    }
-
     pauseCurrent();
     progress = 0;
     currentTime = 0;
+
+    if (audioEl) {
+      audioEl.currentTime = 0;
+    }
   }
 
   function handleAudioError() {
@@ -567,6 +570,20 @@
     await openPlayer(false);
   }
 
+  function handleBubblePointerDown(event: PointerEvent) {
+    if (event.button !== 0) return;
+    event.stopPropagation();
+    // On mobile, touch-action: none handles scroll prevention. 
+    // We avoid preventDefault() here to ensure the 'click' event still fires.
+    beginDragging(event.clientX, event.clientY, event.currentTarget as HTMLElement, event.pointerId);
+  }
+
+  function handleBubbleMouseDown(event: MouseEvent) {
+    if (isDragging || event.button !== 0) return;
+    event.stopPropagation();
+    beginDragging(event.clientX, event.clientY, event.currentTarget as HTMLElement);
+  }
+
   async function toggleList(event: Event) {
     if (shouldCancelControlClick(event)) return;
 
@@ -575,7 +592,6 @@
       return;
     }
 
-    const previousRect = measurePanelRect();
     const nextListOpen = !isListOpen;
 
     isListOpen = nextListOpen;
@@ -584,18 +600,7 @@
     await tick();
 
     const nextRect = measurePanelRect();
-    let nextLeft = panelLeft;
-    let nextTop = panelTop;
-
-    if (panelAnchorX === 'right') {
-      nextLeft += previousRect.width - nextRect.width;
-    }
-
-    if (panelAnchorY === 'bottom') {
-      nextTop += previousRect.height - nextRect.height;
-    }
-
-    const clamped = clampPosition(nextLeft, nextTop, nextRect.width, nextRect.height);
+    const clamped = clampPosition(panelLeft, panelTop, nextRect.width, nextRect.height);
     panelLeft = clamped.left;
     panelTop = clamped.top;
     syncAnchor(panelLeft, panelTop, nextRect.width, nextRect.height);
@@ -628,6 +633,13 @@
     beginDragging(event.clientX, event.clientY, event.currentTarget as HTMLElement, event.pointerId);
   }
 
+  function handleDragMouseDown(event: MouseEvent) {
+    if (event.button !== 0) return;
+    event.stopPropagation();
+    event.preventDefault();
+    beginDragging(event.clientX, event.clientY, event.currentTarget as HTMLElement);
+  }
+
   function handleDragHandleClick(event: Event) {
     if (shouldCancelControlClick(event)) return;
     if (isOpen) {
@@ -651,6 +663,21 @@
     if (event.cancelable) {
       event.preventDefault();
     }
+
+    const { width, height } = getPanelSize(isOpen, isListOpen);
+    const next = clampPosition(event.clientX - dragOffsetX, event.clientY - dragOffsetY, width, height);
+    panelLeft = next.left;
+    panelTop = next.top;
+  }
+
+  function handleGlobalMouseMove(event: MouseEvent) {
+    if ((!isDragArmed && !isDragging) || dragPointerId !== null) return;
+
+    const travel = Math.abs(event.clientX - dragStartX) + Math.abs(event.clientY - dragStartY);
+    if (!dragMoved && travel <= DRAG_THRESHOLD) return;
+
+    dragMoved = true;
+    isDragging = true;
 
     const { width, height } = getPanelSize(isOpen, isListOpen);
     const next = clampPosition(event.clientX - dragOffsetX, event.clientY - dragOffsetY, width, height);
@@ -755,6 +782,8 @@
   on:pointermove={handleGlobalPointerMove}
   on:pointerup={finishDragging}
   on:pointercancel={finishDragging}
+  on:mousemove={handleGlobalMouseMove}
+  on:mouseup={finishDragging}
   on:keydown={handleWidgetKeydown}
 />
 
@@ -775,7 +804,7 @@
   class:dragging={isDragging}
   data-anchor-x={panelAnchorX}
   data-anchor-y={panelAnchorY}
-  style={getPanelInlineStyle(panelLeft, panelTop, isOpen, isListOpen, panelAnchorX, panelAnchorY)}
+  style={panelInlineStyle}
 >
   <div class="mp-shell {isOpen ? 'open' : 'closed'}">
     {#if isOpen}
@@ -792,6 +821,7 @@
               type="button"
               aria-label="拖动播放器"
               on:pointerdown={handleDragPointerDown}
+              on:mousedown={handleDragMouseDown}
               on:click={handleDragHandleClick}
             ></button>
             <span></span>
@@ -938,14 +968,14 @@
               {#each filteredTracks as track}
                 <button
                   type="button"
-                  class="mp-track-row mp-li {playlist.findIndex((item) => item === track) === currentIndex ? 'is-active' : ''}"
-                  on:click={(event) => handleTrackSelect(playlist.findIndex((item) => item === track), event)}
+                  class="mp-track-row mp-li {track.url === currentTrack.url ? 'is-active' : ''}"
+                  on:click={(event) => handleTrackSelect(playlist.findIndex((item) => item.url === track.url), event)}
                 >
                   <div class="mp-track-copy">
                     <strong>{track.name}</strong>
                     <span>{track.artist}</span>
                   </div>
-                  <small>{playlist.findIndex((item) => item === track) === currentIndex ? (isPlaying ? '正在听' : '已选中') : '播放'}</small>
+                  <small>{track.url === currentTrack.url ? (isPlaying ? '正在听' : '已选中') : '播放'}</small>
                 </button>
               {/each}
             {:else}
@@ -1067,6 +1097,10 @@
     clip: rect(0, 0, 0, 0);
     white-space: nowrap;
     border: 0;
+  }
+
+  .mp-bubble:active {
+    cursor: grabbing;
   }
 
   .mp-bubble-ring {
@@ -1609,9 +1643,12 @@
   .mp-list-panel.open {
     flex: 1 1 auto;
     max-height: 100%;
+    min-height: 0;
     margin-top: 0.08rem;
     padding: 0.58rem;
     opacity: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
     pointer-events: auto;
     transform: translate3d(0, 0, 0);
     border-radius: 22px;
@@ -1642,8 +1679,8 @@
 
   .mp-list-scroll {
     min-height: 0;
-    flex: 1 1 auto;
-    overflow: auto;
+    flex: 0 0 auto;
+    overflow: visible;
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
