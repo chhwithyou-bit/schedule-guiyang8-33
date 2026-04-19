@@ -117,29 +117,9 @@ test.beforeEach(async ({ page }) => {
 
     return fulfill({ ok: true, users: [], groups: [], posts: [], messages: [], conversations: [], unread_total: 0 });
   });
-
-  await page.route('**/media/**', async route => {
-    const pathname = new URL(route.request().url()).pathname;
-    if (pathname.endsWith('.png')) {
-      return route.fulfill({
-        status: 200,
-        contentType: 'image/png',
-        body: Buffer.from(
-          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9sW2CY4AAAAASUVORK5CYII=',
-          'base64'
-        )
-      });
-    }
-
-    return route.fulfill({
-      status: 200,
-      contentType: 'audio/mpeg',
-      body: Buffer.from('ID3')
-    });
-  });
 });
 
-test('console hub links to direct subroutes from the route-native account page', async ({ page }) => {
+test('console hub links to direct subroutes instead of opening a legacy modal shell', async ({ page }) => {
   await page.goto('/console');
 
   await expect(page.getByRole('heading', { name: '个人面板、消息、群组、网盘、提醒' })).toBeVisible();
@@ -190,7 +170,7 @@ test('drive route restores upload rename delete and media states on the direct U
   await expect(page.locator('article').filter({ has: page.getByText('notes-renamed.txt', { exact: true }) })).toHaveCount(0);
 });
 
-test('direct chats and groups routes stay reachable from the unified runtime shell', async ({ page }) => {
+test('direct chats and groups routes are reachable without the legacy shell wrapper', async ({ page }) => {
   await page.goto('/console/chats');
   await expect(page.getByRole('heading', { name: '私聊与会话' })).toBeVisible();
   await expect(page).toHaveURL(/\/console\/chats$/);
