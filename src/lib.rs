@@ -827,10 +827,68 @@ async fn cache_public_media_response(cache: &Cache, cache_key: &str, response: &
     }
 }
 
+async fn cache_uploaded_media(env: &Env, file_id: &str, bytes: &[u8], content_type: &str) {
+    if file_id.trim().is_empty() || bytes.is_empty() {
+        return;
+    }
+
+    if let Ok(bucket) = env.bucket("COMMUNITY_R2") {
+        let _ = bucket
+            .put(file_id, bytes.to_vec())
+            .http_metadata(HttpMetadata {
+                content_type: Some(content_type.to_string()),
+                ..Default::default()
+            })
+            .execute()
+            .await;
+    }
+}
+
+fn has_drive_auth_config(env: &Env) -> bool {
+    let client_id = env.var("GDRIVE_CLIENT_ID").ok().map(|value| value.to_string()).unwrap_or_default();
+    let client_secret = env.var("GDRIVE_CLIENT_SECRET").ok().map(|value| value.to_string()).unwrap_or_default();
+    let refresh_token = env.var("GDRIVE_REFRESH_TOKEN").ok().map(|value| value.to_string()).unwrap_or_default();
+
+    !client_id.trim().is_empty() && !client_secret.trim().is_empty() && !refresh_token.trim().is_empty()
+}
+
 async fn award_xp(db: &D1Database, user_id: &str, amount: i32) -> Result<()> {
     db.prepare("UPDATE users SET xp = xp + ? WHERE id = ?")
         .bind(&[amount.into(), user_id.into()])?
         .run().await?;
+    Ok(())
+}
+
+async fn ensure_community_schema(db: &D1Database) -> Result<()> {
+    let statements = [
+        "CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'user', avatar_url TEXT, signature TEXT, background_url TEXT, xp INTEGER NOT NULL DEFAULT 0, level INTEGER NOT NULL DEFAULT 1, is_banned INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS posts (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, content TEXT, media_json TEXT, type TEXT NOT NULL DEFAULT 'post', repost_id TEXT, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS comments (id TEXT PRIMARY KEY, post_id TEXT NOT NULL, user_id TEXT NOT NULL, parent_id TEXT, content TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS likes (post_id TEXT NOT NULL, user_id TEXT NOT NULL, PRIMARY KEY(post_id, user_id))",
+        "CREATE TABLE IF NOT EXISTS follows (follower_id TEXT NOT NULL, following_id TEXT NOT NULL, PRIMARY KEY(follower_id, following_id))",
+        "CREATE TABLE IF NOT EXISTS notifications (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, type TEXT NOT NULL, from_user_id TEXT NOT NULL, target_id TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS reports (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, target_type TEXT NOT NULL, target_id TEXT NOT NULL, reason TEXT, status TEXT NOT NULL DEFAULT 'pending', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS user_drive_stats (user_id TEXT PRIMARY KEY, quota_bytes INTEGER NOT NULL DEFAULT 0, used_bytes INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS drive_files (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, name TEXT NOT NULL, size INTEGER NOT NULL DEFAULT 0, mime_type TEXT, url TEXT, parent_id TEXT, is_folder INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS conversations (id TEXT PRIMARY KEY, kind TEXT NOT NULL, title TEXT, description TEXT, avatar_url TEXT, direct_key TEXT UNIQUE, created_by TEXT, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS conversation_members (conversation_id TEXT NOT NULL, user_id TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'member', last_read_at TEXT, joined_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(conversation_id, user_id))",
+        "CREATE TABLE IF NOT EXISTS messages (id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, sender_id TEXT, content TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts(created_at DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_comments_post_created ON comments(post_id, created_at DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_notifications_user_created ON notifications(user_id, created_at DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_drive_files_user_parent ON drive_files(user_id, parent_id)",
+        "CREATE INDEX IF NOT EXISTS idx_drive_files_parent ON drive_files(parent_id)",
+        "CREATE INDEX IF NOT EXISTS idx_messages_conversation_created ON messages(conversation_id, created_at DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_conversation_members_user ON conversation_members(user_id, conversation_id)",
+    ];
+
+    let prepared: Vec<D1PreparedStatement> = statements
+        .iter()
+        .map(|statement| db.prepare(*statement))
+        .collect();
+
+    db.batch(prepared).await?;
+
     Ok(())
 }
 
@@ -907,6 +965,12 @@ async fn upload_to_drive(env: &Env, buffer: Vec<u8>, filename: &str, mime_type: 
 
 #[event(fetch)]
 pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
+    let request_url = req.url()?;
+    if request_url.path().starts_with("/api/community") {
+        let db = env.d1("COMMUNITY_DB")?;
+        ensure_community_schema(&db).await?;
+    }
+
     let router = Router::new();
 
     router
@@ -1566,9 +1630,6 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                 
                 let kv = ctx.env.kv("SCHEDULE_KV")?;
                 let announcement = kv.get("community_announcement").text().await?.unwrap_or_else(|| "{}".to_string());
-                let node_sources = read_node_sources(&kv).await.unwrap_or_default();
-                let proxy_nodes = read_proxy_nodes(&kv).await.unwrap_or_default();
-                let password_configured = !read_node_password_hash(&kv).await.unwrap_or_default().is_empty();
                 let drive_folder_id = ctx.env.var("GDRIVE_FOLDER_ID").ok().map(|value| value.to_string()).unwrap_or_default();
                 let community_bucket = ctx.env.bucket("COMMUNITY_R2")?;
                 let cache_listing = community_bucket.list().execute().await?;
@@ -1585,11 +1646,9 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                     "reports": reports,
                     "users": users,
                     "announcement": serde_json::from_str::<Value>(&announcement).unwrap_or(json!({"content": "", "updatedAt": null})),
-                    "node_sources": node_sources,
-                    "proxy_nodes": proxy_nodes,
-                    "nodes_password_configured": password_configured,
                     "media_storage": {
                         "mode": "google-drive-origin-r2-cache",
+                        "drive_auth_configured": has_drive_auth_config(&ctx.env),
                         "drive_folder_id": drive_folder_id,
                         "drive_folder_configured": !drive_folder_id.trim().is_empty(),
                         "r2_sample_count": r2_sample_keys.len(),
@@ -1863,7 +1922,45 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                 return utils::json_resp(json!({"ok": false, "msg": "空间不足"}), 400);
             }
 
-            let drive_resp = match upload_to_drive(&ctx.env, buffer, &name, &mime_type).await {
+            if !has_drive_auth_config(&ctx.env) {
+                let fallback_key = format!("fallback-{}.{}", Uuid::new_v4(), infer_extension_from_mime(&mime_type));
+                cache_uploaded_media(&ctx.env, &fallback_key, &buffer, &mime_type).await;
+
+                let id = Uuid::new_v4().to_string();
+                let file_url = format!("/api/community/media/{}", fallback_key);
+                db.prepare("INSERT INTO drive_files (id, user_id, name, size, mime_type, url, parent_id, is_folder) VALUES (?, ?, ?, ?, ?, ?, ?, 0)")
+                    .bind(&[
+                        id.clone().into(),
+                        user.id.clone().into(),
+                        name.clone().into(),
+                        size.into(),
+                        mime_type.clone().into(),
+                        file_url.clone().into(),
+                        parent_id.clone().into()
+                    ])?.run().await?;
+
+                db.prepare("INSERT INTO user_drive_stats (user_id, quota_bytes, used_bytes) VALUES (?, 0, ?) ON CONFLICT(user_id) DO UPDATE SET used_bytes = used_bytes + excluded.used_bytes, updated_at = CURRENT_TIMESTAMP")
+                    .bind(&[user.id.clone().into(), size.into()])?
+                    .run().await?;
+
+                return utils::json_resp(json!({
+                    "ok": true,
+                    "id": id,
+                    "fileId": fallback_key,
+                    "fromDrive": false,
+                    "file": {
+                        "id": id,
+                        "name": name,
+                        "size": size,
+                        "mime_type": mime_type,
+                        "url": file_url,
+                        "parent_id": parent_id,
+                        "is_folder": 0
+                    }
+                }), 200);
+            }
+
+            let drive_resp = match upload_to_drive(&ctx.env, buffer.clone(), &name, &mime_type).await {
                 Ok(resp) => resp,
                 Err(_) => {
                     return utils::json_resp(json!({"ok": false, "msg": "云盘服务不可用"}), 503);
@@ -1874,6 +1971,8 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             if drive_file_id.is_empty() {
                 return utils::json_resp(json!({"ok": false, "msg": "上传到云端失败"}), 500);
             }
+
+            cache_uploaded_media(&ctx.env, &drive_file_id, &buffer, &mime_type).await;
 
             let id = Uuid::new_v4().to_string();
             let file_url = format!("/api/community/media/{}", drive_file_id);
@@ -2210,7 +2309,19 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                 );
             }
 
-            let drive_resp = match upload_to_drive(&ctx.env, bytes, &detected_name, &detected_mime).await {
+            if !has_drive_auth_config(&ctx.env) {
+                let fallback_key = format!("fallback-{}.{}", Uuid::new_v4(), infer_extension_from_mime(&detected_mime));
+                cache_uploaded_media(&ctx.env, &fallback_key, &bytes, &detected_mime).await;
+
+                return utils::json_resp(json!({
+                    "ok": true,
+                    "fileId": fallback_key,
+                    "url": format!("/api/community/media/{}", fallback_key),
+                    "fromDrive": false
+                }), 200);
+            }
+
+            let drive_resp = match upload_to_drive(&ctx.env, bytes.clone(), &detected_name, &detected_mime).await {
                 Ok(resp) => resp,
                 Err(_) => {
                     return utils::json_resp(json!({"ok": false, "msg": "云端图片上传失败"}), 503);
@@ -2220,6 +2331,8 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             if drive_file_id.is_empty() {
                 return utils::json_resp(json!({"ok": false, "msg": "云端图片上传失败"}), 500);
             }
+
+            cache_uploaded_media(&ctx.env, &drive_file_id, &bytes, &detected_mime).await;
 
             utils::json_resp(json!({
                 "ok": true,

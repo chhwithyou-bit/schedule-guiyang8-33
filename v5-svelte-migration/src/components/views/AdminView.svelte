@@ -80,9 +80,12 @@
   }
 
   async function updateAnnouncement() {
-    await handleAction('set_announcement', 'system', 'announcement', {
+    const ok = await handleAction('set_announcement', 'system', 'announcement', {
       content: announcement.content
     });
+    if (ok && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('community-announcement-updated'));
+    }
   }
 
   function formatSize(bytes: number) {

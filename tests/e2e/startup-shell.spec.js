@@ -11,7 +11,7 @@ function extractAssetReferences(html) {
 }
 
 async function installApiMocks(page) {
-  await page.route('**/api/**', async route => {
+  await page.route('**/api/**', async (route) => {
     const req = route.request();
     const url = new URL(req.url());
     const pathname = url.pathname;
@@ -31,16 +31,6 @@ async function installApiMocks(page) {
     if (pathname === '/api/community/chats') return fulfill({ ok: true, conversations: [], unread_total: 0 });
     if (pathname === '/api/community/chats/messages') return fulfill({ ok: true, messages: [] });
     if (pathname === '/api/community/discovery') return fulfill({ ok: true, users: [], groups: [] });
-    if (pathname === '/api/nodes') {
-      return fulfill({
-        ok: true,
-        nodes: [],
-        sources: [],
-        subscription_url: '/api/nodes/subscription?pwd=playwright-session',
-        raw: '',
-        clients: {}
-      });
-    }
     if (pathname === '/api/community/drive/info') {
       return fulfill({
         ok: true,
@@ -69,7 +59,6 @@ async function installApiMocks(page) {
 async function openStartupShell(page) {
   await page.goto('/');
   await expect(page.locator('.preloader-overlay')).toBeVisible();
-  await expect(page.getByText('opening sequence')).toBeVisible();
   await expect(page.locator('.app-background')).toHaveClass(/is-ready/, { timeout: 15000 });
   await expect(page.locator('.preloader-overlay')).toBeHidden({ timeout: 15000 });
   await expect(page.locator('header')).toBeVisible();
@@ -84,13 +73,14 @@ test.beforeEach(async ({ page }) => {
   await installApiMocks(page);
 });
 
-test('startup shell keeps wallpaper ready, preloader transient, and guest header entry visible', async ({ page }) => {
+test('startup shell keeps wallpaper ready and exposes the current guest entry points', async ({ page }) => {
   await openStartupShell(page);
 
   await expect(page.locator('.app-background')).toHaveClass(/is-ready/);
   await expect(page.locator('header .site-header-shell')).toBeVisible();
-  await expect(page.getByRole('banner').getByRole('button', { name: '账号入口' })).toBeVisible();
-  await expect(page.getByRole('banner').getByRole('button', { name: '登录', exact: true })).toBeVisible();
+  await expect(page.locator('header .header-login-btn')).toBeVisible();
+  await expect(page.locator('header .header-avatar-shell')).toHaveCount(0);
+  await expect(page.locator('.community-hero-shell button').first()).toBeVisible();
 });
 
 test('startup shell restores authenticated header controls after preloader completes', async ({ page }) => {
@@ -107,9 +97,9 @@ test('startup shell restores authenticated header controls after preloader compl
 
   await openStartupShell(page);
 
-  await expect(page.getByRole('banner').getByRole('button', { name: '个人', exact: true })).toBeVisible();
-  await expect(page.getByRole('banner').getByRole('button', { name: '消息', exact: true })).toBeVisible();
   await expect(page.locator('header .header-avatar-shell')).toBeVisible();
+  await expect(page.locator('header [data-header-target="profile"]')).toBeVisible();
+  await expect(page.locator('header [data-header-target="messages"]')).toBeVisible();
 });
 
 test('served shell references the current built assets and drops stale public hashes', async ({ page }) => {

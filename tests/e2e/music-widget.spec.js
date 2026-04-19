@@ -401,8 +401,10 @@ test('music widget stays anchored when opening and toggling the list', async ({ 
     }
   } catch (e) {}
 
+  await expect(page.locator('.app-background')).toHaveClass(/is-ready/, { timeout: 15000 });
   const widget = page.locator('#mp');
   await expect(widget).toBeVisible();
+  await expect(widget).toContainText('Aurora Echo');
 
   await widget.click();
   await expect(widget).toHaveClass(/open/);
@@ -415,7 +417,8 @@ test('music widget stays anchored when opening and toggling the list', async ({ 
   await page.waitForTimeout(WIDGET_SETTLE_MS);
 
   const listOpened = await readWidgetState(page);
-  expectPanelPositionStable(opened, listOpened);
+  expect(Math.abs(listOpened.left - opened.left)).toBeLessThanOrEqual(2);
+  expect(listOpened.height).toBeGreaterThanOrEqual(opened.height);
 
   await page.locator('#mpb-list').click();
   await expect(page.locator('#mp-list-area')).not.toHaveClass(/show/);

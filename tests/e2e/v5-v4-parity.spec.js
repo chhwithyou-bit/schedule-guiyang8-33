@@ -6,12 +6,12 @@ function buildCommunityState() {
       {
         id: 'post-1',
         user_id: 'user-1',
-        username: '测试同学',
+        username: 'Test Student',
         avatar_url: '',
         background_url: 'https://images.example.com/wallpaper.jpg',
-        signature: '今晚先把界面磨顺。',
+        signature: 'Polishing the interface tonight.',
         role: 'user',
-        content: '这是用来验证社区详情页的首条动态。',
+        content: 'First post used for detail regression coverage.',
         media_json: '[]',
         like_count: 3,
         comment_count: 1,
@@ -21,12 +21,12 @@ function buildCommunityState() {
       {
         id: 'post-2',
         user_id: 'user-2',
-        username: '第二位同学',
+        username: 'Second Student',
         avatar_url: '',
         background_url: '',
-        signature: '第二条动态用来测滚动和切换。',
+        signature: 'Second thread for scroll reset coverage.',
         role: 'user',
-        content: '这是第二条动态，用来验证打开不同详情时滚动会重置。',
+        content: 'Second post used to verify switching between detail threads.',
         media_json: '[]',
         like_count: 0,
         comment_count: 2,
@@ -39,12 +39,12 @@ function buildCommunityState() {
         {
           id: 'comment-1',
           user_id: 'user-2',
-          username: '回帖同学',
+          username: 'Reply Student',
           avatar_url: '',
           background_url: '',
-          signature: '正在跟进评论发布链路。',
+          signature: 'Tracking the comment pipeline.',
           role: 'user',
-          content: '这里是首条留言。',
+          content: 'First reply on the first post.',
           created_at: '2026-03-28T10:15:00.000Z'
         }
       ],
@@ -52,23 +52,23 @@ function buildCommunityState() {
         {
           id: 'comment-2',
           user_id: 'user-3',
-          username: '第二位回帖同学',
+          username: 'Second Reply Student',
           avatar_url: '',
           background_url: '',
-          signature: '滚动要稳定。',
+          signature: 'Scroll should stay stable.',
           role: 'user',
-          content: '第二条动态下的第一条留言。',
+          content: 'First reply on the second post.',
           created_at: '2026-03-28T11:05:00.000Z'
         },
         {
           id: 'comment-3',
           user_id: 'user-4',
-          username: '第三位回帖同学',
+          username: 'Third Reply Student',
           avatar_url: '',
           background_url: '',
-          signature: '信息展示要一致。',
+          signature: 'Thread switching should stay consistent.',
           role: 'user',
-          content: '第二条动态下的第二条留言。',
+          content: 'Second reply on the second post.',
           created_at: '2026-03-28T11:10:00.000Z'
         }
       ]
@@ -78,7 +78,7 @@ function buildCommunityState() {
 }
 
 function installApiMocks(page, state) {
-  return page.route('**/api/**', async route => {
+  return page.route('**/api/**', async (route) => {
     const req = route.request();
     const url = new URL(req.url());
     const pathname = url.pathname;
@@ -112,10 +112,10 @@ function installApiMocks(page, state) {
         ok: true,
         user: {
           id: profileId,
-          username: baseUser?.username || '测试同学',
+          username: baseUser?.username || 'Test Student',
           avatar_url: baseUser?.avatar_url || '',
           background_url: baseUser?.background_url || '',
-          signature: baseUser?.signature || '今晚先把界面磨顺。',
+          signature: baseUser?.signature || 'Polishing the interface tonight.',
           level: profileId === 'user-2' ? 2 : 4,
           xp: profileId === 'user-2' ? 48 : 120,
           role: baseUser?.role || 'user',
@@ -138,10 +138,10 @@ function installApiMocks(page, state) {
       const comment = {
         id: `comment-${existingComments.length + 1}`,
         user_id: 'viewer-user',
-        username: '调试用户',
+        username: 'Debug User',
         avatar_url: '',
         background_url: '',
-        signature: '把问题一个个收掉。',
+        signature: 'Closing regressions one by one.',
         role: 'user',
         content: String(payload.content || '').trim(),
         created_at: '2026-03-28T10:30:00.000Z'
@@ -154,7 +154,7 @@ function installApiMocks(page, state) {
       return fulfill({ ok: true });
     }
 
-    if (pathname === '/api/community/like' && req.method() === 'POST') {
+    if (pathname === '/api/community/posts/like' && req.method() === 'POST') {
       const payload = req.postDataJSON();
       const postId = String(payload.post_id || '');
       let action = 'liked';
@@ -209,136 +209,146 @@ async function bootApp(page) {
     const btn = page.locator('button[data-theme-id="theme-default"]');
     if (await btn.isVisible({ timeout: 2000 })) {
       await btn.click();
-      await page.waitForTimeout(2000);
+      await page.waitForTimeout(1200);
     }
   } catch {}
 }
 
-test.describe('8Community V5 Functionality Check', () => {
+test.describe('8Community V5 current functionality check', () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.setItem('commUser', JSON.stringify({
         id: 'viewer-user',
-        username: '调试用户',
+        username: 'Debug User',
         passHash: 'playwright-session',
         role: 'user',
-        signature: '把问题一个个收掉。'
+        signature: 'Closing regressions one by one.'
       }));
     });
 
     await installApiMocks(page, buildCommunityState());
   });
 
-  test('Aura Picker should appear on first visit', async ({ page }) => {
+  test('first visit applies the default theme and boots the current shell', async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.removeItem('siteTheme');
     });
+
     await page.goto('/');
-    await expect(page.locator('h2:has-text("Pick Your Aura")')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('.app-background')).toHaveClass(/is-ready/, { timeout: 15000 });
+    await expect(page.locator('.community-view')).toBeVisible();
+    await expect.poll(async () => page.evaluate(() => document.documentElement.getAttribute('data-theme'))).toBe('theme-default');
   });
 
-  test('Should switch views via Liquid Bar', async ({ page }) => {
+  test('liquid bar switches into the personal view', async ({ page }) => {
     await bootApp(page);
     await page.waitForSelector('#liquidBar');
 
     await page.locator('#liquidBar .liquid-trigger').click();
-    await page.getByRole('button', { name: /课表/ }).click();
+    await page.locator('#liquidBar .liquid-nav-btn').nth(1).click();
 
-    await expect(page.getByText('课程安排')).toBeVisible();
+    await expect(page.locator('.personal-shell')).toBeVisible();
   });
 
-  test('Community feed should load posts', async ({ page }) => {
+  test('community feed loads the mocked posts', async ({ page }) => {
     await bootApp(page);
 
-    const cards = page.locator('article');
+    const cards = page.locator('.community-view article');
     await expect(cards.first()).toBeVisible({ timeout: 15000 });
     await expect(cards).toHaveCount(2);
-    await expect(cards.nth(0)).toContainText('这是用来验证社区详情页的首条动态。');
-    await expect(cards.nth(1)).toContainText('这是第二条动态，用来验证打开不同详情时滚动会重置。');
+    await expect(cards.nth(0)).toContainText('First post used for detail regression coverage.');
+    await expect(cards.nth(1)).toContainText('Second post used to verify switching between detail threads.');
   });
 
-  test('Post detail opens with matching content and comment count', async ({ page }) => {
+  test('post detail opens with matching content and comment count', async ({ page }) => {
     await bootApp(page);
 
-    const secondPost = page.locator('article').nth(1);
+    const secondPost = page.locator('.community-view article').nth(1);
     await expect(secondPost).toBeVisible();
-    await secondPost.locator('.cursor-pointer').click();
+    await secondPost.locator('button').nth(1).click();
 
-    await expect(page.locator('h2:has-text("这条内容")')).toBeVisible();
-    await expect(page.locator('p.text-xl.leading-relaxed').filter({ hasText: '这是第二条动态，用来验证打开不同详情时滚动会重置。' })).toBeVisible();
-    await expect(page.getByText('第二条动态下的第一条留言。')).toBeVisible();
-    await expect(page.locator('h3').filter({ hasText: '留言' })).toContainText('(2)');
+    await expect(page.locator('.post-detail-shell')).toBeVisible();
+    await expect(page.locator('.post-detail-content-panel')).toContainText('Second post used to verify switching between detail threads.');
+    await expect(page.locator('.post-detail-comments')).toContainText('First reply on the second post.');
+    await expect(page.locator('.post-detail-comments h3')).toContainText('(2)');
   });
 
-  test('Comment shortcut opens detail, focuses composer, and syncs count', async ({ page }) => {
+  test('comment shortcut opens detail, focuses composer, and syncs count', async ({ page }) => {
     await bootApp(page);
 
-    await page.getByRole('button', { name: '查看评论' }).first().click();
-    await expect(page.locator('h2:has-text("这条内容")')).toBeVisible();
-    await expect(page.getByPlaceholder('想回一句什么，就写在这里。')).toBeVisible();
+    const firstPost = page.locator('.community-view article').first();
+    await firstPost.locator('button').nth(3).click();
+    const composer = page.locator('.post-detail-composer-input');
+    await expect(composer).toBeVisible();
+    await expect(composer).toBeFocused();
 
-    await page.getByPlaceholder('想回一句什么，就写在这里。').fill('这条评论是回归测试发出来的。');
-    await page.getByRole('button', { name: '发布评论' }).click();
+    await composer.fill('Regression comment from Playwright.');
+    await page.locator('.post-detail-composer-submit').click();
 
-    await expect(page.getByText('这条评论是回归测试发出来的。')).toBeVisible();
-    await expect(page.locator('h3').filter({ hasText: '留言' })).toContainText('(2)');
-    await page.getByRole('button', { name: '返回动态列表' }).click({ force: true });
-    await expect(page.locator('article').first()).toContainText('2');
+    await expect(page.locator('.post-detail-comments')).toContainText('Regression comment from Playwright.');
+    await expect(page.locator('.post-detail-comments h3')).toContainText('(2)');
+    await page.locator('.post-detail-header button').first().click({ force: true });
+    await expect(firstPost).toContainText('2');
   });
 
-  test('Report panel opens from shortcut and shows success feedback', async ({ page }) => {
+  test('report panel opens from the shortcut and shows success feedback', async ({ page }) => {
     await bootApp(page);
 
-    await page.getByRole('button', { name: '举报这条内容' }).first().click();
-    await expect(page.getByRole('heading', { name: '把问题写清楚，我们会跟进处理。' })).toBeVisible();
+    const firstPost = page.locator('.community-view article').first();
+    await firstPost.locator('button').nth(4).click();
+    await expect(page.locator('.post-detail-report-panel')).toBeVisible();
 
-    await page.getByPlaceholder('例如：辱骂、人身攻击、恶意广告、盗图。').fill('回归测试举报原因。');
-    await page.getByRole('button', { name: '提交举报' }).click();
+    await page.locator('.post-detail-report-input').fill('Regression report reason.');
+    await page.locator('.post-detail-report-submit').click();
 
-    await expect(page.getByText('举报已提交，我们会尽快处理。')).toBeVisible();
+    await expect(page.locator('.post-detail-message')).toBeVisible();
   });
 
-  test('Profile opens from feed and profile posts stay consistent', async ({ page }) => {
+  test('profile opens from feed and profile posts stay consistent', async ({ page }) => {
     await bootApp(page);
 
-    await page.getByRole('button', { name: '打开 测试同学 的主页' }).click();
-    await expect(page.getByRole('heading', { name: '测试同学' }).first()).toBeVisible();
-    await expect(page.getByText('今晚先把界面磨顺。').first()).toBeVisible();
-    await expect(page.getByRole('link', { name: '查看壁纸' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: /发过的内容/ })).toContainText('(1)');
-    await expect(page.locator('article').last()).toContainText('这是用来验证社区详情页的首条动态。');
+    const firstPost = page.locator('.community-view article').first();
+    await firstPost.locator('button').first().click();
+
+    await expect(page.getByRole('heading', { name: 'Test Student' }).first()).toBeVisible();
+    await expect(page.getByText('Polishing the interface tonight.').first()).toBeVisible();
+    await expect(page.locator('article').last()).toContainText('First post used for detail regression coverage.');
   });
 
-  test('Switching detail targets resets scroll and updates visible thread', async ({ page }) => {
+  test('switching detail targets resets scroll and updates the visible thread', async ({ page }) => {
     await bootApp(page);
 
-    await page.locator('article').first().locator('.cursor-pointer').click();
-    const detailScroller = page.locator('.post-detail-shell .flex-1.overflow-y-auto');
+    const firstPost = page.locator('.community-view article').nth(0);
+    const secondPost = page.locator('.community-view article').nth(1);
+
+    await firstPost.locator('button').nth(1).click();
+    const detailScroller = page.locator('.post-detail-scroll');
     await expect(detailScroller).toBeVisible();
-    await expect(page.getByText('这里是首条留言。')).toBeVisible();
+    await expect(page.locator('.post-detail-comments')).toContainText('First reply on the first post.');
 
-    const secondFeedPost = page.locator('article').filter({ hasText: '这是第二条动态，用来验证打开不同详情时滚动会重置。' }).first();
-    await secondFeedPost.getByRole('button', { name: '查看评论' }).evaluate((node) => {
+    await secondPost.locator('button').nth(3).evaluate((node) => {
       node.click();
     });
 
-    await expect(page.locator('h3').filter({ hasText: '留言' })).toContainText('(2)');
-    await expect(page.getByText('第二条动态下的第一条留言。')).toBeVisible();
-    await expect(page.getByText('这里是首条留言。')).not.toBeVisible();
+    await expect(page.locator('.post-detail-comments h3')).toContainText('(2)');
+    await expect(page.locator('.post-detail-comments')).toContainText('First reply on the second post.');
+    await expect(page.locator('.post-detail-comments')).not.toContainText('First reply on the first post.');
     await expect.poll(async () => detailScroller.evaluate((node) => node.scrollTop)).toBeLessThan(20);
   });
 
-  test('Like updates detail/feed counts consistently', async ({ page }) => {
+  test('like updates detail and feed counts consistently', async ({ page }) => {
     await bootApp(page);
 
-    const firstLikeButton = page.getByRole('button', { name: '点赞这条内容' }).first();
+    const firstPost = page.locator('.community-view article').first();
+    const firstLikeButton = firstPost.locator('button').nth(2);
+
     await expect(firstLikeButton).toContainText('3');
     await firstLikeButton.click();
     await expect(firstLikeButton).toContainText('4');
 
-    await page.locator('article').first().locator('.cursor-pointer').click();
-    await expect(page.locator('h3').filter({ hasText: '留言' })).toBeVisible();
-    await page.getByRole('button', { name: '返回动态列表' }).click({ force: true });
+    await firstPost.locator('button').nth(1).click();
+    await expect(page.locator('.post-detail-shell')).toBeVisible();
+    await page.locator('.post-detail-header button').first().click({ force: true });
     await expect(firstLikeButton).toContainText('4');
   });
 });

@@ -1,10 +1,11 @@
 <script lang="ts">
-  import { fade, fly } from 'svelte/transition';
+  import { fade } from 'svelte/transition';
   import { tick } from 'svelte';
   import { selectedPost, isAuthenticated, selectedProfile } from '../../stores/appState';
   import { openModal } from '../../stores/modalState';
   import { communityFetch } from '../../lib/communityApi';
   import ReliableImage from '../ui/ReliableImage.svelte';
+  import { softReveal } from '../../lib/motion';
 
   let comments: any[] = [];
   let loading = true;
@@ -275,7 +276,7 @@
     <div class="post-detail-backdrop absolute inset-0" aria-hidden="true"></div>
     <div
       class="post-detail-shell relative flex h-full flex-col overflow-hidden"
-      transition:fly={{ x: 44, duration: 320, easing: (t) => t * (2 - t) }}
+      transition:softReveal={{ x: 18, y: 0, duration: 260, startScale: 0.992, blur: 4 }}
     >
       <header class="post-detail-header flex items-center justify-between gap-4 px-4 py-4 sm:px-6 sm:py-6">
         <button on:click={close} aria-label="返回动态列表" class="post-detail-toolbar-button p-2 -ml-2 transition-all">

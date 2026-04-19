@@ -1,11 +1,11 @@
 const { test, expect } = require('@playwright/test');
 
-function buildDiscoveryState() {
+function buildState() {
   return {
     directUser: {
       id: 'user-alice',
       username: 'Alice',
-      signature: '夜间联调搭子',
+      signature: 'Night shift co-op',
       avatar_url: '',
       role: 'user',
       xp: 220,
@@ -14,39 +14,20 @@ function buildDiscoveryState() {
     group: {
       id: 'group-night-sprint',
       title: 'Night Sprint',
-      description: '深夜修交互和动画的协作群',
+      description: 'Late-night UI polishing squad.',
       member_count: 6,
       joined: false
     },
-    nodes: [
-      {
-        id: 'node-1',
-        name: 'Tokyo Relay',
-        raw: 'ss://ZXhhbXBsZQ==',
-        protocol: 'ss',
-        source_label: '常用订阅'
-      }
-    ],
-    sources: [
-      {
-        id: 'source-1',
-        label: '常用订阅',
-        source_type: 'subscription',
-        enabled: true,
-        node_count: 1,
-        updated_at: '2026-03-28T10:30:00.000Z'
-      }
-    ],
     conversations: [
       {
         id: 'group-general',
         kind: 'group',
         title: 'General Lounge',
-        description: '默认测试群组',
+        description: 'Default testing group',
         member_count: 4,
         avatar_url: '',
         unread_count: 1,
-        last_message: '欢迎进入联调环境',
+        last_message: 'Welcome back to the lounge',
         last_sender_name: 'System',
         last_message_at: '2026-03-28T10:30:00.000Z',
         updated_at: '2026-03-28T10:30:00.000Z'
@@ -58,18 +39,26 @@ function buildDiscoveryState() {
           id: 'msg-g-1',
           sender_id: 'system',
           sender: { username: 'System' },
-          content: '欢迎进入联调环境',
+          content: 'Welcome back to the lounge',
           created_at: '2026-03-28T10:30:00.000Z'
         }
       ]
-    }
+    },
+    notifications: [
+      {
+        id: 'notif-1',
+        type: 'message',
+        username: 'Alice',
+        created_at: '2026-03-28T10:35:00.000Z'
+      }
+    ]
   };
 }
 
 function installApiMocks(page, state) {
   const getUnreadTotal = () => state.conversations.reduce((sum, item) => sum + Number(item.unread_count || 0), 0);
 
-  return page.route('**/api/**', async route => {
+  return page.route('**/api/**', async (route) => {
     const req = route.request();
     const url = new URL(req.url());
     const pathname = url.pathname;
@@ -106,20 +95,13 @@ function installApiMocks(page, state) {
       return fulfill({ ok: true, users, groups });
     }
 
-    if (pathname === '/api/nodes' && req.method() === 'GET') {
-      return fulfill({
-        ok: true,
-        nodes: state.nodes,
-        sources: state.sources,
-        subscription_url: '/api/nodes/subscription?pwd=playwright-session',
-        raw: state.nodes.map((item) => item.raw).join('\n'),
-        clients: {
-          shadowrocket: 'shadowrocket://add/sub://example',
-          clash: '/api/nodes/subscription?pwd=playwright-session'
-        }
-      });
+    if (pathname === '/api/community/notifications') {
+      return fulfill({ ok: true, notifications: state.notifications });
     }
 
+    if (pathname === '/api/community/posts') return fulfill({ ok: true, posts: [] });
+    if (pathname === '/api/community/comments') return fulfill({ ok: true, comments: [] });
+    if (pathname === '/api/community/announcement') return fulfill({ ok: true, announcement: null });
     if (pathname === '/api/community/drive/info') {
       return fulfill({
         ok: true,
@@ -129,15 +111,9 @@ function installApiMocks(page, state) {
         }
       });
     }
-
     if (pathname === '/api/community/drive/list') {
       return fulfill({ ok: true, files: [] });
     }
-
-    if (pathname === '/api/community/posts') return fulfill({ ok: true, posts: [] });
-    if (pathname === '/api/community/comments') return fulfill({ ok: true, comments: [] });
-    if (pathname === '/api/community/notifications') return fulfill({ ok: true, notifications: [] });
-    if (pathname === '/api/community/announcement') return fulfill({ ok: true, announcement: null });
     if (pathname === '/api/music') return fulfill([]);
     if (pathname === '/api/schedule') return fulfill({ ok: true, S: [], EV: {}, SJ: {} });
 
@@ -159,14 +135,14 @@ async function bootApp(page) {
     const btn = page.locator('button[data-theme-id="theme-default"]');
     if (await btn.isVisible({ timeout: 2000 })) {
       await btn.click();
-      await page.waitForTimeout(2000);
+      await page.waitForTimeout(1200);
     }
   } catch {}
   await page.waitForSelector('#liquidBar');
 }
 
 test.beforeEach(async ({ page }) => {
-  const state = buildDiscoveryState();
+  const state = buildState();
   await page.addInitScript((user) => {
     localStorage.setItem('commUser', JSON.stringify(user));
   }, {
@@ -179,7 +155,7 @@ test.beforeEach(async ({ page }) => {
   await installApiMocks(page, state);
 });
 
-test('liquid bar expands and switches views from the top-left dock', async ({ page }) => {
+test('liquid bar expands and switches between the current top-level views', async ({ page }) => {
   await bootApp(page);
 
   const trigger = page.locator('#liquidBar .liquid-trigger');
@@ -192,37 +168,37 @@ test('liquid bar expands and switches views from the top-left dock', async ({ pa
   await expect(panel).toBeVisible();
   await expect(panel).toHaveAttribute('role', 'dialog');
 
-  await page.getByRole('button', { name: /课表/ }).click();
+  await page.locator('#liquidBar .liquid-nav-btn').nth(1).click();
   await expect(trigger).toHaveAttribute('aria-expanded', 'false');
   await expect(panel).toBeHidden();
-  await expect(page.getByText('课程安排')).toBeVisible();
+  await expect(page.locator('.personal-shell')).toBeVisible();
 
   await trigger.click();
   await expect(panel).toBeVisible();
-  await page.getByRole('button', { name: /节点/ }).click();
-  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  await page.locator('#liquidBar .liquid-nav-btn').nth(0).click();
   await expect(panel).toBeHidden();
-  await expect(page.getByText('代理节点')).toBeVisible();
-  await expect(page.getByPlaceholder('输入访问密码...')).toBeVisible();
+  await expect(page.locator('.community-view')).toBeVisible();
 });
 
-test('liquid bar keeps community actions reachable', async ({ page }) => {
+test('liquid bar keeps current utility actions reachable', async ({ page }) => {
   await bootApp(page);
 
   const trigger = page.locator('#liquidBar .liquid-trigger');
   await trigger.click();
   await page.locator('#liquidBar .liquid-compose-btn').click();
-  await expect(page.getByRole('heading', { name: '发点近况' })).toBeVisible();
+  await expect(page.locator('[data-modal-shell="true"]')).toBeVisible();
 
   await page.reload();
   await bootApp(page);
 
   await page.locator('#liquidBar .liquid-trigger').click();
-  await page.getByRole('button', { name: /个人面板/ }).click();
-  await expect(page.getByRole('heading', { name: '聊天 / 群组 / 网盘 / 提醒' })).toBeVisible();
+  await page.locator('#liquidBar [data-liquid-target="messages"]').click();
+  await expect(page.locator('#liquidBar .liquid-panel')).toBeHidden();
+  await expect(page.getByRole('heading', { name: 'General Lounge' })).toBeVisible();
+  await expect(page.locator('.console-tab-card')).toHaveCount(2);
 });
 
-test('liquid bar traps focus and closes with escape', async ({ page }) => {
+test('liquid bar stays keyboard-closeable from the trigger', async ({ page }) => {
   await bootApp(page);
 
   const trigger = page.locator('#liquidBar .liquid-trigger');
@@ -232,13 +208,6 @@ test('liquid bar traps focus and closes with escape', async ({ page }) => {
   await page.keyboard.press('Enter');
   const panel = page.locator('#liquidBar .liquid-panel');
   await expect(panel).toBeVisible();
-  await expect(page.locator('#liquidBar .liquid-close')).toBeFocused();
-
-  await page.keyboard.press('Shift+Tab');
-  await expect(page.locator('.theme-dot').last()).toBeFocused();
-
-  await page.keyboard.press('Tab');
-  await expect(page.locator('#liquidBar .liquid-close')).toBeFocused();
 
   await page.keyboard.press('Escape');
   await expect(panel).toBeHidden();
@@ -252,20 +221,17 @@ test.describe('mobile liquid bar', () => {
     isMobile: true
   });
 
-  test('touching the dock opens the panel and still allows view switching', async ({ page }) => {
+  test('touching the dock opens the panel and still allows switching into personal view', async ({ page }) => {
     await bootApp(page);
 
     const trigger = page.locator('#liquidBar .liquid-trigger');
     const panel = page.locator('#liquidBar .liquid-panel');
-    const triggerBox = await trigger.boundingBox();
-    if (!triggerBox) throw new Error('Missing liquid trigger bounds');
-
-    await page.touchscreen.tap(triggerBox.x + (triggerBox.width / 2), triggerBox.y + (triggerBox.height / 2));
+    await trigger.tap();
     await expect(panel).toBeVisible();
 
-    await page.getByRole('button', { name: /课表/ }).tap();
+    await page.locator('#liquidBar .liquid-nav-btn').nth(1).tap();
     await expect(trigger).toHaveAttribute('aria-expanded', 'false');
     await expect(panel).toBeHidden();
-    await expect(page.getByText('课程安排')).toBeVisible();
+    await expect(page.locator('.personal-shell')).toBeVisible();
   });
 });

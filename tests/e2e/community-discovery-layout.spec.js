@@ -20,7 +20,7 @@ function buildPost(id, content) {
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.addInitScript(user => {
+  await page.addInitScript((user) => {
     localStorage.setItem('commUser', JSON.stringify(user));
   }, {
     id: 'debug-user',
@@ -31,7 +31,7 @@ test.beforeEach(async ({ page }) => {
     level: 1
   });
 
-  await page.route('**/api/**', async route => {
+  await page.route('**/api/**', async (route) => {
     const req = route.request();
     const url = new URL(req.url());
     const pathname = url.pathname;
@@ -42,19 +42,38 @@ test.beforeEach(async ({ page }) => {
       body: JSON.stringify(data)
     });
 
-    if (pathname === '/api/music') {
-      return fulfill([]);
-    }
-
-    if (pathname === '/api/schedule') {
-      return fulfill({ ok: true, S: [], EV: {}, SJ: {} });
-    }
+    if (pathname === '/api/music') return fulfill([]);
+    if (pathname === '/api/schedule') return fulfill({ ok: true, S: [], EV: {}, SJ: {} });
 
     if (pathname === '/api/community/posts' && req.method() === 'GET') {
       const posts = Array.from({ length: 18 }, (_, index) =>
         buildPost(`post-${index + 1}`, `Long community post ${index + 1}`)
       );
       return fulfill({ ok: true, posts });
+    }
+
+    if (pathname === '/api/community/discovery' && req.method() === 'GET') {
+      return fulfill({
+        ok: true,
+        users: [
+          {
+            id: 'user-alice',
+            username: 'Alice',
+            signature: 'Late-night reviewer',
+            avatar_url: '',
+            role: 'user'
+          }
+        ],
+        groups: [
+          {
+            id: 'group-night-sprint',
+            title: 'Night Sprint',
+            description: 'UI polish squad',
+            member_count: 6,
+            joined: false
+          }
+        ]
+      });
     }
 
     if (pathname === '/api/community/comments') return fulfill({ ok: true, comments: [] });
@@ -66,37 +85,6 @@ test.beforeEach(async ({ page }) => {
         announcement: {
           content: 'Broadcast channel is live.',
           updatedAt: '2026-03-31T10:00:00.000Z'
-        }
-      });
-    }
-
-    if (pathname === '/api/nodes' && req.method() === 'GET') {
-      return fulfill({
-        ok: true,
-        nodes: [
-          {
-            id: 'node-1',
-            name: 'HK Edge 01',
-            raw: 'vmess://ZXhhbXBsZQ==',
-            protocol: 'vmess',
-            source_label: '主订阅'
-          }
-        ],
-        sources: [
-          {
-            id: 'source-1',
-            label: '主订阅',
-            source_type: 'subscription',
-            enabled: true,
-            node_count: 1,
-            updated_at: '2026-03-31T10:00:00.000Z'
-          }
-        ],
-        subscription_url: '/api/nodes/subscription?pwd=playwright-session',
-        raw: 'vmess://ZXhhbXBsZQ==',
-        clients: {
-          shadowrocket: 'shadowrocket://add/sub://example',
-          clash: '/api/nodes/subscription?pwd=playwright-session'
         }
       });
     }
@@ -120,14 +108,14 @@ async function settleTheme(page) {
       await btn.click();
       await page.waitForTimeout(1200);
     }
-  } catch (e) {}
+  } catch {}
 }
 
 test('community feed stays scrollable and shows live announcement', async ({ page }) => {
   await page.goto('/');
   await settleTheme(page);
 
-  await expect(page.locator('button:has-text("发一条")')).toBeVisible();
+  await expect(page.locator('.community-hero-shell button').first()).toBeVisible();
   await expect(page.locator('text=Broadcast channel is live.')).toBeVisible();
 
   const metrics = await page.evaluate(() => {
@@ -163,20 +151,13 @@ test('community feed stays scrollable and shows live announcement', async ({ pag
   expect(lastCardVisibleAtBottom).toBe(true);
 });
 
-test('nodes view loads proxy hub instead of discovery recommendations', async ({ page }) => {
+test('discovery section shows users and groups instead of the retired proxy hub', async ({ page }) => {
   await page.goto('/');
   await settleTheme(page);
 
-  await page.locator('nav button:has-text("社区")').click();
-  await page.locator('nav button:has-text("节点")').click();
+  await page.locator('.community-pill').nth(1).click();
 
-  await expect(page.locator('text=代理节点')).toBeVisible();
-  await expect(page.locator('input[placeholder="输入访问密码..."]')).toBeVisible();
-  await page.locator('input[placeholder="输入访问密码..."]').fill('playwright-session');
-  await page.locator('button:has-text("解锁节点")').click();
-
-  await expect(page.locator('text=一键复制或直接打开')).toBeVisible();
-  await expect(page.locator('text=HK Edge 01')).toBeVisible();
-  await expect(page.getByRole('heading', { name: '主订阅' })).toBeVisible();
-  await expect(page.locator('text=Shadowrocket')).toBeVisible();
+  await expect(page.getByText('Alice')).toBeVisible();
+  await expect(page.getByText('Night Sprint')).toBeVisible();
+  await expect(page.locator('text=代理节点')).toHaveCount(0);
 });

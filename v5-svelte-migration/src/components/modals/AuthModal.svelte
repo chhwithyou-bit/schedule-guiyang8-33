@@ -1,9 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { fade, fly } from 'svelte/transition';
+  import { fade } from 'svelte/transition';
   import { closeModal } from '../../stores/modalState';
   import { isAdmin, isAuthenticated, user } from '../../stores/appState';
   import { persistCommunitySession } from '../../lib/communityApi';
+  import { softReveal } from '../../lib/motion';
 
   let usernameInput: HTMLInputElement | null = null;
   let isRegister = false;
@@ -96,7 +97,7 @@
     aria-describedby="auth-modal-description"
     tabindex="-1"
     class="relative w-full max-w-md overflow-hidden rounded-[40px] border border-white/10 bg-[var(--color-bg,#231b22)] p-10 text-[var(--color-text,#fff4ed)] shadow-2xl"
-    transition:fly={{ y: 50, duration: 600, easing: (t) => t * (2 - t) }}
+    transition:softReveal={{ y: 18, duration: 280, startScale: 0.985, blur: 6 }}
   >
     <div class="relative z-10">
       <h2 id="auth-modal-title" class="mb-2 text-4xl font-black uppercase tracking-tighter text-[var(--color-text,#fff4ed)]">

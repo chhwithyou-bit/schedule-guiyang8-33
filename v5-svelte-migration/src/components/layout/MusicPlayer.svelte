@@ -29,7 +29,7 @@
   const CLOSED_SIZE_REM = 4;
   const OPEN_WIDTH_REM = 21.25;
   const OPEN_BASE_HEIGHT_REM = 24.5;
-  const OPEN_LIST_EXTRA_REM = 0;
+  const OPEN_LIST_EXTRA_REM = 12;
   const DRAG_THRESHOLD = 10;
   const DRAG_THRESHOLD_MOBILE = 18;
   const AUTOPLAY_UNLOCK_EVENTS = ['pointerdown', 'keydown'] as const;
@@ -53,7 +53,6 @@
   let currentIndex = 0;
   let filteredTracks: Track[] = [];
   let currentTrack: Track = FALLBACK_TRACK;
-  let currentTrackMonogram = '♪';
   let currentTrackCoverPalette: CoverPalette = getTrackCoverPalette(FALLBACK_TRACK);
   let currentTrackCoverStyle = buildTrackCoverStyle(currentTrackCoverPalette);
 
@@ -82,7 +81,6 @@
   });
 
   $: currentTrack = playlist[currentIndex] || getFallbackTrack();
-  $: currentTrackMonogram = getTrackMonogram(currentTrack);
   $: currentTrackCoverPalette = getTrackCoverPalette(currentTrack);
   $: currentTrackCoverStyle = buildTrackCoverStyle(currentTrackCoverPalette);
 
@@ -149,26 +147,6 @@
 
   function toHsl(hue: number, saturation: number, lightness: number) {
     return `hsl(${hue} ${saturation}% ${lightness}%)`;
-  }
-
-  function getTrackMonogram(track: Track) {
-    const parts = [track?.name, track?.artist]
-      .map((value) => String(value || '').trim())
-      .filter(Boolean)
-      .flatMap((value) => value.split(/[\s\-_/]+/).filter(Boolean));
-
-    if (parts.length >= 2) {
-      const first = Array.from(parts[0])[0] || '';
-      const second = Array.from(parts[1])[0] || '';
-      return `${first}${second}`.toUpperCase();
-    }
-
-    const fallbackChars = Array.from(parts[0] || String(track?.name || '').trim());
-    if (fallbackChars.length >= 2) {
-      return `${fallbackChars[0]}${fallbackChars[1]}`.toUpperCase();
-    }
-
-    return (fallbackChars[0] || '♪').toUpperCase();
   }
 
   function getTrackCoverPalette(track: Track): CoverPalette {
@@ -313,6 +291,26 @@
       `--mp-origin-x: ${originX}`,
       `--mp-origin-y: ${originY}`
     ].join('; ');
+  }
+
+  function getAnchoredPositionForResize(
+    fromLeft: number,
+    fromTop: number,
+    fromWidth: number,
+    fromHeight: number,
+    nextWidth: number,
+    nextHeight: number,
+    anchorX: AnchorX = panelAnchorX,
+    anchorY: AnchorY = panelAnchorY
+  ) {
+    const nextLeft = anchorX === 'right'
+      ? fromLeft + fromWidth - nextWidth
+      : fromLeft;
+    const nextTop = anchorY === 'bottom'
+      ? fromTop + fromHeight - nextHeight
+      : fromTop;
+
+    return clampPosition(nextLeft, nextTop, nextWidth, nextHeight);
   }
 
   async function loadPlaylist() {
@@ -592,6 +590,9 @@
       return;
     }
 
+    const currentRect = getPanelSize(true, isListOpen);
+    const anchorX = panelAnchorX;
+    const anchorY = panelAnchorY;
     const nextListOpen = !isListOpen;
 
     isListOpen = nextListOpen;
@@ -599,11 +600,21 @@
 
     await tick();
 
-    const nextRect = measurePanelRect();
-    const clamped = clampPosition(panelLeft, panelTop, nextRect.width, nextRect.height);
-    panelLeft = clamped.left;
-    panelTop = clamped.top;
-    syncAnchor(panelLeft, panelTop, nextRect.width, nextRect.height);
+    const nextRect = getPanelSize(true, nextListOpen);
+    const anchored = getAnchoredPositionForResize(
+      panelLeft,
+      panelTop,
+      currentRect.width,
+      currentRect.height,
+      nextRect.width,
+      nextRect.height,
+      anchorX,
+      anchorY
+    );
+    panelLeft = anchored.left;
+    panelTop = anchored.top;
+    panelAnchorX = anchorX;
+    panelAnchorY = anchorY;
   }
 
   function beginDragging(clientX: number, clientY: number, target: HTMLElement, pointerId?: number) {
@@ -860,7 +871,13 @@
                   <path class="mp-cover-needle" d="M70 22L58 45"></path>
                   <circle class="mp-cover-needle-dot" cx="57" cy="46" r="3.5"></circle>
                 </svg>
-                <span class="mp-cover-mark">{currentTrackMonogram}</span>
+                <span class="mp-cover-mark" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" class="mp-cover-mark-icon" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 17V7l8-2v10"></path>
+                    <circle cx="7" cy="17" r="2.2"></circle>
+                    <circle cx="17" cy="15" r="2.2"></circle>
+                  </svg>
+                </span>
               </div>
             {/if}
           </div>
@@ -1008,7 +1025,13 @@
               <path class="mp-cover-needle" d="M70 22L58 45"></path>
               <circle class="mp-cover-needle-dot" cx="57" cy="46" r="3.5"></circle>
             </svg>
-            <span class="mp-cover-mark">{currentTrackMonogram}</span>
+            <span class="mp-cover-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" class="mp-cover-mark-icon" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 17V7l8-2v10"></path>
+                <circle cx="7" cy="17" r="2.2"></circle>
+                <circle cx="17" cy="15" r="2.2"></circle>
+              </svg>
+            </span>
           </div>
         {/if}
         <div class="mp-bubble-glow {isPlaying ? 'is-playing' : ''}"></div>
@@ -1021,7 +1044,13 @@
   #mp {
     position: fixed;
     z-index: 10050;
-    transition: filter 0.22s ease;
+    will-change: left, top, width, height, filter;
+    transition:
+      left 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+      top 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+      width 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+      height 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+      filter 0.22s ease;
   }
 
   #mp.dragging {
@@ -1140,6 +1169,7 @@
     z-index: 1;
     display: flex;
     height: 100%;
+    min-height: 0;
     flex-direction: column;
     gap: 0.72rem;
     border-radius: 26px;
@@ -1406,11 +1436,24 @@
   .mp-cover-mark {
     position: relative;
     z-index: 1;
-    font-size: 0.9rem;
-    font-weight: 900;
-    letter-spacing: 0.08em;
     color: rgba(255, 255, 255, 0.94);
     text-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.15rem;
+    height: 2.15rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: rgba(11, 10, 15, 0.18);
+    box-shadow:
+      0 10px 18px rgba(0, 0, 0, 0.16),
+      inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  }
+
+  .mp-cover-mark-icon {
+    width: 1rem;
+    height: 1rem;
   }
 
   .mp-fallback-cover.is-playing .mp-cover-disc,
@@ -1599,11 +1642,19 @@
     border-radius: 18px;
   }
 
+  .mp-list-btn svg {
+    transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
   .mp-list-btn.is-open {
     background:
       radial-gradient(circle at top, rgba(255, 255, 255, 0.2), transparent 72%),
       rgba(255, 255, 255, 0.08);
     border-color: rgba(var(--glow-primary-rgb), 0.24);
+  }
+
+  .mp-list-btn.is-open svg {
+    transform: rotate(180deg);
   }
 
   .mp-status {
@@ -1622,7 +1673,7 @@
   .mp-list-panel {
     display: flex;
     min-height: 0;
-    flex: 0 0 auto;
+    flex: 0 0 0;
     flex-direction: column;
     gap: 0.58rem;
     max-height: 0;
@@ -1631,29 +1682,40 @@
     opacity: 0;
     overflow: hidden;
     pointer-events: none;
-    transform: translate3d(0, 6px, 0);
+    transform: translate3d(0, 10px, 0) scale(0.985);
+    transform-origin: top center;
     transition:
-      max-height 0.28s cubic-bezier(0.22, 1, 0.36, 1),
-      opacity 0.2s ease,
-      transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
-      margin-top 0.2s ease,
-      padding 0.2s ease;
+      max-height 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.28s ease,
+      transform 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+      margin-top 0.28s ease,
+      padding 0.28s ease,
+      border-color 0.28s ease,
+      background 0.28s ease,
+      box-shadow 0.32s ease;
   }
 
   .mp-list-panel.open {
     flex: 1 1 auto;
+    min-height: 11rem;
     max-height: 100%;
-    min-height: 0;
     margin-top: 0.08rem;
     padding: 0.58rem;
     opacity: 1;
     overflow-y: auto;
     overflow-x: hidden;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable both-edges;
     pointer-events: auto;
-    transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0) scale(1);
     border-radius: 22px;
     border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(255, 255, 255, 0.05);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.04)),
+      rgba(255, 255, 255, 0.05);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      0 16px 28px rgba(var(--shadow-rgb), 0.1);
   }
 
   .mp-search-wrap {
@@ -1685,6 +1747,19 @@
     flex-direction: column;
     gap: 0.35rem;
     padding-right: 0.08rem;
+  }
+
+  .mp-list-panel.open::-webkit-scrollbar {
+    width: 0.55rem;
+  }
+
+  .mp-list-panel.open::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: rgba(var(--glow-primary-rgb), 0.22);
+  }
+
+  .mp-list-panel.open::-webkit-scrollbar-track {
+    background: transparent;
   }
 
   .mp-track-row {

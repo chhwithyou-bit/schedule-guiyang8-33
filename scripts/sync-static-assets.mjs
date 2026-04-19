@@ -1,20 +1,16 @@
-#!/bin/bash
-set -euo pipefail
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-SCRIPT_DIR="$(cd -- "$(dirname -- "$0")" && pwd)"
-
-SCRIPT_DIR="$SCRIPT_DIR" node <<'EOF'
-const fs = require('fs');
-const path = require('path');
-
-const scriptDir = process.env.SCRIPT_DIR;
-const distDir = path.join(scriptDir, 'v5-svelte-migration', 'dist');
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(scriptDir, '..');
+const distDir = path.join(repoRoot, 'v5-svelte-migration', 'dist');
 const distAssetsDir = path.join(distDir, 'assets');
-const publicDir = path.join(scriptDir, 'public');
+const publicDir = path.join(repoRoot, 'public');
 const publicAssetsDir = path.join(publicDir, 'assets');
 const distIndex = path.join(distDir, 'index.html');
 const publicIndex = path.join(publicDir, 'index.html');
-const rootIndex = path.join(scriptDir, 'index.html');
+const rootIndex = path.join(repoRoot, 'index.html');
 const assetRefPattern = /(?:src|href)="(\/assets\/[^"]+)"/g;
 
 if (!fs.existsSync(distIndex)) {
@@ -22,9 +18,11 @@ if (!fs.existsSync(distIndex)) {
 }
 
 const distHtml = fs.readFileSync(distIndex, 'utf8');
-const requiredAssetNames = [...new Set([...distHtml.matchAll(assetRefPattern)]
-  .map((match) => match[1].replace(/^\/assets\//, ''))
-  .filter(Boolean))];
+const requiredAssetNames = [...new Set(
+  [...distHtml.matchAll(assetRefPattern)]
+    .map((match) => match[1].replace(/^\/assets\//, ''))
+    .filter(Boolean)
+)];
 
 if (requiredAssetNames.length === 0) {
   throw new Error('No /assets references found in dist/index.html');
@@ -53,4 +51,3 @@ for (const entry of fs.readdirSync(distDir, { withFileTypes: true })) {
 }
 
 console.log(`Synced ${requiredAssetNames.length} asset(s) into ${publicAssetsDir} and refreshed HTML shells.`);
-EOF

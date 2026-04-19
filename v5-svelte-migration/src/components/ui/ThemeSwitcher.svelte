@@ -85,18 +85,16 @@
     window.addEventListener('request-theme-switch', handleGlobalRequest);
 
     try {
-      const saved = localStorage.getItem('siteTheme');
-      if (saved) {
-        applyTheme(saved);
-        themeInitialized.set(true);
-      } else {
-        applyTheme(DEFAULT_THEME_ID);
-        showInitPanel = true;
-      }
+      const saved = localStorage.getItem('siteTheme') || DEFAULT_THEME_ID;
+      applyTheme(saved);
+      localStorage.setItem('siteTheme', saved);
+      showInitPanel = false;
+      themeInitialized.set(true);
     } catch (e) {
       console.error('LocalStorage access failed:', e);
       applyTheme(DEFAULT_THEME_ID);
-      showInitPanel = true; // Fallback to show picker if possible
+      showInitPanel = false;
+      themeInitialized.set(true);
     }
 
     return () => {
@@ -157,10 +155,10 @@
     }
 
     const savedThemeId = typeof localStorage !== 'undefined' ? localStorage.getItem('siteTheme') : null;
-    if (target.id === savedThemeId && !showInitPanel) {
-      themeInitialized.set(true);
-      return;
-    }
+      if (target.id === savedThemeId && !showInitPanel) {
+        themeInitialized.set(true);
+        return;
+      }
 
     activeThemeSwitch = new Promise<void>((resolve) => {
       // Phase 1: The Spark

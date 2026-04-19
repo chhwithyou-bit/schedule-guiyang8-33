@@ -8,6 +8,7 @@
   import { communityFetch, persistCommunitySession } from '../../lib/communityApi';
   import { setCommunityConsoleState } from '../../stores/communityConsoleState';
   import { setCommunityViewState } from '../../stores/communityViewState';
+  import { softReveal } from '../../lib/motion';
 
   let posts: any[] = [];
   let loading = true;
@@ -307,7 +308,7 @@
     aria-label={`${$selectedProfile.username || '用户'} 的个人主页`}
     tabindex="-1"
     on:keydown={handleOverlayKeydown}
-    transition:fly={{ y: 100, duration: 600, easing: (t) => t * (2 - t) }}
+    transition:softReveal={{ y: 22, duration: 300, startScale: 0.988, blur: 6 }}
   >
     <div bind:this={profileScrollEl} class="h-full overflow-y-auto px-4 pb-16 pt-6 sm:px-6 sm:pb-20 sm:pt-8 md:px-10 lg:px-12">
       <div class="mx-auto max-w-5xl">

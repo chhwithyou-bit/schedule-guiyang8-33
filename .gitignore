@@ -12,6 +12,9 @@ fix*.js
 .DS_Store
 *.log
 .aider*
+outputs/
+docs/requirements/
+docs/plans/*-execution-plan.md
 
 
 # Added by cargo

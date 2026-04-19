@@ -369,6 +369,8 @@
   .app-background::before {
     opacity: 0;
     transition: opacity 280ms ease-out;
+    will-change: transform, opacity;
+    animation: app-background-float 28s ease-in-out infinite alternate;
   }
 
   .app-background.is-ready::before {
@@ -400,6 +402,7 @@
     background-position: 12% 18%, 84% 12%;
     background-repeat: no-repeat;
     opacity: 0.92;
+    animation: app-glow-drift 18s ease-in-out infinite alternate;
   }
 
   .app-container::after {
@@ -407,6 +410,7 @@
       linear-gradient(115deg, rgba(255, 255, 255, 0.05), transparent 28%),
       linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.18) 100%);
     opacity: 0.72;
+    animation: app-veil-pulse 14s ease-in-out infinite alternate;
   }
 
   @media (max-width: 768px) {
@@ -448,6 +452,40 @@
     position: relative;
     z-index: 2;
     transition: opacity 0.45s ease-out;
+  }
+
+  @keyframes app-background-float {
+    from {
+      transform: scale(1.02) translate3d(0, 0, 0);
+    }
+
+    to {
+      transform: scale(1.055) translate3d(0, -1.1%, 0);
+    }
+  }
+
+  @keyframes app-glow-drift {
+    from {
+      transform: translate3d(-1.5%, 0, 0) scale(1);
+      opacity: 0.82;
+    }
+
+    to {
+      transform: translate3d(1.8%, 1.8%, 0) scale(1.03);
+      opacity: 1;
+    }
+  }
+
+  @keyframes app-veil-pulse {
+    from {
+      opacity: 0.64;
+      transform: translate3d(0, 0, 0);
+    }
+
+    to {
+      opacity: 0.82;
+      transform: translate3d(0, 1.4%, 0);
+    }
   }
 
   :global(body.modal-open) {

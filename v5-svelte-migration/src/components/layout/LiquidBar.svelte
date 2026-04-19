@@ -268,6 +268,12 @@
       0 18px 42px rgba(var(--shadow-rgb), 0.18),
       0 6px 16px rgba(var(--shadow-rgb), 0.08),
       inset 0 1px 0 rgba(255, 255, 255, 0.16);
+    transition:
+      transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 0.24s ease,
+      box-shadow 0.24s ease,
+      background 0.24s ease,
+      opacity 0.24s ease;
   }
 
   .liquid-trigger {
@@ -348,6 +354,16 @@
     margin-top: 0.8rem;
     border-radius: 2rem;
     padding: 1.1rem;
+    transform-origin: top left;
+    animation: liquid-panel-enter 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .liquid-shell.is-expanded .liquid-trigger {
+    border-color: rgba(var(--glow-primary-rgb), 0.2);
+    box-shadow:
+      0 24px 48px rgba(var(--shadow-rgb), 0.22),
+      0 8px 20px rgba(var(--shadow-rgb), 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.18);
   }
 
   .liquid-panel-head,
@@ -493,5 +509,56 @@
   .liquid-close:hover,
   .theme-dot:hover {
     transform: translateY(-1px);
+  }
+
+  @keyframes liquid-panel-enter {
+    from {
+      opacity: 0;
+      transform: translate3d(0, 14px, 0) scale(0.975);
+      filter: blur(10px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translate3d(0, 0, 0) scale(1);
+      filter: blur(0);
+    }
+  }
+
+  @media (max-width: 767px) {
+    .liquid-anchor {
+      top: auto;
+      left: auto;
+      right: max(env(safe-area-inset-right, 0px), 0.85rem);
+      bottom: calc(max(env(safe-area-inset-bottom, 0px), 0.95rem) + 5.35rem);
+      width: auto;
+    }
+
+    .liquid-trigger {
+      width: 4.35rem;
+      min-height: 4.35rem;
+      justify-content: center;
+      border-radius: 1.65rem;
+      padding: 0.55rem;
+    }
+
+    .liquid-trigger-copy,
+    .liquid-trigger-arrow {
+      display: none;
+    }
+
+    .liquid-panel {
+      position: absolute;
+      right: 0;
+      bottom: calc(100% + 0.8rem);
+      width: min(21rem, calc(100vw - 1.2rem));
+      max-height: min(34rem, calc(100svh - 6rem));
+      overflow-y: auto;
+      transform-origin: bottom right;
+    }
+
+    .liquid-nav-grid {
+      grid-template-columns: 1fr;
+    }
   }
 </style>

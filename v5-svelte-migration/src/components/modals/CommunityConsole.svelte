@@ -1,10 +1,11 @@
 <script lang="ts">
-  import { fade, fly } from 'svelte/transition';
+  import { fade } from 'svelte/transition';
   import { closeModal, openModal } from '../../stores/modalState';
   import { currentView, isAdmin, isAuthenticated, selectedProfile, user } from '../../stores/appState';
   import { communityFetch, persistCommunitySession } from '../../lib/communityApi';
   import { communityConsoleState, resetCommunityConsoleState, setCommunityConsoleState } from '../../stores/communityConsoleState';
   import { onMount, tick } from 'svelte';
+  import { softReveal } from '../../lib/motion';
 
   type TabId = 'account' | 'chats' | 'groups' | 'drive' | 'notifications';
 
@@ -1004,7 +1005,7 @@
     aria-modal={shouldRenderModalShell ? 'true' : undefined}
     aria-labelledby={shouldRenderModalShell ? 'community-console-title' : undefined}
     class="relative z-10 flex w-full flex-col text-[var(--color-text)] {embedded ? 'overflow-visible bg-transparent' : shouldRenderModalShell ? 'mx-auto min-h-[calc(100svh-2rem)] max-w-6xl rounded-[36px] border border-white/12 bg-[rgba(var(--color-bg-rgb),0.92)] shadow-[0_24px_60px_rgba(var(--shadow-rgb),0.16)] backdrop-blur-[20px]' : 'mx-auto xl:overflow-hidden xl:h-[min(90vh,56rem)] max-w-6xl rounded-[36px] border border-white/12 bg-[rgba(var(--color-bg-rgb),0.92)] shadow-[0_24px_60px_rgba(var(--shadow-rgb),0.16)] backdrop-blur-[20px]'}"
-    transition:fly={{ y: 36, duration: 360 }}
+    transition:softReveal={{ y: 18, duration: 280, startScale: 0.988, blur: 6 }}
   >
     {#if !embedded}
     <header class="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-white/10 bg-[rgba(var(--color-bg-rgb),0.92)] px-5 py-4 backdrop-blur-[20px] md:px-6">

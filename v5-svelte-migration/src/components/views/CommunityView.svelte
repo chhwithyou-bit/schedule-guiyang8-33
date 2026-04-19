@@ -175,17 +175,23 @@
     applyPostPatch(postId, patch);
   }
 
+  function handleAnnouncementUpdated() {
+    void fetchAnnouncement();
+  }
+
   onMount(() => {
     void fetchPosts();
     void fetchDiscovery();
     void fetchAnnouncement();
     window.addEventListener('post-created', handlePostCreated);
     window.addEventListener('community-post-updated', handlePostUpdated as EventListener);
+    window.addEventListener('community-announcement-updated', handleAnnouncementUpdated);
   });
 
   onDestroy(() => {
     window.removeEventListener('post-created', handlePostCreated);
     window.removeEventListener('community-post-updated', handlePostUpdated as EventListener);
+    window.removeEventListener('community-announcement-updated', handleAnnouncementUpdated);
   });
 </script>
 

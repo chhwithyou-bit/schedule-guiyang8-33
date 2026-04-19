@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && ../update-worker-files.sh",
+    "build": "vite build && node ../scripts/sync-static-assets.mjs",
     "build:dist": "vite build",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json"

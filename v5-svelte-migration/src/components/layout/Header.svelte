@@ -5,6 +5,7 @@
   import { openModal } from '../../stores/modalState';
   import { setCommunityConsoleState } from '../../stores/communityConsoleState';
   import { setCommunityViewState } from '../../stores/communityViewState';
+  import { readStoredCommunitySession } from '../../lib/communityApi';
 
   const SHOW_THRESHOLD = 60;
   const HIDE_THRESHOLD = 96;
@@ -30,16 +31,20 @@
   }
 
   onMount(() => {
-    const saved = localStorage.getItem('commUser');
-    if (saved) {
-      try {
-        const nextUser = JSON.parse(saved);
+    try {
+      const nextUser = readStoredCommunitySession();
+      if (nextUser) {
         user.set(nextUser);
         isAuthenticated.set(true);
         isAdmin.set(nextUser.role === 'admin' || nextUser.role === 'owner');
-      } catch (error) {
-        console.error('Failed to restore session', error);
+      } else if (typeof window !== 'undefined') {
+        localStorage.removeItem('commUser');
+        user.set(null);
+        isAuthenticated.set(false);
+        isAdmin.set(false);
       }
+    } catch (error) {
+      console.error('Failed to restore session', error);
     }
 
     const handleScroll = () => {

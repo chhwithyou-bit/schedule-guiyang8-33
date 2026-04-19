@@ -1,9 +1,10 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
-  import { fade, fly } from 'svelte/transition';
+  import { fade } from 'svelte/transition';
   import { closeModal, openModal } from '../../stores/modalState';
   import { user, isAuthenticated } from '../../stores/appState';
   import { communityFetch } from '../../lib/communityApi';
+  import { softReveal } from '../../lib/motion';
 
   let shellRef: HTMLElement | null = null;
   let contentInput: HTMLTextAreaElement | null = null;
@@ -170,7 +171,7 @@
     aria-labelledby="post-modal-title"
     tabindex="-1"
     class="post-modal-shell relative w-full max-w-xl overflow-hidden rounded-[36px] p-6 text-[var(--color-text,#fff4ed)] sm:p-8"
-    transition:fly={{ y: 32, duration: 360, easing: (t) => t * (2 - t) }}
+    transition:softReveal={{ y: 16, duration: 260, startScale: 0.987, blur: 6 }}
   >
     <div class="relative z-10">
       <div class="mb-8 flex items-center justify-between gap-4">

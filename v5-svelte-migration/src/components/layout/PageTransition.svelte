@@ -1,11 +1,12 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
   import { gsap } from 'gsap';
 
   export let url: string;
 
   let washLayer: HTMLElement;
   let isInitialLoad = true;
+  let activeTimeline: gsap.core.Timeline | null = null;
 
   const prefersReducedMotion = typeof window !== 'undefined'
     ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -14,22 +15,104 @@
   const smoothTransition = (_node: HTMLElement) => {
     if (prefersReducedMotion || isInitialLoad) return { duration: 0 };
     return {
-      duration: 380,
+      duration: 440,
       tick: () => {}
     };
+  };
+
+  const isVisibleElement = (node: Element) =>
+    node instanceof HTMLElement &&
+    node.dataset.motionSkip !== 'true' &&
+    !node.hasAttribute('hidden');
+
+  const collectMotionTargets = (node: HTMLElement) => {
+    const directChildren = Array.from(node.children).filter(isVisibleElement) as HTMLElement[];
+
+    if (directChildren.length === 1) {
+      const nestedChildren = Array.from(directChildren[0].children).filter(isVisibleElement) as HTMLElement[];
+      if (nestedChildren.length >= 2) {
+        return nestedChildren.slice(0, 10);
+      }
+    }
+
+    return directChildren.slice(0, 10);
+  };
+
+  const resetLayer = (node: HTMLElement, targets: HTMLElement[]) => {
+    gsap.set([node, ...targets], { clearProps: 'transform,opacity,filter,willChange' });
+    if (washLayer) {
+      gsap.set(washLayer, { clearProps: 'transform,opacity,filter,willChange' });
+    }
+  };
+
+  const stopActiveTimeline = () => {
+    if (activeTimeline) {
+      activeTimeline.kill();
+      activeTimeline = null;
+    }
   };
 
   const runOutro = (node: HTMLElement) => {
     if (prefersReducedMotion || isInitialLoad || !node) return;
 
-    gsap.killTweensOf(node);
-    gsap.to(node, {
-      y: 10,
-      opacity: 0,
-      duration: 0.18,
-      ease: 'power1.out',
-      overwrite: true
+    stopActiveTimeline();
+    const targets = collectMotionTargets(node);
+
+    gsap.killTweensOf([node, washLayer, ...targets]);
+    gsap.set([node, ...targets], { willChange: 'transform, opacity, filter' });
+
+    activeTimeline = gsap.timeline({
+      defaults: { overwrite: true }
     });
+
+    activeTimeline.to(
+      targets,
+      {
+        y: -10,
+        opacity: 0,
+        filter: 'blur(7px)',
+        duration: 0.16,
+        stagger: 0.03,
+        ease: 'power2.out'
+      },
+      0
+    );
+
+    activeTimeline.to(
+      node,
+      {
+        y: 8,
+        scale: 0.992,
+        opacity: 0,
+        filter: 'blur(7px)',
+        duration: 0.2,
+        ease: 'power2.out'
+      },
+      0
+    );
+
+    activeTimeline.to(
+      washLayer,
+      {
+        opacity: 0.3,
+        scaleY: 1,
+        scaleX: 1,
+        duration: 0.18,
+        ease: 'power1.out',
+        transformOrigin: 'top center'
+      },
+      0
+    );
+
+    activeTimeline.to(
+      washLayer,
+      {
+        opacity: 0,
+        duration: 0.22,
+        ease: 'power2.out'
+      },
+      0.08
+    );
   };
 
   const runIntro = (node: HTMLElement) => {
@@ -40,60 +123,95 @@
 
     if (prefersReducedMotion) return;
 
-    gsap.killTweensOf([node, washLayer]);
+    stopActiveTimeline();
+    const targets = collectMotionTargets(node);
+
+    gsap.killTweensOf([node, washLayer, ...targets]);
     gsap.set(node, {
-      y: 16,
+      y: 18,
+      scale: 0.992,
       opacity: 0,
       filter: 'blur(8px)',
       willChange: 'transform, opacity, filter'
     });
+    gsap.set(targets, {
+      y: 24,
+      opacity: 0,
+      filter: 'blur(10px)',
+      willChange: 'transform, opacity, filter'
+    });
+    if (washLayer) {
+      gsap.set(washLayer, {
+        opacity: 0,
+        scaleY: 0.9,
+        scaleX: 0.985,
+        willChange: 'transform, opacity, filter'
+      });
+    }
 
-    const tl = gsap.timeline({
+    activeTimeline = gsap.timeline({
       onComplete: () => {
-        gsap.set(node, { clearProps: 'all' });
-        if (washLayer) {
-          gsap.set(washLayer, { clearProps: 'all' });
-        }
+        resetLayer(node, targets);
+        activeTimeline = null;
       }
     });
 
-    tl.fromTo(
+    activeTimeline.fromTo(
       washLayer,
-      { opacity: 0, scaleY: 0.92 },
+      { opacity: 0, scaleY: 0.9, scaleX: 0.985 },
       {
-        opacity: 0.8,
+        opacity: 0.5,
         scaleY: 1,
+        scaleX: 1,
         duration: 0.16,
-        ease: 'power1.out',
+        ease: 'power2.out',
         transformOrigin: 'top center'
       }
     );
 
-    tl.to(
+    activeTimeline.to(
       washLayer,
       {
         opacity: 0,
-        duration: 0.26,
+        duration: 0.3,
         ease: 'power2.out'
       },
-      0.12
+      0.1
     );
 
-    tl.to(
+    activeTimeline.to(
       node,
+      {
+        y: 0,
+        scale: 1,
+        opacity: 1,
+        filter: 'blur(0px)',
+        duration: 0.42,
+        ease: 'power3.out'
+      },
+      0.02
+    );
+
+    activeTimeline.to(
+      targets,
       {
         y: 0,
         opacity: 1,
         filter: 'blur(0px)',
-        duration: 0.34,
-        ease: 'power2.out'
+        duration: 0.46,
+        stagger: 0.05,
+        ease: 'power3.out'
       },
-      0.02
+      0.08
     );
   };
 
   onMount(() => {
     isInitialLoad = false;
+  });
+
+  onDestroy(() => {
+    stopActiveTimeline();
   });
 </script>
 
@@ -140,7 +258,9 @@
     pointer-events: none;
     opacity: 0;
     background:
-      linear-gradient(180deg, rgba(var(--color-bg-rgb), 0.08), rgba(var(--color-bg-rgb), 0.26) 54%, rgba(var(--color-bg-rgb), 0.08)),
-      radial-gradient(circle at 50% 18%, rgba(var(--glow-primary-rgb), 0.1), transparent 34%);
+      linear-gradient(180deg, rgba(var(--color-bg-rgb), 0.04), rgba(var(--color-bg-rgb), 0.24) 54%, rgba(var(--color-bg-rgb), 0.08)),
+      radial-gradient(circle at 50% 18%, rgba(var(--glow-primary-rgb), 0.16), transparent 34%),
+      radial-gradient(circle at 18% 72%, rgba(var(--glow-secondary-rgb), 0.12), transparent 28%);
+    filter: saturate(1.05);
   }
 </style>
