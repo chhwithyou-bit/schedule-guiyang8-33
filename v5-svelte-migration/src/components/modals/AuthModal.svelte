@@ -13,6 +13,10 @@
   let loading = false;
   let error = '';
 
+  $: usernameLabel = isRegister ? '用户名' : '账号';
+  $: usernamePlaceholder = isRegister ? '想让大家怎么叫你' : '输入你的用户名';
+  $: passwordPlaceholder = isRegister ? '设置一个你记得住的密码' : '输入你的密码';
+
   function buildAuthHeader(nextUsername: string, passHash: string) {
     return `Bearer ${encodeURIComponent(nextUsername)}:${passHash}`;
   }
@@ -87,7 +91,7 @@
   class="fixed inset-0 z-[10000] flex items-center justify-center p-6"
   transition:fade={{ duration: 300 }}
 >
-  <button type="button" class="absolute inset-0 bg-black/60 backdrop-blur-xl" on:click={closeModal} aria-label="关闭登录弹窗"></button>
+  <button type="button" class="absolute inset-0 bg-black/50 backdrop-blur-xl" on:click={closeModal} aria-label="关闭登录弹窗"></button>
 
   <div
     data-modal-shell="true"
@@ -96,7 +100,7 @@
     aria-labelledby="auth-modal-title"
     aria-describedby="auth-modal-description"
     tabindex="-1"
-    class="relative w-full max-w-md overflow-hidden rounded-[40px] border border-white/10 bg-[var(--color-bg,#231b22)] p-10 text-[var(--color-text,#fff4ed)] shadow-2xl"
+    class="relative w-full max-w-md overflow-hidden rounded-[40px] border border-white/10 bg-[rgba(var(--color-bg-rgb),0.82)] p-10 text-[var(--color-text,#fff4ed)] shadow-2xl backdrop-blur-[22px]"
     transition:softReveal={{ y: 18, duration: 280, startScale: 0.985, blur: 6 }}
   >
     <div class="relative z-10">
@@ -104,18 +108,18 @@
         {isRegister ? '来这里安个家' : '回来就好'}
       </h2>
       <p id="auth-modal-description" class="mb-8 text-sm font-bold uppercase tracking-widest text-[var(--color-text,#fff4ed)] opacity-40">
-        {isRegister ? '起个名字，就能开始发帖聊天。' : '登上账号，继续刚才的内容。'}
+        {isRegister ? '起个名字，就能开始发帖聊天。' : '输入账号密码，继续刚才的内容。'}
       </p>
 
       <form on:submit|preventDefault={handleSubmit} class="space-y-4">
         <div>
-          <label class="mb-2 ml-4 block text-[10px] font-black uppercase tracking-widest text-[var(--color-text,#fff4ed)] opacity-30" for="username">用户名</label>
+          <label class="mb-2 ml-4 block text-[10px] font-black uppercase tracking-widest text-[var(--color-text,#fff4ed)] opacity-30" for="username">{usernameLabel}</label>
           <input
             bind:this={usernameInput}
             id="username"
             type="text"
             bind:value={username}
-            placeholder="想让大家怎么叫你"
+            placeholder={usernamePlaceholder}
             class="w-full rounded-2xl border border-white/30 bg-white/15 px-6 py-4 font-bold text-[var(--color-text,#fff4ed)] outline-none transition-all placeholder:text-[var(--color-text,#fff4ed)]/40 focus:ring-2 focus:ring-[var(--color-primary,#fac7b7)]"
             style="background-color: rgba(255, 255, 255, 0.18);"
           />
@@ -127,7 +131,7 @@
             id="password"
             type="password"
             bind:value={password}
-            placeholder="输入一个你记得住的"
+            placeholder={passwordPlaceholder}
             class="w-full rounded-2xl border border-white/30 bg-white/15 px-6 py-4 font-bold text-[var(--color-text,#fff4ed)] outline-none transition-all placeholder:text-[var(--color-text,#fff4ed)]/40 focus:ring-2 focus:ring-[var(--color-primary,#fac7b7)]"
             style="background-color: rgba(255, 255, 255, 0.18);"
           />

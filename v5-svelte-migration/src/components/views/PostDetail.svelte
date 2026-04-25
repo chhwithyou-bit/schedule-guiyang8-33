@@ -492,7 +492,7 @@
     background:
       linear-gradient(145deg, rgba(var(--glow-primary-rgb), 0.12), rgba(var(--glow-secondary-rgb), 0.08)),
       linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(var(--color-bg-rgb), 0.2)),
-      rgba(var(--color-bg-rgb), 0.82);
+      rgba(var(--color-bg-rgb), 0.72);
     box-shadow:
       0 28px 80px rgba(var(--shadow-rgb), 0.28),
       inset 0 1px 0 rgba(255, 255, 255, 0.12);

@@ -84,10 +84,10 @@
       type="button"
       on:click={goHome}
       class="group rounded-full px-2 py-1 text-left transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
-      aria-label="返回社区首页"
+      aria-label="返回 8community 首页"
     >
       <h1 class="text-2xl font-black tracking-tighter transition-transform group-hover:scale-110">
-        8<span class="text-[var(--color-primary)]">社区</span>
+        8<span class="text-[var(--color-primary)]">community</span>
       </h1>
     </button>
 
@@ -144,7 +144,7 @@
     border-radius: 999px;
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03)),
-      linear-gradient(180deg, rgba(var(--color-bg-rgb), 0.2), rgba(var(--color-bg-rgb), 0.12));
+      linear-gradient(180deg, rgba(var(--color-bg-rgb), 0.14), rgba(var(--color-bg-rgb), 0.08));
     box-shadow:
       0 18px 36px rgba(var(--shadow-rgb), 0.12),
       inset 0 1px 0 rgba(255, 255, 255, 0.16);
@@ -161,7 +161,7 @@
     border-color: rgba(255, 255, 255, 0.12);
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04)),
-      linear-gradient(180deg, rgba(var(--color-bg-rgb), 0.28), rgba(var(--color-bg-rgb), 0.16));
+      linear-gradient(180deg, rgba(var(--color-bg-rgb), 0.2), rgba(var(--color-bg-rgb), 0.1));
     backdrop-filter: blur(22px) saturate(1.12);
     box-shadow:
       0 24px 48px rgba(var(--shadow-rgb), 0.16),
@@ -175,7 +175,7 @@
     border: 1px solid rgba(255, 255, 255, 0.1);
     background:
       linear-gradient(145deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04)),
-      rgba(var(--color-bg-rgb), 0.08);
+      rgba(var(--color-bg-rgb), 0.05);
     box-shadow:
       0 14px 30px rgba(var(--shadow-rgb), 0.12),
       inset 0 1px 0 rgba(255, 255, 255, 0.16);
@@ -218,7 +218,7 @@
   }
 
   .header-switch.is-active-soft {
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.06);
     color: var(--color-text);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
   }
@@ -247,7 +247,7 @@
     background:
       radial-gradient(circle at top left, rgba(var(--glow-primary-rgb), 0.24), transparent 38%),
       linear-gradient(145deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.05)),
-      rgba(var(--color-bg-rgb), 0.12);
+      rgba(var(--color-bg-rgb), 0.08);
     box-shadow:
       0 18px 34px rgba(var(--shadow-rgb), 0.18),
       0 0 0 1px rgba(var(--glow-primary-rgb), 0.18),

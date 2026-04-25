@@ -426,14 +426,14 @@
   .community-discovery-card {
     position: relative;
     overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     background:
-      linear-gradient(145deg, rgba(var(--glow-primary-rgb), 0.14) 0% 42%, rgba(var(--glow-secondary-rgb), 0.1) 42% 100%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(var(--color-bg-rgb), 0.16)),
-      rgba(var(--color-bg-rgb), 0.16);
+      linear-gradient(145deg, rgba(var(--glow-primary-rgb), 0.11) 0% 42%, rgba(var(--glow-secondary-rgb), 0.08) 42% 100%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(var(--color-bg-rgb), 0.1)),
+      rgba(var(--color-bg-rgb), 0.1);
     box-shadow:
-      0 20px 48px rgba(var(--shadow-rgb), 0.14),
-      inset 0 1px 0 rgba(255, 255, 255, 0.14),
+      0 20px 48px rgba(var(--shadow-rgb), 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
       inset 0 -1px 0 rgba(0, 0, 0, 0.05);
     backdrop-filter: blur(18px) saturate(1.08);
   }
@@ -445,7 +445,7 @@
     border: 1px solid rgba(255, 255, 255, 0.1);
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(var(--color-bg-rgb), 0.08)),
-      rgba(var(--color-bg-rgb), 0.14);
+      rgba(var(--color-bg-rgb), 0.1);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
     transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
   }
@@ -463,7 +463,7 @@
     border: 1px solid rgba(255, 255, 255, 0.1);
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(var(--color-bg-rgb), 0.08)),
-      rgba(var(--color-bg-rgb), 0.14);
+      rgba(var(--color-bg-rgb), 0.1);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
   }
 
@@ -471,8 +471,8 @@
   .community-section-card.is-active {
     border-color: rgba(var(--glow-primary-rgb), 0.26);
     background:
-      linear-gradient(135deg, rgba(var(--glow-primary-rgb), 0.2), rgba(var(--glow-secondary-rgb), 0.12)),
-      rgba(var(--color-bg-rgb), 0.24);
+      linear-gradient(135deg, rgba(var(--glow-primary-rgb), 0.16), rgba(var(--glow-secondary-rgb), 0.09)),
+      rgba(var(--color-bg-rgb), 0.18);
     box-shadow:
       0 14px 28px rgba(var(--shadow-rgb), 0.12),
       inset 0 1px 0 rgba(255, 255, 255, 0.18);

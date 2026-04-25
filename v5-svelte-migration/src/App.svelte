@@ -320,18 +320,21 @@
     bind:this={mainContent}
     class="main-content-assembly {(isLoading || !$themeInitialized) ? 'opacity-0' : 'opacity-100'}"
   >
-    <main id="main-content" tabindex="-1" class="view-wrapper mx-auto w-full max-w-7xl px-6 pb-40 pt-40 md:px-12 md:pt-44">
+    <main id="main-content" tabindex="-1" class="view-wrapper mx-auto w-full max-w-7xl px-6 pb-56 pt-40 md:px-12 md:pb-40 md:pt-44">
       <PageTransition url={$currentView}>
         <svelte:component this={viewMap[$currentView]} />
       </PageTransition>
     </main>
   </div>
 
+  {#if canFinishLoading}
+    <Header />
+    <LiquidBar class="liquid-bar-dock" />
+  {/if}
+
   {#if !isLoading && $themeInitialized}
     <CustomCursor />
-    <Header />
     <MusicPlayer />
-    <LiquidBar class="liquid-bar-dock" />
   {/if}
 
   {#if $activeModal === 'auth'}
@@ -343,6 +346,7 @@
 
 <style>
   .app-container {
+    background-color: var(--color-bg);
     background:
       radial-gradient(circle at 14% 8%, rgba(var(--glow-primary-rgb), 0.14), transparent 26%),
       radial-gradient(circle at 86% 14%, rgba(var(--glow-secondary-rgb), 0.16), transparent 28%),
@@ -368,13 +372,14 @@
 
   .app-background::before {
     opacity: 0;
+    filter: grayscale(0.04) saturate(1.04) contrast(0.96) brightness(0.56);
     transition: opacity 280ms ease-out;
     will-change: transform, opacity;
     animation: app-background-float 28s ease-in-out infinite alternate;
   }
 
   .app-background.is-ready::before {
-    opacity: 1;
+    opacity: 0.68;
   }
 
   .app-background::before,
@@ -392,7 +397,10 @@
   }
 
   .app-background::after {
-    display: none;
+    display: block;
+    background:
+      radial-gradient(circle at 48% 20%, rgba(255, 244, 237, 0.08), transparent 24%),
+      linear-gradient(180deg, rgba(var(--color-bg-rgb), 0.18) 0%, rgba(var(--color-bg-rgb), 0.38) 52%, rgba(var(--color-bg-rgb), 0.82) 100%);
   }
 
   .app-container::before {
@@ -407,13 +415,17 @@
 
   .app-container::after {
     background:
-      linear-gradient(115deg, rgba(255, 255, 255, 0.05), transparent 28%),
-      linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.18) 100%);
-    opacity: 0.72;
+      linear-gradient(115deg, rgba(255, 255, 255, 0.035), transparent 28%),
+      linear-gradient(180deg, rgba(var(--color-bg-rgb), 0.03) 0%, rgba(var(--color-bg-rgb), 0.46) 100%);
+    opacity: 0.66;
     animation: app-veil-pulse 14s ease-in-out infinite alternate;
   }
 
   @media (max-width: 768px) {
+    .app-background.is-ready::before {
+      opacity: 0.56;
+    }
+
     .app-background::before {
       background-position: center -16px;
     }

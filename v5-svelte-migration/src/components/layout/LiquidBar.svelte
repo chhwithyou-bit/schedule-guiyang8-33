@@ -242,13 +242,16 @@
 
 <style>
   .liquid-anchor {
-    top: max(env(safe-area-inset-top, 0px), 0.9rem);
-    left: max(env(safe-area-inset-left, 0px), 0.9rem);
-    width: min(22rem, calc(100vw - 1.8rem));
+    top: auto;
+    right: auto;
+    bottom: max(env(safe-area-inset-bottom, 0px), 1rem);
+    left: max(env(safe-area-inset-left, 0px), 1rem);
+    width: auto;
     pointer-events: none;
   }
 
   .liquid-shell {
+    position: relative;
     pointer-events: auto;
   }
 
@@ -262,7 +265,7 @@
     border: 1px solid rgba(255, 255, 255, 0.12);
     background:
       linear-gradient(145deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.05) 42%, rgba(255, 255, 255, 0.09)),
-      linear-gradient(180deg, rgba(var(--color-bg-rgb), 0.9), rgba(var(--color-bg-rgb), 0.82));
+      linear-gradient(180deg, rgba(var(--color-bg-rgb), 0.74), rgba(var(--color-bg-rgb), 0.64));
     backdrop-filter: blur(20px) saturate(1.08);
     box-shadow:
       0 18px 42px rgba(var(--shadow-rgb), 0.18),
@@ -280,10 +283,11 @@
     display: flex;
     align-items: center;
     gap: 0.85rem;
-    width: 100%;
-    min-height: 5rem;
-    border-radius: 999px;
-    padding: 0.8rem 1rem;
+    width: 4.75rem;
+    min-height: 4.75rem;
+    justify-content: center;
+    border-radius: 1.75rem;
+    padding: 0.65rem;
     text-align: left;
   }
 
@@ -313,7 +317,7 @@
   .liquid-emblem-bars span:nth-child(3) { height: 0.75rem; }
 
   .liquid-trigger-copy {
-    display: flex;
+    display: none;
     flex: 1;
     min-width: 0;
     flex-direction: column;
@@ -342,6 +346,7 @@
   }
 
   .liquid-trigger-arrow {
+    display: none;
     font-size: 1.2rem;
     transition: transform 0.2s ease;
   }
@@ -351,10 +356,16 @@
   }
 
   .liquid-panel {
-    margin-top: 0.8rem;
+    position: absolute;
+    bottom: calc(100% + 0.8rem);
+    left: 0;
+    margin-top: 0;
+    width: min(20rem, calc(100vw - 2rem));
+    max-height: min(44rem, calc(100svh - 8rem));
+    overflow-y: auto;
     border-radius: 2rem;
     padding: 1.1rem;
-    transform-origin: top left;
+    transform-origin: bottom left;
     animation: liquid-panel-enter 0.34s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
@@ -419,8 +430,8 @@
   .liquid-nav-btn.is-active {
     border-color: rgba(var(--glow-primary-rgb), 0.22);
     background:
-      linear-gradient(135deg, rgba(var(--glow-primary-rgb), 0.22), rgba(var(--glow-secondary-rgb), 0.12)),
-      rgba(var(--color-bg-rgb), 0.24);
+      linear-gradient(135deg, rgba(var(--glow-primary-rgb), 0.18), rgba(var(--glow-secondary-rgb), 0.09)),
+      rgba(var(--color-bg-rgb), 0.16);
   }
 
   .liquid-nav-label,
@@ -527,10 +538,9 @@
 
   @media (max-width: 767px) {
     .liquid-anchor {
-      top: auto;
-      left: auto;
-      right: max(env(safe-area-inset-right, 0px), 0.85rem);
-      bottom: calc(max(env(safe-area-inset-bottom, 0px), 0.95rem) + 5.35rem);
+      right: auto;
+      bottom: max(env(safe-area-inset-bottom, 0px), 0.95rem);
+      left: max(env(safe-area-inset-left, 0px), 0.85rem);
       width: auto;
     }
 
@@ -548,13 +558,13 @@
     }
 
     .liquid-panel {
-      position: absolute;
-      right: 0;
+      right: auto;
+      left: 0;
       bottom: calc(100% + 0.8rem);
       width: min(21rem, calc(100vw - 1.2rem));
       max-height: min(34rem, calc(100svh - 6rem));
       overflow-y: auto;
-      transform-origin: bottom right;
+      transform-origin: bottom left;
     }
 
     .liquid-nav-grid {

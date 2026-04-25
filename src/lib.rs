@@ -1622,7 +1622,7 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             let db = ctx.env.d1("COMMUNITY_DB")?;
             let user = get_auth(&req, &db).await?;
             if let Some(u) = user {
-                if u.role != "admin" && u.role != "owner" {
+                if !is_community_admin_role(&normalize_community_role(&u.role)) {
                     return utils::json_resp(json!({"ok": false}), 403);
                 }
                 let reports = db.prepare("SELECT * FROM reports WHERE status = 'pending' ORDER BY created_at DESC").all().await?.results::<Report>()?;
@@ -1631,15 +1631,30 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                 let kv = ctx.env.kv("SCHEDULE_KV")?;
                 let announcement = kv.get("community_announcement").text().await?.unwrap_or_else(|| "{}".to_string());
                 let drive_folder_id = ctx.env.var("GDRIVE_FOLDER_ID").ok().map(|value| value.to_string()).unwrap_or_default();
-                let community_bucket = ctx.env.bucket("COMMUNITY_R2")?;
-                let cache_listing = community_bucket.list().execute().await?;
                 let mut r2_sample_keys: Vec<String> = Vec::new();
-                for object in cache_listing.objects() {
-                    r2_sample_keys.push(object.key());
-                    if r2_sample_keys.len() >= 6 {
-                        break;
+                let mut r2_error: Option<String> = None;
+                let r2_configured = match ctx.env.bucket("COMMUNITY_R2") {
+                    Ok(community_bucket) => {
+                        match community_bucket.list().execute().await {
+                            Ok(cache_listing) => {
+                                for object in cache_listing.objects() {
+                                    r2_sample_keys.push(object.key());
+                                    if r2_sample_keys.len() >= 6 {
+                                        break;
+                                    }
+                                }
+                            },
+                            Err(err) => {
+                                r2_error = Some(format!("{}", err));
+                            }
+                        }
+                        true
+                    },
+                    Err(err) => {
+                        r2_error = Some(format!("{}", err));
+                        false
                     }
-                }
+                };
 
                 utils::json_resp(json!({
                     "ok": true,
@@ -1651,6 +1666,8 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                         "drive_auth_configured": has_drive_auth_config(&ctx.env),
                         "drive_folder_id": drive_folder_id,
                         "drive_folder_configured": !drive_folder_id.trim().is_empty(),
+                        "r2_configured": r2_configured,
+                        "r2_error": r2_error,
                         "r2_sample_count": r2_sample_keys.len(),
                         "r2_sample_keys": r2_sample_keys
                     }
@@ -1672,7 +1689,11 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             match action.action.as_str() {
                 "reset_password" => {
                     if let Some(tid) = action.target_id {
-                        let pass_hash = utils::sha256_hex(&action.new_password.unwrap_or_default());
+                        let new_password = action.new_password.unwrap_or_default();
+                        if new_password.trim().is_empty() {
+                            return utils::json_resp(json!({"ok": false, "msg": "新密码不能为空"}), 400);
+                        }
+                        let pass_hash = utils::sha256_hex(&new_password);
                         db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").bind(&[pass_hash.into(), tid.into()])?.run().await?;
                     }
                 },
@@ -1799,7 +1820,7 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                         write_proxy_nodes(&kv, &merged_nodes).await?;
                     }
                 },
-                _ => {}
+                _ => return utils::json_resp(json!({"ok": false, "msg": "未知管理操作"}), 400)
             }
             let node_sources = read_node_sources(&kv).await.unwrap_or_default();
             let proxy_nodes = read_proxy_nodes(&kv).await.unwrap_or_default();

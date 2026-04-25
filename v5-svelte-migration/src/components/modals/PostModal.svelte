@@ -267,7 +267,7 @@
   .post-modal-backdrop {
     background:
       radial-gradient(circle at top, rgba(var(--glow-primary-rgb), 0.12), transparent 42%),
-      linear-gradient(180deg, rgba(12, 10, 13, 0.38), rgba(12, 10, 13, 0.62));
+      linear-gradient(180deg, rgba(12, 10, 13, 0.3), rgba(12, 10, 13, 0.48));
     backdrop-filter: blur(16px);
   }
 
@@ -276,7 +276,7 @@
     background:
       linear-gradient(145deg, rgba(var(--glow-primary-rgb), 0.12), rgba(var(--glow-secondary-rgb), 0.08)),
       linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(var(--color-bg-rgb), 0.18)),
-      rgba(var(--color-bg-rgb), 0.84);
+      rgba(var(--color-bg-rgb), 0.74);
     box-shadow:
       0 28px 80px rgba(var(--shadow-rgb), 0.26),
       inset 0 1px 0 rgba(255, 255, 255, 0.12);

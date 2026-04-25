@@ -1046,8 +1046,6 @@
     z-index: 10050;
     will-change: left, top, width, height, filter;
     transition:
-      left 0.38s cubic-bezier(0.22, 1, 0.36, 1),
-      top 0.38s cubic-bezier(0.22, 1, 0.36, 1),
       width 0.38s cubic-bezier(0.22, 1, 0.36, 1),
       height 0.38s cubic-bezier(0.22, 1, 0.36, 1),
       filter 0.22s ease;
@@ -1065,8 +1063,8 @@
     overflow: hidden;
     color: var(--color-text);
     background:
-      linear-gradient(160deg, rgba(var(--color-bg-rgb), 0.9), rgba(var(--color-bg-rgb), 0.94)),
-      rgba(var(--color-bg-rgb), 0.92);
+      linear-gradient(160deg, rgba(var(--color-bg-rgb), 0.78), rgba(var(--color-bg-rgb), 0.84)),
+      rgba(var(--color-bg-rgb), 0.76);
     border: 1px solid rgba(255, 255, 255, 0.12);
     backdrop-filter: blur(18px);
     box-shadow:
@@ -1178,7 +1176,7 @@
     background:
       radial-gradient(circle at top right, rgba(255, 255, 255, 0.12), transparent 38%),
       linear-gradient(145deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03)),
-      rgba(var(--color-bg-rgb), 0.84);
+      rgba(var(--color-bg-rgb), 0.68);
     border: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.08),

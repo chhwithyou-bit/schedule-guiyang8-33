@@ -300,6 +300,7 @@
 </script>
 
 {#if $selectedProfile}
+  <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
   <div
     bind:this={profileSurfaceEl}
     class="fixed inset-0 z-[7000] overflow-hidden bg-[var(--color-bg)]/92 backdrop-blur-md"

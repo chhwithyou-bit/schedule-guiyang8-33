@@ -14,6 +14,8 @@
     mode?: string;
     drive_folder_id?: string;
     drive_folder_configured?: boolean;
+    r2_configured?: boolean;
+    r2_error?: string;
     r2_sample_count?: number;
     r2_sample_keys?: string[];
   } = {};
@@ -99,21 +101,41 @@
     return 'border-white/10 bg-white/5 text-[var(--color-text,#fff4ed)]';
   }
 
+  function promptPasswordReset(account: any) {
+    const nextPassword = prompt('输入新密码');
+    if (!nextPassword) return;
+    void handleAction('reset_password', 'user', account.id, { new_password: nextPassword });
+  }
+
+  function promptDriveQuota(account: any) {
+    const rawQuota = prompt('输入新的媒体配额（GB）');
+    if (rawQuota === null) return;
+
+    const quotaGb = Number.parseFloat(rawQuota);
+    if (!Number.isFinite(quotaGb) || quotaGb < 0) {
+      statusTone = 'error';
+      statusMessage = '请输入有效的媒体配额数字。';
+      return;
+    }
+
+    void handleAction('set_drive_quota', 'user', account.id, { quota_gb: quotaGb });
+  }
+
   onMount(() => {
     void fetchAdminData();
   });
 </script>
 
 <section class="admin-view pb-40">
-  <div class="mb-12 flex flex-wrap items-end justify-between gap-6">
+  <div class="mb-10 grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
     <div>
-      <AnimatedHeading text="管理后台" className="text-[12vw]" />
+      <AnimatedHeading text="管理后台" className="text-5xl sm:text-7xl lg:text-8xl" />
       <p class="mt-4 max-w-3xl text-sm font-medium leading-7 opacity-70">
         后台现在只保留审核、公告和媒体运维，不再暴露旧节点模块。用户治理、举报处理和图片存储链路都从这里统一处理。
       </p>
     </div>
 
-    <div class="mb-2 flex flex-wrap gap-2">
+    <div class="admin-tabs mb-2 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap lg:justify-end">
       <button on:click={() => activeTab = 'reports'} class="admin-tab {activeTab === 'reports' ? 'is-active' : ''}">举报</button>
       <button on:click={() => activeTab = 'users'} class="admin-tab {activeTab === 'users' ? 'is-active' : ''}">用户</button>
       <button on:click={() => activeTab = 'announcement'} class="admin-tab {activeTab === 'announcement' ? 'is-active' : ''}">公告</button>
@@ -157,15 +179,15 @@
       {#if activeTab === 'reports'}
         <div class="grid grid-cols-1 gap-4">
           {#each reports as report}
-            <div class="admin-card flex items-center justify-between gap-6 p-8">
-              <div>
+            <div class="admin-card flex flex-col gap-5 p-6 sm:p-7 lg:flex-row lg:items-center lg:justify-between">
+              <div class="min-w-0">
                 <p class="mb-1 text-[10px] font-black uppercase tracking-widest opacity-30">{report.target_type} / {report.target_id}</p>
-                <p class="mb-2 text-xl font-bold tracking-tight">举报原因：{report.reason}</p>
+                <p class="mb-2 break-words text-xl font-bold tracking-tight">举报原因：{report.reason}</p>
                 <p class="text-xs font-medium opacity-40">提交人：{report.user_id}</p>
               </div>
-              <div class="flex gap-2">
-                <button on:click={() => handleAction('delete_item', report.target_type, report.target_id, { report_id: report.id })} class="admin-danger px-6 py-3">删除内容</button>
-                <button on:click={() => handleAction('resolve_report', 'report', report.id)} class="admin-ghost px-6 py-3">处理完成</button>
+              <div class="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
+                <button on:click={() => handleAction('delete_item', report.target_type, report.target_id, { report_id: report.id })} class="admin-danger min-h-12 px-4 py-3 sm:px-6">删除内容</button>
+                <button on:click={() => handleAction('resolve_report', 'report', report.id)} class="admin-ghost min-h-12 px-4 py-3 sm:px-6">处理完成</button>
               </div>
             </div>
           {:else}
@@ -200,8 +222,8 @@
               </div>
 
               <div class="grid grid-cols-2 gap-2">
-                <button on:click={() => { const nextPassword = prompt('输入新密码'); if (nextPassword) void handleAction('reset_password', 'user', account.id, { new_password: nextPassword }); }} class="admin-ghost py-3">重置密码</button>
-                <button on:click={() => { const nextQuota = prompt('输入新的媒体配额（GB）'); if (nextQuota) void handleAction('set_drive_quota', 'user', account.id, { quota_gb: nextQuota }); }} class="admin-ghost py-3">修改配额</button>
+                <button on:click={() => promptPasswordReset(account)} class="admin-ghost py-3">重置密码</button>
+                <button on:click={() => promptDriveQuota(account)} class="admin-ghost py-3">修改配额</button>
                 {#if account.role === 'user'}
                   <button on:click={() => handleAction('grant_admin', 'user', account.id)} class="admin-primary col-span-2 py-3">设为管理员</button>
                 {:else if account.role === 'admin'}
@@ -240,8 +262,10 @@
               </article>
               <article class="rounded-[28px] border border-white/10 bg-white/5 p-5">
                 <p class="text-[10px] font-black uppercase tracking-widest opacity-30">缓存分发</p>
-                <p class="mt-2 text-xl font-black tracking-tight">R2 样本对象 {mediaStorage.r2_sample_count || 0} 个</p>
-                <p class="mt-2 text-sm font-medium opacity-65">帖子图片会先写入 Drive，再通过 `/api/community/media/:key` 命中 R2/边缘缓存。</p>
+                <p class="mt-2 text-xl font-black tracking-tight">{mediaStorage.r2_configured === false ? 'R2 未接通' : `R2 样本对象 ${mediaStorage.r2_sample_count || 0} 个`}</p>
+                <p class="mt-2 text-sm font-medium opacity-65">
+                  {mediaStorage.r2_error || '帖子图片会先写入 Drive，再通过 `/api/community/media/:key` 命中 R2/边缘缓存。'}
+                </p>
               </article>
             </div>
 
@@ -279,17 +303,17 @@
 
 <style>
   .admin-card {
-    border-radius: 40px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 28px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
     background:
-      linear-gradient(145deg, rgba(var(--glow-primary-rgb), 0.14) 0% 42%, rgba(var(--glow-secondary-rgb), 0.1) 42% 100%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(var(--color-bg-rgb), 0.16)),
-      rgba(var(--color-bg-rgb), 0.16);
+      linear-gradient(145deg, rgba(var(--glow-primary-rgb), 0.12) 0% 42%, rgba(var(--glow-secondary-rgb), 0.08) 42% 100%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(var(--color-bg-rgb), 0.58)),
+      rgba(var(--color-bg-rgb), 0.72);
     box-shadow:
-      0 20px 48px rgba(var(--shadow-rgb), 0.14),
-      inset 0 1px 0 rgba(255, 255, 255, 0.14),
+      0 20px 48px rgba(var(--shadow-rgb), 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.18),
       inset 0 -1px 0 rgba(0, 0, 0, 0.05);
-    backdrop-filter: blur(18px) saturate(1.08);
+    backdrop-filter: blur(20px) saturate(1.08);
   }
 
   .admin-tab,
@@ -300,14 +324,19 @@
     font-size: 0.75rem;
     font-weight: 900;
     letter-spacing: 0.16em;
+    line-height: 1.2;
+    min-width: 0;
     text-transform: uppercase;
     transition: transform 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease;
+    white-space: normal;
   }
 
   .admin-tab {
-    padding: 0.75rem 1.5rem;
+    min-height: 2.75rem;
+    padding: 0.72rem 1.2rem;
     opacity: 0.45;
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(var(--color-bg-rgb), 0.58);
+    border: 1px solid rgba(255, 255, 255, 0.1);
   }
 
   .admin-tab.is-active {
@@ -324,7 +353,7 @@
   }
 
   .admin-ghost {
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.09);
   }
 
   .admin-danger {
@@ -337,5 +366,15 @@
   .admin-ghost:hover,
   .admin-danger:hover {
     transform: translateY(-1px);
+  }
+
+  @media (max-width: 640px) {
+    .admin-view :global(.animated-heading) {
+      line-height: 0.95;
+    }
+
+    .admin-card {
+      border-radius: 24px;
+    }
   }
 </style>
