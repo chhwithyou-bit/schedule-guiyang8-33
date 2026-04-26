@@ -11,43 +11,10 @@ function buildState() {
       xp: 220,
       level: 3
     },
-    group: {
-      id: 'group-night-sprint',
-      title: 'Night Sprint',
-      description: 'Late-night UI polishing squad.',
-      member_count: 6,
-      joined: false
-    },
-    conversations: [
-      {
-        id: 'group-general',
-        kind: 'group',
-        title: 'General Lounge',
-        description: 'Default testing group',
-        member_count: 4,
-        avatar_url: '',
-        unread_count: 1,
-        last_message: 'Welcome back to the lounge',
-        last_sender_name: 'System',
-        last_message_at: '2026-03-28T10:30:00.000Z',
-        updated_at: '2026-03-28T10:30:00.000Z'
-      }
-    ],
-    messages: {
-      'group-general': [
-        {
-          id: 'msg-g-1',
-          sender_id: 'system',
-          sender: { username: 'System' },
-          content: 'Welcome back to the lounge',
-          created_at: '2026-03-28T10:30:00.000Z'
-        }
-      ]
-    },
     notifications: [
       {
         id: 'notif-1',
-        type: 'message',
+        type: 'comment_like',
         username: 'Alice',
         created_at: '2026-03-28T10:35:00.000Z'
       }
@@ -56,8 +23,6 @@ function buildState() {
 }
 
 function installApiMocks(page, state) {
-  const getUnreadTotal = () => state.conversations.reduce((sum, item) => sum + Number(item.unread_count || 0), 0);
-
   return page.route('**/api/**', async (route) => {
     const req = route.request();
     const url = new URL(req.url());
@@ -70,29 +35,12 @@ function installApiMocks(page, state) {
       body: JSON.stringify(data)
     });
 
-    if (pathname === '/api/community/chats' && req.method() === 'GET') {
-      return fulfill({
-        ok: true,
-        conversations: state.conversations,
-        unread_total: getUnreadTotal()
-      });
-    }
-
-    if (pathname === '/api/community/chats/messages' && req.method() === 'GET') {
-      const conversationId = url.searchParams.get('conversation_id') || '';
-      return fulfill({ ok: true, messages: state.messages[conversationId] || [] });
-    }
-
     if (pathname === '/api/community/discovery' && req.method() === 'GET') {
       const users = [state.directUser].filter((user) => {
         if (!query) return true;
         return [user.username, user.signature].some((value) => String(value || '').toLowerCase().includes(query));
       });
-      const groups = [state.group].filter((group) => {
-        if (!query) return true;
-        return [group.title, group.description].some((value) => String(value || '').toLowerCase().includes(query));
-      });
-      return fulfill({ ok: true, users, groups });
+      return fulfill({ ok: true, users });
     }
 
     if (pathname === '/api/community/notifications') {
@@ -120,11 +68,7 @@ function installApiMocks(page, state) {
     return fulfill({
       ok: true,
       users: [],
-      groups: [],
-      posts: [],
-      messages: [],
-      conversations: [],
-      unread_total: 0
+      posts: []
     });
   });
 }
@@ -192,10 +136,11 @@ test('liquid bar keeps current utility actions reachable', async ({ page }) => {
   await bootApp(page);
 
   await page.locator('#liquidBar .liquid-trigger').click();
-  await page.locator('#liquidBar [data-liquid-target="messages"]').click();
+  await page.locator('#liquidBar [data-liquid-target="notifications"]').click();
   await expect(page.locator('#liquidBar .liquid-panel')).toBeHidden();
-  await expect(page.getByRole('heading', { name: 'General Lounge' })).toBeVisible();
-  await expect(page.locator('.console-tab-card')).toHaveCount(2);
+  await expect(page.locator('.console-panel')).toContainText('Alice');
+  await expect(page.locator('.console-tab-card')).toHaveCount(1);
+  await expect(page.locator('#liquidBar [data-liquid-target="messages"]')).toHaveCount(0);
 });
 
 test('liquid bar stays keyboard-closeable from the trigger', async ({ page }) => {

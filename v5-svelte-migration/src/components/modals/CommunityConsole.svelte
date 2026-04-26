@@ -3,11 +3,16 @@
   import { closeModal, openModal } from '../../stores/modalState';
   import { currentView, isAdmin, isAuthenticated, selectedProfile, user } from '../../stores/appState';
   import { communityFetch, persistCommunitySession } from '../../lib/communityApi';
-  import { communityConsoleState, resetCommunityConsoleState, setCommunityConsoleState } from '../../stores/communityConsoleState';
+  import {
+    communityConsoleState,
+    resetCommunityConsoleState,
+    setCommunityConsoleState,
+    type CommunityConsoleTab
+  } from '../../stores/communityConsoleState';
   import { onMount, tick } from 'svelte';
   import { softReveal } from '../../lib/motion';
 
-  type TabId = 'account' | 'chats' | 'groups' | 'drive' | 'notifications';
+  type TabId = CommunityConsoleTab;
 
   export let embedded = false;
   export let accountOnly = false;
@@ -15,35 +20,6 @@
   export let openAsModal = false;
   export let allowedTabs: TabId[] | null = null;
   export let showDriveTab = false;
-
-  type Conversation = {
-    id: string;
-    kind: 'direct' | 'group';
-    title: string;
-    description?: string;
-    avatar_url?: string;
-    unread_count?: number;
-    last_message?: string;
-    last_sender_name?: string;
-    last_message_at?: string;
-    member_count?: number;
-  };
-
-  type Message = {
-    id: string;
-    conversation_id: string;
-    sender_id?: string;
-    content: string;
-    created_at?: string;
-    sender?: {
-      id?: string;
-      username?: string;
-      avatar_url?: string;
-      role?: string;
-      level?: number;
-      xp?: number;
-    } | null;
-  };
 
   type DriveItem = {
     id: string;
@@ -82,31 +58,25 @@
 
   const tabs: Array<{ id: TabId; label: string }> = [
     { id: 'account', label: '账号' },
-    { id: 'chats', label: '聊天' },
-    { id: 'groups', label: '群组' },
     { id: 'drive', label: '网盘' },
     { id: 'notifications', label: '提醒' }
   ];
 
   const tabHero: Record<TabId, { eyebrow: string; title: string }> = {
     account: { eyebrow: 'account', title: '资料与账号设置' },
-    chats: { eyebrow: 'messages', title: '最近会话与私聊' },
-    groups: { eyebrow: 'groups', title: '群聊与建群管理' },
     drive: { eyebrow: 'drive', title: '文件与网盘空间' },
     notifications: { eyebrow: 'alerts', title: '互动提醒与通知' }
   };
 
   const tabDescriptions: Record<TabId, string> = {
     account: '管理账号、资料和个性设置。',
-    chats: '把私聊和群聊消息集中处理。',
-    groups: '新建群组并快速回到已有群聊。',
     drive: '浏览、上传和整理社区网盘。',
-    notifications: '查看最近的互动和提醒。'
+    notifications: '查看最近的互动、评论和关注提醒。'
   };
 
   $: availableTabs = accountOnly
     ? tabs.filter((tab) => tab.id === 'account')
-    : tabs.filter((tab) => (showDriveTab || tab.id !== 'drive') && (!allowedTabs || allowedTabs.includes(tab.id)));
+    : tabs.filter((tab) => allowedTabs ? allowedTabs.includes(tab.id) : (showDriveTab || tab.id !== 'drive'));
   $: shouldRenderModalShell = openAsModal && !embedded;
   $: isEmbeddedAccountPanel = embedded && accountOnly;
   $: activeTabMeta = availableTabs.find((tab) => tab.id === activeTab) || availableTabs[0];
@@ -121,26 +91,6 @@
   };
   let savingProfile = false;
   let profileMessage = '';
-  let groupForm = {
-    title: '',
-    description: ''
-  };
-  let creatingGroup = false;
-  let groupMessage = '';
-
-  let conversations: Conversation[] = [];
-  let selectedConversationId = '';
-  let selectedConversation: Conversation | null = null;
-  let groupConversations: Conversation[] = [];
-  let directConversations: Conversation[] = [];
-  let messages: Message[] = [];
-  let loadingChats = false;
-  let loadingMessages = false;
-  let chatError = '';
-  let messageDraft = '';
-  let sendingMessage = false;
-  let mobileChatView: 'list' | 'detail' = 'list';
-  let chatDetailPanel: HTMLElement | null = null;
 
   let driveStats: DriveStats = { quota_bytes: 0, used_bytes: 0, available_bytes: 0 };
   let driveUsagePercent = 0;
@@ -155,6 +105,8 @@
   let loadingNotifications = false;
   let notificationError = '';
 
+  let uploadingAvatar = false;
+  let uploadingBackground = false;
   let initializedForUserId = '';
   let shellRef: HTMLElement | null = null;
   let closeButtonRef: HTMLButtonElement | null = null;
@@ -163,6 +115,38 @@
   $: if (availableTabs.length > 0 && !availableTabs.some((tab) => tab.id === activeTab)) {
     activeTab = availableTabs[0].id;
   }
+
+  $: if ($communityConsoleState.tab && activeTab !== $communityConsoleState.tab && availableTabs.some((tab) => tab.id === $communityConsoleState.tab)) {
+    activeTab = $communityConsoleState.tab;
+  }
+
+  $: if (accountOnly && activeTab !== 'account') {
+    activeTab = 'account';
+  }
+
+  $: if ($user) {
+    profileForm = {
+      signature: $user.signature || '',
+      avatar_url: $user.avatar_url || '',
+      background_url: $user.background_url || ''
+    };
+  }
+
+  $: if ($isAuthenticated && !accountOnly && $user?.id && initializedForUserId !== $user.id) {
+    initializedForUserId = $user.id;
+    void bootstrapConsole();
+  }
+
+  $: if (!$isAuthenticated) {
+    initializedForUserId = '';
+    driveItems = [];
+    notifications = [];
+    drivePath = [{ id: null, name: '根目录' }];
+  }
+
+  $: driveUsagePercent = driveStats.quota_bytes
+    ? Math.min(100, Math.round(((driveStats.used_bytes || 0) / driveStats.quota_bytes) * 100))
+    : 0;
 
   function getFocusableShellItems() {
     if (!shellRef) {
@@ -259,72 +243,27 @@
     };
   });
 
-  $: if ($user) {
-    profileForm = {
-      signature: $user.signature || '',
-      avatar_url: $user.avatar_url || '',
-      background_url: $user.background_url || ''
-    };
-  }
-
-  $: if ($isAuthenticated && !accountOnly && $user?.id && initializedForUserId !== $user.id) {
-    initializedForUserId = $user.id;
-    void bootstrapConsole();
-  }
-
-  $: if ($communityConsoleState.tab && activeTab !== $communityConsoleState.tab) {
-    activeTab = $communityConsoleState.tab;
-  }
-
-  $: if (accountOnly && activeTab !== 'account') {
-    activeTab = 'account';
-  }
-
-  $: if (!$isAuthenticated) {
-    initializedForUserId = '';
-    conversations = [];
-    selectedConversationId = '';
-    messages = [];
-    driveItems = [];
-    notifications = [];
-    drivePath = [{ id: null, name: '根目录' }];
-  }
-
   function requireAuth(message: string) {
     authPrompt = message;
     activeTab = 'account';
-    mobileChatView = 'list';
-    setCommunityConsoleState({ tab: 'account', conversationId: '' });
-  }
-
-  async function focusMobileChatDetail() {
-    if (typeof window === 'undefined' || window.innerWidth >= 1280) {
-      return;
-    }
-
-    if (!embedded && !shouldRenderModalShell) {
-      return;
-    }
-
-    await tick();
-    chatDetailPanel?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setCommunityConsoleState({ tab: 'account' });
   }
 
   async function bootstrapConsole() {
+    const shouldLoadDriveList = availableTabs.some((tab) => tab.id === 'drive');
     await Promise.allSettled([
-      loadChats(),
       loadDriveInfo(),
-      loadDriveList(),
+      shouldLoadDriveList ? loadDriveList() : Promise.resolve(),
       loadNotifications()
     ]);
-
-    if ($communityConsoleState.conversationId) {
-      await loadMessages($communityConsoleState.conversationId, $communityConsoleState.tab === 'chats', false);
-    }
   }
 
   async function switchTab(tab: TabId) {
     if (accountOnly && tab !== 'account') {
+      return;
+    }
+
+    if (!availableTabs.some((item) => item.id === tab)) {
       return;
     }
 
@@ -334,16 +273,7 @@
     }
 
     activeTab = tab;
-    mobileChatView = 'list';
-    setCommunityConsoleState({ tab, conversationId: selectedConversationId });
-
-    if (tab === 'chats' && conversations.length === 0 && !loadingChats) {
-      await loadChats();
-    }
-
-    if (tab === 'groups' && conversations.length === 0 && !loadingChats) {
-      await loadChats();
-    }
+    setCommunityConsoleState({ tab });
 
     if (tab === 'drive' && driveItems.length === 0 && !loadingDrive) {
       await Promise.allSettled([loadDriveInfo(), loadDriveList()]);
@@ -351,127 +281,6 @@
 
     if (tab === 'notifications' && notifications.length === 0 && !loadingNotifications) {
       await loadNotifications();
-    }
-  }
-
-  async function loadChats() {
-    if (!$isAuthenticated) return;
-    loadingChats = true;
-    chatError = '';
-
-    try {
-      const res = await communityFetch('/api/community/chats');
-      const data = await res.json();
-      if (!data.ok) {
-        chatError = data.msg || '会话列表没加载出来。';
-        return;
-      }
-
-      conversations = Array.isArray(data.conversations) ? data.conversations : [];
-
-      if (!selectedConversationId && conversations[0]?.id) {
-        selectedConversationId = conversations[0].id;
-        await loadMessages(selectedConversationId, false);
-      } else if (selectedConversationId) {
-        const stillExists = conversations.find((item) => item.id === selectedConversationId);
-        if (stillExists) {
-          await loadMessages(selectedConversationId, false);
-        } else {
-          selectedConversationId = '';
-          messages = [];
-          setCommunityConsoleState({ conversationId: '' });
-        }
-      }
-    } catch (error) {
-      console.error('Failed to load chats', error);
-      chatError = '会话列表没加载出来。';
-    } finally {
-      loadingChats = false;
-    }
-  }
-
-  async function loadMessages(conversationId: string, activateTab = true, showMobileDetail = activateTab) {
-    if (!$isAuthenticated || !conversationId) return;
-    loadingMessages = true;
-    chatError = '';
-
-    try {
-      const res = await communityFetch(`/api/community/chats/messages?conversation_id=${encodeURIComponent(conversationId)}`);
-      const data = await res.json();
-      if (!data.ok) {
-        chatError = data.msg || '消息没加载出来。';
-        return;
-      }
-
-      selectedConversationId = conversationId;
-      messages = Array.isArray(data.messages) ? data.messages : [];
-      conversations = conversations.map((item) =>
-        item.id === conversationId ? { ...item, unread_count: 0 } : item
-      );
-      setCommunityConsoleState({
-        tab: activateTab ? 'chats' : activeTab,
-        conversationId
-      });
-
-      if (activateTab) {
-        activeTab = 'chats';
-      }
-
-      if (showMobileDetail) {
-        mobileChatView = 'detail';
-        await focusMobileChatDetail();
-      }
-    } catch (error) {
-      console.error('Failed to load messages', error);
-      chatError = '消息没加载出来。';
-    } finally {
-      loadingMessages = false;
-    }
-  }
-
-  async function sendMessage() {
-    const content = messageDraft.trim();
-    if (!$isAuthenticated) {
-      requireAuth('登录后才能发消息。');
-      return;
-    }
-    if (!selectedConversationId || !content || sendingMessage) return;
-
-    sendingMessage = true;
-    chatError = '';
-
-    try {
-      const res = await communityFetch('/api/community/chats/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          conversation_id: selectedConversationId,
-          content
-        })
-      });
-      const data = await res.json();
-      if (!data.ok) {
-        chatError = data.msg || '消息没发出去。';
-        return;
-      }
-
-      messages = [...messages, data.message];
-      conversations = conversations.map((item) =>
-        item.id === selectedConversationId
-          ? {
-              ...item,
-              last_message: content,
-              last_sender_name: $user?.username || '我',
-              last_message_at: data.message?.created_at
-            }
-          : item
-      );
-      messageDraft = '';
-    } catch (error) {
-      console.error('Failed to send message', error);
-      chatError = '消息没发出去。';
-    } finally {
-      sendingMessage = false;
     }
   }
 
@@ -607,7 +416,7 @@
         return;
       }
       await loadDriveList();
-      setDriveFeedback(`已创建文件夹“${name.trim()}”。`, 'success');
+      setDriveFeedback(`已创建文件夹「${name.trim()}」。`, 'success');
     } catch (error) {
       console.error('Failed to create folder', error);
       driveError = '文件夹没建成功。';
@@ -634,7 +443,7 @@
         return;
       }
       await loadDriveList();
-      setDriveFeedback(`已将“${item.name}”改名为“${nextName.trim()}”。`, 'success');
+      setDriveFeedback(`已将「${item.name}」改名为「${nextName.trim()}」。`, 'success');
     } catch (error) {
       console.error('Failed to rename drive item', error);
       driveError = '改名没成功。';
@@ -643,7 +452,7 @@
   }
 
   async function deleteDriveItem(item: DriveItem) {
-    if (!confirm(`确定删除“${item.name}”吗？`)) return;
+    if (!confirm(`确定删除「${item.name}」吗？`)) return;
 
     clearDriveFeedback();
 
@@ -651,7 +460,7 @@
       const res = await communityFetch('/api/community/drive/delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: [item.id] })
+        body: JSON.stringify({ id: item.id })
       });
       const data = await res.json();
       if (!data.ok) {
@@ -660,7 +469,7 @@
         return;
       }
       await refreshDriveData();
-      setDriveFeedback(`已删除“${item.name}”。`, 'success');
+      setDriveFeedback(`已删除「${item.name}」。`, 'success');
     } catch (error) {
       console.error('Failed to delete drive item', error);
       driveError = '删除没成功。';
@@ -680,7 +489,7 @@
 
     uploadingDrive = true;
     driveError = '';
-    setDriveFeedback(`正在上传“${file.name}”…`, 'info');
+    setDriveFeedback(`正在上传「${file.name}」...`, 'info');
 
     try {
       const formData = new FormData();
@@ -699,7 +508,7 @@
         return;
       }
       await refreshDriveData();
-      setDriveFeedback(`“${file.name}”已上传，可继续整理或预览。`, 'success');
+      setDriveFeedback(`「${file.name}」已上传。`, 'success');
     } catch (error) {
       console.error('Failed to upload drive file', error);
       driveError = '文件没传上去。';
@@ -730,9 +539,6 @@
       loadingNotifications = false;
     }
   }
-
-  let uploadingAvatar = false;
-  let uploadingBackground = false;
 
   async function handleAvatarUpload(event: Event) {
     const input = event.currentTarget as HTMLInputElement;
@@ -849,56 +655,6 @@
     closeModal();
   }
 
-  async function createGroup() {
-    const title = groupForm.title.trim();
-    const description = groupForm.description.trim();
-
-    if (!$isAuthenticated) {
-      requireAuth('登录后才能创建群组。');
-      return;
-    }
-    if (!title || creatingGroup) {
-      groupMessage = '请输入群组名称。';
-      return;
-    }
-
-    creatingGroup = true;
-    groupMessage = '';
-
-    try {
-      const res = await communityFetch('/api/community/groups', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title,
-          description,
-          member_ids: []
-        })
-      });
-      const data = await res.json();
-      if (!data.ok) {
-        groupMessage = data.msg || '群组没建成功。';
-        return;
-      }
-
-      groupForm = { title: '', description: '' };
-      groupMessage = '群已经建好了。';
-      await loadChats();
-      activeTab = 'groups';
-      setCommunityConsoleState({ tab: 'groups', conversationId: data.conversation_id || '' });
-    } catch (error) {
-      console.error('Failed to create group', error);
-      groupMessage = '群组没建成功。';
-    } finally {
-      creatingGroup = false;
-    }
-  }
-
-  async function openConversation(conversationId: string) {
-    await switchTab('chats');
-    await loadMessages(conversationId);
-  }
-
   function formatBytes(value = 0) {
     if (!value) return '0 B';
     const units = ['B', 'KB', 'MB', 'GB', 'TB'];
@@ -923,10 +679,10 @@
   function formatNotification(type: string) {
     const map: Record<string, string> = {
       like: '赞了你的帖子',
+      comment_like: '赞了你的评论',
       follow: '关注了你',
       repost: '转发了你的动态',
-      comment: '评论了你的帖子',
-      message: '给你发来一条消息'
+      comment: '评论了你的帖子'
     };
     return map[type] || type;
   }
@@ -941,23 +697,12 @@
     return map[String(role || '').toLowerCase()] || role || '成员';
   }
 
-  function formatConversationKind(kind?: string) {
-    return kind === 'group' ? '群聊' : '私聊';
-  }
-
   function openAdminView() {
     currentView.set($isAdmin ? 'admin' : 'community');
     if (!embedded) {
       handleClose();
     }
   }
-
-  $: selectedConversation = conversations.find((item) => item.id === selectedConversationId) || null;
-  $: groupConversations = conversations.filter((item) => item.kind === 'group');
-  $: directConversations = conversations.filter((item) => item.kind === 'direct');
-  $: driveUsagePercent = driveStats.quota_bytes
-    ? Math.min(100, Math.round(((driveStats.used_bytes || 0) / driveStats.quota_bytes) * 100))
-    : 0;
 
   function markDrivePreviewReady(itemId: string) {
     driveItems = driveItems.map((item) =>
@@ -996,7 +741,7 @@
 
 <div class={embedded ? 'relative z-0' : shouldRenderModalShell ? 'fixed inset-0 z-[10000] overflow-y-auto p-4 md:p-6' : 'fixed inset-0 z-[10000] overflow-y-auto xl:overflow-hidden xl:flex xl:items-center xl:justify-center p-4 md:p-6'} transition:fade={{ duration: 220 }}>
   {#if !embedded}
-    <button type="button" class="fixed inset-0 bg-black/60 backdrop-blur-xl" on:click={handleClose} aria-label="关闭消息台"></button>
+    <button type="button" class="fixed inset-0 bg-black/60 backdrop-blur-xl" on:click={handleClose} aria-label="关闭控制台"></button>
   {/if}
 
   <section
@@ -1009,585 +754,355 @@
     transition:softReveal={{ y: 18, duration: 280, startScale: 0.988, blur: 6 }}
   >
     {#if !embedded}
-    <header class="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-white/10 bg-[rgba(var(--color-bg-rgb),0.78)] px-5 py-4 backdrop-blur-[20px] md:px-6">
-      <div>
-        <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">{embedded ? '社区消息台' : '控制台导航'}</p>
-        <h2 id="community-console-title" class="mt-1 text-2xl font-black tracking-tight">{accountOnly ? '账号面板' : '聊天 / 群组 / 提醒'}</h2>
-      </div>
+      <header class="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-white/10 bg-[rgba(var(--color-bg-rgb),0.78)] px-5 py-4 backdrop-blur-[20px] md:px-6">
+        <div>
+          <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">控制台导航</p>
+          <h2 id="community-console-title" class="mt-1 text-2xl font-black tracking-tight">{accountOnly ? '账号面板' : '账号 / 网盘 / 提醒'}</h2>
+        </div>
 
-      <div class="flex items-center gap-3">
-        {#if $isAuthenticated}
-          <div class="hidden rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-4 py-2 text-[10px] font-black uppercase tracking-[0.2em] opacity-70 md:block">
-            {$user?.username || 'member'}
-          </div>
-        {/if}
-        {#if !embedded}
+        <div class="flex items-center gap-3">
+          {#if $isAuthenticated}
+            <div class="hidden rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-4 py-2 text-[10px] font-black uppercase tracking-[0.2em] opacity-70 md:block">
+              {$user?.username || 'member'}
+            </div>
+          {/if}
           <button bind:this={closeButtonRef} data-modal-initial-focus="true" type="button" class="rounded-full border border-white/10 bg-[rgba(255,255,255,0.08)] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] transition-transform hover:scale-105" on:click={handleClose}>
             关闭
           </button>
-        {/if}
-      </div>
-    </header>
+        </div>
+      </header>
     {/if}
 
     <div class="{embedded ? 'space-y-5' : 'xl:flex-1 xl:min-h-0 xl:overflow-hidden'}">
       <div class="{embedded ? 'space-y-5' : shouldRenderModalShell ? 'min-h-full space-y-5 pb-5' : 'xl:flex xl:flex-col xl:h-full xl:min-h-0'}">
         {#if !isEmbeddedAccountPanel}
-        <div class="console-hero-panel {activeTab === 'chats' && mobileChatView === 'detail' ? 'hidden xl:block' : ''} {embedded ? '' : shouldRenderModalShell ? 'mx-1 mt-4 md:mx-2 md:mt-5' : 'mx-4 mt-4 md:mx-5 md:mt-5'}">
-          <div class="console-tab-shell flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between">
-            <div class="console-tab-rail xl:max-w-[19rem]">
-              <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">{tabHero[activeTab].eyebrow}</p>
-              <h3 class="mt-2 text-2xl font-black tracking-tight">{tabHero[activeTab].title}</h3>
-              <p class="mt-2 text-sm font-medium leading-7 opacity-65">{tabDescriptions[activeTab]}</p>
-            </div>
+          <div class="console-hero-panel {embedded ? '' : shouldRenderModalShell ? 'mx-1 mt-4 md:mx-2 md:mt-5' : 'mx-4 mt-4 md:mx-5 md:mt-5'}">
+            <div class="console-tab-shell flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between">
+              <div class="console-tab-rail xl:max-w-[19rem]">
+                <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">{tabHero[activeTabMeta?.id || 'account'].eyebrow}</p>
+                <h3 class="mt-2 text-2xl font-black tracking-tight">{tabHero[activeTabMeta?.id || 'account'].title}</h3>
+                <p class="mt-2 text-sm font-medium leading-7 opacity-65">{tabDescriptions[activeTabMeta?.id || 'account']}</p>
+              </div>
 
-            <div class="min-w-0 flex-1">
-              <div class="console-tab-grid">
-          {#each availableTabs as tab}
-            <button
-              type="button"
-                  class="console-tab-card {activeTab === tab.id ? 'is-active' : ''}"
-              on:click={() => switchTab(tab.id)}
-            >
-              <span class="console-tab-card__label">{tab.label}</span>
-              <span class="console-tab-card__hint">{tabDescriptions[tab.id]}</span>
-            </button>
-          {/each}
+              <div class="min-w-0 flex-1">
+                <div class="console-tab-grid">
+                  {#each availableTabs as tab}
+                    <button
+                      type="button"
+                      class="console-tab-card {activeTab === tab.id ? 'is-active' : ''}"
+                      on:click={() => switchTab(tab.id)}
+                    >
+                      <span class="console-tab-card__label">{tab.label}</span>
+                      <span class="console-tab-card__hint">{tabDescriptions[tab.id]}</span>
+                    </button>
+                  {/each}
+                </div>
+              </div>
+
+              <div class="flex flex-wrap gap-2 lg:justify-end">
+                <button type="button" class="console-pill console-pill--ghost px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em]" on:click={openAdminView}>
+                  {$isAdmin ? '管理后台' : '回到社区'}
+                </button>
+                {#if $isAuthenticated}
+                  <button type="button" class="console-pill console-pill--ghost px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em]" on:click={openMyProfile}>
+                    我的主页
+                  </button>
+                {/if}
               </div>
             </div>
 
-            <div class="flex flex-wrap gap-2 lg:justify-end">
-              <button type="button" class="console-pill console-pill--ghost px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em]" on:click={openAdminView}>
-                {$isAdmin ? '管理后台' : '回到社区'}
-              </button>
-              {#if $isAuthenticated}
-                <button type="button" class="console-pill console-pill--ghost px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em]" on:click={openMyProfile}>
-                  我的主页
-                </button>
-              {/if}
-            </div>
-          </div>
-
-          {#if !$isAuthenticated}
-            <p class="mt-3 rounded-[20px] border border-white/10 bg-[rgba(255,255,255,0.06)] px-4 py-3 text-sm font-medium leading-7 opacity-75">
-              {authPrompt || '先登录，就能继续使用聊天、群聊和互动提醒。'}
-            </p>
-          {/if}
-        </div>
-        {/if}
-
-      <div class="{embedded ? 'space-y-6' : shouldRenderModalShell ? 'space-y-6 px-5 pb-5 pt-1 md:px-6 md:pb-6' : 'px-5 pb-5 pt-1 md:px-6 md:pb-6 xl:flex-1 xl:min-h-0 xl:overflow-y-auto'}">
-        {#if activeTab === 'account'}
-          <div class="space-y-6">
             {#if !$isAuthenticated}
-              <section class="console-panel p-6">
-                <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">先登录一下</p>
-                <h3 class="mt-3 text-3xl font-black tracking-tight">登录入口已经恢复</h3>
-                <p class="mt-3 max-w-2xl text-sm font-medium leading-7 opacity-70">
-                  现在这里会固定显示账号入口。登录后，你可以在这里编辑资料，也可以回社区继续聊天、群聊和查看提醒。
-                </p>
-                <div class="mt-5 flex flex-wrap gap-3">
-                  <button type="button" class="console-pill console-pill--primary px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)]" on:click={openAuth}>
-                    登录 / 注册
-                  </button>
-                  <button type="button" class="console-pill console-pill--ghost px-5 py-3 text-xs font-black uppercase tracking-[0.2em]" on:click={openAdminView}>
-                    {$isAdmin ? '打开后台管理' : '回到社区'}
-                  </button>
-                </div>
-              </section>
-            {:else}
-              <section class="account-layout {isEmbeddedAccountPanel ? 'is-embedded-account' : ''}">
-                <div class="console-panel p-6">
-                  <div class="flex items-center gap-4">
-                    <div class="flex h-16 w-16 items-center justify-center overflow-hidden rounded-[22px] bg-[var(--color-primary)] text-2xl font-black text-[var(--color-bg)]">
-                      {#if $user?.avatar_url}
-                        <img src={$user.avatar_url} alt={$user?.username || 'user'} class="h-full w-full object-cover" />
-                      {:else}
-                        {$user?.username?.slice(0, 1).toUpperCase() || 'U'}
-                      {/if}
-                    </div>
-
-                    <div class="min-w-0 flex-1">
-                      <h3 class="truncate text-3xl font-black tracking-tight">{$user?.username}</h3>
-                      <p class="mt-1 text-[10px] font-black uppercase tracking-[0.24em] opacity-35">
-                        {formatRoleLabel($user?.role)} · LV.{$user?.level || 1} · XP.{$user?.xp || 0}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div class="account-form-grid {isEmbeddedAccountPanel ? 'is-embedded-account' : ''}">
-                    <label class="block">
-                      <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35 text-[var(--color-text,#fff4ed)]">个性签名</span>
-                      <textarea bind:value={profileForm.signature} class="console-field h-28 w-full px-4 py-3 text-sm font-medium text-[var(--color-text,#fff4ed)] placeholder:text-[var(--color-text,#fff4ed)]/40" style="background-color: rgba(255, 255, 255, 0.18);"></textarea>
-                    </label>
-                    
-                    <label class="block">
-                      <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35 text-[var(--color-text,#fff4ed)]">上传头像</span>
-                      <div class="console-field relative w-full px-4 py-3 text-sm font-medium text-[var(--color-text,#fff4ed)]">
-                        <span class="opacity-70">{uploadingAvatar ? '正在上传...' : (profileForm.avatar_url ? '已上传，点击更换' : '点击选择图片')}</span>
-                        <input type="file" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" on:change={handleAvatarUpload} disabled={uploadingAvatar} />
-                      </div>
-                    </label>
-                    <label class="block">
-                      <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35 text-[var(--color-text,#fff4ed)]">上传主页壁纸</span>
-                      <div class="console-field relative w-full px-4 py-3 text-sm font-medium text-[var(--color-text,#fff4ed)]">
-                        <span class="opacity-70">{uploadingBackground ? '正在上传...' : (profileForm.background_url ? '已上传，点击更换' : '点击选择图片')}</span>
-                        <input type="file" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" on:change={handleBackgroundUpload} disabled={uploadingBackground} />
-                      </div>
-                    </label>
-
-                  </div>
-
-                  <div class="mt-5 flex flex-wrap gap-3">
-                    <button type="button" class="console-pill console-pill--primary px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] disabled:opacity-50" on:click={saveProfile} disabled={savingProfile}>
-                      {savingProfile ? '正在保存…' : '保存资料'}
-                    </button>
-                    <button type="button" class="console-pill console-pill--ghost px-5 py-3 text-xs font-black uppercase tracking-[0.2em]" on:click={openMyProfile}>
-                      打开主页
-                    </button>
-                    <button type="button" class="rounded-full border border-red-400/20 bg-red-500/10 px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-red-200 transition-transform hover:scale-105" on:click={logout}>
-                      退出登录
-                    </button>
-                  </div>
-
-                  {#if profileMessage}
-                    <p class="mt-4 text-sm font-bold opacity-75">{profileMessage}</p>
-                  {/if}
-                </div>
-
-                <div class="console-panel p-6">
-                  <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">现在的情况</p>
-                  <div class="mt-4 grid gap-4 md:grid-cols-2">
-                    <div class="console-subpanel p-4">
-                      <p class="text-[10px] font-black uppercase tracking-[0.2em] opacity-35">会话</p>
-                      <p class="mt-2 text-2xl font-black tracking-tight">{conversations.length}</p>
-                      <p class="mt-1 text-sm font-medium opacity-65">私聊和群组会话会统一汇总到这里。</p>
-                    </div>
-                    <div class="console-subpanel p-4">
-                      <p class="text-[10px] font-black uppercase tracking-[0.2em] opacity-35">群组</p>
-                      <p class="mt-2 text-2xl font-black tracking-tight">{groupConversations.length}</p>
-                      <p class="mt-1 text-sm font-medium opacity-65">旧版加入过的群组现在能在控制台里直接打开。</p>
-                    </div>
-                    <div class="console-subpanel p-4">
-                      <p class="text-[10px] font-black uppercase tracking-[0.2em] opacity-35">网盘占用</p>
-                      <p class="mt-2 text-2xl font-black tracking-tight">{formatBytes(driveStats.used_bytes || 0)}</p>
-                      <p class="mt-1 text-sm font-medium opacity-65">总配额 {formatBytes(driveStats.quota_bytes || 0)}</p>
-                    </div>
-                    <div class="console-subpanel p-4">
-                      <p class="text-[10px] font-black uppercase tracking-[0.2em] opacity-35">身份</p>
-                      <p class="mt-2 text-2xl font-black tracking-tight">{$isAdmin ? '管理员' : '普通成员'}</p>
-                      <p class="mt-1 text-sm font-medium opacity-65">账号入口和资料面板已经恢复为固定 UI。</p>
-                    </div>
-                  </div>
-                </div>
-              </section>
+              <p class="mt-3 rounded-[20px] border border-white/10 bg-[rgba(255,255,255,0.06)] px-4 py-3 text-sm font-medium leading-7 opacity-75">
+                {authPrompt || '先登录，就能继续发帖、评论、关注和查看互动提醒。'}
+              </p>
             {/if}
           </div>
         {/if}
 
-        {#if activeTab === 'chats'}
-          {#if !$isAuthenticated}
-            <div class="console-panel p-6">
-              <p class="text-sm font-bold opacity-70">{authPrompt || '登录后才能查看聊天和群组会话。'}</p>
-              <button type="button" class="mt-4 console-pill console-pill--primary px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)]" on:click={openAuth}>
-                先去登录
-              </button>
-            </div>
-          {:else}
-            <div class="{embedded ? 'grid gap-5 xl:grid-cols-[18rem_minmax(0,1fr)]' : 'grid min-h-[34rem] gap-5 xl:grid-cols-[18rem_minmax(0,1fr)]'} {mobileChatView === 'detail' ? 'min-h-[72svh]' : ''}">
-              <section class="console-panel p-4 {mobileChatView === 'detail' ? 'hidden xl:block' : ''}">
-                <div class="mb-4 flex items-center justify-between">
-                  <div>
-                    <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">会话列表</p>
-                    <h3 class="mt-1 text-xl font-black tracking-tight">共 {conversations.length} 个会话</h3>
-                    <p class="mt-1 text-xs font-medium opacity-55">{directConversations.length} 个私聊 · {groupConversations.length} 个群聊</p>
+        <div class="{embedded ? 'space-y-6' : shouldRenderModalShell ? 'space-y-6 px-5 pb-5 pt-1 md:px-6 md:pb-6' : 'px-5 pb-5 pt-1 md:px-6 md:pb-6 xl:flex-1 xl:min-h-0 xl:overflow-y-auto'}">
+          {#if activeTab === 'account'}
+            <div class="space-y-6">
+              {#if !$isAuthenticated}
+                <section class="console-panel p-6">
+                  <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">先登录一个</p>
+                  <h3 class="mt-3 text-3xl font-black tracking-tight">账号入口已经恢复</h3>
+                  <p class="mt-3 max-w-2xl text-sm font-medium leading-7 opacity-70">
+                    登录后可以在这里编辑资料，回社区后直接发帖、评论和查看互动提醒。
+                  </p>
+                  <div class="mt-5 flex flex-wrap gap-3">
+                    <button type="button" class="console-pill console-pill--primary px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)]" on:click={openAuth}>
+                      登录 / 注册
+                    </button>
+                    <button type="button" class="console-pill console-pill--ghost px-5 py-3 text-xs font-black uppercase tracking-[0.2em]" on:click={openAdminView}>
+                      {$isAdmin ? '打开后台管理' : '回到社区'}
+                    </button>
                   </div>
-                  <button type="button" class="console-pill console-pill--ghost px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em]" on:click={loadChats}>
-                    刷新
-                  </button>
-                </div>
+                </section>
+              {:else}
+                <section class="account-layout {isEmbeddedAccountPanel ? 'is-embedded-account' : ''}">
+                  <div class="console-panel p-6">
+                    <div class="flex items-center gap-4">
+                      <div class="flex h-16 w-16 items-center justify-center overflow-hidden rounded-[22px] bg-[var(--color-primary)] text-2xl font-black text-[var(--color-bg)]">
+                        {#if $user?.avatar_url}
+                          <img src={$user.avatar_url} alt={$user?.username || 'user'} class="h-full w-full object-cover" />
+                        {:else}
+                          {$user?.username?.slice(0, 1).toUpperCase() || 'U'}
+                        {/if}
+                      </div>
 
-                {#if chatError}
-                  <p class="mb-3 rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-200">{chatError}</p>
-                {/if}
+                      <div class="min-w-0 flex-1">
+                        <h3 class="truncate text-3xl font-black tracking-tight">{$user?.username}</h3>
+                        <p class="mt-1 text-[10px] font-black uppercase tracking-[0.24em] opacity-35">
+                          {formatRoleLabel($user?.role)} / LV.{$user?.level || 1} / XP.{$user?.xp || 0}
+                        </p>
+                      </div>
+                    </div>
 
-                <div class="space-y-3">
-                  {#if loadingChats}
-                    {#each Array(4) as _}
-                      <div class="h-20 animate-pulse rounded-[22px] bg-[rgba(255,255,255,0.08)]"></div>
-                    {/each}
-                  {:else if conversations.length > 0}
-                    {#each conversations as item (item.id)}
-                      <button
-                        type="button"
-                        class="console-list-row flex w-full items-start gap-3 px-4 py-4 text-left {selectedConversationId === item.id ? 'is-active' : ''}"
-                        on:click={() => loadMessages(item.id)}
-                      >
-                        <div class="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-[16px] bg-[var(--color-primary)] font-black text-[var(--color-bg)]">
-                          {#if item.avatar_url}
-                            <img src={item.avatar_url} alt={item.title} class="h-full w-full object-cover" />
-                          {:else}
-                            {item.title?.slice(0, 1).toUpperCase() || '#'}
-                          {/if}
+                    <div class="account-form-grid {isEmbeddedAccountPanel ? 'is-embedded-account' : ''}">
+                      <label class="block">
+                        <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35 text-[var(--color-text,#fff4ed)]">个性签名</span>
+                        <textarea bind:value={profileForm.signature} class="console-field h-28 w-full px-4 py-3 text-sm font-medium text-[var(--color-text,#fff4ed)] placeholder:text-[var(--color-text,#fff4ed)]/40" style="background-color: rgba(255, 255, 255, 0.18);"></textarea>
+                      </label>
+
+                      <label class="block">
+                        <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35 text-[var(--color-text,#fff4ed)]">上传头像</span>
+                        <div class="console-field relative w-full px-4 py-3 text-sm font-medium text-[var(--color-text,#fff4ed)]">
+                          <span class="opacity-70">{uploadingAvatar ? '正在上传...' : (profileForm.avatar_url ? '已上传，点击更换' : '点击选择图片')}</span>
+                          <input type="file" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" on:change={handleAvatarUpload} disabled={uploadingAvatar} />
                         </div>
-                        <div class="min-w-0 flex-1">
-                          <div class="flex items-center justify-between gap-3">
-                            <p class="truncate text-sm font-black">{item.title}</p>
-                            {#if item.unread_count}
-                              <span class="rounded-full bg-[var(--color-primary)] px-2 py-1 text-[10px] font-black text-[var(--color-bg)]">{item.unread_count}</span>
-                            {/if}
-                          </div>
-                          <p class="mt-1 truncate text-xs font-medium opacity-55">{item.last_sender_name ? `${item.last_sender_name}: ` : ''}{item.last_message || item.description || '还没有消息。'}</p>
-                          <p class="mt-2 text-[10px] font-black uppercase tracking-[0.18em] opacity-30">{formatConversationKind(item.kind)}</p>
+                      </label>
+                      <label class="block">
+                        <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35 text-[var(--color-text,#fff4ed)]">上传主页壁纸</span>
+                        <div class="console-field relative w-full px-4 py-3 text-sm font-medium text-[var(--color-text,#fff4ed)]">
+                          <span class="opacity-70">{uploadingBackground ? '正在上传...' : (profileForm.background_url ? '已上传，点击更换' : '点击选择图片')}</span>
+                          <input type="file" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" on:change={handleBackgroundUpload} disabled={uploadingBackground} />
                         </div>
+                      </label>
+                    </div>
+
+                    <div class="mt-5 flex flex-wrap gap-3">
+                      <button type="button" class="console-pill console-pill--primary px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] disabled:opacity-50" on:click={saveProfile} disabled={savingProfile}>
+                        {savingProfile ? '正在保存...' : '保存资料'}
                       </button>
-                    {/each}
-                  {:else}
-                    <div class="console-empty-state px-4 py-10 text-center text-sm font-bold opacity-50">
-                      还没有会话。先去群组选项卡建一个群，或者去别人的主页打个招呼。
+                      <button type="button" class="console-pill console-pill--ghost px-5 py-3 text-xs font-black uppercase tracking-[0.2em]" on:click={openMyProfile}>
+                        打开主页
+                      </button>
+                      <button type="button" class="rounded-full border border-red-400/20 bg-red-500/10 px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-red-200 transition-transform hover:scale-105" on:click={logout}>
+                        退出登录
+                      </button>
                     </div>
-                  {/if}
-                </div>
-              </section>
 
-              <section bind:this={chatDetailPanel} class="{mobileChatView === 'list' ? 'hidden xl:flex' : 'flex'} console-panel flex-col p-4 min-h-[70svh] xl:min-h-0">
-                <div class="mb-4 border-b border-white/10 pb-4">
-                  <button type="button" class="mb-3 console-pill console-pill--ghost px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] xl:hidden" on:click={() => (mobileChatView = 'list')}>
-                    返回会话
-                  </button>
-                  <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">当前会话</p>
-                  <h3 class="mt-1 text-2xl font-black tracking-tight">{selectedConversation?.title || '先选一个会话'}</h3>
-                  {#if selectedConversation}
-                    <p class="mt-2 text-sm font-medium opacity-65">{selectedConversation.description || '会话详情会在这里显示。'}</p>
-                  {/if}
-                </div>
+                    {#if profileMessage}
+                      <p class="mt-4 text-sm font-bold opacity-75">{profileMessage}</p>
+                    {/if}
+                  </div>
 
-                <div class="flex-1 overflow-y-auto console-subpanel p-4 min-h-[18rem] max-h-[56svh] xl:min-h-0 xl:max-h-none">
-                  {#if loadingMessages}
-                    <div class="space-y-3">
-                      {#each Array(4) as _}
-                        <div class="h-16 animate-pulse rounded-[20px] bg-[rgba(255,255,255,0.08)]"></div>
-                      {/each}
+                  <div class="console-panel p-6">
+                    <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">现在的情况</p>
+                    <div class="mt-4 grid gap-4 md:grid-cols-2">
+                      <div class="console-subpanel p-4">
+                        <p class="text-[10px] font-black uppercase tracking-[0.2em] opacity-35">提醒</p>
+                        <p class="mt-2 text-2xl font-black tracking-tight">{notifications.length}</p>
+                        <p class="mt-1 text-sm font-medium opacity-65">点赞、评论和关注都会汇总到通知里。</p>
+                      </div>
+                      <div class="console-subpanel p-4">
+                        <p class="text-[10px] font-black uppercase tracking-[0.2em] opacity-35">网盘占用</p>
+                        <p class="mt-2 text-2xl font-black tracking-tight">{formatBytes(driveStats.used_bytes || 0)}</p>
+                        <p class="mt-1 text-sm font-medium opacity-65">总配额 {formatBytes(driveStats.quota_bytes || 0)}</p>
+                      </div>
+                      <div class="console-subpanel p-4">
+                        <p class="text-[10px] font-black uppercase tracking-[0.2em] opacity-35">文件</p>
+                        <p class="mt-2 text-2xl font-black tracking-tight">{driveItems.length}</p>
+                        <p class="mt-1 text-sm font-medium opacity-65">头像、壁纸和帖子媒体继续走同一个媒体系统。</p>
+                      </div>
+                      <div class="console-subpanel p-4">
+                        <p class="text-[10px] font-black uppercase tracking-[0.2em] opacity-35">身份</p>
+                        <p class="mt-2 text-2xl font-black tracking-tight">{$isAdmin ? '管理员' : '成员'}</p>
+                        <p class="mt-1 text-sm font-medium opacity-65">账号入口和资料面板保持固定可达。</p>
+                      </div>
                     </div>
-                  {:else if messages.length > 0}
-                    <div class="space-y-3">
-                      {#each messages as message (message.id)}
-                        <article class="rounded-[20px] border border-white/10 bg-[rgba(255,255,255,0.08)] px-4 py-3">
-                          <div class="flex items-center justify-between gap-4">
-                            <p class="text-sm font-black">{message.sender?.username || '系统'}</p>
-                            <p class="text-[10px] font-black uppercase tracking-[0.18em] opacity-30">{formatDate(message.created_at)}</p>
-                          </div>
-                          <p class="mt-2 whitespace-pre-wrap text-sm font-medium leading-7 opacity-80">{message.content}</p>
-                        </article>
-                      {/each}
-                    </div>
-                  {:else}
-                    <div class="flex h-full items-center justify-center text-center text-sm font-bold opacity-45">
-                      {selectedConversation ? '这个会话还没有消息。' : '先从左侧选择一个会话。'}
-                    </div>
-                  {/if}
-                </div>
-
-                <div class="mt-4 flex gap-3">
-                  <input
-                    bind:value={messageDraft}
-                    type="text"
-                    placeholder={selectedConversation ? '说点什么…' : '先选一个会话'}
-                    disabled={!selectedConversation || sendingMessage}
-                    on:keydown={(event) => event.key === 'Enter' && sendMessage()}
-                    class="console-field min-w-0 flex-1 px-4 py-3 text-sm font-medium text-[var(--color-text,#fff4ed)] placeholder:text-[var(--color-text,#fff4ed)]/40 disabled:opacity-40"
-                    style="background-color: rgba(255, 255, 255, 0.18);"
-                  />
-                  <button
-                    type="button"
-                    disabled={!selectedConversation || !messageDraft.trim() || sendingMessage}
-                    class="console-pill console-pill--primary rounded-[20px] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg,#231b22)] disabled:cursor-default disabled:opacity-40"
-                    on:click={sendMessage}
-                  >
-                    发送
-                  </button>
-                </div>
-              </section>
+                  </div>
+                </section>
+              {/if}
             </div>
           {/if}
-        {/if}
 
-        {#if activeTab === 'groups'}
-          {#if !$isAuthenticated}
-            <div class="console-panel p-6">
-              <p class="text-sm font-bold opacity-70">{authPrompt || '登录后才能查看和创建群组。'}</p>
-              <button type="button" class="mt-4 console-pill console-pill--primary px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)]" on:click={openAuth}>
-                先去登录
-              </button>
-            </div>
-          {:else}
-            <div class="grid gap-5 xl:grid-cols-[minmax(22rem,0.9fr)_minmax(0,1.1fr)]">
-              <section class="console-panel p-6">
-                <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">建一个新群</p>
-                <h3 class="mt-2 text-3xl font-black tracking-tight">群组入口已经补回来了</h3>
-                <p class="mt-3 text-sm font-medium leading-7 opacity-70">
-                  这里直接接后端群组接口。你可以新建群组，也可以从右侧打开之前已经加入的会话。
-                </p>
+          {#if activeTab === 'drive'}
+            {#if !$isAuthenticated}
+              <div class="console-panel p-6">
+                <p class="text-sm font-bold opacity-70">{authPrompt || '登录后才能访问网盘。'}</p>
+                <button type="button" class="mt-4 console-pill console-pill--primary px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)]" on:click={openAuth}>
+                  先去登录
+                </button>
+              </div>
+            {:else}
+              <div class="space-y-5">
+                <section class="console-panel p-6">
+                  <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">网盘情况</p>
+                      <h3 class="mt-2 text-3xl font-black tracking-tight">{formatBytes(driveStats.used_bytes || 0)} / {formatBytes(driveStats.quota_bytes || 0)}</h3>
+                      <p class="mt-2 text-sm font-medium opacity-65">这里可以直接浏览、上传、重命名和删除媒体文件。</p>
+                      <p class="mt-2 text-xs font-bold opacity-55">剩余可用 {formatBytes(driveStats.available_bytes || 0)}</p>
+                    </div>
 
-                <div class="mt-5 space-y-4">
-                  <label class="block">
-                    <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35">群名</span>
-                    <input bind:value={groupForm.title} type="text" maxlength="42" class="w-full console-field px-4 py-3 text-sm font-medium" style="background-color: rgba(255, 255, 255, 0.18);" />
-                  </label>
-                  <label class="block">
-                    <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35">群介绍</span>
-                    <textarea bind:value={groupForm.description} class="h-32 w-full console-field px-4 py-3 text-sm font-medium" style="background-color: rgba(255, 255, 255, 0.18);"></textarea>
-                  </label>
-                </div>
+                    <div class="flex flex-wrap gap-3">
+                      <label class="cursor-pointer console-pill console-pill--primary px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)]">
+                        {uploadingDrive ? '上传中...' : '上传文件'}
+                        <input type="file" class="hidden" disabled={uploadingDrive} on:change={handleDriveUpload} />
+                      </label>
+                      <button type="button" class="console-pill console-pill--ghost px-5 py-3 text-xs font-black uppercase tracking-[0.2em]" on:click={createFolder}>
+                        新建文件夹
+                      </button>
+                      <button type="button" class="console-pill console-pill--ghost px-5 py-3 text-xs font-black uppercase tracking-[0.2em]" on:click={refreshDriveData}>
+                        刷新
+                      </button>
+                    </div>
+                  </div>
 
-                <div class="mt-5 flex flex-wrap gap-3">
-                  <button type="button" class="console-pill console-pill--primary px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] disabled:opacity-50" on:click={createGroup} disabled={creatingGroup}>
-                    {creatingGroup ? '正在创建…' : '创建群聊'}
-                  </button>
-                  <button type="button" class="console-pill console-pill--ghost px-5 py-3 text-xs font-black uppercase tracking-[0.2em]" on:click={openAdminView}>
-                    {$isAdmin ? '打开后台管理' : '回到社区'}
-                  </button>
-                </div>
+                  <div class="mt-5">
+                    <div class="h-3 overflow-hidden rounded-full bg-white/10">
+                      <div class="h-full rounded-full bg-[var(--color-primary)] transition-[width] duration-300" style="width: {driveUsagePercent}%"></div>
+                    </div>
+                    <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-[10px] font-black uppercase tracking-[0.18em] opacity-35">
+                      <span>已用 {driveUsagePercent}%</span>
+                      <span>已占用 {formatBytes(driveStats.used_bytes || 0)}</span>
+                      <span>剩余 {formatBytes(driveStats.available_bytes || 0)}</span>
+                    </div>
+                  </div>
+                </section>
 
-                {#if groupMessage}
-                  <p class="mt-4 text-sm font-bold opacity-75">{groupMessage}</p>
-                {/if}
-              </section>
+                <section class="console-panel p-6">
+                  <div class="flex flex-wrap items-center gap-2">
+                    {#each drivePath as crumb, index}
+                      <button type="button" class="console-pill console-pill--ghost px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em]" on:click={() => goToDrivePath(index)}>
+                        {crumb.name}
+                      </button>
+                    {/each}
+                  </div>
 
+                  {#if driveFeedback}
+                    <p class="mt-4 rounded-2xl border px-4 py-3 text-sm font-bold {driveFeedback.tone === 'success' ? 'border-emerald-400/20 bg-emerald-500/10 text-emerald-100' : driveFeedback.tone === 'error' ? 'border-red-400/20 bg-red-500/10 text-red-200' : 'border-white/10 bg-[rgba(255,255,255,0.06)] text-[var(--color-text)]/85'}">{driveFeedback.text}</p>
+                  {/if}
+
+                  {#if driveError}
+                    <p class="mt-4 rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-200">{driveError}</p>
+                  {/if}
+
+                  <div class="mt-5 space-y-3">
+                    {#if loadingDrive}
+                      {#each Array(5) as _}
+                        <div class="h-20 animate-pulse rounded-[22px] bg-[rgba(255,255,255,0.08)]"></div>
+                      {/each}
+                    {:else if driveItems.length > 0}
+                      {#each driveItems as item (item.id)}
+                        <article class="flex flex-col gap-4 console-subpanel p-4 md:flex-row md:items-center md:justify-between">
+                          <div class="min-w-0 flex-1">
+                            <div class="flex items-start gap-3">
+                              <div class="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-[16px] bg-[var(--color-primary)] text-sm font-black text-[var(--color-bg)]">
+                                {#if isImageMimeType(item) && item.url}
+                                  <img
+                                    src={item.url}
+                                    alt={item.name}
+                                    class="h-full w-full object-cover"
+                                    loading="lazy"
+                                    on:load={() => markDrivePreviewReady(item.id)}
+                                    on:error={() => markDrivePreviewError(item.id)}
+                                  />
+                                {:else}
+                                  {item.is_folder ? 'DIR' : isMediaMimeType(item) ? 'MEDIA' : 'FILE'}
+                                {/if}
+                              </div>
+                              <div class="min-w-0 flex-1">
+                                <p class="truncate text-sm font-black">{item.name}</p>
+                                <p class="mt-1 text-[10px] font-black uppercase tracking-[0.18em] opacity-35">
+                                  {describeDriveItem(item)} {#if !item.is_folder}/ {formatBytes(item.size || 0)}{/if}
+                                </p>
+                                {#if !item.is_folder && item.updated_at}
+                                  <p class="mt-2 text-xs font-medium opacity-45">最近更新于 {formatDate(item.updated_at)}</p>
+                                {/if}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div class="flex flex-wrap gap-2">
+                            {#if item.is_folder}
+                              <button type="button" class="console-pill console-pill--primary px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--color-bg)]" on:click={() => enterFolder(item)}>
+                                {getDriveItemOpenLabel(item)}
+                              </button>
+                            {:else if item.url}
+                              <a href={item.url} target="_blank" rel="noreferrer" class="console-pill console-pill--primary px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--color-bg)]">
+                                {getDriveItemOpenLabel(item)}
+                              </a>
+                            {/if}
+                            <button type="button" class="console-pill console-pill--ghost px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em]" on:click={() => renameDriveItem(item)}>
+                              改名
+                            </button>
+                            <button type="button" class="rounded-full border border-red-400/20 bg-red-500/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-red-200 transition-transform hover:scale-105" on:click={() => deleteDriveItem(item)}>
+                              删除
+                            </button>
+                          </div>
+                        </article>
+                      {/each}
+                    {:else}
+                      <div class="console-empty-state px-4 py-10 text-center text-sm font-bold opacity-50">
+                        这个目录还没有文件。
+                      </div>
+                    {/if}
+                  </div>
+                </section>
+              </div>
+            {/if}
+          {/if}
+
+          {#if activeTab === 'notifications'}
+            {#if !$isAuthenticated}
+              <div class="console-panel p-6">
+                <p class="text-sm font-bold opacity-70">{authPrompt || '登录后才能查看通知。'}</p>
+                <button type="button" class="mt-4 console-pill console-pill--primary px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)]" on:click={openAuth}>
+                  先去登录
+                </button>
+              </div>
+            {:else}
               <section class="console-panel p-6">
                 <div class="mb-4 flex items-center justify-between gap-4">
                   <div>
-                    <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">我加入的群</p>
-                    <h3 class="mt-1 text-2xl font-black tracking-tight">共 {groupConversations.length} 个群</h3>
+                    <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">提醒</p>
+                    <h3 class="mt-1 text-2xl font-black tracking-tight">{notifications.length} 条更新</h3>
                   </div>
-                  <button type="button" class="console-pill console-pill--ghost px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em]" on:click={loadChats}>
+                  <button type="button" class="console-pill console-pill--ghost px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em]" on:click={loadNotifications}>
                     刷新
                   </button>
                 </div>
 
+                {#if notificationError}
+                  <p class="mb-4 rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-200">{notificationError}</p>
+                {/if}
+
                 <div class="space-y-3">
-                  {#if loadingChats}
+                  {#if loadingNotifications}
                     {#each Array(4) as _}
-                      <div class="h-24 animate-pulse rounded-[22px] bg-[rgba(255,255,255,0.08)]"></div>
-                    {/each}
-                  {:else if groupConversations.length > 0}
-                    {#each groupConversations as item (item.id)}
-                      <article class="console-subpanel p-4">
-                        <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                          <div class="min-w-0">
-                            <div class="flex flex-wrap items-center gap-3">
-                              <h4 class="truncate text-lg font-black tracking-tight">{item.title}</h4>
-                              <span class="rounded-full border border-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] opacity-60">{item.member_count || 0} 人</span>
-                            </div>
-                            <p class="mt-2 text-sm font-medium leading-7 opacity-70">{item.description || item.last_message || '这个群组还没有介绍。'}</p>
-                            <p class="mt-3 text-[10px] font-black uppercase tracking-[0.18em] opacity-35">
-                              {item.last_message_at ? `最近活跃于 ${formatDate(item.last_message_at)}` : '暂时还没人说话'}
-                            </p>
-                          </div>
-                          <button type="button" class="console-pill console-pill--primary px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--color-bg)]" on:click={() => openConversation(item.id)}>
-                            打开会话
-                          </button>
-                        </div>
-                      </article>
-                    {/each}
-                  {:else}
-                    <div class="console-empty-state px-4 py-10 text-center text-sm font-bold opacity-50">
-                      还没有已加入的群。你可以先在这里建一个，再从聊天选项卡继续聊。
-                    </div>
-                  {/if}
-                </div>
-              </section>
-            </div>
-          {/if}
-        {/if}
-
-        {#if activeTab === 'drive'}
-          {#if !$isAuthenticated}
-            <div class="console-panel p-6">
-              <p class="text-sm font-bold opacity-70">{authPrompt || '登录后才能访问网盘。'}</p>
-              <button type="button" class="mt-4 console-pill console-pill--primary px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)]" on:click={openAuth}>
-                先去登录
-              </button>
-            </div>
-          {:else}
-            <div class="space-y-5">
-              <section class="console-panel p-6">
-                <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                  <div>
-                    <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">网盘情况</p>
-                    <h3 class="mt-2 text-3xl font-black tracking-tight">{formatBytes(driveStats.used_bytes || 0)} / {formatBytes(driveStats.quota_bytes || 0)}</h3>
-                    <p class="mt-2 text-sm font-medium opacity-65">旧网盘接口已接回前端，这里可以直接浏览、上传、重命名和删除。</p>
-                    <p class="mt-2 text-xs font-bold opacity-55">剩余可用 {formatBytes(driveStats.available_bytes || 0)}</p>
-                  </div>
-
-                  <div class="flex flex-wrap gap-3">
-                    <label class="cursor-pointer console-pill console-pill--primary px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)]">
-                      {uploadingDrive ? '上传中…' : '上传文件'}
-                      <input type="file" class="hidden" disabled={uploadingDrive} on:change={handleDriveUpload} />
-                    </label>
-                    <button type="button" class="console-pill console-pill--ghost px-5 py-3 text-xs font-black uppercase tracking-[0.2em]" on:click={createFolder}>
-                      新建文件夹
-                    </button>
-                    <button type="button" class="console-pill console-pill--ghost px-5 py-3 text-xs font-black uppercase tracking-[0.2em]" on:click={refreshDriveData}>
-                      刷新
-                    </button>
-                  </div>
-                </div>
-
-                <div class="mt-5">
-                  <div class="h-3 overflow-hidden rounded-full bg-white/10">
-                    <div class="h-full rounded-full bg-[var(--color-primary)] transition-[width] duration-300" style="width: {driveUsagePercent}%"></div>
-                  </div>
-                  <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-[10px] font-black uppercase tracking-[0.18em] opacity-35">
-                    <span>已用 {driveUsagePercent}%</span>
-                    <span>已占用 {formatBytes(driveStats.used_bytes || 0)}</span>
-                    <span>剩余 {formatBytes(driveStats.available_bytes || 0)}</span>
-                  </div>
-                </div>
-              </section>
-
-              <section class="console-panel p-6">
-                <div class="flex flex-wrap items-center gap-2">
-                  {#each drivePath as crumb, index}
-                    <button type="button" class="console-pill console-pill--ghost px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em]" on:click={() => goToDrivePath(index)}>
-                      {crumb.name}
-                    </button>
-                  {/each}
-                </div>
-
-                {#if driveFeedback}
-                  <p class="mt-4 rounded-2xl border px-4 py-3 text-sm font-bold {driveFeedback.tone === 'success' ? 'border-emerald-400/20 bg-emerald-500/10 text-emerald-100' : driveFeedback.tone === 'error' ? 'border-red-400/20 bg-red-500/10 text-red-200' : 'border-white/10 bg-[rgba(255,255,255,0.06)] text-[var(--color-text)]/85'}">{driveFeedback.text}</p>
-                {/if}
-
-                {#if driveError}
-                  <p class="mt-4 rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-200">{driveError}</p>
-                {/if}
-
-                <div class="mt-5 space-y-3">
-                  {#if loadingDrive}
-                    {#each Array(5) as _}
                       <div class="h-20 animate-pulse rounded-[22px] bg-[rgba(255,255,255,0.08)]"></div>
                     {/each}
-                  {:else if driveItems.length > 0}
-                    {#each driveItems as item (item.id)}
-                      <article class="flex flex-col gap-4 console-subpanel p-4 md:flex-row md:items-center md:justify-between">
-                        <div class="min-w-0 flex-1">
-                          <div class="flex items-start gap-3">
-                            <div class="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-[16px] bg-[var(--color-primary)] text-sm font-black text-[var(--color-bg)]">
-                              {#if isImageMimeType(item) && item.url}
-                                <img
-                                  src={item.url}
-                                  alt={item.name}
-                                  class="h-full w-full object-cover"
-                                  loading="lazy"
-                                  on:load={() => markDrivePreviewReady(item.id)}
-                                  on:error={() => markDrivePreviewError(item.id)}
-                                />
-                              {:else}
-                                {item.is_folder ? 'DIR' : isMediaMimeType(item) ? 'MEDIA' : 'FILE'}
-                              {/if}
-                            </div>
-                            <div class="min-w-0 flex-1">
-                              <p class="truncate text-sm font-black">{item.name}</p>
-                              <p class="mt-1 text-[10px] font-black uppercase tracking-[0.18em] opacity-35">
-                                {describeDriveItem(item)} {#if !item.is_folder}· {formatBytes(item.size || 0)}{/if}
-                              </p>
-                              {#if !item.is_folder && item.updated_at}
-                                <p class="mt-2 text-xs font-medium opacity-45">最近更新于 {formatDate(item.updated_at)}</p>
-                              {/if}
-                              {#if isMediaMimeType(item) && !item.is_folder}
-                                <p class="mt-2 text-xs font-bold opacity-55">
-                                  {#if item.preview_status === 'loading'}
-                                    媒体预览加载中…
-                                  {:else if item.preview_status === 'error'}
-                                    媒体状态异常，可能无法直接预览。
-                                  {:else}
-                                    媒体可直接打开预览。
-                                  {/if}
-                                </p>
-                              {/if}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div class="flex flex-wrap gap-2">
-                          {#if item.is_folder}
-                            <button type="button" class="console-pill console-pill--primary px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--color-bg)]" on:click={() => enterFolder(item)}>
-                              {getDriveItemOpenLabel(item)}
-                            </button>
-                          {:else if item.url}
-                            <a href={item.url} target="_blank" rel="noreferrer" class="console-pill console-pill--primary px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--color-bg)]">
-                              {getDriveItemOpenLabel(item)}
-                            </a>
-                          {/if}
-                          <button type="button" class="console-pill console-pill--ghost px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em]" on:click={() => renameDriveItem(item)}>
-                            改名
-                          </button>
-                          <button type="button" class="rounded-full border border-red-400/20 bg-red-500/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-red-200 transition-transform hover:scale-105" on:click={() => deleteDriveItem(item)}>
-                            删除
-                          </button>
+                  {:else if notifications.length > 0}
+                    {#each notifications as item (item.id)}
+                      <article class="console-subpanel px-4 py-4">
+                        <div class="flex items-center justify-between gap-4">
+                          <p class="text-sm font-black">{item.username || '系统'} {formatNotification(item.type)}</p>
+                          <p class="text-[10px] font-black uppercase tracking-[0.18em] opacity-30">{formatDate(item.created_at)}</p>
                         </div>
                       </article>
                     {/each}
                   {:else}
                     <div class="console-empty-state px-4 py-10 text-center text-sm font-bold opacity-50">
-                      这个目录还没有文件。
+                      目前还没有通知。
                     </div>
                   {/if}
                 </div>
               </section>
-            </div>
+            {/if}
           {/if}
-        {/if}
-
-        {#if activeTab === 'notifications'}
-          {#if !$isAuthenticated}
-            <div class="console-panel p-6">
-              <p class="text-sm font-bold opacity-70">{authPrompt || '登录后才能查看通知。'}</p>
-              <button type="button" class="mt-4 console-pill console-pill--primary px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)]" on:click={openAuth}>
-                先去登录
-              </button>
-            </div>
-          {:else}
-            <section class="console-panel p-6">
-              <div class="mb-4 flex items-center justify-between gap-4">
-                <div>
-                  <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">提醒</p>
-                  <h3 class="mt-1 text-2xl font-black tracking-tight">{notifications.length} 条更新</h3>
-                </div>
-                <button type="button" class="console-pill console-pill--ghost px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em]" on:click={loadNotifications}>
-                  刷新
-                </button>
-              </div>
-
-              {#if notificationError}
-                <p class="mb-4 rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-200">{notificationError}</p>
-              {/if}
-
-              <div class="space-y-3">
-                {#if loadingNotifications}
-                  {#each Array(4) as _}
-                    <div class="h-20 animate-pulse rounded-[22px] bg-[rgba(255,255,255,0.08)]"></div>
-                  {/each}
-                {:else if notifications.length > 0}
-                  {#each notifications as item (item.id)}
-                    <article class="console-subpanel px-4 py-4">
-                      <div class="flex items-center justify-between gap-4">
-                        <p class="text-sm font-black">{item.username || '系统'} {formatNotification(item.type)}</p>
-                        <p class="text-[10px] font-black uppercase tracking-[0.18em] opacity-30">{formatDate(item.created_at)}</p>
-                      </div>
-                    </article>
-                  {/each}
-                {:else}
-                  <div class="console-empty-state px-4 py-10 text-center text-sm font-bold opacity-50">
-                    目前还没有通知。
-                  </div>
-                {/if}
-              </div>
-            </section>
-          {/if}
-        {/if}
-      </div>
+        </div>
       </div>
     </div>
   </section>
@@ -1631,7 +1146,6 @@
 
   .console-subpanel,
   .console-empty-state,
-  .console-list-row,
   .console-field {
     border: 1px solid rgba(255, 255, 255, 0.1);
     background:
@@ -1642,35 +1156,8 @@
   }
 
   .console-subpanel,
-  .console-empty-state,
-  .console-list-row {
+  .console-empty-state {
     border-radius: 1.5rem;
-  }
-
-  .console-list-row {
-    transition:
-      transform 0.18s ease,
-      border-color 0.18s ease,
-      background 0.18s ease,
-      box-shadow 0.18s ease;
-  }
-
-  .console-list-row:hover {
-    transform: translateY(-1px);
-    border-color: rgba(255, 255, 255, 0.14);
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(var(--color-bg-rgb), 0.09)),
-      rgba(var(--color-bg-rgb), 0.06);
-  }
-
-  .console-list-row.is-active {
-    border-color: color-mix(in srgb, var(--color-primary) 68%, white 32%);
-    background:
-      linear-gradient(145deg, rgba(var(--glow-primary-rgb), 0.14), rgba(255, 255, 255, 0.05)),
-      rgba(var(--color-bg-rgb), 0.08);
-    box-shadow:
-      0 14px 28px rgba(var(--shadow-rgb), 0.12),
-      inset 0 1px 0 rgba(255, 255, 255, 0.12);
   }
 
   .console-field {

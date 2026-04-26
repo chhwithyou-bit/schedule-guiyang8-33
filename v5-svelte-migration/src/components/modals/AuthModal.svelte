@@ -108,7 +108,7 @@
         {isRegister ? '来这里安个家' : '回来就好'}
       </h2>
       <p id="auth-modal-description" class="mb-8 text-sm font-bold uppercase tracking-widest text-[var(--color-text,#fff4ed)] opacity-40">
-        {isRegister ? '起个名字，就能开始发帖聊天。' : '输入账号密码，继续刚才的内容。'}
+        {isRegister ? '起个名字，就能开始发帖和参与评论。' : '输入账号密码，继续刚才的内容。'}
       </p>
 
       <form on:submit|preventDefault={handleSubmit} class="space-y-4">

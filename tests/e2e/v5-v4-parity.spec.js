@@ -45,7 +45,9 @@ function buildCommunityState() {
           signature: 'Tracking the comment pipeline.',
           role: 'user',
           content: 'First reply on the first post.',
-          created_at: '2026-03-28T10:15:00.000Z'
+          created_at: '2026-03-28T10:15:00.000Z',
+          like_count: 1,
+          viewer_liked: false
         }
       ],
       'post-2': [
@@ -58,7 +60,9 @@ function buildCommunityState() {
           signature: 'Scroll should stay stable.',
           role: 'user',
           content: 'First reply on the second post.',
-          created_at: '2026-03-28T11:05:00.000Z'
+          created_at: '2026-03-28T11:05:00.000Z',
+          like_count: 0,
+          viewer_liked: false
         },
         {
           id: 'comment-3',
@@ -69,7 +73,9 @@ function buildCommunityState() {
           signature: 'Thread switching should stay consistent.',
           role: 'user',
           content: 'Second reply on the second post.',
-          created_at: '2026-03-28T11:10:00.000Z'
+          created_at: '2026-03-28T11:10:00.000Z',
+          like_count: 2,
+          viewer_liked: true
         }
       ]
     },
@@ -144,14 +150,40 @@ function installApiMocks(page, state) {
         signature: 'Closing regressions one by one.',
         role: 'user',
         content: String(payload.content || '').trim(),
-        created_at: '2026-03-28T10:30:00.000Z'
+        created_at: '2026-03-28T10:30:00.000Z',
+        like_count: 0,
+        viewer_liked: false
       };
       state.commentsByPost[postId] = [...existingComments, comment];
+      const commentCount = state.commentsByPost[postId].length;
       state.posts = state.posts.map((post) => post.id === postId
-        ? { ...post, comment_count: (post.comment_count || 0) + 1 }
+        ? { ...post, comment_count: commentCount }
         : post
       );
-      return fulfill({ ok: true });
+      return fulfill({ ok: true, comment, comment_count: commentCount });
+    }
+
+    if (pathname === '/api/community/comments/like' && req.method() === 'POST') {
+      const payload = req.postDataJSON();
+      const commentId = String(payload.comment_id || '');
+      let liked = false;
+      let likeCount = 0;
+      state.commentsByPost = Object.fromEntries(
+        Object.entries(state.commentsByPost).map(([postId, comments]) => [
+          postId,
+          comments.map((comment) => {
+            if (comment.id !== commentId) return comment;
+            liked = !comment.viewer_liked;
+            likeCount = Math.max(0, Number(comment.like_count || 0) + (liked ? 1 : -1));
+            return {
+              ...comment,
+              viewer_liked: liked,
+              like_count: likeCount
+            };
+          })
+        ])
+      );
+      return fulfill({ ok: true, liked, like_count: likeCount });
     }
 
     if (pathname === '/api/community/posts/like' && req.method() === 'POST') {
@@ -175,10 +207,6 @@ function installApiMocks(page, state) {
       return fulfill({ ok: true, action: 'followed' });
     }
 
-    if (pathname === '/api/community/chats/direct' && req.method() === 'POST') {
-      return fulfill({ ok: true, conversation: { id: 'conversation-1' } });
-    }
-
     if (pathname === '/api/community/report' && req.method() === 'POST') {
       state.reports.push(req.postDataJSON());
       return fulfill({ ok: true });
@@ -193,12 +221,8 @@ function installApiMocks(page, state) {
       ok: true,
       posts: [],
       comments: [],
-      messages: [],
-      conversations: [],
-      unread_total: 0,
       notifications: [],
-      users: [],
-      groups: []
+      users: []
     });
   });
 }
@@ -271,6 +295,19 @@ test.describe('8Community V5 current functionality check', () => {
     await expect(page.locator('.post-detail-content-panel')).toContainText('Second post used to verify switching between detail threads.');
     await expect(page.locator('.post-detail-comments')).toContainText('First reply on the second post.');
     await expect(page.locator('.post-detail-comments h3')).toContainText('(2)');
+  });
+
+  test('comment likes toggle from the detail surface', async ({ page }) => {
+    await bootApp(page);
+
+    const firstPost = page.locator('.community-view article').first();
+    await firstPost.locator('button').nth(1).click();
+
+    const likeButton = page.locator('.post-detail-comment-like').first();
+    await expect(likeButton).toContainText('1');
+    await likeButton.click();
+    await expect(likeButton).toContainText('2');
+    await expect(likeButton).toHaveAttribute('aria-pressed', 'true');
   });
 
   test('comment shortcut opens detail, focuses composer, and syncs count', async ({ page }) => {

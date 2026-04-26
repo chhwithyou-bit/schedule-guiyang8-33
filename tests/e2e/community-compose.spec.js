@@ -71,11 +71,7 @@ test.beforeEach(async ({ page }) => {
     return fulfill({
       ok: true,
       users: [],
-      groups: [],
-      posts: [],
-      messages: [],
-      conversations: [],
-      unread_total: 0
+      posts: []
     });
   });
 

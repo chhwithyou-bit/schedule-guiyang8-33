@@ -148,12 +148,8 @@ test.beforeEach(async ({ page }) => {
       ok: true,
       posts: [],
       comments: [],
-      messages: [],
-      conversations: [],
-      unread_total: 0,
       notifications: [],
-      users: [],
-      groups: []
+      users: []
     });
   });
 });

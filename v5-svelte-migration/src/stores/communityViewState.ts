@@ -1,16 +1,13 @@
 import { writable } from 'svelte/store';
 
-export type CommunitySection = 'feed' | 'discovery' | 'messages' | 'notifications';
-export type CommunityMessageTab = 'chats' | 'groups';
+export type CommunitySection = 'feed' | 'discovery' | 'notifications';
 
 export type CommunityViewState = {
   section: CommunitySection;
-  messageTab: CommunityMessageTab;
 };
 
 const initialState: CommunityViewState = {
-  section: 'feed',
-  messageTab: 'chats'
+  section: 'feed'
 };
 
 export const communityViewState = writable<CommunityViewState>(initialState);

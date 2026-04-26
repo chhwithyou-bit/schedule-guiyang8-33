@@ -28,9 +28,7 @@ async function installApiMocks(page) {
     if (pathname === '/api/community/comments') return fulfill({ ok: true, comments: [] });
     if (pathname === '/api/community/notifications') return fulfill({ ok: true, notifications: [] });
     if (pathname === '/api/community/announcement') return fulfill({ ok: true, announcement: null });
-    if (pathname === '/api/community/chats') return fulfill({ ok: true, conversations: [], unread_total: 0 });
-    if (pathname === '/api/community/chats/messages') return fulfill({ ok: true, messages: [] });
-    if (pathname === '/api/community/discovery') return fulfill({ ok: true, users: [], groups: [] });
+    if (pathname === '/api/community/discovery') return fulfill({ ok: true, users: [] });
     if (pathname === '/api/community/drive/info') {
       return fulfill({
         ok: true,
@@ -46,12 +44,8 @@ async function installApiMocks(page) {
       ok: true,
       posts: [],
       comments: [],
-      messages: [],
-      conversations: [],
-      unread_total: 0,
       notifications: [],
-      users: [],
-      groups: []
+      users: []
     });
   });
 }
@@ -99,7 +93,8 @@ test('startup shell restores authenticated header controls after preloader compl
 
   await expect(page.locator('header .header-avatar-shell')).toBeVisible();
   await expect(page.locator('header [data-header-target="profile"]')).toBeVisible();
-  await expect(page.locator('header [data-header-target="messages"]')).toBeVisible();
+  await expect(page.locator('header [data-header-target="community"]')).toBeVisible();
+  await expect(page.locator('header [data-header-target="messages"]')).toHaveCount(0);
 });
 
 test('served shell references the current built assets and drops stale public hashes', async ({ page }) => {

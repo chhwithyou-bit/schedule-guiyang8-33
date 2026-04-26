@@ -9,7 +9,6 @@
   import { openModal } from '../../stores/modalState';
   import { communityFetch } from '../../lib/communityApi';
   import { communityViewState, setCommunityViewState, type CommunitySection } from '../../stores/communityViewState';
-  import { setCommunityConsoleState } from '../../stores/communityConsoleState';
 
   let posts: any[] = [];
   let loadingPosts = true;
@@ -17,14 +16,12 @@
   let query = '';
   let announcement: { content?: string; updatedAt?: string } | null = null;
   let discoveredUsers: any[] = [];
-  let discoveredGroups: any[] = [];
   let postsRequestToken = 0;
   let discoveryRequestToken = 0;
 
   const sections: Array<{ id: CommunitySection; label: string; detail: string }> = [
     { id: 'feed', label: '动态', detail: '最新帖子和发帖入口' },
-    { id: 'discovery', label: '发现', detail: '搜索用户和群组' },
-    { id: 'messages', label: '消息', detail: '私聊和群聊' },
+    { id: 'discovery', label: '发现', detail: '搜索社区用户' },
     { id: 'notifications', label: '通知', detail: '互动提醒' }
   ];
 
@@ -49,12 +46,6 @@
   }
 
   function openSection(section: CommunitySection) {
-    if (section === 'messages') {
-      setCommunityConsoleState({ tab: 'chats', conversationId: '' });
-      setCommunityViewState({ section, messageTab: 'chats' });
-      return;
-    }
-
     setCommunityViewState({ section });
   }
 
@@ -105,12 +96,10 @@
 
       if (data.ok && requestToken === discoveryRequestToken) {
         discoveredUsers = Array.isArray(data.users) ? data.users : [];
-        discoveredGroups = Array.isArray(data.groups) ? data.groups : [];
       }
     } catch (error) {
       if (requestToken === discoveryRequestToken) {
         discoveredUsers = [];
-        discoveredGroups = [];
       }
       console.error('Failed to fetch discovery', error);
     } finally {
@@ -124,28 +113,6 @@
     event.preventDefault();
     void fetchPosts();
     void fetchDiscovery();
-  }
-
-  async function handleJoinGroup(groupId: string) {
-    if (!$isAuthenticated) {
-      openModal('auth');
-      return;
-    }
-
-    try {
-      const res = await communityFetch('/api/community/groups/join', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ conversation_id: groupId })
-      });
-      const data = await res.json();
-      if (!data.ok) return;
-
-      setCommunityConsoleState({ tab: 'groups', conversationId: groupId });
-      setCommunityViewState({ section: 'messages', messageTab: 'groups' });
-    } catch (error) {
-      console.error('Failed to join group', error);
-    }
   }
 
   function openUserProfile(profile: any) {
@@ -201,7 +168,7 @@
       <p class="text-[10px] font-black uppercase tracking-[0.32em] opacity-35">正在发生</p>
       <CommunityWordmark class="mt-3 max-w-[min(56rem,100%)]" />
       <p class="mt-4 max-w-2xl text-sm font-medium leading-7 opacity-70 md:text-base">
-        社区现在只保留内容、发现、消息和通知四个子区。发帖、聊天、群聊和个人资料编辑都还在，但入口比旧站收得更清楚。
+        社区现在只保留内容、发现和通知三条主线。发帖、看评论、关注用户和资料编辑都在更短路径里完成。
       </p>
 
       <div class="mt-5 flex flex-wrap gap-3">
@@ -240,14 +207,14 @@
     <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div>
         <p class="text-[10px] font-black uppercase tracking-[0.28em] opacity-35">社区导航</p>
-        <h2 class="mt-2 text-2xl font-black tracking-tight">动态、发现、消息、通知</h2>
+        <h2 class="mt-2 text-2xl font-black tracking-tight">动态、发现、通知</h2>
       </div>
 
       <form on:submit={handleSearch} class="relative w-full md:max-w-sm">
         <input
           type="text"
           bind:value={query}
-          placeholder="搜索帖子、用户或群组..."
+          placeholder="搜索帖子或用户..."
           class="community-search-input w-full rounded-2xl px-6 py-4 font-medium text-[var(--color-text,#fff4ed)] outline-none transition-all placeholder:text-[var(--color-text,#fff4ed)]/40 focus:ring-2 focus:ring-[var(--color-primary,#fac7b7)]"
         />
         <button type="submit" class="absolute right-4 top-1/2 -translate-y-1/2 opacity-40 transition-opacity hover:opacity-100">
@@ -326,14 +293,14 @@
       <div class="flex items-center justify-between gap-4">
         <div>
           <p class="text-[10px] font-black uppercase tracking-[0.28em] opacity-35">发现</p>
-          <h2 class="mt-2 text-2xl font-black tracking-tight">搜索用户和群组</h2>
+          <h2 class="mt-2 text-2xl font-black tracking-tight">搜索社区用户</h2>
         </div>
         {#if loadingDiscovery}
           <span class="text-xs font-black uppercase tracking-[0.22em] opacity-35">同步中</span>
         {/if}
       </div>
 
-      <div class="mt-6 grid gap-6 xl:grid-cols-2">
+      <div class="mt-6">
         <div class="space-y-4">
           <div class="flex items-center justify-between gap-3">
             <h3 class="text-xl font-black tracking-tight">用户</h3>
@@ -364,43 +331,7 @@
             </div>
           {/if}
         </div>
-
-        <div class="space-y-4">
-          <div class="flex items-center justify-between gap-3">
-            <h3 class="text-xl font-black tracking-tight">群组</h3>
-            <span class="text-[10px] font-black uppercase tracking-[0.22em] opacity-35">{discoveredGroups.length} 个</span>
-          </div>
-
-          {#if discoveredGroups.length > 0}
-            <div class="grid gap-4">
-              {#each discoveredGroups as group (group.id)}
-                <div class="community-discovery-card rounded-[28px] p-4">
-                  <div class="flex items-start justify-between gap-4">
-                    <div class="min-w-0 flex-1">
-                      <p class="truncate text-lg font-black tracking-tight">{group.title}</p>
-                      <p class="mt-1 text-sm font-medium opacity-65">{group.description || '这个群组还没有描述。'}</p>
-                      <p class="mt-3 text-[10px] font-black uppercase tracking-[0.22em] opacity-35">{group.member_count || 0} 位成员</p>
-                    </div>
-                    <button type="button" on:click={() => handleJoinGroup(group.id)} class="community-secondary rounded-full px-4 py-2 text-[11px] font-black uppercase tracking-[0.18em]">
-                      {group.joined ? '打开群聊' : '加入并聊天'}
-                    </button>
-                  </div>
-                </div>
-              {/each}
-            </div>
-          {:else}
-            <div class="rounded-[28px] border border-white/10 bg-white/5 px-5 py-8 text-sm font-medium opacity-70">
-              这里还没有搜到群组，换个关键词试试。
-            </div>
-          {/if}
-        </div>
       </div>
-    </section>
-  {/if}
-
-  {#if $communityViewState.section === 'messages'}
-    <section class="community-shell rounded-[32px] p-3 md:p-4">
-      <CommunityConsole embedded={true} defaultTab={$communityViewState.messageTab} allowedTabs={['chats', 'groups']} />
     </section>
   {/if}
 

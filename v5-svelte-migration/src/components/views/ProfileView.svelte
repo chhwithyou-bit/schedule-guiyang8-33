@@ -6,8 +6,6 @@
   import { openModal } from '../../stores/modalState';
   import PostCard from './PostCard.svelte';
   import { communityFetch, persistCommunitySession } from '../../lib/communityApi';
-  import { setCommunityConsoleState } from '../../stores/communityConsoleState';
-  import { setCommunityViewState } from '../../stores/communityViewState';
   import { softReveal } from '../../lib/motion';
 
   let posts: any[] = [];
@@ -256,37 +254,6 @@
     }
   }
 
-  async function startDirectChat() {
-    if (!$isAuthenticated) {
-      openModal('auth');
-      return;
-    }
-    if (!$selectedProfile) return;
-
-    try {
-      const res = await communityFetch('/api/community/chats/direct', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ target_user_id: $selectedProfile.id || $selectedProfile.user_id })
-      });
-      const data = await res.json();
-      if (!data.ok) return;
-
-      setCommunityConsoleState({
-        tab: 'chats',
-        conversationId: data.conversation?.id || ''
-      });
-      setCommunityViewState({
-        section: 'messages',
-        messageTab: 'chats'
-      });
-      clearSelectedProfile();
-      currentView.set('community');
-    } catch (e) {
-      console.error('Direct chat failed', e);
-    }
-  }
-
   function close() {
     clearSelectedProfile();
   }
@@ -434,12 +401,6 @@
 
                 {#if $user && $user.id !== ($selectedProfile.id || $selectedProfile.user_id)}
                   <div class="flex flex-wrap gap-3 sm:ml-2">
-                    <button
-                      on:click={startDirectChat}
-                      class="profile-action-button rounded-2xl px-6 py-3 text-sm font-black uppercase tracking-[0.18em] transition-all hover:-translate-y-0.5"
-                    >
-                      打个招呼
-                    </button>
                     <button
                       on:click={toggleFollow}
                       class:is-active={!isFollowing}

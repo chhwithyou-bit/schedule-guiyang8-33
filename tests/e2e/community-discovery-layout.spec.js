@@ -63,15 +63,6 @@ test.beforeEach(async ({ page }) => {
             avatar_url: '',
             role: 'user'
           }
-        ],
-        groups: [
-          {
-            id: 'group-night-sprint',
-            title: 'Night Sprint',
-            description: 'UI polish squad',
-            member_count: 6,
-            joined: false
-          }
         ]
       });
     }
@@ -92,11 +83,7 @@ test.beforeEach(async ({ page }) => {
     return fulfill({
       ok: true,
       users: [],
-      groups: [],
-      posts: [],
-      messages: [],
-      conversations: [],
-      unread_total: 0
+      posts: []
     });
   });
 });
@@ -151,13 +138,14 @@ test('community feed stays scrollable and shows live announcement', async ({ pag
   expect(lastCardVisibleAtBottom).toBe(true);
 });
 
-test('discovery section shows users and groups instead of the retired proxy hub', async ({ page }) => {
+test('discovery section shows users instead of retired chat and proxy hubs', async ({ page }) => {
   await page.goto('/');
   await settleTheme(page);
 
   await page.locator('.community-pill').nth(1).click();
 
   await expect(page.getByText('Alice')).toBeVisible();
-  await expect(page.getByText('Night Sprint')).toBeVisible();
+  await expect(page.getByText('Night Sprint')).toHaveCount(0);
+  await expect(page.getByText('群组')).toHaveCount(0);
   await expect(page.locator('text=代理节点')).toHaveCount(0);
 });

@@ -1,10 +1,9 @@
 import { writable } from 'svelte/store';
 
-export type CommunityConsoleTab = 'account' | 'chats' | 'groups' | 'drive' | 'notifications';
+export type CommunityConsoleTab = 'account' | 'drive' | 'notifications';
 
 export type CommunityConsoleState = {
   tab: CommunityConsoleTab;
-  conversationId: string;
   returnFocusSelector: string;
 };
 
@@ -12,12 +11,11 @@ const STORAGE_KEY = 'communityConsoleState';
 
 const initialState: CommunityConsoleState = {
   tab: 'account',
-  conversationId: '',
   returnFocusSelector: ''
 };
 
 function isCommunityConsoleTab(value: unknown): value is CommunityConsoleTab {
-  return ['account', 'chats', 'groups', 'drive', 'notifications'].includes(String(value || ''));
+  return ['account', 'drive', 'notifications'].includes(String(value || ''));
 }
 
 function normalizeCommunityConsoleState(value: unknown): CommunityConsoleState {
@@ -28,7 +26,6 @@ function normalizeCommunityConsoleState(value: unknown): CommunityConsoleState {
   const candidate = value as Partial<CommunityConsoleState>;
   return {
     tab: isCommunityConsoleTab(candidate.tab) ? candidate.tab : initialState.tab,
-    conversationId: typeof candidate.conversationId === 'string' ? candidate.conversationId : initialState.conversationId,
     returnFocusSelector: typeof candidate.returnFocusSelector === 'string' ? candidate.returnFocusSelector : initialState.returnFocusSelector
   };
 }

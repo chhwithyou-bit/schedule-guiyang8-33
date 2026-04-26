@@ -15,7 +15,7 @@
   const viewCopy: Record<string, { eyebrow: string; detail: string; short: string; capsule: string }> = {
     community: {
       eyebrow: '8community',
-      detail: '社区现在专注动态、发现、消息和通知。',
+      detail: '社区现在专注动态、发现和通知。',
       short: '看近况',
       capsule: '社区中枢'
     },
@@ -72,15 +72,8 @@
     closeBar();
   }
 
-  function openMessages() {
-    setCommunityConsoleState({ tab: 'chats', conversationId: '', returnFocusSelector: '[data-liquid-target="messages"]' });
-    setCommunityViewState({ section: 'messages', messageTab: 'chats' });
-    currentView.set('community');
-    closeBar();
-  }
-
   function openNotifications() {
-    setCommunityConsoleState({ tab: 'notifications', conversationId: '', returnFocusSelector: '[data-liquid-target="notifications"]' });
+    setCommunityConsoleState({ tab: 'notifications', returnFocusSelector: '[data-liquid-target="notifications"]' });
     setCommunityViewState({ section: 'notifications' });
     currentView.set('community');
     closeBar();
@@ -188,14 +181,6 @@
                 <small>资料、签名和自己的帖子都收在一起。</small>
               </span>
               <span class="liquid-action-glyph" aria-hidden="true">•</span>
-            </button>
-
-            <button type="button" data-liquid-target="messages" class="liquid-console-btn" on:click={openMessages}>
-              <span class="liquid-action-copy">
-                <strong>社区消息</strong>
-                <small>私聊和群聊已经回到社区子页。</small>
-              </span>
-              <span class="liquid-action-glyph" aria-hidden="true">→</span>
             </button>
 
             <button type="button" data-liquid-target="notifications" class="liquid-console-btn" on:click={openNotifications}>

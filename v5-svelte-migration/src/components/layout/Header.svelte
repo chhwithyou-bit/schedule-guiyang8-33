@@ -3,7 +3,6 @@
 
   import { currentView, isAdmin, isAuthenticated, user } from '../../stores/appState';
   import { openModal } from '../../stores/modalState';
-  import { setCommunityConsoleState } from '../../stores/communityConsoleState';
   import { setCommunityViewState } from '../../stores/communityViewState';
   import { readStoredCommunitySession } from '../../lib/communityApi';
 
@@ -16,18 +15,12 @@
   let isScrolled = false;
 
   function goHome() {
-    setCommunityViewState({ section: 'feed', messageTab: 'chats' });
+    setCommunityViewState({ section: 'feed' });
     currentView.set('community');
   }
 
   function goProfile() {
     currentView.set('profile');
-  }
-
-  function goMessages() {
-    setCommunityConsoleState({ tab: 'chats', conversationId: '', returnFocusSelector: '[data-header-target="messages"]' });
-    setCommunityViewState({ section: 'messages', messageTab: 'chats' });
-    currentView.set('community');
   }
 
   onMount(() => {
@@ -104,11 +97,11 @@
           </button>
           <button
             type="button"
-            data-header-target="messages"
-            on:click={goMessages}
+            data-header-target="community"
+            on:click={goHome}
             class="header-switch {$currentView === 'community' ? 'is-active-soft' : ''}"
           >
-            消息
+            社区
           </button>
         </div>
 

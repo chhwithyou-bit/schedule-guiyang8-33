@@ -4,7 +4,12 @@
   import { closeModal, openModal } from '../../stores/modalState';
   import { user, isAuthenticated } from '../../stores/appState';
   import { communityFetch } from '../../lib/communityApi';
+  import { runLimitedConcurrency } from '../../lib/uploadQueue.mjs';
   import { softReveal } from '../../lib/motion';
+
+  const IMAGE_UPLOAD_CONCURRENCY = 3;
+  const MAX_IMAGE_EDGE = 1800;
+  const IMAGE_COMPRESSION_QUALITY = 0.82;
 
   let shellRef: HTMLElement | null = null;
   let contentInput: HTMLTextAreaElement | null = null;
@@ -13,6 +18,159 @@
   let loading = false;
   let error = '';
   let fileInput: HTMLInputElement;
+  let webpSupported: boolean | null = null;
+
+  type PreparedUpload = {
+    file: File;
+    originalSize: number;
+    uploadSize: number;
+  };
+
+  type LoadedImage = {
+    source: CanvasImageSource;
+    width: number;
+    height: number;
+    close: () => void;
+  };
+
+  type UploadedMedia = {
+    type: 'image';
+    url: string;
+    fileId: string;
+    driveSync?: string;
+    originalSize: number;
+    uploadSize: number;
+    timing?: unknown;
+  };
+
+  function canEncodeWebp() {
+    if (webpSupported !== null) return webpSupported;
+    const canvas = document.createElement('canvas');
+    canvas.width = 1;
+    canvas.height = 1;
+    webpSupported = canvas.toDataURL('image/webp').startsWith('data:image/webp');
+    return webpSupported;
+  }
+
+  function getCompressedMime(file: File) {
+    if (canEncodeWebp()) return 'image/webp';
+    if (file.type === 'image/png') return 'image/png';
+    return 'image/jpeg';
+  }
+
+  function extensionForMime(mime: string) {
+    if (mime === 'image/webp') return 'webp';
+    if (mime === 'image/png') return 'png';
+    return 'jpg';
+  }
+
+  function replaceFileExtension(name: string, extension: string) {
+    const baseName = name.replace(/\.[^.]+$/, '').trim() || 'image';
+    return `${baseName}.${extension}`;
+  }
+
+  function canvasToBlob(canvas: HTMLCanvasElement, mime: string, quality: number) {
+    return new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, mime, quality);
+    });
+  }
+
+  async function loadImage(file: File): Promise<LoadedImage> {
+    if ('createImageBitmap' in window) {
+      const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+      return {
+        source: bitmap,
+        width: bitmap.width,
+        height: bitmap.height,
+        close: () => bitmap.close()
+      };
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+    try {
+      const image = new Image();
+      image.decoding = 'async';
+      image.src = objectUrl;
+      await image.decode();
+      return {
+        source: image,
+        width: image.naturalWidth,
+        height: image.naturalHeight,
+        close: () => URL.revokeObjectURL(objectUrl)
+      };
+    } catch (err) {
+      URL.revokeObjectURL(objectUrl);
+      throw err;
+    }
+  }
+
+  async function compressImage(file: File) {
+    if (!file.type.startsWith('image/') || file.type === 'image/gif' || file.type === 'image/svg+xml') {
+      return file;
+    }
+
+    const loaded = await loadImage(file);
+    try {
+      const longestEdge = Math.max(loaded.width, loaded.height);
+      const scale = Math.min(1, MAX_IMAGE_EDGE / Math.max(longestEdge, 1));
+      const width = Math.max(1, Math.round(loaded.width * scale));
+      const height = Math.max(1, Math.round(loaded.height * scale));
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext('2d');
+      if (!context) return file;
+
+      context.drawImage(loaded.source, 0, 0, width, height);
+
+      const mime = getCompressedMime(file);
+      const blob = await canvasToBlob(canvas, mime, IMAGE_COMPRESSION_QUALITY);
+      if (!blob || blob.size >= file.size) return file;
+
+      return new File([blob], replaceFileExtension(file.name, extensionForMime(mime)), {
+        type: mime,
+        lastModified: file.lastModified
+      });
+    } catch (err) {
+      console.warn('Image compression skipped', err);
+      return file;
+    } finally {
+      loaded.close();
+    }
+  }
+
+  async function prepareUpload(file: File): Promise<PreparedUpload> {
+    const compressed = await compressImage(file);
+    return {
+      file: compressed,
+      originalSize: file.size,
+      uploadSize: compressed.size
+    };
+  }
+
+  async function uploadCommunityImage(file: File): Promise<UploadedMedia> {
+    const prepared = await prepareUpload(file);
+    const uploadFile = prepared.file;
+    const res = await communityFetch('/api/community/upload', {
+      method: 'POST',
+      body: uploadFile,
+      headers: { 'Content-Type': uploadFile.type || 'application/octet-stream' }
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      throw new Error(data.msg || '图片没传上去，再试一次。');
+    }
+
+    return {
+      type: 'image',
+      url: data.url,
+      fileId: data.fileId,
+      driveSync: data.driveSync,
+      originalSize: prepared.originalSize,
+      uploadSize: prepared.uploadSize,
+      timing: data.timing
+    };
+  }
 
   function getFocusableElements() {
     if (!shellRef) return [];
@@ -61,30 +219,34 @@
   }
 
   async function handleFileUpload(e: Event) {
-    const files = (e.target as HTMLInputElement).files;
-    if (!files || files.length === 0) return;
+    const input = e.target as HTMLInputElement;
+    const files = Array.from(input.files || []);
+    if (files.length === 0) return;
 
     loading = true;
     error = '';
-    for (const file of Array.from(files)) {
-      try {
-        const res = await communityFetch('/api/community/upload', {
-          method: 'POST',
-          body: file,
-          headers: { 'Content-Type': file.type }
-        });
-        const data = await res.json();
-        if (data.ok) {
-          media = [...media, { type: 'image', url: data.url, fileId: data.fileId }];
-        } else {
-          error = data.msg || '图片没传上去，再试一次。';
+    const failures: string[] = [];
+    try {
+      const uploaded = await runLimitedConcurrency(files, IMAGE_UPLOAD_CONCURRENCY, async (file: File) => {
+        try {
+          return await uploadCommunityImage(file);
+        } catch (err) {
+          console.error('Upload failed', err);
+          failures.push(file.name);
+          return null;
         }
-      } catch (err) {
-        console.error('Upload failed', err);
+      });
+      const successfulUploads = uploaded.filter((item): item is UploadedMedia => Boolean(item));
+      if (successfulUploads.length > 0) {
+        media = [...media, ...successfulUploads];
+      }
+      if (failures.length > 0) {
         error = '图片没传上去，再试一次。';
       }
+    } finally {
+      loading = false;
+      input.value = '';
     }
-    loading = false;
   }
 
   async function handleSubmit() {

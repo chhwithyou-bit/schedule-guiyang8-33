@@ -32,35 +32,8 @@ function buildState() {
         created_at: '2026-03-31T11:20:00.000Z'
       }
     ],
-    conversations: [
-      {
-        id: 'group-general',
-        kind: 'group',
-        title: 'General Lounge',
-        description: 'Default testing group',
-        member_count: 4,
-        avatar_url: '',
-        unread_count: 1,
-        last_message: 'Welcome back',
-        last_sender_name: 'System',
-        last_message_at: '2026-03-31T11:30:00.000Z',
-        updated_at: '2026-03-31T11:30:00.000Z'
-      }
-    ],
-    messages: {
-      'group-general': [
-        {
-          id: 'msg-1',
-          conversation_id: 'group-general',
-          sender_id: 'system',
-          content: 'Welcome back',
-          created_at: '2026-03-31T11:30:00.000Z',
-          sender: { username: 'System' }
-        }
-      ]
-    },
     notifications: [
-      { id: 'n-1', type: 'message', username: 'Alice', created_at: '2026-03-31T11:40:00.000Z' }
+      { id: 'n-1', type: 'comment_like', username: 'Alice', created_at: '2026-03-31T11:40:00.000Z' }
     ],
     savedProfile: null
   };
@@ -88,10 +61,10 @@ async function openPersonalView(page) {
   await expect(page.locator('.personal-shell')).toBeVisible();
 }
 
-async function openMessagesSection(page) {
+async function openNotificationsSection(page) {
   await bootApp(page);
   await page.locator('.community-pill').nth(2).click();
-  await expect(page.locator('.console-tab-card')).toHaveCount(2);
+  await expect(page.locator('.console-tab-card')).toHaveCount(1);
 }
 
 test.beforeEach(async ({ page }) => {
@@ -123,7 +96,7 @@ test.beforeEach(async ({ page }) => {
     if (pathname === '/api/music') return fulfill([]);
     if (pathname === '/api/schedule') return fulfill({ ok: true, S: [], EV: {}, SJ: {} });
     if (pathname === '/api/community/announcement') return fulfill({ ok: true, announcement: null });
-    if (pathname === '/api/community/discovery') return fulfill({ ok: true, users: [], groups: [] });
+    if (pathname === '/api/community/discovery') return fulfill({ ok: true, users: [] });
     if (pathname === '/api/community/comments') return fulfill({ ok: true, comments: [] });
 
     if (pathname === '/api/community/posts' && req.method() === 'GET') {
@@ -144,40 +117,11 @@ test.beforeEach(async ({ page }) => {
       return fulfill({ ok: true });
     }
 
-    if (pathname === '/api/community/chats' && req.method() === 'GET') {
-      return fulfill({ ok: true, conversations: appState.conversations, unread_total: 1 });
-    }
-
-    if (pathname === '/api/community/chats/messages' && req.method() === 'GET') {
-      const conversationId = url.searchParams.get('conversation_id');
-      return fulfill({ ok: true, messages: appState.messages[conversationId] || [] });
-    }
-
-    if (pathname === '/api/community/chats/messages' && req.method() === 'POST') {
-      const payload = req.postDataJSON();
-      const message = {
-        id: `msg-${Date.now()}`,
-        conversation_id: payload.conversation_id,
-        sender_id: 'debug-user',
-        content: payload.content,
-        created_at: '2026-03-31T11:45:00.000Z',
-        sender: { username: 'debugger' }
-      };
-      appState.messages[payload.conversation_id] = [...(appState.messages[payload.conversation_id] || []), message];
-      appState.conversations[0] = {
-        ...appState.conversations[0],
-        last_message: payload.content,
-        last_sender_name: 'debugger',
-        unread_count: 0
-      };
-      return fulfill({ ok: true, message });
-    }
-
     if (pathname === '/api/community/notifications') {
       return fulfill({ ok: true, notifications: appState.notifications });
     }
 
-    return fulfill({ ok: true, users: [], groups: [], posts: [], messages: [], conversations: [], unread_total: 0 });
+    return fulfill({ ok: true, users: [], posts: [] });
   });
 });
 
@@ -191,23 +135,15 @@ test('personal view exposes the account editor and the user post list', async ({
   await expect(signatureInput).toHaveValue('before save');
 });
 
-test('community messages and notifications stay reachable in the embedded surfaces', async ({ page }) => {
-  await openMessagesSection(page);
-
-  await expect(page.locator('.console-list-row').first()).toContainText('General Lounge');
-  await page.locator('.console-list-row').first().click();
-
-  const messageInput = page.locator('.console-panel input[type="text"]').last();
-  await messageInput.fill('console smoke test');
-  await messageInput.press('Enter');
-  await expect(page.locator('article').filter({ hasText: 'console smoke test' }).last()).toBeVisible();
-
-  await page.locator('.console-tab-card').nth(1).click();
-  await expect(page.locator('article').filter({ hasText: 'General Lounge' }).first()).toBeVisible();
+test('community notifications stay reachable without chat or group surfaces', async ({ page }) => {
+  await openNotificationsSection(page);
+  await expect(page.locator('article').filter({ hasText: 'Alice' }).first()).toBeVisible();
+  await expect(page.locator('.console-list-row')).toHaveCount(0);
 
   await page.locator('#liquidBar .liquid-trigger').click();
   await page.locator('#liquidBar [data-liquid-target="notifications"]').click();
   await expect(page.locator('article').filter({ hasText: 'Alice' }).first()).toBeVisible();
+  await expect(page.locator('#liquidBar [data-liquid-target="messages"]')).toHaveCount(0);
 });
 
 test('mobile personal view keeps the account editor reachable', async ({ page }) => {
