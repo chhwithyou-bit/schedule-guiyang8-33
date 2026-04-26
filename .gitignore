@@ -12,6 +12,7 @@ fix*.js
 .DS_Store
 *.log
 .aider*
+.vibeskills/
 outputs/
 docs/requirements/
 docs/plans/*-execution-plan.md
