@@ -1,9 +1,10 @@
 <script lang="ts">
   import { fade } from 'svelte/transition';
   import { tick } from 'svelte';
-  import { selectedPost, isAuthenticated, selectedProfile } from '../../stores/appState';
+  import { selectedPost, isAuthenticated, user, isAdmin } from '../../stores/appState';
   import { openModal } from '../../stores/modalState';
   import { communityFetch } from '../../lib/communityApi';
+  import { closeCommunitySurface, openCommunityProfile } from '../../lib/communityNavigation';
   import ReliableImage from '../ui/ReliableImage.svelte';
   import { softReveal } from '../../lib/motion';
 
@@ -12,7 +13,12 @@
   let loading = true;
   let newComment = '';
   let submitting = false;
+  let replyTarget: any = null;
   let reporting = false;
+  let likingPost = false;
+  let favoritingPost = false;
+  let deletingPost = false;
+  let postLikeBurst = false;
   let reportComposerOpen = false;
   let reportReason = '';
   let reportMessage = '';
@@ -35,6 +41,29 @@
   }
 
   $: currentPostId = $selectedPost?.id || '';
+  $: canDeletePost = Boolean($selectedPost?.can_delete || ($user?.id && $user.id === $selectedPost?.user_id) || $isAdmin);
+  $: commentTree = buildCommentTree(comments);
+
+  function buildCommentTree(items: any[]) {
+    const roots: any[] = [];
+    const byId = new Map<string, any>();
+
+    for (const item of items) {
+      byId.set(String(item.id), { ...item, replies: [] });
+    }
+
+    for (const item of byId.values()) {
+      const parentId = item.parent_id ? String(item.parent_id) : '';
+      const parent = parentId ? byId.get(parentId) : null;
+      if (parent) {
+        parent.replies = [...parent.replies, item];
+      } else {
+        roots.push(item);
+      }
+    }
+
+    return roots;
+  }
 
   $: if (currentPostId && currentPostId !== lastLoadedPostId) {
     lastLoadedPostId = currentPostId;
@@ -56,23 +85,7 @@
   }
 
   function handleProfileClick(user: any) {
-    selectedPost.update((current) => current
-      ? {
-          ...current,
-          __focusComments: false,
-          __openReportComposer: false
-        }
-      : current
-    );
-
-    selectedProfile.set({
-      id: user.id || user.user_id,
-      username: user.username,
-      avatar_url: user.avatar_url,
-      role: user.role,
-      signature: user.signature,
-      background_url: user.background_url
-    });
+    openCommunityProfile(user);
   }
 
   function resetDetailSurface() {
@@ -80,6 +93,7 @@
     likingComments = new Set();
     loading = true;
     newComment = '';
+    replyTarget = null;
     reporting = false;
     reportMessage = '';
     reportReason = '';
@@ -107,7 +121,13 @@
     reportComposerOpen = false;
 
     if ($selectedPost?.__focusComments) {
-      commentSectionEl?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      if (detailScrollEl && commentSectionEl) {
+        detailScrollEl.scrollTo({
+          top: Math.max(0, commentSectionEl.offsetTop - 24),
+          left: 0,
+          behavior: 'smooth'
+        });
+      }
       await tick();
       commentInputEl?.focus();
     }
@@ -152,25 +172,29 @@
   async function handleComment() {
     const content = newComment.trim();
     if (!content) return;
+    const activePost = $selectedPost;
+    const postId = activePost?.id;
+    if (!postId) return;
     if (!$isAuthenticated) {
       openModal('auth');
       return;
     }
-
     submitting = true;
     try {
       const res = await communityFetch('/api/community/comments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          post_id: $selectedPost.id,
-          content
+          post_id: postId,
+          content,
+          parent_id: replyTarget?.id || null
         })
       });
       const data = await res.json();
       if (data.ok) {
-        const nextCommentCount = Number(data.comment_count ?? (($selectedPost?.comment_count || 0) + 1));
+        const nextCommentCount = Number(data.comment_count ?? ((activePost.comment_count || 0) + 1));
         newComment = '';
+        replyTarget = null;
         if (data.comment) {
           comments = [
             ...comments,
@@ -242,6 +266,110 @@
       const next = new Set(likingComments);
       next.delete(commentId);
       likingComments = next;
+    }
+  }
+
+  function startReply(comment: any) {
+    replyTarget = comment;
+    void tick().then(() => commentInputEl?.focus());
+  }
+
+  function cancelReply() {
+    replyTarget = null;
+  }
+
+  async function togglePostLike() {
+    if (!$isAuthenticated) {
+      openModal('auth');
+      return;
+    }
+    if (!$selectedPost || likingPost) return;
+
+    likingPost = true;
+    try {
+      const res = await communityFetch('/api/community/posts/like', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ post_id: $selectedPost.id })
+      });
+      const data = await res.json();
+      if (!data.ok) return;
+
+      const nextLiked = typeof data.liked === 'boolean' ? data.liked : data.action === 'liked';
+      const nextLikeCount = Math.max(0, Number($selectedPost.like_count || 0) + (nextLiked ? 1 : -1));
+      selectedPost.update((current) => current
+        ? { ...current, viewer_liked: nextLiked, like_count: nextLikeCount }
+        : current
+      );
+      if (nextLiked) {
+        postLikeBurst = false;
+        requestAnimationFrame(() => {
+          postLikeBurst = true;
+          window.setTimeout(() => {
+            postLikeBurst = false;
+          }, 520);
+        });
+      }
+      emitPostUpdated({ viewer_liked: nextLiked, like_count: nextLikeCount });
+    } catch (e) {
+      console.error('Failed to like post', e);
+    } finally {
+      likingPost = false;
+    }
+  }
+
+  async function togglePostFavorite() {
+    if (!$isAuthenticated) {
+      openModal('auth');
+      return;
+    }
+    if (!$selectedPost || favoritingPost) return;
+
+    favoritingPost = true;
+    try {
+      const res = await communityFetch('/api/community/posts/favorite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ post_id: $selectedPost.id })
+      });
+      const data = await res.json();
+      if (!data.ok) return;
+
+      const nextFavorited = Boolean(data.favorited);
+      const fallbackCount = Math.max(0, Number($selectedPost.favorite_count || 0) + (nextFavorited ? 1 : -1));
+      const nextFavoriteCount = Number(data.favorite_count ?? fallbackCount);
+      selectedPost.update((current) => current
+        ? { ...current, viewer_favorited: nextFavorited, favorite_count: nextFavoriteCount }
+        : current
+      );
+      emitPostUpdated({ viewer_favorited: nextFavorited, favorite_count: nextFavoriteCount });
+    } catch (e) {
+      console.error('Failed to favorite post', e);
+    } finally {
+      favoritingPost = false;
+    }
+  }
+
+  async function deletePost() {
+    if (!$selectedPost || deletingPost || !canDeletePost) return;
+    if (!confirm('确定删除这条帖子吗？')) return;
+
+    deletingPost = true;
+    try {
+      const res = await communityFetch('/api/community/posts/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ post_id: $selectedPost.id })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        window.dispatchEvent(new CustomEvent('community-post-deleted', { detail: { id: $selectedPost.id } }));
+        close();
+      }
+    } catch (e) {
+      console.error('Failed to delete post', e);
+    } finally {
+      deletingPost = false;
     }
   }
 
@@ -317,11 +445,12 @@
   }
 
   function close() {
-    selectedPost.set(null);
+    closeCommunitySurface(() => selectedPost.set(null));
   }
 
-  function safeJsonArray(json: string) {
+  function safeJsonArray(json: string | null | undefined) {
     try {
+      if (!json) return [];
       const arr = JSON.parse(json);
       return Array.isArray(arr) ? arr : [];
     } catch {
@@ -331,18 +460,18 @@
 
   let media: any[] = [];
 
-  $: media = $selectedPost ? safeJsonArray($selectedPost.media_json).filter((m) => m && m.url) : [];
+  $: media = $selectedPost ? safeJsonArray($selectedPost.media_json || '').filter((m) => m && m.url) : [];
 </script>
 
 {#if $selectedPost}
-  <div class="post-detail-frame fixed inset-0 z-[6000] p-2 sm:p-4">
+  <div data-testid="post-detail" class="post-detail-frame fixed inset-0 z-[11000] p-2 sm:p-4">
     <div class="post-detail-backdrop absolute inset-0" aria-hidden="true"></div>
     <div
       class="post-detail-shell relative flex h-full flex-col overflow-hidden"
       transition:softReveal={{ x: 18, y: 0, duration: 260, startScale: 0.992, blur: 4 }}
     >
       <header class="post-detail-header flex items-center justify-between gap-4 px-4 py-4 sm:px-6 sm:py-6">
-        <button on:click={close} aria-label="返回动态列表" class="post-detail-toolbar-button p-2 -ml-2 transition-all">
+        <button type="button" data-testid="post-detail-close" on:click={close} aria-label="返回动态列表" class="post-detail-toolbar-button p-2 -ml-2 transition-all">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
         </button>
         <h2 class="text-center text-base font-black uppercase tracking-tighter sm:text-xl">这条内容</h2>
@@ -424,9 +553,41 @@
                 {/if}
               </div>
               <p class="text-xs font-bold uppercase tracking-widest opacity-30">
-                {new Date($selectedPost.created_at).toLocaleString('zh-CN')}
+                {new Date($selectedPost.created_at || Date.now()).toLocaleString('zh-CN')}
               </p>
             </div>
+          </div>
+
+          <div class="post-detail-actions mb-8 flex flex-wrap items-center gap-2.5 rounded-[28px] px-4 py-3 sm:px-5">
+            <button
+              type="button"
+              data-testid="post-detail-like"
+              class="post-detail-action-button {Boolean($selectedPost.viewer_liked) ? 'is-active' : ''} {postLikeBurst ? 'is-bursting' : ''}"
+              aria-pressed={Boolean($selectedPost.viewer_liked)}
+              on:click={togglePostLike}
+              disabled={likingPost}
+            >
+              <svg width="17" height="17" viewBox="0 0 24 24" fill={$selectedPost.viewer_liked ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l7.78-7.78a5.5 5.5 0 0 0 1.06-8.84z"></path></svg>
+              <span>{$selectedPost.like_count || 0}</span>
+            </button>
+
+            <button
+              type="button"
+              data-testid="post-detail-favorite"
+              class="post-detail-action-button {Boolean($selectedPost.viewer_favorited) ? 'is-favorited' : ''}"
+              aria-pressed={Boolean($selectedPost.viewer_favorited)}
+              on:click={togglePostFavorite}
+              disabled={favoritingPost}
+            >
+              <svg width="17" height="17" viewBox="0 0 24 24" fill={$selectedPost.viewer_favorited ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.1 8.3 22 9.3 17 14.2 18.2 21 12 17.8 5.8 21 7 14.2 2 9.3 8.9 8.3 12 2"></polygon></svg>
+              <span>{$selectedPost.favorite_count || 0}</span>
+            </button>
+
+            {#if canDeletePost}
+              <button type="button" data-testid="post-detail-delete" class="post-detail-action-button is-danger" on:click={deletePost} disabled={deletingPost}>
+                删除
+              </button>
+            {/if}
           </div>
 
           <div class="post-detail-content-panel mb-8 rounded-[32px] px-5 py-6 sm:px-6 sm:py-7">
@@ -471,10 +632,10 @@
                   </div>
                 {/each}
               </div>
-            {:else if comments.length > 0}
+            {:else if commentTree.length > 0}
               <div class="space-y-4 sm:space-y-5">
-                {#each comments as comment}
-                  <div class="post-detail-comment-row flex gap-4 rounded-[24px] px-3 py-3 sm:px-4" in:fade>
+                {#each commentTree as comment}
+                  <div class="post-detail-comment-row flex gap-4 rounded-[24px] px-3 py-3 sm:px-4" data-testid="comment-row" in:fade>
                     <!-- svelte-ignore a11y-click-events-have-key-events -->
                     <!-- svelte-ignore a11y-no-static-element-interactions -->
                     <div on:click={() => handleProfileClick(comment)} class="post-detail-comment-avatar h-10 w-10 flex-shrink-0 cursor-pointer overflow-hidden rounded-full">
@@ -500,17 +661,47 @@
                         {comment.content}
                       </p>
 
-                      <button
-                        type="button"
-                        class="post-detail-comment-like mt-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-black transition-all {comment.viewer_liked ? 'is-active' : ''}"
-                        aria-label={comment.viewer_liked ? '取消点赞这条评论' : '点赞这条评论'}
-                        aria-pressed={Boolean(comment.viewer_liked)}
-                        disabled={likingComments.has(comment.id)}
-                        on:click={() => toggleCommentLike(comment)}
-                      >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill={comment.viewer_liked ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l7.78-7.78a5.5 5.5 0 0 0 1.06-8.84z"></path></svg>
-                        <span>{comment.like_count || 0}</span>
-                      </button>
+                      <div class="mt-3 flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          class="post-detail-comment-like inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-black transition-all {comment.viewer_liked ? 'is-active' : ''}"
+                          aria-label={comment.viewer_liked ? '取消点赞这条评论' : '点赞这条评论'}
+                          aria-pressed={Boolean(comment.viewer_liked)}
+                          disabled={likingComments.has(comment.id)}
+                          on:click={() => toggleCommentLike(comment)}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill={comment.viewer_liked ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l7.78-7.78a5.5 5.5 0 0 0 1.06-8.84z"></path></svg>
+                          <span>{comment.like_count || 0}</span>
+                        </button>
+                        <button type="button" data-testid="comment-reply" class="post-detail-comment-like inline-flex items-center rounded-full px-3 py-1.5 text-[11px] font-black transition-all" on:click={() => startReply(comment)}>
+                          回复
+                        </button>
+                      </div>
+
+                      {#if comment.replies?.length}
+                        <div class="mt-3 space-y-2 border-l border-white/10 pl-3">
+                          {#each comment.replies as reply}
+                            <div class="post-detail-reply rounded-[18px] px-3 py-2" data-testid="comment-reply-row">
+                              <div class="flex flex-wrap items-center gap-2">
+                                <button type="button" class="text-xs font-black transition-colors hover:text-[var(--color-primary)]" on:click={() => handleProfileClick(reply)}>
+                                  {reply.username}
+                                </button>
+                                <span class="text-[10px] font-bold uppercase tracking-widest opacity-30">
+                                  {new Date(reply.created_at).toLocaleDateString()}
+                                </span>
+                              </div>
+                              <p class="mt-1 whitespace-pre-wrap text-sm font-medium leading-relaxed opacity-78">{reply.content}</p>
+                              <div class="mt-2 flex flex-wrap gap-2">
+                                <button type="button" class="post-detail-comment-like inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-black transition-all {reply.viewer_liked ? 'is-active' : ''}" on:click={() => toggleCommentLike(reply)}>
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill={reply.viewer_liked ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l7.78-7.78a5.5 5.5 0 0 0 1.06-8.84z"></path></svg>
+                                  <span>{reply.like_count || 0}</span>
+                                </button>
+                                <button type="button" class="post-detail-comment-like inline-flex items-center rounded-full px-3 py-1.5 text-[11px] font-black transition-all" on:click={() => startReply(comment)}>回复</button>
+                              </div>
+                            </div>
+                          {/each}
+                        </div>
+                      {/if}
                     </div>
                   </div>
                 {/each}
@@ -525,9 +716,17 @@
       </div>
 
       <div class="post-detail-composer-wrap fixed bottom-0 left-0 right-0 p-4 sm:p-6">
-        <div class="post-detail-composer mx-auto flex max-w-3xl flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+        <div class="post-detail-composer mx-auto flex max-w-3xl flex-col gap-3">
+          {#if replyTarget}
+            <div class="post-detail-reply-target flex items-center justify-between gap-3 rounded-2xl px-4 py-2 text-xs font-bold">
+              <span class="truncate">正在回复 {replyTarget.username}</span>
+              <button type="button" class="font-black uppercase tracking-[0.16em] opacity-70 transition-opacity hover:opacity-100" on:click={cancelReply}>取消</button>
+            </div>
+          {/if}
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
           <input
             bind:this={commentInputEl}
+            data-testid="comment-input"
             type="text"
             bind:value={newComment}
             placeholder="想回一句什么，就写在这里。"
@@ -535,6 +734,8 @@
             on:keydown={(e) => e.key === 'Enter' && handleComment()}
           />
           <button
+            type="button"
+            data-testid="comment-submit"
             on:click={handleComment}
             aria-label="发布评论"
             disabled={submitting || !newComment.trim()}
@@ -543,6 +744,7 @@
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
             <span class="text-xs font-black uppercase tracking-[0.18em]">{submitting ? '发布中…' : '发布评论'}</span>
           </button>
+          </div>
         </div>
       </div>
     </div>
@@ -575,8 +777,12 @@
   }
 
   .post-detail-header {
+    padding-top: max(1rem, env(safe-area-inset-top, 0px));
     border-bottom: 1px solid rgba(var(--glow-primary-rgb), 0.12);
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0));
+    background:
+      linear-gradient(180deg, rgba(var(--color-bg-rgb), 0.7), rgba(var(--color-bg-rgb), 0.24)),
+      rgba(var(--color-bg-rgb), 0.18);
+    backdrop-filter: blur(18px);
   }
 
   .post-detail-scroll {
@@ -608,10 +814,10 @@
   }
 
   .post-detail-author,
+  .post-detail-actions,
   .post-detail-content-panel,
   .post-detail-media-frame,
   .post-detail-comment-row,
-  .post-detail-composer,
   .post-detail-message {
     border: 1px solid rgba(var(--glow-primary-rgb), 0.12);
     background:
@@ -622,6 +828,67 @@
       0 18px 42px rgba(var(--shadow-rgb), 0.12),
       inset 0 1px 0 rgba(255, 255, 255, 0.08);
     backdrop-filter: blur(16px);
+  }
+
+  .post-detail-composer,
+  .post-detail-reply-target {
+    border: 1px solid rgba(var(--glow-primary-rgb), 0.1);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(var(--color-bg-rgb), 0.1)),
+      rgba(var(--color-bg-rgb), 0.2);
+    box-shadow:
+      0 14px 32px rgba(var(--shadow-rgb), 0.11),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(16px);
+  }
+
+  .post-detail-composer {
+    border-radius: 1.6rem;
+    padding: 0.65rem;
+  }
+
+  .post-detail-action-button {
+    display: inline-flex;
+    min-height: 2.5rem;
+    align-items: center;
+    gap: 0.45rem;
+    border: 1px solid rgba(var(--glow-primary-rgb), 0.12);
+    border-radius: 999px;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(var(--color-bg-rgb), 0.1)),
+      rgba(var(--color-bg-rgb), 0.12);
+    padding: 0.55rem 0.9rem;
+    font-size: 0.72rem;
+    font-weight: 900;
+    opacity: 0.74;
+    transition: transform 180ms ease, opacity 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+  }
+
+  .post-detail-action-button:hover {
+    opacity: 1;
+    transform: translateY(-1px);
+  }
+
+  .post-detail-action-button.is-active {
+    color: rgb(248, 113, 113);
+    border-color: rgba(248, 113, 113, 0.24);
+    background: rgba(248, 113, 113, 0.08);
+  }
+
+  .post-detail-action-button.is-favorited {
+    color: var(--color-primary);
+    border-color: rgba(var(--glow-primary-rgb), 0.24);
+    background: rgba(var(--glow-primary-rgb), 0.1);
+  }
+
+  .post-detail-action-button.is-danger {
+    color: rgb(252, 165, 165);
+    border-color: rgba(248, 113, 113, 0.18);
+    background: rgba(127, 29, 29, 0.08);
+  }
+
+  .post-detail-action-button.is-bursting svg {
+    animation: post-detail-like-burst 520ms cubic-bezier(0.2, 1.45, 0.28, 1);
   }
 
   .post-detail-report-panel {
@@ -706,6 +973,11 @@
       rgba(var(--color-bg-rgb), 0.12);
   }
 
+  .post-detail-reply {
+    border: 1px solid rgba(var(--glow-primary-rgb), 0.09);
+    background: rgba(var(--color-bg-rgb), 0.13);
+  }
+
   .post-detail-comment-like:disabled {
     cursor: progress;
     opacity: 0.62;
@@ -714,7 +986,8 @@
 
   .post-detail-composer-wrap {
     pointer-events: none;
-    background: linear-gradient(180deg, rgba(var(--color-bg-rgb), 0) 0%, rgba(var(--color-bg-rgb), 0.24) 26%, rgba(var(--color-bg-rgb), 0.42) 100%);
+    padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+    background: linear-gradient(180deg, rgba(var(--color-bg-rgb), 0) 0%, rgba(var(--color-bg-rgb), 0.18) 30%, rgba(var(--color-bg-rgb), 0.42) 100%);
   }
 
   .post-detail-composer {
@@ -728,6 +1001,25 @@
 
     .post-detail-shell {
       border-radius: 0;
+    }
+
+    .post-detail-scroll {
+      padding-top: 1.25rem;
+    }
+  }
+
+  @keyframes post-detail-like-burst {
+    0% {
+      transform: scale(0.82) rotate(-8deg);
+      filter: drop-shadow(0 0 0 rgba(248, 113, 113, 0));
+    }
+    42% {
+      transform: scale(1.34) rotate(7deg);
+      filter: drop-shadow(0 0 12px rgba(248, 113, 113, 0.46));
+    }
+    100% {
+      transform: scale(1) rotate(0deg);
+      filter: drop-shadow(0 0 0 rgba(248, 113, 113, 0));
     }
   }
 </style>

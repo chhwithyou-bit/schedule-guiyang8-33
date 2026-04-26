@@ -63,7 +63,7 @@ async function openPersonalView(page) {
 
 async function openNotificationsSection(page) {
   await bootApp(page);
-  await page.locator('.community-pill').nth(2).click();
+  await page.locator('.community-pill').filter({ hasText: '通知' }).click();
   await expect(page.locator('.console-tab-card')).toHaveCount(1);
 }
 
@@ -75,7 +75,7 @@ test.beforeEach(async ({ page }) => {
   }, {
     id: 'debug-user',
     username: 'debugger',
-    passHash: 'playwright-session',
+    authToken: 'playwright-session',
     role: 'owner',
     xp: 999,
     level: 9,

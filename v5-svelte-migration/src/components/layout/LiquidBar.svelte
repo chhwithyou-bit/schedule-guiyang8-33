@@ -4,7 +4,7 @@
   import { currentView, isAdmin, isAuthenticated, type CurrentView } from '../../stores/appState';
   import { openModal } from '../../stores/modalState';
   import { setCommunityConsoleState } from '../../stores/communityConsoleState';
-  import { setCommunityViewState } from '../../stores/communityViewState';
+  import { navigateCommunitySection } from '../../lib/communityNavigation';
 
   let className = '';
   export { className as class };
@@ -46,6 +46,7 @@
     id: theme.id,
     colorA: theme.primary,
     colorB: theme.secondary,
+    colorBg: theme.bg,
     label: theme.liquidLabel
   }));
 
@@ -74,8 +75,12 @@
 
   function openNotifications() {
     setCommunityConsoleState({ tab: 'notifications', returnFocusSelector: '[data-liquid-target="notifications"]' });
-    setCommunityViewState({ section: 'notifications' });
-    currentView.set('community');
+    navigateCommunitySection('notifications');
+    closeBar();
+  }
+
+  function openFavorites() {
+    navigateCommunitySection('favorites');
     closeBar();
   }
 
@@ -111,7 +116,7 @@
   });
 </script>
 
-<nav id="liquidBar" class="liquid-anchor fixed z-[5100] select-none {className}" aria-label="快速导航">
+<nav id="liquidBar" data-motion-role="liquid-nav" class="liquid-anchor fixed z-[5100] select-none {className}" aria-label="快速导航">
   <div bind:this={shellRef} class="liquid-shell {isExpanded ? 'is-expanded' : ''}">
     <button
       type="button"
@@ -191,6 +196,14 @@
               <span class="liquid-action-glyph" aria-hidden="true">!</span>
             </button>
 
+            <button type="button" data-liquid-target="favorites" class="liquid-console-btn" on:click={openFavorites}>
+              <span class="liquid-action-copy">
+                <strong>收藏夹</strong>
+                <small>点过星星的帖子会留在这里。</small>
+              </span>
+              <span class="liquid-action-glyph" aria-hidden="true">★</span>
+            </button>
+
             {#if $currentView === 'community'}
               <button type="button" class="liquid-compose-btn" on:click={openComposer}>
                 <span class="liquid-action-copy">
@@ -211,7 +224,7 @@
               <button
                 type="button"
                 class="theme-dot {$activeTheme === theme.id ? 'is-active' : ''}"
-                style="--theme-color-a: {theme.colorA}; --theme-color-b: {theme.colorB};"
+                style="--theme-color-a: {theme.colorA}; --theme-color-b: {theme.colorB}; --theme-color-bg: {theme.colorBg};"
                 aria-label={`切换到 ${theme.label}`}
                 on:click={(event) => requestTheme(theme.id, event)}
               >
@@ -257,11 +270,12 @@
       0 6px 16px rgba(var(--shadow-rgb), 0.08),
       inset 0 1px 0 rgba(255, 255, 255, 0.16);
     transition:
-      transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
-      border-color 0.24s ease,
-      box-shadow 0.24s ease,
-      background 0.24s ease,
-      opacity 0.24s ease;
+      transform var(--motion-duration-medium) var(--motion-ease-apple),
+      border-color var(--motion-duration-fast) var(--motion-ease-apple),
+      box-shadow var(--motion-duration-medium) var(--motion-ease-apple),
+      background var(--motion-duration-medium) var(--motion-ease-apple),
+      opacity var(--motion-duration-fast) var(--motion-ease-standard);
+    will-change: transform, box-shadow;
   }
 
   .liquid-trigger {
@@ -333,7 +347,7 @@
   .liquid-trigger-arrow {
     display: none;
     font-size: 1.2rem;
-    transition: transform 0.2s ease;
+    transition: transform var(--motion-duration-fast) var(--motion-ease-apple);
   }
 
   .liquid-trigger-arrow.is-open {
@@ -351,7 +365,7 @@
     border-radius: 2rem;
     padding: 1.1rem;
     transform-origin: bottom left;
-    animation: liquid-panel-enter 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+    animation: liquid-panel-enter var(--motion-duration-slow) var(--motion-ease-apple) both;
   }
 
   .liquid-shell.is-expanded .liquid-trigger {
@@ -491,7 +505,10 @@
     width: 1.25rem;
     height: 1.25rem;
     border-radius: 999px;
-    background: linear-gradient(135deg, var(--theme-color-a), var(--theme-color-b));
+    background:
+      radial-gradient(circle at 34% 28%, var(--theme-color-a), transparent 48%),
+      radial-gradient(circle at 74% 74%, var(--theme-color-b), transparent 52%),
+      var(--theme-color-bg);
   }
 
   .theme-dot.is-active {
@@ -504,14 +521,14 @@
   .liquid-compose-btn:hover,
   .liquid-close:hover,
   .theme-dot:hover {
-    transform: translateY(-1px);
+    transform: var(--motion-lift);
   }
 
   @keyframes liquid-panel-enter {
     from {
       opacity: 0;
-      transform: translate3d(0, 14px, 0) scale(0.975);
-      filter: blur(10px);
+      transform: translate3d(0, 10px, 0) scale(0.986);
+      filter: blur(6px);
     }
 
     to {

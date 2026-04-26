@@ -268,52 +268,19 @@ test('music widget can be dragged with the handle', async ({ page }) => {
 
   const before = await readWidgetState(page);
   const handle = page.locator('#mp-drag-handle');
+  const handleBox = await handle.boundingBox();
+  if (!handleBox) throw new Error('Missing music drag handle bounds');
 
-  await page.evaluate(() => {
-    const handle = document.getElementById('mp-drag-handle');
-    const widget = document.getElementById('mp');
-    if (!handle) throw new Error('Missing music drag handle');
-    if (!widget) throw new Error('Missing music widget');
+  const viewport = page.viewportSize() || { width: 1512, height: 982 };
+  const startX = handleBox.x + handleBox.width / 2;
+  const startY = handleBox.y + handleBox.height / 2;
+  const deltaX = before.left < viewport.width / 2 ? 160 : -160;
+  const deltaY = before.top > viewport.height / 2 ? -80 : 80;
 
-    const rect = handle.getBoundingClientRect();
-    const widgetRect = widget.getBoundingClientRect();
-    const startX = rect.left + rect.width / 2;
-    const startY = rect.top + rect.height / 2;
-    const deltaX = widgetRect.left < window.innerWidth / 2 ? 160 : -160;
-    const deltaY = widgetRect.top > window.innerHeight / 2 ? -80 : 80;
-    const endX = startX + deltaX;
-    const endY = startY + deltaY;
-
-    handle.dispatchEvent(new MouseEvent('mousedown', {
-      bubbles: true,
-      cancelable: true,
-      clientX: startX,
-      clientY: startY,
-      button: 0,
-      buttons: 1
-    }));
-
-    for (let step = 1; step <= 10; step += 1) {
-      const progress = step / 10;
-      window.dispatchEvent(new MouseEvent('mousemove', {
-        bubbles: true,
-        cancelable: true,
-        clientX: startX + ((endX - startX) * progress),
-        clientY: startY + ((endY - startY) * progress),
-        button: 0,
-        buttons: 1
-      }));
-    }
-
-    window.dispatchEvent(new MouseEvent('mouseup', {
-      bubbles: true,
-      cancelable: true,
-      clientX: endX,
-      clientY: endY,
-      button: 0,
-      buttons: 0
-    }));
-  });
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  await page.mouse.move(startX + deltaX, startY + deltaY, { steps: 10 });
+  await page.mouse.up();
   await page.waitForTimeout(WIDGET_SETTLE_MS);
 
   const after = await readWidgetState(page);

@@ -1,5 +1,5 @@
 use base64::{engine::general_purpose, Engine as _};
-use chrono::Utc;
+use chrono::{Duration, Utc};
 use hex;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -11,6 +11,9 @@ const GDRIVE_TOKEN_CACHE_KEY: &str = "gdrive_access_token_cache_v1";
 const GDRIVE_MEDIA_ARCHIVE_PREFIX: &str = "community_media_drive:";
 const GDRIVE_TOKEN_REFRESH_SKEW_MS: i64 = 60_000;
 const GDRIVE_TOKEN_DEFAULT_TTL_SECONDS: u64 = 3_300;
+const COMMUNITY_SCHEMA_KV_KEY: &str = "community_schema_version";
+const COMMUNITY_SCHEMA_VERSION: &str = "community_schema_v2_sessions";
+const COMMUNITY_SESSION_TTL_SECONDS: i64 = 60 * 60 * 24 * 7;
 
 mod utils {
     use super::*;
@@ -168,14 +171,22 @@ struct Post {
     // Joined fields
     username: Option<String>,
     avatar_url: Option<String>,
+    role: Option<String>,
+    signature: Option<String>,
+    background_url: Option<String>,
     xp: Option<i32>,
     level: Option<i32>,
     #[serde(rename = "like_count")]
     likes_count: Option<i32>,
     #[serde(rename = "comment_count")]
     comments_count: Option<i32>,
+    #[serde(rename = "favorite_count")]
+    favorites_count: Option<i32>,
     #[serde(rename = "viewer_liked")]
     viewer_has_liked: Option<i32>,
+    #[serde(rename = "viewer_favorited")]
+    viewer_has_favorited: Option<i32>,
+    can_delete: Option<i32>,
     repost_data: Option<Box<Post>>,
 }
 
@@ -189,6 +200,9 @@ struct Comment {
     created_at: String,
     username: Option<String>,
     avatar_url: Option<String>,
+    role: Option<String>,
+    signature: Option<String>,
+    background_url: Option<String>,
     xp: Option<i32>,
     level: Option<i32>,
     #[serde(rename = "like_count")]
@@ -205,9 +219,17 @@ struct Notification {
     notify_type: String,
     from_user_id: String,
     target_id: String,
+    #[serde(default)]
+    is_read: Option<i32>,
     created_at: String,
     username: Option<String>,
     avatar_url: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+struct PostLikeResult {
+    liked: bool,
+    like_count: i64,
 }
 
 #[derive(Deserialize)]
@@ -277,6 +299,147 @@ async fn find_user_by_credentials(
     .bind(&[username.into(), pass_hash.into()])?
     .first::<User>(None)
     .await
+}
+
+async fn find_user_by_session_token(db: &D1Database, token: &str) -> Result<Option<User>> {
+    let token = token.trim();
+    if token.is_empty() || token.contains(':') {
+        return Ok(None);
+    }
+
+    let token_hash = utils::sha256_hex(token);
+    let now = Utc::now().to_rfc3339();
+    let user = db
+        .prepare(
+            "
+            SELECT
+                COALESCE(u.id, '') as id,
+                COALESCE(u.username, '') as username,
+                COALESCE(u.password_hash, '') as password_hash,
+                COALESCE(u.role, 'user') as role,
+                u.avatar_url,
+                u.signature,
+                u.background_url,
+                COALESCE(u.xp, 0) as xp,
+                COALESCE(u.level, 1) as level,
+                COALESCE(u.is_banned, 0) as is_banned,
+                COALESCE(u.created_at, '') as created_at
+            FROM community_sessions s
+            JOIN users u ON u.id = s.user_id
+            WHERE s.token_hash = ?
+              AND s.expires_at > ?
+              AND COALESCE(u.is_banned, 0) = 0
+            ",
+        )
+        .bind(&[token_hash.clone().into(), now.clone().into()])?
+        .first::<User>(None)
+        .await?;
+
+    if user.is_some() {
+        db.prepare("UPDATE community_sessions SET last_used_at = ? WHERE token_hash = ?")
+            .bind(&[now.into(), token_hash.into()])?
+            .run()
+            .await?;
+    }
+
+    Ok(user.map(with_community_level))
+}
+
+async fn issue_community_session(db: &D1Database, user_id: &str) -> Result<String> {
+    let token = format!("cs_{}", Uuid::new_v4().to_string().replace('-', ""));
+    let token_hash = utils::sha256_hex(&token);
+    let now = Utc::now();
+    let now_text = now.to_rfc3339();
+    let expires_at = (now + Duration::seconds(COMMUNITY_SESSION_TTL_SECONDS)).to_rfc3339();
+
+    db.prepare("DELETE FROM community_sessions WHERE expires_at <= ?")
+        .bind(&[now_text.clone().into()])?
+        .run()
+        .await?;
+    db.prepare(
+        "INSERT INTO community_sessions (token_hash, user_id, created_at, expires_at, last_used_at) VALUES (?, ?, ?, ?, ?)",
+    )
+    .bind(&[
+        token_hash.into(),
+        user_id.into(),
+        now_text.clone().into(),
+        expires_at.into(),
+        now_text.into(),
+    ])?
+    .run()
+    .await?;
+
+    Ok(token)
+}
+
+async fn community_auth_response(db: &D1Database, user: User) -> Result<Response> {
+    if user.is_banned == 1 {
+        return utils::json_resp(json!({"ok": false, "msg": "账号已被封禁"}), 403);
+    }
+
+    let token = issue_community_session(db, &user.id).await?;
+    utils::json_resp(
+        json!({"ok": true, "token": token, "user": with_community_level(user)}),
+        200,
+    )
+}
+
+async fn register_community_user(
+    db: &D1Database,
+    username: &str,
+    password: &str,
+) -> Result<std::result::Result<User, Response>> {
+    if username.len() < 2 || password.len() < 6 {
+        return Ok(Err(utils::json_resp(
+            json!({"ok": false, "msg": "用户名或密码太短"}),
+            400,
+        )?));
+    }
+
+    let existing = db
+        .prepare("SELECT 1 FROM users WHERE username = ?")
+        .bind(&[username.into()])?
+        .first::<Value>(None)
+        .await?;
+    if existing.is_some() {
+        return Ok(Err(utils::json_resp(
+            json!({"ok": false, "msg": "用户名已存在"}),
+            400,
+        )?));
+    }
+
+    let id = Uuid::new_v4().to_string();
+    let pass_hash = utils::sha256_hex(password);
+    let role = if username == "admin" { "owner" } else { "user" };
+
+    db.prepare("INSERT INTO users (id, username, password_hash, role) VALUES (?, ?, ?, ?)")
+        .bind(&[
+            id.clone().into(),
+            username.into(),
+            pass_hash.clone().into(),
+            role.into(),
+        ])?
+        .run()
+        .await?;
+
+    Ok(Ok(User {
+        id,
+        username: username.to_string(),
+        password_hash: pass_hash,
+        role: role.to_string(),
+        avatar_url: None,
+        signature: None,
+        background_url: None,
+        xp: 0,
+        level: 1,
+        is_banned: 0,
+        created_at: Utc::now().to_rfc3339(),
+        followers_count: None,
+        following_count: None,
+        viewer_is_following: None,
+        drive_quota: None,
+        drive_used: None,
+    }))
 }
 
 fn normalize_community_role(role: &str) -> String {
@@ -471,34 +634,8 @@ async fn fetch_remote_text(source_url: &str) -> Result<String> {
 async fn get_auth(req: &Request, db: &D1Database) -> Result<Option<User>> {
     let auth_header = req.headers().get("Authorization")?;
     if let Some(auth) = auth_header {
-        if auth.starts_with("Bearer ") {
-            let token = &auth[7..];
-            let parts: Vec<&str> = token.split(':').collect();
-            if parts.len() == 2 {
-                let pass_hash = parts[1];
-
-                let mut username_candidates = vec![parts[0].to_string()];
-                if parts[0].contains('%') {
-                    let decode_probe = format!("https://community.local/?username={}", parts[0]);
-                    if let Ok(parsed) = url::Url::parse(&decode_probe) {
-                        if let Some((_, decoded)) =
-                            parsed.query_pairs().find(|(k, _)| k == "username")
-                        {
-                            let decoded_username = decoded.into_owned();
-                            if decoded_username != parts[0] {
-                                username_candidates.push(decoded_username);
-                            }
-                        }
-                    }
-                }
-
-                for username in username_candidates {
-                    let user = find_user_by_credentials(db, &username, pass_hash).await?;
-                    if user.is_some() {
-                        return Ok(user);
-                    }
-                }
-            }
+        if let Some(token) = auth.strip_prefix("Bearer ") {
+            return find_user_by_session_token(db, token).await;
         }
     }
     Ok(None)
@@ -852,36 +989,29 @@ async fn award_xp(db: &D1Database, user_id: &str, amount: i32) -> Result<()> {
 }
 
 async fn ensure_community_schema(db: &D1Database) -> Result<()> {
-    let legacy_chat_cleanup = [
-        "DROP TABLE IF EXISTS messages",
-        "DROP TABLE IF EXISTS conversation_members",
-        "DROP TABLE IF EXISTS conversations",
-    ];
-
     let statements = [
         "CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'user', avatar_url TEXT, signature TEXT, background_url TEXT, xp INTEGER NOT NULL DEFAULT 0, level INTEGER NOT NULL DEFAULT 1, is_banned INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)",
-        "CREATE TABLE IF NOT EXISTS posts (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, content TEXT, media_json TEXT, type TEXT NOT NULL DEFAULT 'post', repost_id TEXT, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)",
-        "CREATE TABLE IF NOT EXISTS comments (id TEXT PRIMARY KEY, post_id TEXT NOT NULL, user_id TEXT NOT NULL, parent_id TEXT, content TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)",
-        "CREATE TABLE IF NOT EXISTS likes (post_id TEXT NOT NULL, user_id TEXT NOT NULL, PRIMARY KEY(post_id, user_id))",
-        "CREATE TABLE IF NOT EXISTS comment_likes (comment_id TEXT NOT NULL, user_id TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(comment_id, user_id))",
-        "CREATE TABLE IF NOT EXISTS follows (follower_id TEXT NOT NULL, following_id TEXT NOT NULL, PRIMARY KEY(follower_id, following_id))",
-        "CREATE TABLE IF NOT EXISTS notifications (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, type TEXT NOT NULL, from_user_id TEXT NOT NULL, target_id TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)",
-        "CREATE TABLE IF NOT EXISTS reports (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, target_type TEXT NOT NULL, target_id TEXT NOT NULL, reason TEXT, status TEXT NOT NULL DEFAULT 'pending', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)",
-        "CREATE TABLE IF NOT EXISTS user_drive_stats (user_id TEXT PRIMARY KEY, quota_bytes INTEGER NOT NULL DEFAULT 0, used_bytes INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)",
-        "CREATE TABLE IF NOT EXISTS drive_files (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, name TEXT NOT NULL, size INTEGER NOT NULL DEFAULT 0, mime_type TEXT, url TEXT, parent_id TEXT, is_folder INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS community_sessions (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, expires_at TEXT NOT NULL, last_used_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS posts (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, content TEXT, media_json TEXT, type TEXT NOT NULL DEFAULT 'post', repost_id TEXT REFERENCES posts(id) ON DELETE SET NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS comments (id TEXT PRIMARY KEY, post_id TEXT NOT NULL REFERENCES posts(id) ON DELETE CASCADE, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, parent_id TEXT REFERENCES comments(id) ON DELETE CASCADE, content TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS likes (post_id TEXT NOT NULL REFERENCES posts(id) ON DELETE CASCADE, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(post_id, user_id))",
+        "CREATE TABLE IF NOT EXISTS favorites (post_id TEXT NOT NULL REFERENCES posts(id) ON DELETE CASCADE, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(post_id, user_id))",
+        "CREATE TABLE IF NOT EXISTS comment_likes (comment_id TEXT NOT NULL REFERENCES comments(id) ON DELETE CASCADE, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(comment_id, user_id))",
+        "CREATE TABLE IF NOT EXISTS follows (follower_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, following_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(follower_id, following_id))",
+        "CREATE TABLE IF NOT EXISTS notifications (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, type TEXT NOT NULL, from_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, target_id TEXT NOT NULL, is_read INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS reports (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, target_type TEXT NOT NULL, target_id TEXT NOT NULL, reason TEXT, status TEXT NOT NULL DEFAULT 'pending', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS user_drive_stats (user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, quota_bytes INTEGER NOT NULL DEFAULT 0, used_bytes INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS drive_files (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, name TEXT NOT NULL, size INTEGER NOT NULL DEFAULT 0, mime_type TEXT, url TEXT, parent_id TEXT, is_folder INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)",
         "CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts(created_at DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_community_sessions_user ON community_sessions(user_id)",
+        "CREATE INDEX IF NOT EXISTS idx_community_sessions_expires ON community_sessions(expires_at)",
         "CREATE INDEX IF NOT EXISTS idx_comments_post_created ON comments(post_id, created_at DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_favorites_user_created ON favorites(user_id, created_at DESC)",
         "CREATE INDEX IF NOT EXISTS idx_comment_likes_comment ON comment_likes(comment_id)",
         "CREATE INDEX IF NOT EXISTS idx_notifications_user_created ON notifications(user_id, created_at DESC)",
         "CREATE INDEX IF NOT EXISTS idx_drive_files_user_parent ON drive_files(user_id, parent_id)",
         "CREATE INDEX IF NOT EXISTS idx_drive_files_parent ON drive_files(parent_id)",
     ];
-
-    let cleanup_prepared: Vec<D1PreparedStatement> = legacy_chat_cleanup
-        .iter()
-        .map(|statement| db.prepare(*statement))
-        .collect();
-    db.batch(cleanup_prepared).await?;
 
     let prepared: Vec<D1PreparedStatement> = statements
         .iter()
@@ -890,6 +1020,43 @@ async fn ensure_community_schema(db: &D1Database) -> Result<()> {
 
     db.batch(prepared).await?;
 
+    let migrations = [
+        "ALTER TABLE notifications ADD COLUMN is_read INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE likes ADD COLUMN created_at TEXT",
+        "ALTER TABLE follows ADD COLUMN created_at TEXT",
+    ];
+    for statement in migrations {
+        run_schema_statement_best_effort(db, statement).await?;
+    }
+
+    Ok(())
+}
+
+async fn run_schema_statement_best_effort(db: &D1Database, statement: &str) -> Result<()> {
+    match db.prepare(statement).run().await {
+        Ok(_) => Ok(()),
+        Err(err) => {
+            let message = format!("{}", err).to_lowercase();
+            if message.contains("duplicate column") {
+                Ok(())
+            } else {
+                Err(err)
+            }
+        }
+    }
+}
+
+async fn ensure_community_schema_once(env: &Env) -> Result<()> {
+    let kv = env.kv("SCHEDULE_KV")?;
+    if kv.get(COMMUNITY_SCHEMA_KV_KEY).text().await?.as_deref() == Some(COMMUNITY_SCHEMA_VERSION) {
+        return Ok(());
+    }
+
+    let db = env.d1("COMMUNITY_DB")?;
+    ensure_community_schema(&db).await?;
+    kv.put(COMMUNITY_SCHEMA_KV_KEY, COMMUNITY_SCHEMA_VERSION)?
+        .execute()
+        .await?;
     Ok(())
 }
 
@@ -912,6 +1079,83 @@ async fn add_notify(
             target_id.into()
         ])?
         .run().await?;
+    Ok(())
+}
+
+async fn toggle_post_like(db: &D1Database, user: &User, post_id: &str) -> Result<PostLikeResult> {
+    let existing = db
+        .prepare("SELECT 1 FROM likes WHERE post_id = ? AND user_id = ?")
+        .bind(&[post_id.into(), user.id.clone().into()])?
+        .first::<Value>(None)
+        .await?;
+
+    let liked = if existing.is_some() {
+        db.prepare("DELETE FROM likes WHERE post_id = ? AND user_id = ?")
+            .bind(&[post_id.into(), user.id.clone().into()])?
+            .run()
+            .await?;
+        false
+    } else {
+        db.prepare("INSERT INTO likes (post_id, user_id) VALUES (?, ?)")
+            .bind(&[post_id.into(), user.id.clone().into()])?
+            .run()
+            .await?;
+
+        let target = db
+            .prepare("SELECT user_id FROM posts WHERE id = ?")
+            .bind(&[post_id.into()])?
+            .first::<Value>(None)
+            .await?;
+        if let Some(t) = target {
+            if let Some(tid) = t["user_id"].as_str() {
+                add_notify(db, tid, "like", &user.id, post_id).await?;
+            }
+        }
+        true
+    };
+
+    let like_count = db
+        .prepare("SELECT COUNT(*) as count FROM likes WHERE post_id = ?")
+        .bind(&[post_id.into()])?
+        .first::<Value>(None)
+        .await?
+        .and_then(|value| value["count"].as_i64())
+        .unwrap_or(0);
+
+    Ok(PostLikeResult { liked, like_count })
+}
+
+async fn delete_post_cascade(db: &D1Database, post_id: &str) -> Result<()> {
+    db.prepare(
+        "DELETE FROM comment_likes WHERE comment_id IN (SELECT id FROM comments WHERE post_id = ?)",
+    )
+    .bind(&[post_id.into()])?
+    .run()
+    .await?;
+    db.prepare("DELETE FROM comments WHERE post_id = ?")
+        .bind(&[post_id.into()])?
+        .run()
+        .await?;
+    db.prepare("DELETE FROM likes WHERE post_id = ?")
+        .bind(&[post_id.into()])?
+        .run()
+        .await?;
+    db.prepare("DELETE FROM favorites WHERE post_id = ?")
+        .bind(&[post_id.into()])?
+        .run()
+        .await?;
+    db.prepare("DELETE FROM reports WHERE target_type = 'post' AND target_id = ?")
+        .bind(&[post_id.into()])?
+        .run()
+        .await?;
+    db.prepare("DELETE FROM notifications WHERE target_id = ?")
+        .bind(&[post_id.into()])?
+        .run()
+        .await?;
+    db.prepare("DELETE FROM posts WHERE id = ?")
+        .bind(&[post_id.into()])?
+        .run()
+        .await?;
     Ok(())
 }
 
@@ -1032,8 +1276,7 @@ async fn upload_to_drive(
 pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response> {
     let request_url = req.url()?;
     if request_url.path().starts_with("/api/community") {
-        let db = env.d1("COMMUNITY_DB")?;
-        ensure_community_schema(&db).await?;
+        ensure_community_schema_once(&env).await?;
     }
 
     let router = Router::with_data(fetch_ctx);
@@ -1067,25 +1310,11 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
             let username = body["username"].as_str().unwrap_or("");
             let password = body["password"].as_str().unwrap_or("");
 
-            if username.len() < 2 || password.len() < 6 {
-                return utils::json_resp(json!({"ok": false, "msg": "用户名或密码太短"}), 400);
-            }
-
             let db = ctx.env.d1("COMMUNITY_DB")?;
-            let existing = db.prepare("SELECT 1 FROM users WHERE username = ?").bind(&[username.into()])?.first::<Value>(None).await?;
-            if existing.is_some() {
-                return utils::json_resp(json!({"ok": false, "msg": "用户名已存在"}), 400);
+            match register_community_user(&db, username, password).await? {
+                Ok(user) => community_auth_response(&db, user).await,
+                Err(response) => Ok(response),
             }
-
-            let id = Uuid::new_v4().to_string();
-            let pass_hash = utils::sha256_hex(password);
-            let role = if username == "admin" { "owner" } else { "user" };
-
-            db.prepare("INSERT INTO users (id, username, password_hash, role) VALUES (?, ?, ?, ?)")
-                .bind(&[id.into(), username.into(), pass_hash.clone().into(), role.into()])?
-                .run().await?;
-
-            utils::json_resp(json!({"ok": true, "token": format!("{}:{}", username, pass_hash)}), 200)
         })
         .post_async("/api/community/auth", |mut req, ctx| async move {
             let body: Value = req.json().await?;
@@ -1094,25 +1323,11 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
             let password = body["password"].as_str().unwrap_or("");
 
             if action == "register" {
-                if username.len() < 2 || password.len() < 6 {
-                    return utils::json_resp(json!({"ok": false, "msg": "用户名或密码太短"}), 400);
-                }
-
                 let db = ctx.env.d1("COMMUNITY_DB")?;
-                let existing = db.prepare("SELECT 1 FROM users WHERE username = ?").bind(&[username.into()])?.first::<Value>(None).await?;
-                if existing.is_some() {
-                    return utils::json_resp(json!({"ok": false, "msg": "用户名已存在"}), 400);
-                }
-
-                let id = Uuid::new_v4().to_string();
-                let pass_hash = utils::sha256_hex(password);
-                let role = if username == "admin" { "owner" } else { "user" };
-
-                db.prepare("INSERT INTO users (id, username, password_hash, role) VALUES (?, ?, ?, ?)")
-                    .bind(&[id.into(), username.into(), pass_hash.clone().into(), role.into()])?
-                    .run().await?;
-
-                return utils::json_resp(json!({"ok": true, "token": format!("{}:{}", username, pass_hash)}), 200);
+                return match register_community_user(&db, username, password).await? {
+                    Ok(user) => community_auth_response(&db, user).await,
+                    Err(response) => Ok(response),
+                };
             }
 
             let pass_hash = utils::sha256_hex(password);
@@ -1123,7 +1338,7 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
                 if u.is_banned == 1 {
                     return utils::json_resp(json!({"ok": false, "msg": "账号已被封禁"}), 403);
                 }
-                utils::json_resp(json!({"ok": true, "token": format!("{}:{}", username, pass_hash)}), 200)
+                community_auth_response(&db, u).await
             } else {
                 utils::json_resp(json!({"ok": false, "msg": "用户名或密码错误"}), 401)
             }
@@ -1141,7 +1356,7 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
                 if u.is_banned == 1 {
                     return utils::json_resp(json!({"ok": false, "msg": "账号已被封禁"}), 403);
                 }
-                utils::json_resp(json!({"ok": true, "token": format!("{}:{}", username, pass_hash)}), 200)
+                community_auth_response(&db, u).await
             } else {
                 utils::json_resp(json!({"ok": false, "msg": "用户名或密码错误"}), 401)
             }
@@ -1160,6 +1375,14 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
             let user = get_auth(&req, &db).await?;
             let url = req.url()?;
             let uid = url.query_pairs().find(|(k, _)| k == "userId").map(|(_, v)| v.to_string());
+            let q = url.query_pairs().find(|(k, _)| k == "q").map(|(_, v)| v.to_string()).unwrap_or_default();
+            let favorites_only = url.query_pairs().any(|(k, v)| {
+                (k == "favorites" || k == "bookmarked") && matches!(v.as_ref(), "1" | "true" | "yes")
+            });
+
+            if favorites_only && user.is_none() {
+                return utils::json_resp(json!({"ok": false, "msg": "login required"}), 401);
+            }
 
             let mut sql = "
                 SELECT
@@ -1172,24 +1395,54 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
                 COALESCE(p.created_at, '') as created_at,
                 COALESCE(u.username, '[账号不可用]') as username,
                 u.avatar_url,
+                COALESCE(u.role, 'user') as role,
+                u.signature,
+                u.background_url,
                 COALESCE(u.xp, 0) as xp,
                 COALESCE(u.level, 1) as level,
                 (SELECT COUNT(*) FROM likes WHERE post_id = p.id) as likes_count,
-                (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comments_count
+                (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comments_count,
+                (SELECT COUNT(*) FROM favorites WHERE post_id = p.id) as favorites_count
             ".to_string();
 
+            let mut params: Vec<wasm_bindgen::JsValue> = Vec::new();
             if let Some(ref u) = user {
-                sql += &format!(", (SELECT 1 FROM likes WHERE post_id = p.id AND user_id = '{}') as viewer_has_liked", u.id);
+                sql += ", EXISTS(SELECT 1 FROM likes l WHERE l.post_id = p.id AND l.user_id = ?) as viewer_has_liked";
+                params.push(u.id.clone().into());
+                sql += ", (SELECT 1 FROM favorites WHERE post_id = p.id AND user_id = ?) as viewer_has_favorited";
+                params.push(u.id.clone().into());
+                sql += ", CASE WHEN p.user_id = ? OR ? IN ('admin', 'owner') THEN 1 ELSE 0 END as can_delete";
+                params.push(u.id.clone().into());
+                params.push(normalize_community_role(&u.role).into());
             } else {
                 sql += ", 0 as viewer_has_liked";
+                sql += ", 0 as viewer_has_favorited";
+                sql += ", 0 as can_delete";
             }
 
             sql += " FROM posts p LEFT JOIN users u ON p.user_id = u.id ";
 
-            let mut params = Vec::new();
+            let mut filters: Vec<String> = Vec::new();
             if let Some(id) = uid {
-                sql += " WHERE p.user_id = ? ";
+                filters.push("p.user_id = ?".to_string());
                 params.push(id.into());
+            }
+            if favorites_only {
+                if let Some(ref u) = user {
+                    filters.push("EXISTS (SELECT 1 FROM favorites f WHERE f.post_id = p.id AND f.user_id = ?)".to_string());
+                    params.push(u.id.clone().into());
+                }
+            }
+            let trimmed_q = q.trim();
+            if !trimmed_q.is_empty() {
+                let like_query = format!("%{}%", trimmed_q);
+                filters.push("(COALESCE(p.content, '') LIKE ? OR COALESCE(u.username, '') LIKE ?)".to_string());
+                params.push(like_query.clone().into());
+                params.push(like_query.into());
+            }
+            if !filters.is_empty() {
+                sql += " WHERE ";
+                sql += &filters.join(" AND ");
             }
 
             sql += " ORDER BY p.created_at DESC LIMIT 50";
@@ -1211,8 +1464,17 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
                         COALESCE(p.created_at, '') as created_at,
                         COALESCE(u.username, '[账号不可用]') as username,
                         u.avatar_url,
+                        COALESCE(u.role, 'user') as role,
+                        u.signature,
+                        u.background_url,
                         COALESCE(u.xp, 0) as xp,
-                        COALESCE(u.level, 1) as level
+                        COALESCE(u.level, 1) as level,
+                        0 as likes_count,
+                        0 as comments_count,
+                        0 as favorites_count,
+                        0 as viewer_has_liked,
+                        0 as viewer_has_favorited,
+                        0 as can_delete
                         FROM posts p LEFT JOIN users u ON p.user_id = u.id
                         WHERE p.id = ?
                     ";
@@ -1293,30 +1555,13 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
             };
 
             let body: Value = req.json().await?;
-            let post_id = body["post_id"].as_str().unwrap_or("");
-
-            let existing = db.prepare("SELECT 1 FROM likes WHERE post_id = ? AND user_id = ?")
-                .bind(&[post_id.into(), user.id.clone().into()])?
-                .first::<Value>(None).await?;
-
-            if existing.is_some() {
-                db.prepare("DELETE FROM likes WHERE post_id = ? AND user_id = ?")
-                    .bind(&[post_id.into(), user.id.into()])?
-                    .run().await?;
-                utils::json_resp(json!({"ok": true, "liked": false}), 200)
-            } else {
-                db.prepare("INSERT INTO likes (post_id, user_id) VALUES (?, ?)")
-                    .bind(&[post_id.into(), user.id.clone().into()])?
-                    .run().await?;
-
-                let target = db.prepare("SELECT user_id FROM posts WHERE id = ?").bind(&[post_id.into()])?.first::<Value>(None).await?;
-                if let Some(t) = target {
-                    if let Some(tid) = t["user_id"].as_str() {
-                        add_notify(&db, tid, "like", &user.id, post_id).await?;
-                    }
-                }
-                utils::json_resp(json!({"ok": true, "liked": true}), 200)
+            let post_id = body["post_id"].as_str().unwrap_or("").trim().to_string();
+            if post_id.is_empty() {
+                return utils::json_resp(json!({"ok": false, "msg": "missing post id"}), 400);
             }
+
+            let result = toggle_post_like(&db, &user, &post_id).await?;
+            utils::json_resp(json!({"ok": true, "liked": result.liked, "like_count": result.like_count}), 200)
         })
         .post_async("/api/community/like", |mut req, ctx| async move {
             let db = ctx.env.d1("COMMUNITY_DB")?;
@@ -1327,34 +1572,95 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
             };
 
             let body: Value = req.json().await?;
-            let post_id = body["post_id"].as_str().unwrap_or("");
+            let post_id = body["post_id"].as_str().unwrap_or("").trim().to_string();
+            if post_id.is_empty() {
+                return utils::json_resp(json!({"ok": false, "msg": "missing post id"}), 400);
+            }
 
-            let existing = db.prepare("SELECT 1 FROM likes WHERE post_id = ? AND user_id = ?")
-                .bind(&[post_id.into(), user.id.clone().into()])?
+            let result = toggle_post_like(&db, &user, &post_id).await?;
+            let action = if result.liked { "liked" } else { "unliked" };
+            utils::json_resp(json!({"ok": true, "action": action, "liked": result.liked, "like_count": result.like_count}), 200)
+        })
+        .post_async("/api/community/posts/favorite", |mut req, ctx| async move {
+            let db = ctx.env.d1("COMMUNITY_DB")?;
+            let user = get_auth(&req, &db).await?;
+            let user = match user {
+                Some(u) => u,
+                None => return utils::json_resp(json!({"ok": false}), 401)
+            };
+
+            let body: Value = req.json().await?;
+            let post_id = body["post_id"].as_str().unwrap_or("").trim().to_string();
+            if post_id.is_empty() {
+                return utils::json_resp(json!({"ok": false, "msg": "missing post id"}), 400);
+            }
+
+            let target = db.prepare("SELECT 1 FROM posts WHERE id = ?")
+                .bind(&[post_id.clone().into()])?
+                .first::<Value>(None)
+                .await?;
+            if target.is_none() {
+                return utils::json_resp(json!({"ok": false, "msg": "post not found"}), 404);
+            }
+
+            let existing = db.prepare("SELECT 1 FROM favorites WHERE post_id = ? AND user_id = ?")
+                .bind(&[post_id.clone().into(), user.id.clone().into()])?
                 .first::<Value>(None)
                 .await?;
 
-            if existing.is_some() {
-                db.prepare("DELETE FROM likes WHERE post_id = ? AND user_id = ?")
-                    .bind(&[post_id.into(), user.id.into()])?
+            let favorited = if existing.is_some() {
+                db.prepare("DELETE FROM favorites WHERE post_id = ? AND user_id = ?")
+                    .bind(&[post_id.clone().into(), user.id.clone().into()])?
                     .run()
                     .await?;
-                utils::json_resp(json!({"ok": true, "action": "unliked", "liked": false}), 200)
+                false
             } else {
-                db.prepare("INSERT INTO likes (post_id, user_id) VALUES (?, ?)")
-                    .bind(&[post_id.into(), user.id.clone().into()])?
+                db.prepare("INSERT INTO favorites (post_id, user_id) VALUES (?, ?)")
+                    .bind(&[post_id.clone().into(), user.id.clone().into()])?
                     .run()
                     .await?;
+                true
+            };
 
-                let target = db.prepare("SELECT user_id FROM posts WHERE id = ?").bind(&[post_id.into()])?.first::<Value>(None).await?;
-                if let Some(t) = target {
-                    if let Some(tid) = t["user_id"].as_str() {
-                        add_notify(&db, tid, "like", &user.id, post_id).await?;
-                    }
-                }
+            let favorite_count = db.prepare("SELECT COUNT(*) as count FROM favorites WHERE post_id = ?")
+                .bind(&[post_id.into()])?
+                .first::<Value>(None)
+                .await?
+                .and_then(|value| value["count"].as_i64())
+                .unwrap_or(0);
 
-                utils::json_resp(json!({"ok": true, "action": "liked", "liked": true}), 200)
+            utils::json_resp(json!({"ok": true, "favorited": favorited, "favorite_count": favorite_count}), 200)
+        })
+        .post_async("/api/community/posts/delete", |mut req, ctx| async move {
+            let db = ctx.env.d1("COMMUNITY_DB")?;
+            let user = get_auth(&req, &db).await?;
+            let user = match user {
+                Some(u) => u,
+                None => return utils::json_resp(json!({"ok": false}), 401)
+            };
+
+            let body: Value = req.json().await?;
+            let post_id = body["post_id"].as_str().unwrap_or("").trim().to_string();
+            if post_id.is_empty() {
+                return utils::json_resp(json!({"ok": false, "msg": "missing post id"}), 400);
             }
+
+            let target = db.prepare("SELECT user_id FROM posts WHERE id = ?")
+                .bind(&[post_id.clone().into()])?
+                .first::<Value>(None)
+                .await?;
+            let Some(target) = target else {
+                return utils::json_resp(json!({"ok": false, "msg": "post not found"}), 404);
+            };
+
+            let owner_id = target["user_id"].as_str().unwrap_or("");
+            let role = normalize_community_role(&user.role);
+            if owner_id != user.id && !is_community_admin_role(&role) {
+                return utils::json_resp(json!({"ok": false, "msg": "forbidden"}), 403);
+            }
+
+            delete_post_cascade(&db, &post_id).await?;
+            utils::json_resp(json!({"ok": true, "deleted": true, "post_id": post_id}), 200)
         })
         .get_async("/api/community/comments", |req, ctx| async move {
             let db = ctx.env.d1("COMMUNITY_DB")?;
@@ -1371,6 +1677,9 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
                     c.*,
                     u.username,
                     u.avatar_url,
+                    COALESCE(u.role, 'user') as role,
+                    u.signature,
+                    u.background_url,
                     u.xp,
                     u.level,
                     (SELECT COUNT(*) FROM comment_likes WHERE comment_id = c.id) as likes_count
@@ -1434,6 +1743,21 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
                 return utils::json_resp(json!({"ok": false, "msg": "帖子不存在"}), 404);
             };
 
+            let mut parent_owner_id: Option<String> = None;
+            if let Some(parent_id) = parent_id {
+                let parent = db.prepare("SELECT user_id, post_id FROM comments WHERE id = ?")
+                    .bind(&[parent_id.into()])?
+                    .first::<Value>(None)
+                    .await?;
+                let Some(parent) = parent else {
+                    return utils::json_resp(json!({"ok": false, "msg": "reply target not found"}), 404);
+                };
+                if parent["post_id"].as_str() != Some(post_id.as_str()) {
+                    return utils::json_resp(json!({"ok": false, "msg": "reply target mismatch"}), 400);
+                }
+                parent_owner_id = parent["user_id"].as_str().map(|value| value.to_string());
+            }
+
             let id = Uuid::new_v4().to_string();
             let mut insert_params: Vec<wasm_bindgen::JsValue> = vec![
                 id.clone().into(),
@@ -1454,12 +1778,18 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
             if let Some(tid) = target["user_id"].as_str() {
                 add_notify(&db, tid, "comment", &user.id, &post_id).await?;
             }
+            if let Some(parent_owner_id) = parent_owner_id {
+                add_notify(&db, &parent_owner_id, "reply", &user.id, &id).await?;
+            }
 
             let mut comment = db.prepare("
                 SELECT
                     c.*,
                     u.username,
                     u.avatar_url,
+                    COALESCE(u.role, 'user') as role,
+                    u.signature,
+                    u.background_url,
                     u.xp,
                     u.level,
                     0 as likes_count,
@@ -1549,8 +1879,11 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
             let results = db.prepare("
                 SELECT n.*, u.username, u.avatar_url FROM notifications n
                 JOIN users u ON n.from_user_id = u.id
-                WHERE n.user_id = ? ORDER BY n.created_at DESC LIMIT 50
-            ").bind(&[user.id.into()])?.all().await?.results::<Notification>()?;
+                WHERE n.user_id = ?
+                  AND n.from_user_id <> ?
+                  AND n.type IN ('like', 'comment', 'reply', 'repost', 'comment_like')
+                ORDER BY n.created_at DESC LIMIT 50
+            ").bind(&[user.id.clone().into(), user.id.into()])?.all().await?.results::<Notification>()?;
 
             utils::json_resp(json!({"ok": true, "notifications": results}), 200)
         })
@@ -1619,10 +1952,17 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
             let avatar_url = body["avatar_url"].as_str();
 
             db.prepare("UPDATE users SET signature = COALESCE(?, signature), background_url = COALESCE(?, background_url), avatar_url = COALESCE(?, avatar_url) WHERE id = ?")
-                .bind(&[signature.into(), background_url.into(), avatar_url.into(), user.id.into()])?
+                .bind(&[signature.into(), background_url.into(), avatar_url.into(), user.id.clone().into()])?
                 .run().await?;
 
-            utils::json_resp(json!({"ok": true}), 200)
+            let mut updated = db.prepare("SELECT id, username, avatar_url, background_url, signature, level, xp, role, is_banned, created_at FROM users WHERE id = ?")
+                .bind(&[user.id.into()])?
+                .first::<User>(None)
+                .await?
+                .unwrap_or_default();
+            updated.level = utils::get_community_level_from_xp(updated.xp);
+
+            utils::json_resp(json!({"ok": true, "user": updated}), 200)
         })
         .get_async("/api/community/discovery", |req, ctx| async move {
             let db = ctx.env.d1("COMMUNITY_DB")?;
@@ -1781,7 +2121,7 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
                 "delete_item" => {
                     if let Some(tid) = action.target_id {
                         if action.target_type.as_deref() == Some("post") {
-                            db.prepare("DELETE FROM posts WHERE id = ?").bind(&[tid.into()])?.run().await?;
+                            delete_post_cascade(&db, &tid).await?;
                         } else if action.target_type.as_deref() == Some("comment") {
                             db.prepare("DELETE FROM comments WHERE id = ?").bind(&[tid.into()])?.run().await?;
                         }
@@ -2128,12 +2468,30 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
             let target_type = body["target_type"].as_str().unwrap_or("");
             let target_id = body["target_id"].as_str().unwrap_or("");
             let reason = body["reason"].as_str();
+            let reason_text = reason.unwrap_or("").trim();
+
+            if !matches!(target_type, "post" | "comment" | "user") || target_id.trim().is_empty() {
+                return utils::json_resp(json!({"ok": false, "msg": "invalid report target"}), 400);
+            }
+            if reason_text.is_empty() {
+                return utils::json_resp(json!({"ok": false, "msg": "reason required"}), 400);
+            }
+
+            let target_exists = match target_type {
+                "post" => db.prepare("SELECT 1 FROM posts WHERE id = ?").bind(&[target_id.into()])?.first::<Value>(None).await?,
+                "comment" => db.prepare("SELECT 1 FROM comments WHERE id = ?").bind(&[target_id.into()])?.first::<Value>(None).await?,
+                "user" => db.prepare("SELECT 1 FROM users WHERE id = ?").bind(&[target_id.into()])?.first::<Value>(None).await?,
+                _ => None
+            };
+            if target_exists.is_none() {
+                return utils::json_resp(json!({"ok": false, "msg": "target not found"}), 404);
+            }
 
             let id = Uuid::new_v4().to_string();
             db.prepare("INSERT INTO reports (id, user_id, target_type, target_id, reason) VALUES (?, ?, ?, ?, ?)")
-                .bind(&[id.into(), user.id.into(), target_type.into(), target_id.into(), reason.into()])?.run().await?;
+                .bind(&[id.clone().into(), user.id.into(), target_type.into(), target_id.into(), reason_text.into()])?.run().await?;
 
-            utils::json_resp(json!({"ok": true}), 200)
+            utils::json_resp(json!({"ok": true, "report_id": id, "msg": "report received"}), 200)
         })
         .post_async("/api/community/upload", |mut req, ctx| async move {
             let upload_started_ms = now_ms();

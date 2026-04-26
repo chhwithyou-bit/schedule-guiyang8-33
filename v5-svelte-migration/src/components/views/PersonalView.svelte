@@ -190,9 +190,10 @@
     overflow: hidden;
     border: 1px solid rgba(255, 255, 255, 0.12);
     background:
-      linear-gradient(145deg, rgba(var(--glow-primary-rgb), 0.14) 0% 42%, rgba(var(--glow-secondary-rgb), 0.1) 42% 100%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(var(--color-bg-rgb), 0.16)),
-      rgba(var(--color-bg-rgb), 0.18);
+      radial-gradient(circle at 14% 0%, rgba(var(--glow-primary-rgb), 0.13), transparent 34%),
+      radial-gradient(circle at 88% 12%, rgba(var(--glow-secondary-rgb), 0.09), transparent 30%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(var(--color-bg-rgb), 0.16)),
+      rgba(var(--color-bg-rgb), 0.2);
     box-shadow:
       0 20px 48px rgba(var(--shadow-rgb), 0.14),
       inset 0 1px 0 rgba(255, 255, 255, 0.14),

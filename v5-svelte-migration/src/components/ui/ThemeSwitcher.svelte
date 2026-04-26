@@ -15,6 +15,7 @@
   let animationFrame: number;
   let activeThemeSwitch: Promise<void> | null = null;
   let queuedThemeSwitch: { themeId: string; event?: MouseEvent | { clientX: number, clientY: number }; isFromInitPanel: boolean } | null = null;
+  let themeWashEase = 'power3.out';
 
   /**
    * Particle Kinematics for "The Spark"
@@ -30,8 +31,7 @@
       // Random direction (angle) in radians (0 to 2PI)
       const angle = Math.random() * Math.PI * 2;
 
-      // Initial explosive force (velocity)
-      const force = Math.random() * 8 + 4; 
+      const force = Math.random() * 3.2 + 1.6;
 
       // Resolve velocity vector into X and Y components
       this.vx = Math.cos(angle) * force;
@@ -39,10 +39,10 @@
 
       this.color = color;
       this.alpha = 1;
-      this.size = Math.random() * 3 + 1.5;
+      this.size = Math.random() * 1.6 + 1.1;
 
       // Friction coefficient to simulate air resistance, slowing down the particles over time
-      this.friction = 0.94; 
+      this.friction = 0.955;
     }
 
     update() {
@@ -55,7 +55,7 @@
       this.y += this.vy;
 
       // Fade out effect
-      this.alpha -= 0.015; 
+      this.alpha -= 0.012;
     }
 
     draw(ctx: CanvasRenderingContext2D) {
@@ -74,7 +74,8 @@
   onMount(() => {
     try {
       gsap.registerPlugin(CustomEase);
-      CustomEase.create("custom", "M0,0,C0.25,1,0.5,1,1,1");
+      CustomEase.create('appleEase', 'M0,0 C0.16,1 0.3,1 1,1');
+      themeWashEase = 'appleEase';
     } catch (e) {
       console.warn('GSAP CustomEase registration failed, using fallback ease', e);
     }
@@ -184,7 +185,7 @@
       const radius = Math.hypot(distX, distY);
 
       // Burst 20-30 particles with the new theme's primary color
-      const particleCount = Math.floor(Math.random() * 11) + 20; // 20 to 30
+      const particleCount = Math.floor(Math.random() * 7) + 14;
       particles = Array.from({ length: particleCount }, () => new Particle(originX, originY, target.primary));
       cancelAnimationFrame(animationFrame);
       renderParticles();
@@ -212,7 +213,7 @@
         backgroundColor: target.bg,
         color: target.bg,
         opacity: 1,
-        scale: 0,
+        scale: 0.04,
         display: 'block' // Show it
       });
 
@@ -222,8 +223,8 @@
 
       tl.to(inkWashNode, {
         scale: targetScale,
-        duration: 0.5,
-        ease: 'custom'
+        duration: 0.68,
+        ease: themeWashEase
       }, 0); // Start immediately with particles
 
       // Phase 3: The Shift
@@ -242,14 +243,13 @@
         } else {
           themeInitialized.set(true);
         }
-      }, 0.5); // After 500ms when screen is fully masked
+      }, 0.58);
 
-      // Fade out mask over 300ms
       tl.to(inkWashNode, {
         opacity: 0,
-        duration: 0.3,
-        ease: 'power2.inOut'
-      }, 0.6); // 100ms after the mask fully covers (500ms + 100ms)
+        duration: 0.42,
+        ease: 'power2.out'
+      }, 0.72);
     });
 
     return activeThemeSwitch;
@@ -273,14 +273,14 @@
       <div class="aura-picker-copy">
         <div class="max-w-xl">
           <p class="aura-kicker">Theme Archive</p>
-          <h2 id="theme-picker-title" class="text-[2rem] md:text-[2.8rem] font-black text-[#fff4ed] tracking-[-0.04em] leading-none">Pick Your Aura</h2>
-          <p class="mt-2 text-[13px] md:text-[14px] text-[rgba(255,244,237,0.72)] leading-6">
+          <h2 id="theme-picker-title" class="text-[2rem] md:text-[2.8rem] font-black text-[var(--color-text)] tracking-[-0.04em] leading-none">Pick Your Aura</h2>
+          <p class="mt-2 text-[13px] md:text-[14px] text-[var(--color-text-soft)] leading-6">
             先选一种今天网站的气色，整站背景、阴影和发光会一起切换。
           </p>
         </div>
 
-        <p class="max-w-sm text-[10px] font-semibold uppercase tracking-[0.2em] text-[rgba(255,244,237,0.42)]">
-          Split palette cards below echo the reference boards directly.
+        <p class="max-w-sm text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--color-text-soft)] opacity-55">
+          Palette cards now use weighted color, not hard split contrast.
         </p>
       </div>
 
@@ -290,7 +290,7 @@
             type="button"
             on:click|preventDefault|stopPropagation={(e) => handleThemeSwitch(theme.id, e, true)}
             data-theme-id={theme.id}
-            class="aura-card group relative overflow-hidden rounded-[28px] md:rounded-[40px] border border-white/10 bg-white/5 text-left transition-all duration-500 hover:scale-[1.015] hover:border-white/25 active:scale-[0.985]"
+            class="aura-card group relative overflow-hidden rounded-[28px] md:rounded-[40px] border border-white/10 bg-white/5 text-left hover:border-white/25 active:scale-[0.992]"
             style="--aura-a: {theme.primary}; --aura-b: {theme.secondary}; --aura-ink: {theme.accent}; --aura-bg: {theme.bg};"
           >
             <div class="aura-card-bg"></div>
@@ -344,8 +344,10 @@
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 2.25rem;
     background:
-      linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)),
-      linear-gradient(180deg, rgba(var(--color-bg-rgb), 0.42), rgba(var(--color-bg-rgb), 0.24));
+      radial-gradient(circle at 18% 0%, rgba(var(--glow-primary-rgb), 0.14), transparent 30%),
+      radial-gradient(circle at 92% 12%, rgba(var(--glow-secondary-rgb), 0.1), transparent 32%),
+      linear-gradient(145deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.025)),
+      linear-gradient(180deg, rgba(var(--color-bg-rgb), 0.58), rgba(var(--color-bg-rgb), 0.32));
     box-shadow:
       0 28px 64px rgba(var(--shadow-rgb), 0.22),
       inset 0 1px 0 rgba(255, 255, 255, 0.12);
@@ -374,6 +376,17 @@
     box-shadow:
       0 18px 38px rgba(var(--shadow-rgb), 0.16),
       inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    transform: translate3d(0, 0, 0) scale(1);
+    transition:
+      transform var(--motion-duration-medium) var(--motion-ease-apple),
+      border-color var(--motion-duration-medium) var(--motion-ease-apple),
+      box-shadow var(--motion-duration-medium) var(--motion-ease-apple);
+    will-change: transform, box-shadow;
+  }
+
+  .aura-card:hover,
+  .aura-card:focus-visible {
+    transform: translate3d(0, -3px, 0) scale(1.006);
   }
 
   .aura-card-content {
@@ -402,7 +415,8 @@
     font-weight: 900;
     letter-spacing: 0.28em;
     text-transform: uppercase;
-    color: rgba(255, 244, 237, 0.46);
+    color: var(--color-text-soft);
+    opacity: 0.64;
   }
 
   .aura-card-bg,
@@ -413,10 +427,12 @@
 
   .aura-card-bg {
     background:
-      radial-gradient(circle at 24% 26%, rgba(255, 255, 255, 0.26), transparent 26%),
-      radial-gradient(circle at 80% 24%, rgba(255, 255, 255, 0.18), transparent 22%),
-      linear-gradient(105deg, var(--aura-a) 0 50%, var(--aura-b) 50% 100%);
-    transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1), filter 0.9s ease;
+      radial-gradient(circle at 20% 18%, color-mix(in srgb, var(--aura-a) 42%, transparent), transparent 34%),
+      radial-gradient(circle at 84% 20%, color-mix(in srgb, var(--aura-b) 30%, transparent), transparent 30%),
+      linear-gradient(145deg, color-mix(in srgb, var(--aura-bg) 74%, var(--aura-ink) 26%) 0%, var(--aura-bg) 56%, color-mix(in srgb, var(--aura-bg) 84%, var(--aura-b) 16%) 100%);
+    transition:
+      transform var(--motion-duration-slow) var(--motion-ease-apple),
+      filter var(--motion-duration-slow) var(--motion-ease-apple);
   }
 
   .aura-card:hover .aura-card-bg,
@@ -427,10 +443,10 @@
 
   .aura-card-noise {
     background:
-      linear-gradient(125deg, rgba(255, 255, 255, 0.2), transparent 26%),
-      linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.08) 100%);
-    mix-blend-mode: screen;
-    opacity: 0.84;
+      linear-gradient(125deg, rgba(255, 255, 255, 0.16), transparent 30%),
+      linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.18) 100%);
+    mix-blend-mode: soft-light;
+    opacity: 0.9;
   }
 
   .aura-tag,
@@ -449,7 +465,7 @@
   }
 
   .aura-tag {
-    background: rgba(var(--glow-primary-rgb), 0.18);
+    background: color-mix(in srgb, var(--aura-a) 32%, transparent);
     color: white;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
   }

@@ -1,16 +1,15 @@
 import { get } from 'svelte/store';
-import { user } from '../stores/appState';
+import { user, type CommunityUser } from '../stores/appState';
 
-type CommunitySession = {
-  username?: string;
-  passHash?: string;
-  role?: string;
+export type CommunitySession = CommunityUser & {
+  username: string;
+  authToken: string;
 };
 
-function isSessionLike(value: unknown): value is Required<Pick<CommunitySession, 'username' | 'passHash'>> & CommunitySession {
+function isSessionLike(value: unknown): value is CommunitySession {
   if (!value || typeof value !== 'object') return false;
   const session = value as CommunitySession;
-  return Boolean(String(session.username || '').trim() && String(session.passHash || '').trim());
+  return Boolean(String(session.username || '').trim() && String(session.authToken || '').trim());
 }
 
 export function readStoredCommunitySession(): CommunitySession | null {
@@ -36,11 +35,15 @@ export function getCommunityAuthHeaders(headers: HeadersInit = {}): Headers {
   const resolvedHeaders = new Headers(headers);
   const session = getCommunitySession();
 
-  if (session?.username && session?.passHash) {
-    resolvedHeaders.set('Authorization', `Bearer ${encodeURIComponent(session.username)}:${session.passHash}`);
+  if (session?.authToken) {
+    resolvedHeaders.set('Authorization', buildCommunityAuthHeader(session.authToken));
   }
 
   return resolvedHeaders;
+}
+
+export function buildCommunityAuthHeader(authToken: string) {
+  return `Bearer ${authToken}`;
 }
 
 export function communityFetch(input: RequestInfo | URL, init: RequestInit = {}) {
@@ -52,5 +55,9 @@ export function communityFetch(input: RequestInfo | URL, init: RequestInit = {})
 
 export function persistCommunitySession(nextUser: unknown) {
   if (typeof window === 'undefined') return;
-  localStorage.setItem('commUser', JSON.stringify(nextUser));
+  if (isSessionLike(nextUser)) {
+    localStorage.setItem('commUser', JSON.stringify(nextUser));
+  } else {
+    localStorage.removeItem('commUser');
+  }
 }

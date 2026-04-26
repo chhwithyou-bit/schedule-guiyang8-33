@@ -1,4 +1,4 @@
-import { cubicOut } from 'svelte/easing';
+import { expoOut } from 'svelte/easing';
 import type { TransitionConfig } from 'svelte/transition';
 
 type SoftRevealParams = {
@@ -14,16 +14,16 @@ export function softReveal(
   _node: Element,
   {
     x = 0,
-    y = 18,
-    duration = 320,
-    startScale = 0.985,
-    blur = 8,
+    y = 14,
+    duration = 420,
+    startScale = 0.994,
+    blur = 5,
     opacity = 0
   }: SoftRevealParams = {}
 ): TransitionConfig {
   return {
     duration,
-    easing: cubicOut,
+    easing: expoOut,
     css: (t) => {
       const inverse = 1 - t;
       const translateX = inverse * x;

@@ -6,7 +6,7 @@ test.beforeEach(async ({ page }) => {
     localStorage.setItem('commUser', JSON.stringify({
       id: 'owner-1',
       username: 'owner',
-      passHash: 'playwright-session',
+      authToken: 'playwright-session',
       role: 'owner',
       xp: 999,
       level: 9

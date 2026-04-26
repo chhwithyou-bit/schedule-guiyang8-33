@@ -320,7 +320,7 @@
 </script>
 
 <div
-  class="post-modal-frame fixed inset-0 z-[10000] flex items-center justify-center p-4 sm:p-6"
+  class="post-modal-frame fixed inset-0 z-[11000] flex items-center justify-center p-4 sm:p-6"
   transition:fade={{ duration: 260 }}
 >
   <button type="button" class="post-modal-backdrop absolute inset-0" on:click={closeModal} aria-label="关闭发帖弹窗"></button>
@@ -389,9 +389,10 @@
         </p>
       {/if}
 
-      <div class="flex items-center justify-between gap-4">
-        <div class="flex gap-4">
+      <div class="post-modal-actions flex items-center justify-between gap-4">
+        <div class="post-modal-media-actions flex min-w-0 gap-4">
           <button
+            type="button"
             on:click={openFilePicker}
             class="post-modal-media-trigger flex h-14 w-14 items-center justify-center rounded-2xl text-xl transition-all"
             title="加图片"
@@ -410,6 +411,7 @@
         </div>
 
         <button
+          type="button"
           on:click={handleSubmit}
           disabled={loading || (!content.trim() && media.length === 0)}
           class="post-modal-submit rounded-2xl px-10 py-5 text-lg font-black transition-all disabled:opacity-30 disabled:hover:scale-100"
@@ -507,5 +509,46 @@
     box-shadow:
       0 16px 34px rgba(var(--shadow-rgb), 0.18),
       inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  }
+
+  @media (max-width: 480px) {
+    .post-modal-frame {
+      align-items: flex-end;
+      padding: 0.75rem;
+      padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+    }
+
+    .post-modal-shell {
+      max-height: calc(100svh - 1.5rem);
+      overflow-y: auto;
+      border-radius: 1.75rem;
+      padding: 1rem;
+    }
+
+    .post-modal-actions {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      align-items: stretch;
+      gap: 0.75rem;
+    }
+
+    .post-modal-media-actions,
+    .post-modal-media-trigger,
+    .post-modal-submit {
+      min-width: 0;
+    }
+
+    .post-modal-submit {
+      width: 100%;
+      padding: 0.95rem 1rem;
+      font-size: 0.95rem;
+      white-space: nowrap;
+    }
+
+    .post-modal-media-trigger {
+      width: 3.35rem;
+      height: 3.35rem;
+      border-radius: 1rem;
+    }
   }
 </style>

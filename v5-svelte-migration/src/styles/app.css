@@ -4,22 +4,29 @@
 
 @layer base {
   :root {
-    --color-primary: #fac7b7;
-    --color-secondary: #f2d3c7;
-    --color-bg: #231b22;
-    --color-bg-rgb: 35, 27, 34;
-    --color-text: #fff4ed;
-    --color-text-soft: rgba(255, 244, 237, 0.7);
-    --color-accent: #5d4f57;
-    --color-button-text: #231b22;
-    --shadow-rgb: 63, 46, 55;
-    --glow-primary-rgb: 250, 199, 183;
-    --glow-secondary-rgb: 93, 79, 87;
+    --color-primary: #d9b29c;
+    --color-secondary: #8aa199;
+    --color-bg: #171418;
+    --color-bg-rgb: 23, 20, 24;
+    --color-text: #f6ece3;
+    --color-text-soft: rgba(246, 236, 227, 0.72);
+    --color-accent: #3a3034;
+    --color-button-text: #1e1716;
+    --shadow-rgb: 13, 10, 12;
+    --glow-primary-rgb: 217, 178, 156;
+    --glow-secondary-rgb: 138, 161, 153;
     --shadow-sm-token: 0 1px 2px rgba(var(--shadow-rgb), 0.12), 0 10px 24px rgba(var(--shadow-rgb), 0.08);
     --shadow-lg-token: 0 16px 36px rgba(var(--shadow-rgb), 0.18), 0 4px 14px rgba(var(--shadow-rgb), 0.08);
     --shadow-xl-token: 0 24px 48px rgba(var(--shadow-rgb), 0.24), 0 10px 26px rgba(var(--shadow-rgb), 0.12);
     --shadow-2xl-token: 0 34px 72px rgba(var(--shadow-rgb), 0.28), 0 14px 36px rgba(var(--shadow-rgb), 0.16);
     --shadow-float-token: 0 30px 84px rgba(var(--shadow-rgb), 0.34);
+    --motion-ease-apple: cubic-bezier(0.16, 1, 0.3, 1);
+    --motion-ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --motion-ease-exit: cubic-bezier(0.7, 0, 0.84, 0);
+    --motion-duration-fast: 220ms;
+    --motion-duration-medium: 420ms;
+    --motion-duration-slow: 680ms;
+    --motion-lift: translate3d(0, -2px, 0) scale(1.004);
   }
 
   html {

@@ -15,7 +15,10 @@ function buildCommunityState() {
         media_json: '[]',
         like_count: 3,
         comment_count: 1,
+        favorite_count: 0,
         viewer_liked: false,
+        viewer_favorited: false,
+        can_delete: true,
         created_at: '2026-03-28T10:00:00.000Z'
       },
       {
@@ -30,7 +33,10 @@ function buildCommunityState() {
         media_json: '[]',
         like_count: 0,
         comment_count: 2,
+        favorite_count: 0,
         viewer_liked: false,
+        viewer_favorited: false,
+        can_delete: false,
         created_at: '2026-03-28T11:00:00.000Z'
       }
     ],
@@ -44,6 +50,7 @@ function buildCommunityState() {
           background_url: '',
           signature: 'Tracking the comment pipeline.',
           role: 'user',
+          parent_id: null,
           content: 'First reply on the first post.',
           created_at: '2026-03-28T10:15:00.000Z',
           like_count: 1,
@@ -59,6 +66,7 @@ function buildCommunityState() {
           background_url: '',
           signature: 'Scroll should stay stable.',
           role: 'user',
+          parent_id: null,
           content: 'First reply on the second post.',
           created_at: '2026-03-28T11:05:00.000Z',
           like_count: 0,
@@ -72,6 +80,7 @@ function buildCommunityState() {
           background_url: '',
           signature: 'Thread switching should stay consistent.',
           role: 'user',
+          parent_id: null,
           content: 'Second reply on the second post.',
           created_at: '2026-03-28T11:10:00.000Z',
           like_count: 2,
@@ -79,7 +88,25 @@ function buildCommunityState() {
         }
       ]
     },
-    reports: []
+    reports: [],
+    users: [
+      {
+        id: 'user-1',
+        username: 'Test Student',
+        avatar_url: '',
+        background_url: 'https://images.example.com/wallpaper.jpg',
+        signature: 'Polishing the interface tonight.',
+        role: 'user'
+      },
+      {
+        id: 'user-2',
+        username: 'Second Student',
+        avatar_url: '',
+        background_url: '',
+        signature: 'Second thread for scroll reset coverage.',
+        role: 'user'
+      }
+    ]
   };
 }
 
@@ -98,6 +125,7 @@ function installApiMocks(page, state) {
     if (pathname === '/api/community/posts' && req.method() === 'GET') {
       const userId = url.searchParams.get('userId');
       const q = (url.searchParams.get('q') || '').trim();
+      const favoritesOnly = url.searchParams.get('favorites') === '1' || url.searchParams.get('bookmarked') === '1';
       let filteredPosts = state.posts;
 
       if (userId) {
@@ -105,10 +133,26 @@ function installApiMocks(page, state) {
       }
 
       if (q) {
-        filteredPosts = filteredPosts.filter((post) => String(post.content || '').includes(q));
+        filteredPosts = filteredPosts.filter((post) =>
+          String(post.content || '').includes(q) || String(post.username || '').includes(q)
+        );
+      }
+
+      if (favoritesOnly) {
+        filteredPosts = filteredPosts.filter((post) => post.viewer_favorited);
       }
 
       return fulfill({ ok: true, posts: filteredPosts });
+    }
+
+    if (pathname === '/api/community/discovery' && req.method() === 'GET') {
+      const q = (url.searchParams.get('q') || '').trim();
+      const users = q
+        ? state.users.filter((item) =>
+            String(item.username || '').includes(q) || String(item.signature || '').includes(q)
+          )
+        : state.users;
+      return fulfill({ ok: true, users });
     }
 
     if (pathname === '/api/community/profile' && req.method() === 'GET') {
@@ -149,6 +193,7 @@ function installApiMocks(page, state) {
         background_url: '',
         signature: 'Closing regressions one by one.',
         role: 'user',
+        parent_id: payload.parent_id || null,
         content: String(payload.content || '').trim(),
         created_at: '2026-03-28T10:30:00.000Z',
         like_count: 0,
@@ -203,13 +248,39 @@ function installApiMocks(page, state) {
       return fulfill({ ok: true, action });
     }
 
+    if (pathname === '/api/community/posts/favorite' && req.method() === 'POST') {
+      const payload = req.postDataJSON();
+      const postId = String(payload.post_id || '');
+      let favorited = false;
+      let favoriteCount = 0;
+      state.posts = state.posts.map((post) => {
+        if (post.id !== postId) return post;
+        favorited = !post.viewer_favorited;
+        favoriteCount = Math.max(0, Number(post.favorite_count || 0) + (favorited ? 1 : -1));
+        return {
+          ...post,
+          viewer_favorited: favorited,
+          favorite_count: favoriteCount
+        };
+      });
+      return fulfill({ ok: true, favorited, favorite_count: favoriteCount });
+    }
+
+    if (pathname === '/api/community/posts/delete' && req.method() === 'POST') {
+      const payload = req.postDataJSON();
+      const postId = String(payload.post_id || '');
+      state.posts = state.posts.filter((post) => post.id !== postId);
+      delete state.commentsByPost[postId];
+      return fulfill({ ok: true, deleted: true, post_id: postId });
+    }
+
     if (pathname === '/api/community/follow' && req.method() === 'POST') {
       return fulfill({ ok: true, action: 'followed' });
     }
 
     if (pathname === '/api/community/report' && req.method() === 'POST') {
       state.reports.push(req.postDataJSON());
-      return fulfill({ ok: true });
+      return fulfill({ ok: true, report_id: `report-${state.reports.length}`, msg: 'report received' });
     }
 
     if (pathname === '/api/community/announcement') return fulfill({ ok: true, announcement: null });
@@ -244,7 +315,7 @@ test.describe('8Community V5 current functionality check', () => {
       localStorage.setItem('commUser', JSON.stringify({
         id: 'viewer-user',
         username: 'Debug User',
-        passHash: 'playwright-session',
+        authToken: 'playwright-session',
         role: 'user',
         signature: 'Closing regressions one by one.'
       }));
@@ -289,7 +360,7 @@ test.describe('8Community V5 current functionality check', () => {
 
     const secondPost = page.locator('.community-view article').nth(1);
     await expect(secondPost).toBeVisible();
-    await secondPost.locator('button').nth(1).click();
+    await secondPost.getByRole('button', { name: '打开动态详情' }).click();
 
     await expect(page.locator('.post-detail-shell')).toBeVisible();
     await expect(page.locator('.post-detail-content-panel')).toContainText('Second post used to verify switching between detail threads.');
@@ -301,7 +372,7 @@ test.describe('8Community V5 current functionality check', () => {
     await bootApp(page);
 
     const firstPost = page.locator('.community-view article').first();
-    await firstPost.locator('button').nth(1).click();
+    await firstPost.getByRole('button', { name: '打开动态详情' }).click();
 
     const likeButton = page.locator('.post-detail-comment-like').first();
     await expect(likeButton).toContainText('1');
@@ -314,7 +385,7 @@ test.describe('8Community V5 current functionality check', () => {
     await bootApp(page);
 
     const firstPost = page.locator('.community-view article').first();
-    await firstPost.locator('button').nth(3).click();
+    await firstPost.getByTestId('post-comment').click();
     const composer = page.locator('.post-detail-composer-input');
     await expect(composer).toBeVisible();
     await expect(composer).toBeFocused();
@@ -331,8 +402,8 @@ test.describe('8Community V5 current functionality check', () => {
   test('report panel opens from the shortcut and shows success feedback', async ({ page }) => {
     await bootApp(page);
 
-    const firstPost = page.locator('.community-view article').first();
-    await firstPost.locator('button').nth(4).click();
+    await expect(page.getByTestId('post-card').first()).toBeVisible();
+    await page.getByTestId('post-report').first().click();
     await expect(page.locator('.post-detail-report-panel')).toBeVisible();
 
     await page.locator('.post-detail-report-input').fill('Regression report reason.');
@@ -345,11 +416,11 @@ test.describe('8Community V5 current functionality check', () => {
     await bootApp(page);
 
     const firstPost = page.locator('.community-view article').first();
-    await firstPost.locator('button').first().click();
+    await firstPost.getByTestId('post-author-avatar').click();
 
     await expect(page.getByRole('heading', { name: 'Test Student' }).first()).toBeVisible();
     await expect(page.getByText('Polishing the interface tonight.').first()).toBeVisible();
-    await expect(page.locator('article').last()).toContainText('First post used for detail regression coverage.');
+    await expect(page.getByTestId('profile-view').locator('article')).toContainText('First post used for detail regression coverage.');
   });
 
   test('switching detail targets resets scroll and updates the visible thread', async ({ page }) => {
@@ -358,12 +429,12 @@ test.describe('8Community V5 current functionality check', () => {
     const firstPost = page.locator('.community-view article').nth(0);
     const secondPost = page.locator('.community-view article').nth(1);
 
-    await firstPost.locator('button').nth(1).click();
+    await firstPost.getByRole('button', { name: '打开动态详情' }).click();
     const detailScroller = page.locator('.post-detail-scroll');
     await expect(detailScroller).toBeVisible();
     await expect(page.locator('.post-detail-comments')).toContainText('First reply on the first post.');
 
-    await secondPost.locator('button').nth(3).evaluate((node) => {
+    await secondPost.getByTestId('post-comment').evaluate((node) => {
       node.click();
     });
 
@@ -377,15 +448,70 @@ test.describe('8Community V5 current functionality check', () => {
     await bootApp(page);
 
     const firstPost = page.locator('.community-view article').first();
-    const firstLikeButton = firstPost.locator('button').nth(2);
+    const firstLikeButton = firstPost.getByTestId('post-like');
 
     await expect(firstLikeButton).toContainText('3');
     await firstLikeButton.click();
     await expect(firstLikeButton).toContainText('4');
 
-    await firstPost.locator('button').nth(1).click();
+    await firstPost.getByRole('button', { name: '打开动态详情' }).click();
     await expect(page.locator('.post-detail-shell')).toBeVisible();
     await page.locator('.post-detail-header button').first().click({ force: true });
     await expect(firstLikeButton).toContainText('4');
+  });
+
+  test('comment replies render as nested comments', async ({ page }) => {
+    await bootApp(page);
+
+    const firstPost = page.locator('.community-view article').first();
+    await firstPost.getByRole('button', { name: '打开动态详情' }).click();
+    await page.getByTestId('comment-reply').first().click();
+
+    const composer = page.getByTestId('comment-input');
+    await expect(composer).toBeFocused();
+    await composer.fill('Nested reply from Playwright.');
+    await page.getByTestId('comment-submit').click();
+
+    await expect(page.getByTestId('comment-reply-row')).toContainText('Nested reply from Playwright.');
+  });
+
+  test('favorites can be toggled and opened from the liquid bar', async ({ page }) => {
+    await bootApp(page);
+
+    const secondPost = page.locator('.community-view article').nth(1);
+    await expect(secondPost).toBeVisible();
+    await secondPost.getByTestId('post-favorite').click();
+    await expect(secondPost.getByTestId('post-favorite')).toContainText('1');
+
+    await page.locator('#liquidBar .liquid-trigger').click();
+    await page.locator('#liquidBar [data-liquid-target="favorites"]').click();
+
+    await expect(page.locator('.community-pill.is-active')).toContainText('收藏');
+    const cards = page.locator('.community-view article');
+    await expect(cards).toHaveCount(1);
+    await expect(cards.first()).toContainText('Second post used to verify switching between detail threads.');
+  });
+
+  test('owner delete removes the post from the feed', async ({ page }) => {
+    await bootApp(page);
+    page.on('dialog', (dialog) => dialog.accept());
+
+    const cards = page.locator('.community-view article');
+    await expect(cards).toHaveCount(2);
+    await cards.first().getByTestId('post-delete').click();
+    await expect(cards).toHaveCount(1);
+    await expect(cards.first()).toContainText('Second post used to verify switching between detail threads.');
+  });
+
+  test('search switches to discovery and shows matching posts and users', async ({ page }) => {
+    await bootApp(page);
+
+    await page.locator('.community-search-input').fill('Second');
+    await page.locator('.community-search-input').press('Enter');
+
+    await expect(page.locator('.community-pill.is-active')).toContainText('发现');
+    await expect(page.locator('.community-discovery-card')).toContainText('Second Student');
+    await expect(page.locator('.community-view article')).toHaveCount(1);
+    await expect(page.locator('.community-view article').first()).toContainText('Second post used to verify switching between detail threads.');
   });
 });

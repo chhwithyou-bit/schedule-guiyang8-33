@@ -1,14 +1,15 @@
 <script lang="ts">
-  import { onDestroy, onMount } from 'svelte';
+  import { onMount } from 'svelte';
   import CommunityWordmark from '../ui/CommunityWordmark.svelte';
   import CommunityConsole from '../modals/CommunityConsole.svelte';
   import PostCard from './PostCard.svelte';
   import PostDetail from './PostDetail.svelte';
   import ProfileView from './ProfileView.svelte';
-  import { currentView, isAuthenticated, selectedPost, selectedProfile, user } from '../../stores/appState';
+  import { currentView, isAuthenticated, selectedPost, selectedProfile } from '../../stores/appState';
   import { openModal } from '../../stores/modalState';
   import { communityFetch } from '../../lib/communityApi';
-  import { communityViewState, setCommunityViewState, type CommunitySection } from '../../stores/communityViewState';
+  import { installCommunityHistory, navigateCommunitySection, openCommunityProfile } from '../../lib/communityNavigation';
+  import { communityViewState, type CommunitySection } from '../../stores/communityViewState';
 
   let posts: any[] = [];
   let loadingPosts = true;
@@ -18,10 +19,13 @@
   let discoveredUsers: any[] = [];
   let postsRequestToken = 0;
   let discoveryRequestToken = 0;
+  let mounted = false;
+  let lastLoadedSection: CommunitySection | '' = '';
 
   const sections: Array<{ id: CommunitySection; label: string; detail: string }> = [
     { id: 'feed', label: '动态', detail: '最新帖子和发帖入口' },
     { id: 'discovery', label: '发现', detail: '搜索社区用户' },
+    { id: 'favorites', label: '收藏', detail: '收藏过的帖子' },
     { id: 'notifications', label: '通知', detail: '互动提醒' }
   ];
 
@@ -46,15 +50,35 @@
   }
 
   function openSection(section: CommunitySection) {
-    setCommunityViewState({ section });
+    navigateCommunitySection(section);
+  }
+
+  function loadSection(section: CommunitySection) {
+    if (section === 'feed' || section === 'favorites') {
+      void fetchPosts();
+    }
+
+    if (section === 'discovery') {
+      void fetchDiscovery();
+      if (query.trim()) void fetchPosts();
+    }
   }
 
   async function fetchPosts() {
     const requestToken = ++postsRequestToken;
     loadingPosts = true;
 
+    if ($communityViewState.section === 'favorites' && !$isAuthenticated) {
+      posts = [];
+      loadingPosts = false;
+      return;
+    }
+
     try {
-      const suffix = query.trim() ? `?q=${encodeURIComponent(query.trim())}` : '';
+      const params = new URLSearchParams();
+      if (query.trim()) params.set('q', query.trim());
+      if ($communityViewState.section === 'favorites') params.set('favorites', '1');
+      const suffix = params.toString() ? `?${params.toString()}` : '';
       const res = await communityFetch(`/api/community/posts${suffix}`);
       const data = await res.json();
 
@@ -111,19 +135,15 @@
 
   function handleSearch(event: Event) {
     event.preventDefault();
+    if (query.trim() && $communityViewState.section !== 'discovery') {
+      navigateCommunitySection('discovery');
+    }
     void fetchPosts();
     void fetchDiscovery();
   }
 
   function openUserProfile(profile: any) {
-    selectedProfile.set({
-      id: profile.id || profile.user_id,
-      username: profile.username,
-      avatar_url: profile.avatar_url,
-      role: profile.role,
-      signature: profile.signature,
-      background_url: profile.background_url
-    });
+    openCommunityProfile(profile);
   }
 
   function openMyProfile() {
@@ -142,28 +162,49 @@
     applyPostPatch(postId, patch);
   }
 
+  function handlePostDeleted(event: Event) {
+    const customEvent = event as CustomEvent<{ id?: string }>;
+    const postId = String(customEvent.detail?.id || '');
+    if (!postId) return;
+    posts = posts.filter((item) => item.id !== postId);
+    if ($selectedPost?.id === postId) {
+      selectedPost.set(null);
+    }
+  }
+
   function handleAnnouncementUpdated() {
     void fetchAnnouncement();
   }
 
+  $: if (mounted && $communityViewState.section !== lastLoadedSection) {
+    lastLoadedSection = $communityViewState.section;
+    loadSection($communityViewState.section);
+  }
+
   onMount(() => {
-    void fetchPosts();
-    void fetchDiscovery();
+    mounted = true;
+    lastLoadedSection = $communityViewState.section;
+    loadSection($communityViewState.section);
     void fetchAnnouncement();
     window.addEventListener('post-created', handlePostCreated);
     window.addEventListener('community-post-updated', handlePostUpdated as EventListener);
+    window.addEventListener('community-post-deleted', handlePostDeleted as EventListener);
     window.addEventListener('community-announcement-updated', handleAnnouncementUpdated);
-  });
+    const uninstallHistory = installCommunityHistory();
 
-  onDestroy(() => {
-    window.removeEventListener('post-created', handlePostCreated);
-    window.removeEventListener('community-post-updated', handlePostUpdated as EventListener);
-    window.removeEventListener('community-announcement-updated', handleAnnouncementUpdated);
+    return () => {
+      mounted = false;
+      window.removeEventListener('post-created', handlePostCreated);
+      window.removeEventListener('community-post-updated', handlePostUpdated as EventListener);
+      window.removeEventListener('community-post-deleted', handlePostDeleted as EventListener);
+      window.removeEventListener('community-announcement-updated', handleAnnouncementUpdated);
+      uninstallHistory();
+    };
   });
 </script>
 
 <div class="community-view space-y-8">
-  <section class="community-hero-shell rounded-[36px] p-5 xl:grid xl:grid-cols-[minmax(0,1.2fr)_minmax(20rem,0.8fr)] xl:gap-6 xl:p-6">
+  <section data-motion-role="community-surface" class="community-hero-shell rounded-[36px] p-5 xl:grid xl:grid-cols-[minmax(0,1.2fr)_minmax(20rem,0.8fr)] xl:gap-6 xl:p-6">
     <div class="community-hero-copy">
       <p class="text-[10px] font-black uppercase tracking-[0.32em] opacity-35">正在发生</p>
       <CommunityWordmark class="mt-3 max-w-[min(56rem,100%)]" />
@@ -207,7 +248,7 @@
     <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div>
         <p class="text-[10px] font-black uppercase tracking-[0.28em] opacity-35">社区导航</p>
-        <h2 class="mt-2 text-2xl font-black tracking-tight">动态、发现、通知</h2>
+        <h2 class="mt-2 text-2xl font-black tracking-tight">动态、发现、收藏、通知</h2>
       </div>
 
       <form on:submit={handleSearch} class="relative w-full md:max-w-sm">
@@ -236,7 +277,7 @@
     </div>
   </section>
 
-  {#if $communityViewState.section === 'feed'}
+  {#if $communityViewState.section === 'feed' || $communityViewState.section === 'favorites'}
     {#if announcement?.content}
       <section class="community-shell rounded-[32px] px-6 py-5 md:px-7 md:py-6">
         <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -258,9 +299,11 @@
     <section class="community-shell rounded-[32px] p-5">
       <div class="flex items-center justify-between gap-4">
         <div>
-          <p class="text-[10px] font-black uppercase tracking-[0.28em] opacity-35">最新动态</p>
+          <p class="text-[10px] font-black uppercase tracking-[0.28em] opacity-35">
+            {$communityViewState.section === 'favorites' ? '我的收藏' : '最新动态'}
+          </p>
           <p class="mt-2 text-sm font-medium opacity-60">
-            {loadingPosts ? '正在同步最新帖子...' : `当前可见 ${posts.length} 条动态`}
+            {loadingPosts ? '正在同步帖子...' : `当前可见 ${posts.length} 条动态`}
           </p>
         </div>
         <button type="button" on:click={fetchPosts} class="community-secondary rounded-full px-5 py-3 text-xs font-black uppercase tracking-[0.2em]">
@@ -268,7 +311,11 @@
         </button>
       </div>
 
-      {#if loadingPosts}
+      {#if $communityViewState.section === 'favorites' && !$isAuthenticated}
+        <div class="mt-6 rounded-[28px] border border-white/10 bg-white/5 px-5 py-10 text-center text-sm font-medium opacity-70">
+          登录后才能查看自己的收藏夹。
+        </div>
+      {:else if loadingPosts}
         <div class="mt-6 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {#each Array(6) as _}
             <div class="h-80 animate-pulse rounded-[32px] border border-white/10 bg-white/5"></div>
@@ -282,7 +329,7 @@
         </div>
       {:else}
         <div class="mt-6 rounded-[28px] border border-white/10 bg-white/5 px-5 py-10 text-center text-sm font-medium opacity-70">
-          这里还没有你想看的内容。要不要先发第一条？
+          {$communityViewState.section === 'favorites' ? '收藏夹还是空的，看到喜欢的帖子点小星星就会收进来。' : '这里还没有你想看的内容。要不要先发第一条？'}
         </div>
       {/if}
     </section>
@@ -332,6 +379,33 @@
           {/if}
         </div>
       </div>
+
+      {#if query.trim()}
+        <div class="mt-8 space-y-4">
+          <div class="flex items-center justify-between gap-3">
+            <h3 class="text-xl font-black tracking-tight">相关帖子</h3>
+            <span class="text-[10px] font-black uppercase tracking-[0.22em] opacity-35">{posts.length} 条</span>
+          </div>
+
+          {#if loadingPosts}
+            <div class="grid gap-4 md:grid-cols-2">
+              {#each Array(2) as _}
+                <div class="h-64 animate-pulse rounded-[28px] border border-white/10 bg-white/5"></div>
+              {/each}
+            </div>
+          {:else if posts.length > 0}
+            <div class="grid gap-4 md:grid-cols-2">
+              {#each posts as post (post.id)}
+                <PostCard {post} />
+              {/each}
+            </div>
+          {:else}
+            <div class="rounded-[28px] border border-white/10 bg-white/5 px-5 py-8 text-sm font-medium opacity-70">
+              没搜到相关帖子。
+            </div>
+          {/if}
+        </div>
+      {/if}
     </section>
   {/if}
 
@@ -359,9 +433,10 @@
     overflow: hidden;
     border: 1px solid rgba(255, 255, 255, 0.1);
     background:
-      linear-gradient(145deg, rgba(var(--glow-primary-rgb), 0.11) 0% 42%, rgba(var(--glow-secondary-rgb), 0.08) 42% 100%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(var(--color-bg-rgb), 0.1)),
-      rgba(var(--color-bg-rgb), 0.1);
+      radial-gradient(circle at 16% 0%, rgba(var(--glow-primary-rgb), 0.11), transparent 34%),
+      radial-gradient(circle at 92% 10%, rgba(var(--glow-secondary-rgb), 0.08), transparent 32%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(var(--color-bg-rgb), 0.12)),
+      rgba(var(--color-bg-rgb), 0.13);
     box-shadow:
       0 20px 48px rgba(var(--shadow-rgb), 0.12),
       inset 0 1px 0 rgba(255, 255, 255, 0.12),
@@ -378,7 +453,12 @@
       linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(var(--color-bg-rgb), 0.08)),
       rgba(var(--color-bg-rgb), 0.1);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
-    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+    transition:
+      transform var(--motion-duration-medium) var(--motion-ease-apple),
+      box-shadow var(--motion-duration-medium) var(--motion-ease-apple),
+      border-color var(--motion-duration-fast) var(--motion-ease-apple),
+      background var(--motion-duration-medium) var(--motion-ease-apple);
+    will-change: transform, box-shadow;
   }
 
   .community-primary {
@@ -402,7 +482,8 @@
   .community-section-card.is-active {
     border-color: rgba(var(--glow-primary-rgb), 0.26);
     background:
-      linear-gradient(135deg, rgba(var(--glow-primary-rgb), 0.16), rgba(var(--glow-secondary-rgb), 0.09)),
+      radial-gradient(circle at 18% 22%, rgba(var(--glow-primary-rgb), 0.18), transparent 44%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(var(--color-bg-rgb), 0.1)),
       rgba(var(--color-bg-rgb), 0.18);
     box-shadow:
       0 14px 28px rgba(var(--shadow-rgb), 0.12),
@@ -414,6 +495,6 @@
   .community-pill:hover,
   .community-section-card:hover,
   .community-discovery-card:hover {
-    transform: translateY(-1px);
+    transform: var(--motion-lift);
   }
 </style>

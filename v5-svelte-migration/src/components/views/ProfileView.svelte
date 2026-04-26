@@ -2,10 +2,11 @@
   import { fly } from 'svelte/transition';
   import { onMount, onDestroy } from 'svelte';
   import { tick } from 'svelte';
-  import { currentView, selectedProfile, isAuthenticated, user, clearSelectedProfile } from '../../stores/appState';
+  import { selectedProfile, isAuthenticated, user, clearSelectedProfile } from '../../stores/appState';
   import { openModal } from '../../stores/modalState';
   import PostCard from './PostCard.svelte';
   import { communityFetch, persistCommunitySession } from '../../lib/communityApi';
+  import { closeCommunitySurface } from '../../lib/communityNavigation';
   import { softReveal } from '../../lib/motion';
 
   let posts: any[] = [];
@@ -16,6 +17,7 @@
   let profileScrollEl: HTMLDivElement;
   let profileSurfaceEl: HTMLDivElement;
   let lastProfileId = '';
+  let lastProfileOpenToken = '';
   let profileRequestToken = 0;
   let postsRequestToken = 0;
 
@@ -81,7 +83,7 @@
       throw new Error(data.msg || '资料保存失败');
     }
 
-    syncProfileSurface({
+    syncProfileSurface(data.user || {
       avatar_url,
       background_url,
       signature
@@ -139,14 +141,18 @@
   }
 
 
-  $: if (currentProfileId && currentProfileId !== lastProfileId) {
+  $: profileOpenToken = currentProfileId ? `${currentProfileId}:${$selectedProfile?.__openedAt || ''}` : '';
+
+  $: if (currentProfileId && profileOpenToken !== lastProfileOpenToken) {
     lastProfileId = currentProfileId;
+    lastProfileOpenToken = profileOpenToken;
     primeProfileSurface();
     void refreshProfileSurface();
   }
 
   $: if (!currentProfileId) {
     lastProfileId = '';
+    lastProfileOpenToken = '';
     profileRequestToken += 1;
     postsRequestToken += 1;
     resetProfileSurface();
@@ -167,13 +173,22 @@
     posts = posts.map((item) => item.id === postId ? { ...item, ...patch } : item);
   }
 
+  function handlePostDeleted(event: Event) {
+    const customEvent = event as CustomEvent<{ id?: string }>;
+    const postId = String(customEvent.detail?.id || '');
+    if (!postId) return;
+    posts = posts.filter((item) => item.id !== postId);
+  }
+
   onMount(() => {
     window.addEventListener('community-post-updated', handlePostUpdated as EventListener);
+    window.addEventListener('community-post-deleted', handlePostDeleted as EventListener);
     tick().then(() => profileSurfaceEl?.focus());
   });
 
   onDestroy(() => {
     window.removeEventListener('community-post-updated', handlePostUpdated as EventListener);
+    window.removeEventListener('community-post-deleted', handlePostDeleted as EventListener);
   });
 
   function scrollProfileToTop() {
@@ -233,11 +248,13 @@
       openModal('auth');
       return;
     }
+    const profileId = $selectedProfile?.id || $selectedProfile?.user_id;
+    if (!profileId) return;
     try {
       const res = await communityFetch('/api/community/follow', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ following_id: $selectedProfile.id || $selectedProfile.user_id })
+        body: JSON.stringify({ following_id: profileId })
       });
       const data = await res.json();
       if (data.ok) {
@@ -255,7 +272,7 @@
   }
 
   function close() {
-    clearSelectedProfile();
+    closeCommunitySurface(() => clearSelectedProfile());
   }
 
   function handleOverlayKeydown(event: KeyboardEvent) {
@@ -270,7 +287,8 @@
   <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
   <div
     bind:this={profileSurfaceEl}
-    class="fixed inset-0 z-[7000] overflow-hidden bg-[var(--color-bg)]/92 backdrop-blur-md"
+    data-testid="profile-view"
+    class="fixed inset-0 z-[11000] overflow-hidden bg-[var(--color-bg)]/92 backdrop-blur-md"
     role="dialog"
     aria-modal="true"
     aria-label={`${$selectedProfile.username || '用户'} 的个人主页`}

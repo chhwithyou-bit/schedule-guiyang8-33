@@ -3,7 +3,7 @@
   import { fade } from 'svelte/transition';
   import { closeModal } from '../../stores/modalState';
   import { isAdmin, isAuthenticated, user } from '../../stores/appState';
-  import { persistCommunitySession } from '../../lib/communityApi';
+  import { buildCommunityAuthHeader, persistCommunitySession } from '../../lib/communityApi';
   import { softReveal } from '../../lib/motion';
 
   let usernameInput: HTMLInputElement | null = null;
@@ -17,14 +17,10 @@
   $: usernamePlaceholder = isRegister ? '想让大家怎么叫你' : '输入你的用户名';
   $: passwordPlaceholder = isRegister ? '设置一个你记得住的密码' : '输入你的密码';
 
-  function buildAuthHeader(nextUsername: string, passHash: string) {
-    return `Bearer ${encodeURIComponent(nextUsername)}:${passHash}`;
-  }
-
-  async function hydrateCurrentUser(nextUsername: string, passHash: string) {
+  async function hydrateCurrentUser(authToken: string) {
     const res = await fetch('/api/community/me', {
       headers: {
-        Authorization: buildAuthHeader(nextUsername, passHash)
+        Authorization: buildCommunityAuthHeader(authToken)
       }
     });
     const data = await res.json();
@@ -35,7 +31,7 @@
 
     return {
       ...data.user,
-      passHash
+      authToken
     };
   }
 
@@ -63,12 +59,12 @@
         return;
       }
 
-      const [tokenUsername = normalizedUsername, passHash = ''] = data.token.split(':');
-      if (!passHash) {
+      const authToken = data.token.trim();
+      if (!authToken) {
         throw new Error('认证成功，但没有拿到可用会话。');
       }
 
-      const nextUser = await hydrateCurrentUser(tokenUsername, passHash);
+      const nextUser = await hydrateCurrentUser(authToken);
 
       user.set(nextUser);
       isAuthenticated.set(true);
@@ -88,7 +84,7 @@
 </script>
 
 <div
-  class="fixed inset-0 z-[10000] flex items-center justify-center p-6"
+  class="fixed inset-0 z-[11000] flex items-center justify-center p-6"
   transition:fade={{ duration: 300 }}
 >
   <button type="button" class="absolute inset-0 bg-black/50 backdrop-blur-xl" on:click={closeModal} aria-label="关闭登录弹窗"></button>

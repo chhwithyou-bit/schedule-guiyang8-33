@@ -71,8 +71,10 @@
   const tabDescriptions: Record<TabId, string> = {
     account: '管理账号、资料和个性设置。',
     drive: '浏览、上传和整理社区网盘。',
-    notifications: '查看最近的互动、评论和关注提醒。'
+    notifications: '查看最近的点赞、评论、回复和转发提醒。'
   };
+
+  const allowedNotificationTypes = new Set(['like', 'comment', 'reply', 'repost', 'comment_like']);
 
   $: availableTabs = accountOnly
     ? tabs.filter((tab) => tab.id === 'account')
@@ -531,7 +533,9 @@
         notificationError = data.msg || '提醒没加载出来。';
         return;
       }
-      notifications = Array.isArray(data.notifications) ? data.notifications : [];
+      notifications = Array.isArray(data.notifications)
+        ? data.notifications.filter((item: NotificationItem) => allowedNotificationTypes.has(item.type))
+        : [];
     } catch (error) {
       console.error('Failed to load notifications', error);
       notificationError = '提醒没加载出来。';
@@ -618,7 +622,7 @@
 
       const nextUser = {
         ...$user,
-        ...profileForm
+        ...(data.user || profileForm)
       };
       user.set(nextUser);
       persistCommunitySession(nextUser);
@@ -680,9 +684,9 @@
     const map: Record<string, string> = {
       like: '赞了你的帖子',
       comment_like: '赞了你的评论',
-      follow: '关注了你',
       repost: '转发了你的动态',
-      comment: '评论了你的帖子'
+      comment: '评论了你的帖子',
+      reply: '回复了你的评论'
     };
     return map[type] || type;
   }
@@ -698,7 +702,15 @@
   }
 
   function openAdminView() {
-    currentView.set($isAdmin ? 'admin' : 'community');
+    if (!$isAdmin) return;
+    currentView.set('admin');
+    if (!embedded) {
+      handleClose();
+    }
+  }
+
+  function openCommunityView() {
+    currentView.set('community');
     if (!embedded) {
       handleClose();
     }
@@ -739,7 +751,7 @@
   }
 </script>
 
-<div class={embedded ? 'relative z-0' : shouldRenderModalShell ? 'fixed inset-0 z-[10000] overflow-y-auto p-4 md:p-6' : 'fixed inset-0 z-[10000] overflow-y-auto xl:overflow-hidden xl:flex xl:items-center xl:justify-center p-4 md:p-6'} transition:fade={{ duration: 220 }}>
+<div class={embedded ? 'relative z-0' : shouldRenderModalShell ? 'fixed inset-0 z-[11000] overflow-y-auto p-4 md:p-6' : 'fixed inset-0 z-[11000] overflow-y-auto xl:overflow-hidden xl:flex xl:items-center xl:justify-center p-4 md:p-6'} transition:fade={{ duration: 220 }}>
   {#if !embedded}
     <button type="button" class="fixed inset-0 bg-black/60 backdrop-blur-xl" on:click={handleClose} aria-label="关闭控制台"></button>
   {/if}
@@ -800,9 +812,11 @@
               </div>
 
               <div class="flex flex-wrap gap-2 lg:justify-end">
-                <button type="button" class="console-pill console-pill--ghost px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em]" on:click={openAdminView}>
-                  {$isAdmin ? '管理后台' : '回到社区'}
-                </button>
+                {#if $isAdmin}
+                  <button type="button" class="console-pill console-pill--ghost px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em]" on:click={openAdminView}>
+                    管理后台
+                  </button>
+                {/if}
                 {#if $isAuthenticated}
                   <button type="button" class="console-pill console-pill--ghost px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em]" on:click={openMyProfile}>
                     我的主页
@@ -813,7 +827,7 @@
 
             {#if !$isAuthenticated}
               <p class="mt-3 rounded-[20px] border border-white/10 bg-[rgba(255,255,255,0.06)] px-4 py-3 text-sm font-medium leading-7 opacity-75">
-                {authPrompt || '先登录，就能继续发帖、评论、关注和查看互动提醒。'}
+                {authPrompt || '先登录，就能继续发帖、评论和查看互动提醒。'}
               </p>
             {/if}
           </div>
@@ -833,8 +847,8 @@
                     <button type="button" class="console-pill console-pill--primary px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)]" on:click={openAuth}>
                       登录 / 注册
                     </button>
-                    <button type="button" class="console-pill console-pill--ghost px-5 py-3 text-xs font-black uppercase tracking-[0.2em]" on:click={openAdminView}>
-                      {$isAdmin ? '打开后台管理' : '回到社区'}
+                    <button type="button" class="console-pill console-pill--ghost px-5 py-3 text-xs font-black uppercase tracking-[0.2em]" on:click={openCommunityView}>
+                      回到社区
                     </button>
                   </div>
                 </section>
@@ -903,7 +917,7 @@
                       <div class="console-subpanel p-4">
                         <p class="text-[10px] font-black uppercase tracking-[0.2em] opacity-35">提醒</p>
                         <p class="mt-2 text-2xl font-black tracking-tight">{notifications.length}</p>
-                        <p class="mt-1 text-sm font-medium opacity-65">点赞、评论和关注都会汇总到通知里。</p>
+                        <p class="mt-1 text-sm font-medium opacity-65">点赞、评论、回复和转发都会汇总到通知里。</p>
                       </div>
                       <div class="console-subpanel p-4">
                         <p class="text-[10px] font-black uppercase tracking-[0.2em] opacity-35">网盘占用</p>

@@ -31,6 +31,12 @@
   let backgroundReady = false;
   let backgroundFailed = false;
   let canFinishLoading = false;
+  const ASSEMBLY_MOTION = {
+    ease: 'expo.out',
+    softEase: 'power3.out',
+    contentDuration: 0.72,
+    surfaceDuration: 0.78
+  } as const;
 
   const WALLPAPER_SRC = '/IMG_1695.webp';
 
@@ -192,27 +198,35 @@
       const timeline = gsap.timeline();
       timeline.fromTo(
         mainContent,
-        { opacity: 0.02, y: 8, filter: 'blur(10px)' },
-        { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.5, ease: 'power2.out' }
+        { opacity: 0.02, y: 10, scale: 0.996, filter: 'blur(7px)' },
+        {
+          opacity: 1,
+          y: 0,
+          scale: 1,
+          filter: 'blur(0px)',
+          duration: ASSEMBLY_MOTION.contentDuration,
+          ease: ASSEMBLY_MOTION.ease
+        }
       );
       timeline.from(
         '.view-wrapper',
         {
-          y: 26,
+          y: 18,
           opacity: 0,
-          duration: 0.6,
-          ease: 'power3.out',
-          clearProps: 'transform,opacity'
+          filter: 'blur(5px)',
+          duration: ASSEMBLY_MOTION.surfaceDuration,
+          ease: ASSEMBLY_MOTION.ease,
+          clearProps: 'transform,opacity,filter'
         },
         '-=0.34'
       );
       timeline.from(
         'header',
         {
-          y: -22,
+          y: -14,
           opacity: 0,
-          duration: 0.38,
-          ease: 'power2.out',
+          duration: 0.56,
+          ease: ASSEMBLY_MOTION.ease,
           clearProps: 'transform,opacity'
         },
         '-=0.48'
@@ -220,13 +234,13 @@
       timeline.from(
         '.liquid-bar-dock',
         {
-          x: -16,
-          y: -12,
-          scale: 0.985,
-          filter: 'blur(10px)',
+          x: -10,
+          y: -8,
+          scale: 0.992,
+          filter: 'blur(6px)',
           opacity: 0,
-          duration: 0.52,
-          ease: 'power3.out',
+          duration: 0.7,
+          ease: ASSEMBLY_MOTION.ease,
           transformOrigin: 'top left',
           clearProps: 'transform,opacity,filter'
         },
@@ -235,11 +249,11 @@
       timeline.from(
         '#mp',
         {
-          y: 18,
-          scale: 0.98,
+          y: 12,
+          scale: 0.992,
           opacity: 0,
-          duration: 0.4,
-          ease: 'power2.out',
+          duration: 0.58,
+          ease: ASSEMBLY_MOTION.softEase,
           clearProps: 'transform,opacity'
         },
         '-=0.34'
@@ -348,9 +362,9 @@
   .app-container {
     background-color: var(--color-bg);
     background:
-      radial-gradient(circle at 14% 8%, rgba(var(--glow-primary-rgb), 0.14), transparent 26%),
-      radial-gradient(circle at 86% 14%, rgba(var(--glow-secondary-rgb), 0.16), transparent 28%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 14%);
+      radial-gradient(circle at 12% 6%, rgba(var(--glow-primary-rgb), 0.08), transparent 28%),
+      radial-gradient(circle at 88% 12%, rgba(var(--glow-secondary-rgb), 0.09), transparent 30%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 16%);
   }
 
   .app-container::before,
@@ -369,8 +383,8 @@
     pointer-events: none;
     z-index: 0;
     background:
-      radial-gradient(circle at 50% 18%, rgba(255, 244, 237, 0.08), transparent 32%),
-      linear-gradient(180deg, rgba(var(--color-bg-rgb), 0.18), rgba(var(--color-bg-rgb), 0.58));
+      radial-gradient(circle at 50% 18%, rgba(var(--glow-primary-rgb), 0.055), transparent 32%),
+      linear-gradient(180deg, rgba(var(--color-bg-rgb), 0.28), rgba(var(--color-bg-rgb), 0.66));
   }
 
   .app-background::before {
@@ -378,7 +392,7 @@
     opacity: 0;
     filter: blur(30px) grayscale(0.04) saturate(1.08) contrast(0.96) brightness(0.48);
     transform: scale(1.08);
-    transition: opacity 360ms ease-out;
+    transition: opacity var(--motion-duration-medium) var(--motion-ease-apple);
     will-change: opacity;
   }
 
@@ -407,10 +421,10 @@
     inset: -0.75rem;
     opacity: 0;
     filter: grayscale(0.03) saturate(1.03) contrast(0.94) brightness(0.62);
-    transition: opacity 360ms ease-out;
+    transition: opacity var(--motion-duration-medium) var(--motion-ease-apple);
     background:
-      radial-gradient(circle at 48% 20%, rgba(255, 244, 237, 0.08), transparent 24%),
-      linear-gradient(180deg, rgba(var(--color-bg-rgb), 0.1) 0%, rgba(var(--color-bg-rgb), 0.28) 52%, rgba(var(--color-bg-rgb), 0.76) 100%),
+      radial-gradient(circle at 48% 20%, rgba(var(--glow-primary-rgb), 0.055), transparent 24%),
+      linear-gradient(180deg, rgba(var(--color-bg-rgb), 0.18) 0%, rgba(var(--color-bg-rgb), 0.38) 52%, rgba(var(--color-bg-rgb), 0.82) 100%),
       url('/IMG_1695.webp');
     background-repeat: no-repeat, no-repeat, no-repeat;
     background-position: center center, center center, center 50%;
@@ -437,8 +451,8 @@
       transform: none;
       filter: grayscale(0.03) saturate(1.03) contrast(0.93) brightness(0.64);
       background:
-        linear-gradient(90deg, rgba(var(--color-bg-rgb), 0.48) 0%, rgba(var(--color-bg-rgb), 0.08) 30%, rgba(var(--color-bg-rgb), 0.08) 68%, rgba(var(--color-bg-rgb), 0.58) 100%),
-        linear-gradient(180deg, rgba(var(--color-bg-rgb), 0.18) 0%, rgba(var(--color-bg-rgb), 0.06) 46%, rgba(var(--color-bg-rgb), 0.72) 100%),
+        linear-gradient(90deg, rgba(var(--color-bg-rgb), 0.56) 0%, rgba(var(--color-bg-rgb), 0.16) 30%, rgba(var(--color-bg-rgb), 0.16) 68%, rgba(var(--color-bg-rgb), 0.62) 100%),
+        linear-gradient(180deg, rgba(var(--color-bg-rgb), 0.24) 0%, rgba(var(--color-bg-rgb), 0.12) 46%, rgba(var(--color-bg-rgb), 0.78) 100%),
         url('/IMG_1695.webp');
       background-repeat: no-repeat, no-repeat, no-repeat;
       background-position: center center, center center, center 30%;
@@ -449,8 +463,8 @@
 
   .app-container::before {
     background:
-      radial-gradient(circle at 12% 18%, rgba(var(--glow-primary-rgb), 0.16), transparent 24%),
-      radial-gradient(circle at 84% 12%, rgba(var(--glow-secondary-rgb), 0.18), transparent 28%);
+      radial-gradient(circle at 12% 18%, rgba(var(--glow-primary-rgb), 0.095), transparent 24%),
+      radial-gradient(circle at 84% 12%, rgba(var(--glow-secondary-rgb), 0.1), transparent 28%);
     background-position: 12% 18%, 84% 12%;
     background-repeat: no-repeat;
     opacity: 0.92;
@@ -459,9 +473,9 @@
 
   .app-container::after {
     background:
-      linear-gradient(115deg, rgba(255, 255, 255, 0.035), transparent 28%),
-      linear-gradient(180deg, rgba(var(--color-bg-rgb), 0.03) 0%, rgba(var(--color-bg-rgb), 0.46) 100%);
-    opacity: 0.66;
+      linear-gradient(115deg, rgba(255, 255, 255, 0.026), transparent 28%),
+      linear-gradient(180deg, rgba(var(--color-bg-rgb), 0.08) 0%, rgba(var(--color-bg-rgb), 0.52) 100%);
+    opacity: 0.72;
     animation: app-veil-pulse 14s ease-in-out infinite alternate;
   }
 
@@ -496,7 +510,9 @@
     pointer-events: none;
     text-transform: uppercase;
     transform: translateY(-0.5rem);
-    transition: opacity 0.2s ease, transform 0.2s ease;
+    transition:
+      opacity var(--motion-duration-fast) var(--motion-ease-standard),
+      transform var(--motion-duration-fast) var(--motion-ease-standard);
   }
 
   .skip-link:focus {
@@ -508,7 +524,7 @@
   .main-content-assembly {
     position: relative;
     z-index: 2;
-    transition: opacity 0.45s ease-out;
+    transition: opacity var(--motion-duration-medium) var(--motion-ease-apple);
   }
 
   @keyframes app-background-float {

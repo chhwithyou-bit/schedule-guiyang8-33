@@ -69,7 +69,8 @@
 <svelte:window bind:scrollY={y} />
 
 <header
-  class="fixed left-0 right-0 top-0 z-[5000] px-6 py-6 transition-all duration-300 md:px-12
+  data-motion-role="site-header"
+  class="motion-header fixed left-0 right-0 top-0 z-[5000] px-6 py-6 md:px-12
          {isVisible ? 'translate-y-0' : '-translate-y-full'}"
 >
   <div class="site-header-shell {isScrolled ? 'is-scrolled' : ''} mx-auto flex max-w-7xl items-center justify-between">
@@ -79,7 +80,7 @@
       class="group rounded-full px-2 py-1 text-left transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
       aria-label="返回 8community 首页"
     >
-      <h1 class="text-2xl font-black tracking-tighter transition-transform group-hover:scale-110">
+      <h1 class="text-2xl font-black tracking-tighter transition-transform group-hover:scale-[1.025]">
         8<span class="text-[var(--color-primary)]">community</span>
       </h1>
     </button>
@@ -131,6 +132,18 @@
 </header>
 
 <style>
+  .motion-header {
+    transition:
+      transform var(--motion-duration-medium) var(--motion-ease-apple),
+      opacity var(--motion-duration-medium) var(--motion-ease-apple);
+    will-change: transform;
+  }
+
+  .motion-header h1 {
+    transition: transform var(--motion-duration-medium) var(--motion-ease-apple);
+    transform-origin: left center;
+  }
+
   .site-header-shell {
     padding: 0.7rem 0.82rem;
     border: 1px solid rgba(255, 255, 255, 0.08);
@@ -143,11 +156,12 @@
       inset 0 1px 0 rgba(255, 255, 255, 0.16);
     backdrop-filter: blur(18px) saturate(1.1);
     transition:
-      background 0.25s ease,
-      border-color 0.25s ease,
-      box-shadow 0.25s ease,
-      backdrop-filter 0.25s ease,
-      transform 0.25s ease;
+      background var(--motion-duration-medium) var(--motion-ease-apple),
+      border-color var(--motion-duration-medium) var(--motion-ease-apple),
+      box-shadow var(--motion-duration-medium) var(--motion-ease-apple),
+      backdrop-filter var(--motion-duration-medium) var(--motion-ease-apple),
+      transform var(--motion-duration-medium) var(--motion-ease-apple);
+    will-change: transform, box-shadow, backdrop-filter;
   }
 
   .site-header-shell.is-scrolled {
@@ -193,11 +207,11 @@
     letter-spacing: 0.18em;
     text-transform: uppercase;
     transition:
-      transform 0.22s ease,
-      background 0.22s ease,
-      color 0.22s ease,
-      opacity 0.22s ease,
-      box-shadow 0.22s ease;
+      transform var(--motion-duration-fast) var(--motion-ease-apple),
+      background var(--motion-duration-fast) var(--motion-ease-apple),
+      color var(--motion-duration-fast) var(--motion-ease-apple),
+      opacity var(--motion-duration-fast) var(--motion-ease-apple),
+      box-shadow var(--motion-duration-fast) var(--motion-ease-apple);
   }
 
   .header-switch.is-active {
@@ -219,10 +233,10 @@
   .header-avatar-shell {
     position: relative;
     transition:
-      transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
-      border-color 0.22s ease,
-      background 0.22s ease,
-      box-shadow 0.22s ease;
+      transform var(--motion-duration-fast) var(--motion-ease-apple),
+      border-color var(--motion-duration-fast) var(--motion-ease-apple),
+      background var(--motion-duration-fast) var(--motion-ease-apple),
+      box-shadow var(--motion-duration-fast) var(--motion-ease-apple);
   }
 
   .header-avatar-shell::after {
@@ -259,9 +273,9 @@
       radial-gradient(circle at top left, rgba(255, 255, 255, 0.26), transparent 38%),
       linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 86%, white 14%), var(--color-primary));
     transition:
-      transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
-      box-shadow 0.22s ease,
-      filter 0.22s ease;
+      transform var(--motion-duration-fast) var(--motion-ease-apple),
+      box-shadow var(--motion-duration-fast) var(--motion-ease-apple),
+      filter var(--motion-duration-fast) var(--motion-ease-apple);
     box-shadow:
       0 16px 30px rgba(var(--shadow-rgb), 0.2),
       inset 0 1px 0 rgba(255, 255, 255, 0.24);
@@ -270,7 +284,7 @@
   .header-switch-shell:hover,
   .header-avatar-shell:hover,
   .header-login-btn:hover {
-    transform: translateY(-1px);
+    transform: var(--motion-lift);
     border-color: rgba(255, 255, 255, 0.16);
   }
 

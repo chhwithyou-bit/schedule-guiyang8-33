@@ -1570,7 +1570,7 @@
   .mp-progress-fill {
     height: 100%;
     border-radius: inherit;
-    background: linear-gradient(90deg, var(--color-primary) 0% 50%, rgba(255, 255, 255, 0.92) 50% 100%);
+    background: linear-gradient(90deg, color-mix(in srgb, var(--color-primary) 92%, white 8%), color-mix(in srgb, var(--color-secondary) 70%, white 30%));
     transition: width 0.12s linear;
   }
 
@@ -1660,7 +1660,7 @@
     height: 2.95rem;
     background:
       radial-gradient(circle at 30% 24%, rgba(255, 255, 255, 0.34), transparent 34%),
-      linear-gradient(135deg, rgba(var(--glow-primary-rgb), 0.9) 0% 50%, var(--color-primary) 50% 100%);
+      linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 88%, white 12%), var(--color-primary));
     color: var(--color-button-text);
     border-color: transparent;
     box-shadow:

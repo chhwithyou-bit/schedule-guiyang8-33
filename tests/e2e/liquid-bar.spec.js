@@ -92,7 +92,7 @@ test.beforeEach(async ({ page }) => {
   }, {
     id: 'debug-user',
     username: 'debugger',
-    passHash: 'playwright-session',
+    authToken: 'playwright-session',
     role: 'owner',
     xp: 999
   });

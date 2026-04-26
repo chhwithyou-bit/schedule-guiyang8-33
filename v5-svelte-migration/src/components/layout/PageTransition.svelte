@@ -7,6 +7,16 @@
   let washLayer: HTMLElement;
   let isInitialLoad = true;
   let activeTimeline: gsap.core.Timeline | null = null;
+  const MOTION_PROFILE = {
+    hold: 680,
+    intro: 0.68,
+    introLong: 0.76,
+    outro: 0.28,
+    washIn: 0.24,
+    washOut: 0.42,
+    enterEase: 'expo.out',
+    exitEase: 'power3.inOut'
+  } as const;
 
   const prefersReducedMotion = typeof window !== 'undefined'
     ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -15,7 +25,7 @@
   const smoothTransition = (_node: HTMLElement) => {
     if (prefersReducedMotion || isInitialLoad) return { duration: 0 };
     return {
-      duration: 440,
+      duration: MOTION_PROFILE.hold,
       tick: () => {}
     };
   };
@@ -59,7 +69,7 @@
     const targets = collectMotionTargets(node);
 
     gsap.killTweensOf([node, washLayer, ...targets]);
-    gsap.set([node, ...targets], { willChange: 'transform, opacity, filter' });
+    gsap.set([node, ...targets], { willChange: 'transform, opacity, filter', force3D: true });
 
     activeTimeline = gsap.timeline({
       defaults: { overwrite: true }
@@ -68,12 +78,12 @@
     activeTimeline.to(
       targets,
       {
-        y: -10,
+        y: -6,
         opacity: 0,
-        filter: 'blur(7px)',
-        duration: 0.16,
-        stagger: 0.03,
-        ease: 'power2.out'
+        filter: 'blur(4px)',
+        duration: 0.2,
+        stagger: 0.024,
+        ease: MOTION_PROFILE.exitEase
       },
       0
     );
@@ -81,12 +91,12 @@
     activeTimeline.to(
       node,
       {
-        y: 8,
-        scale: 0.992,
+        y: 6,
+        scale: 0.996,
         opacity: 0,
-        filter: 'blur(7px)',
-        duration: 0.2,
-        ease: 'power2.out'
+        filter: 'blur(5px)',
+        duration: MOTION_PROFILE.outro,
+        ease: MOTION_PROFILE.exitEase
       },
       0
     );
@@ -94,11 +104,11 @@
     activeTimeline.to(
       washLayer,
       {
-        opacity: 0.3,
+        opacity: 0.22,
         scaleY: 1,
         scaleX: 1,
-        duration: 0.18,
-        ease: 'power1.out',
+        duration: MOTION_PROFILE.washIn,
+        ease: 'power2.out',
         transformOrigin: 'top center'
       },
       0
@@ -108,10 +118,10 @@
       washLayer,
       {
         opacity: 0,
-        duration: 0.22,
-        ease: 'power2.out'
+        duration: MOTION_PROFILE.washOut,
+        ease: MOTION_PROFILE.enterEase
       },
-      0.08
+      0.1
     );
   };
 
@@ -128,24 +138,27 @@
 
     gsap.killTweensOf([node, washLayer, ...targets]);
     gsap.set(node, {
-      y: 18,
-      scale: 0.992,
+      y: 14,
+      scale: 0.996,
       opacity: 0,
-      filter: 'blur(8px)',
-      willChange: 'transform, opacity, filter'
+      filter: 'blur(6px)',
+      willChange: 'transform, opacity, filter',
+      force3D: true
     });
     gsap.set(targets, {
-      y: 24,
+      y: 18,
       opacity: 0,
-      filter: 'blur(10px)',
-      willChange: 'transform, opacity, filter'
+      filter: 'blur(7px)',
+      willChange: 'transform, opacity, filter',
+      force3D: true
     });
     if (washLayer) {
       gsap.set(washLayer, {
         opacity: 0,
-        scaleY: 0.9,
-        scaleX: 0.985,
-        willChange: 'transform, opacity, filter'
+        scaleY: 0.94,
+        scaleX: 0.992,
+        willChange: 'transform, opacity, filter',
+        force3D: true
       });
     }
 
@@ -158,13 +171,13 @@
 
     activeTimeline.fromTo(
       washLayer,
-      { opacity: 0, scaleY: 0.9, scaleX: 0.985 },
+      { opacity: 0, scaleY: 0.94, scaleX: 0.992 },
       {
-        opacity: 0.5,
+        opacity: 0.34,
         scaleY: 1,
         scaleX: 1,
-        duration: 0.16,
-        ease: 'power2.out',
+        duration: MOTION_PROFILE.washIn,
+        ease: MOTION_PROFILE.enterEase,
         transformOrigin: 'top center'
       }
     );
@@ -173,10 +186,10 @@
       washLayer,
       {
         opacity: 0,
-        duration: 0.3,
-        ease: 'power2.out'
+        duration: MOTION_PROFILE.washOut,
+        ease: MOTION_PROFILE.enterEase
       },
-      0.1
+      0.12
     );
 
     activeTimeline.to(
@@ -186,8 +199,8 @@
         scale: 1,
         opacity: 1,
         filter: 'blur(0px)',
-        duration: 0.42,
-        ease: 'power3.out'
+        duration: MOTION_PROFILE.intro,
+        ease: MOTION_PROFILE.enterEase
       },
       0.02
     );
@@ -198,9 +211,9 @@
         y: 0,
         opacity: 1,
         filter: 'blur(0px)',
-        duration: 0.46,
-        stagger: 0.05,
-        ease: 'power3.out'
+        duration: MOTION_PROFILE.introLong,
+        stagger: 0.045,
+        ease: MOTION_PROFILE.enterEase
       },
       0.08
     );
@@ -219,6 +232,7 @@
   {#key url}
     <div
       class="content-container"
+      data-motion-role="page-transition"
       data-view-surface={url}
       in:smoothTransition
       out:smoothTransition

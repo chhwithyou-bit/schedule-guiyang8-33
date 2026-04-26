@@ -28,7 +28,7 @@ test.beforeEach(async ({ page }) => {
   }, {
     id: 'debug-user',
     username: 'debugger',
-    passHash: 'playwright-session',
+    authToken: 'playwright-session',
     role: 'user',
     xp: 12,
     level: 1
@@ -58,7 +58,7 @@ test.beforeEach(async ({ page }) => {
     }
 
     if (pathname === '/api/community/posts' && req.method() === 'POST') {
-      sawAuthHeader = req.headers()['authorization'] === 'Bearer debugger:playwright-session';
+      sawAuthHeader = req.headers()['authorization'] === 'Bearer playwright-session';
       const payload = req.postDataJSON();
       posts = [buildPost('post-debug-1', payload.content), ...posts];
       return fulfill({ ok: true });

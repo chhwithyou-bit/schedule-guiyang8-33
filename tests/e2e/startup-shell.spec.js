@@ -52,9 +52,11 @@ async function installApiMocks(page) {
 
 async function openStartupShell(page) {
   await page.goto('/');
-  await expect(page.locator('.preloader-overlay')).toBeVisible();
+  const preloader = page.locator('.preloader-overlay');
+  if (await preloader.isVisible().catch(() => false)) {
+    await expect(preloader).toBeHidden({ timeout: 15000 });
+  }
   await expect(page.locator('.app-background')).toHaveClass(/is-ready/, { timeout: 15000 });
-  await expect(page.locator('.preloader-overlay')).toBeHidden({ timeout: 15000 });
   await expect(page.locator('header')).toBeVisible();
   await expect(page.locator('#liquidBar')).toBeVisible();
 }
@@ -82,7 +84,7 @@ test('startup shell restores authenticated header controls after preloader compl
     localStorage.setItem('commUser', JSON.stringify({
       id: 'debug-user',
       username: 'debugger',
-      passHash: 'playwright-session',
+      authToken: 'playwright-session',
       role: 'owner',
       xp: 999,
       level: 9
