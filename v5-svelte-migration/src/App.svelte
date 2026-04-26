@@ -368,28 +368,35 @@
     overflow: hidden;
     pointer-events: none;
     z-index: 0;
+    background:
+      radial-gradient(circle at 50% 18%, rgba(255, 244, 237, 0.08), transparent 32%),
+      linear-gradient(180deg, rgba(var(--color-bg-rgb), 0.18), rgba(var(--color-bg-rgb), 0.58));
   }
 
   .app-background::before {
+    inset: -2.5rem;
     opacity: 0;
-    filter: grayscale(0.04) saturate(1.04) contrast(0.96) brightness(0.56);
-    transition: opacity 280ms ease-out;
-    will-change: transform, opacity;
-    animation: app-background-float 28s ease-in-out infinite alternate;
+    filter: blur(30px) grayscale(0.04) saturate(1.08) contrast(0.96) brightness(0.48);
+    transform: scale(1.08);
+    transition: opacity 360ms ease-out;
+    will-change: opacity;
   }
 
   .app-background.is-ready::before {
-    opacity: 0.68;
+    opacity: 0.42;
+  }
+
+  .app-background.is-ready::after {
+    opacity: 0.86;
   }
 
   .app-background::before,
   .app-background::after {
     content: '';
     position: absolute;
-    inset: 0;
     background-image: url('/IMG_1695.webp');
     background-repeat: no-repeat;
-    background-position: center -24px;
+    background-position: center center;
   }
 
   .app-background::before {
@@ -397,10 +404,47 @@
   }
 
   .app-background::after {
-    display: block;
+    inset: -0.75rem;
+    opacity: 0;
+    filter: grayscale(0.03) saturate(1.03) contrast(0.94) brightness(0.62);
+    transition: opacity 360ms ease-out;
     background:
       radial-gradient(circle at 48% 20%, rgba(255, 244, 237, 0.08), transparent 24%),
-      linear-gradient(180deg, rgba(var(--color-bg-rgb), 0.18) 0%, rgba(var(--color-bg-rgb), 0.38) 52%, rgba(var(--color-bg-rgb), 0.82) 100%);
+      linear-gradient(180deg, rgba(var(--color-bg-rgb), 0.1) 0%, rgba(var(--color-bg-rgb), 0.28) 52%, rgba(var(--color-bg-rgb), 0.76) 100%),
+      url('/IMG_1695.webp');
+    background-repeat: no-repeat, no-repeat, no-repeat;
+    background-position: center center, center center, center 50%;
+    background-size: 100% 100%, 100% 100%, cover;
+  }
+
+  @media (min-width: 769px) {
+    .app-background::before {
+      inset: -4rem;
+      filter: blur(42px) grayscale(0.04) saturate(1.08) contrast(0.96) brightness(0.5);
+      transform: scale(1.14);
+    }
+
+    .app-background.is-ready::before {
+      opacity: 0.64;
+    }
+
+    .app-background.is-ready::after {
+      opacity: 0.84;
+    }
+
+    .app-background::after {
+      inset: -1rem;
+      transform: none;
+      filter: grayscale(0.03) saturate(1.03) contrast(0.93) brightness(0.64);
+      background:
+        linear-gradient(90deg, rgba(var(--color-bg-rgb), 0.48) 0%, rgba(var(--color-bg-rgb), 0.08) 30%, rgba(var(--color-bg-rgb), 0.08) 68%, rgba(var(--color-bg-rgb), 0.58) 100%),
+        linear-gradient(180deg, rgba(var(--color-bg-rgb), 0.18) 0%, rgba(var(--color-bg-rgb), 0.06) 46%, rgba(var(--color-bg-rgb), 0.72) 100%),
+        url('/IMG_1695.webp');
+      background-repeat: no-repeat, no-repeat, no-repeat;
+      background-position: center center, center center, center 30%;
+      background-size: 100% 100%, 100% 100%, cover;
+      mask-image: none;
+    }
   }
 
   .app-container::before {
@@ -423,11 +467,12 @@
 
   @media (max-width: 768px) {
     .app-background.is-ready::before {
-      opacity: 0.56;
+      opacity: 0.28;
     }
 
-    .app-background::before {
-      background-position: center -16px;
+    .app-background::after {
+      background-position: center center, center center, center -16px;
+      background-size: 100% 100%, 100% 100%, cover;
     }
 
     .app-container::before {

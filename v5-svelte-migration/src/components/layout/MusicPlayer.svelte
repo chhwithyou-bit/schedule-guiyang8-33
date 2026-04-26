@@ -812,6 +812,7 @@
   bind:this={widgetEl}
   id="mp"
   class:open={isOpen}
+  class:list-open={isListOpen}
   class:dragging={isDragging}
   data-anchor-x={panelAnchorX}
   data-anchor-y={panelAnchorY}
@@ -861,23 +862,16 @@
             {:else}
               <div class:is-playing={isPlaying} class="mp-fallback-cover" style={currentTrackCoverStyle} aria-hidden="true">
                 <svg class="mp-cover-art" viewBox="0 0 100 100" fill="none">
-                  <circle class="mp-cover-orb mp-cover-orb-a" cx="78" cy="24" r="15"></circle>
-                  <circle class="mp-cover-orb mp-cover-orb-b" cx="24" cy="78" r="19"></circle>
-                  <circle class="mp-cover-disc" cx="50" cy="52" r="26"></circle>
-                  <circle class="mp-cover-disc-ring" cx="50" cy="52" r="14"></circle>
-                  <circle class="mp-cover-disc-core" cx="50" cy="52" r="5"></circle>
-                  <path class="mp-cover-wave" d="M18 56C28 43 37 40 46 46.5C55 53 63.5 54 82 39"></path>
-                  <path class="mp-cover-wave ghost" d="M22 70C33 62 40 60.5 48 65C56 69.5 65 69.5 78 60"></path>
-                  <path class="mp-cover-needle" d="M70 22L58 45"></path>
-                  <circle class="mp-cover-needle-dot" cx="57" cy="46" r="3.5"></circle>
+                  <circle class="mp-cover-halo" cx="50" cy="50" r="31"></circle>
+                  <path class="mp-cover-orbit" d="M24 54C34 31 62 25 78 43"></path>
+                  <path class="mp-cover-orbit ghost" d="M22 67C35 78 64 77 79 58"></path>
+                  <path class="mp-cover-note-stem" d="M43 66V31L65 25V58"></path>
+                  <path class="mp-cover-note-bar" d="M43 37L65 31"></path>
+                  <circle class="mp-cover-note-dot" cx="36.5" cy="67" r="8.5"></circle>
+                  <circle class="mp-cover-note-dot" cx="58.5" cy="59" r="8.5"></circle>
+                  <path class="mp-cover-signal" d="M25 47C30 40 35 38 41 40"></path>
+                  <path class="mp-cover-signal ghost" d="M69 54C75 58 79 63 82 70"></path>
                 </svg>
-                <span class="mp-cover-mark" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" class="mp-cover-mark-icon" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M9 17V7l8-2v10"></path>
-                    <circle cx="7" cy="17" r="2.2"></circle>
-                    <circle cx="17" cy="15" r="2.2"></circle>
-                  </svg>
-                </span>
               </div>
             {/if}
           </div>
@@ -1006,34 +1000,24 @@
         type="button"
         class="mp-bubble"
         aria-label="打开播放器"
+        on:pointerdown={handleBubblePointerDown}
+        on:mousedown={handleBubbleMouseDown}
         on:click={togglePlayerFromBubble}
       >
         <span id="mp-name" class="mp-visually-hidden">{currentTrack.name}</span>
         <div class="mp-bubble-ring"></div>
-        {#if currentTrack.cover}
-          <img src={currentTrack.cover} alt={currentTrack.name} class="mp-cover-image" />
-        {:else}
-          <div class:is-playing={isPlaying} class="mp-fallback-cover" style={currentTrackCoverStyle} aria-hidden="true">
-            <svg class="mp-cover-art" viewBox="0 0 100 100" fill="none">
-              <circle class="mp-cover-orb mp-cover-orb-a" cx="78" cy="24" r="15"></circle>
-              <circle class="mp-cover-orb mp-cover-orb-b" cx="24" cy="78" r="19"></circle>
-              <circle class="mp-cover-disc" cx="50" cy="52" r="26"></circle>
-              <circle class="mp-cover-disc-ring" cx="50" cy="52" r="14"></circle>
-              <circle class="mp-cover-disc-core" cx="50" cy="52" r="5"></circle>
-              <path class="mp-cover-wave" d="M18 56C28 43 37 40 46 46.5C55 53 63.5 54 82 39"></path>
-              <path class="mp-cover-wave ghost" d="M22 70C33 62 40 60.5 48 65C56 69.5 65 69.5 78 60"></path>
-              <path class="mp-cover-needle" d="M70 22L58 45"></path>
-              <circle class="mp-cover-needle-dot" cx="57" cy="46" r="3.5"></circle>
-            </svg>
-            <span class="mp-cover-mark" aria-hidden="true">
-              <svg viewBox="0 0 24 24" class="mp-cover-mark-icon" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M9 17V7l8-2v10"></path>
-                <circle cx="7" cy="17" r="2.2"></circle>
-                <circle cx="17" cy="15" r="2.2"></circle>
-              </svg>
-            </span>
-          </div>
-        {/if}
+        <div class:is-playing={isPlaying} class="mp-bubble-core" aria-hidden="true">
+          <span class="mp-bubble-orbit"></span>
+          <span class="mp-bubble-pulse"></span>
+          <svg class="mp-bubble-note" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M9.2 17.2V7.8L17.2 5.8V15.2"></path>
+            <path d="M9.2 9.8L17.2 7.8"></path>
+            <circle cx="7.2" cy="17.2" r="2.05"></circle>
+            <circle cx="15.2" cy="15.2" r="2.05"></circle>
+            <path class="mp-bubble-signal" d="M4.5 11.7C5.6 10.1 7 9.1 8.7 8.8"></path>
+            <path class="mp-bubble-signal" d="M18.7 10.4C20.1 11.4 20.9 12.7 21.2 14.3"></path>
+          </svg>
+        </div>
         <div class="mp-bubble-glow {isPlaying ? 'is-playing' : ''}"></div>
       </button>
     {/if}
@@ -1046,8 +1030,10 @@
     z-index: 10050;
     will-change: left, top, width, height, filter;
     transition:
-      width 0.38s cubic-bezier(0.22, 1, 0.36, 1),
-      height 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+      left 0.24s cubic-bezier(0.18, 0.92, 0.18, 1),
+      top 0.24s cubic-bezier(0.18, 0.92, 0.18, 1),
+      width 0.54s cubic-bezier(0.18, 0.92, 0.18, 1),
+      height 0.54s cubic-bezier(0.18, 0.92, 0.18, 1),
       filter 0.22s ease;
   }
 
@@ -1072,10 +1058,11 @@
       inset 0 1px 0 rgba(255, 255, 255, 0.08);
     transform-origin: var(--mp-origin-x) var(--mp-origin-y);
     transition:
-      border-radius 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-      background 0.32s ease,
-      box-shadow 0.32s ease,
-      padding 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+      border-radius 0.54s cubic-bezier(0.18, 0.92, 0.18, 1),
+      background 0.42s ease,
+      border-color 0.42s ease,
+      box-shadow 0.54s ease,
+      padding 0.54s cubic-bezier(0.18, 0.92, 0.18, 1);
   }
 
   .mp-shell::before {
@@ -1099,6 +1086,19 @@
     padding: 0.56rem;
   }
 
+  #mp.open .mp-shell {
+    border-color: rgba(255, 255, 255, 0.16);
+    box-shadow:
+      0 24px 52px rgba(var(--shadow-rgb), 0.16),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  }
+
+  #mp.list-open .mp-shell {
+    box-shadow:
+      0 30px 68px rgba(var(--shadow-rgb), 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.13);
+  }
+
   .mp-bubble {
     position: relative;
     width: 100%;
@@ -1109,6 +1109,7 @@
     cursor: pointer;
     background: transparent;
     padding: 0;
+    touch-action: none;
     user-select: none;
     -webkit-user-drag: none;
     -webkit-tap-highlight-color: transparent;
@@ -1132,11 +1133,72 @@
 
   .mp-bubble-ring {
     position: absolute;
-    inset: 0.2rem;
+    inset: 0.24rem;
     border-radius: inherit;
-    border: 1px solid rgba(255, 255, 255, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.18);
     z-index: 1;
     pointer-events: none;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.14),
+      0 0 0 0.28rem rgba(var(--glow-primary-rgb), 0.035);
+  }
+
+  .mp-bubble-core {
+    position: absolute;
+    inset: 0.52rem;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    border-radius: 999px;
+    color: color-mix(in srgb, var(--color-primary) 72%, white 28%);
+    background:
+      radial-gradient(circle at 35% 22%, rgba(255, 255, 255, 0.26), transparent 34%),
+      radial-gradient(circle at 76% 74%, rgba(var(--glow-secondary-rgb), 0.22), transparent 42%),
+      linear-gradient(145deg, rgba(var(--color-bg-rgb), 0.38), rgba(var(--color-bg-rgb), 0.12)),
+      rgba(255, 255, 255, 0.045);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.16),
+      inset 0 -14px 22px rgba(var(--shadow-rgb), 0.08);
+  }
+
+  .mp-bubble-orbit {
+    position: absolute;
+    inset: 0.36rem;
+    border-radius: inherit;
+    border: 1px solid rgba(var(--glow-primary-rgb), 0.22);
+    border-left-color: rgba(255, 255, 255, 0.08);
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+    opacity: 0.88;
+  }
+
+  .mp-bubble-note {
+    position: relative;
+    z-index: 2;
+    width: 1.5rem;
+    height: 1.5rem;
+    filter: drop-shadow(0 8px 14px rgba(var(--shadow-rgb), 0.16));
+  }
+
+  .mp-bubble-signal {
+    opacity: 0.58;
+  }
+
+  .mp-bubble-pulse {
+    position: absolute;
+    inset: 0.82rem;
+    z-index: 1;
+    border-radius: 999px;
+    border: 1px solid currentColor;
+    opacity: 0.16;
+  }
+
+  .mp-bubble-core.is-playing .mp-bubble-orbit {
+    animation: mp-orbit-breathe 2.8s ease-in-out infinite;
+  }
+
+  .mp-bubble-core.is-playing .mp-bubble-pulse {
+    animation: mp-note-pulse 1.42s ease-out infinite;
   }
 
   .mp-bubble-glow {
@@ -1347,8 +1409,8 @@
   }
 
   .mp-fallback-cover {
-    --mp-cover-start: #7c3aed;
-    --mp-cover-end: #2563eb;
+    --mp-cover-start: rgba(var(--glow-primary-rgb), 0.2);
+    --mp-cover-end: rgba(var(--glow-secondary-rgb), 0.16);
     --mp-cover-accent: rgba(255, 255, 255, 0.84);
     --mp-cover-glow: rgba(255, 255, 255, 0.36);
     position: relative;
@@ -1361,9 +1423,14 @@
     border-radius: inherit;
     padding: 0.45rem;
     background:
-      radial-gradient(circle at 18% 18%, var(--mp-cover-glow), transparent 36%),
-      radial-gradient(circle at 82% 26%, rgba(255, 255, 255, 0.14), transparent 24%),
-      linear-gradient(145deg, var(--mp-cover-start), var(--mp-cover-end));
+      radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.18), transparent 36%),
+      radial-gradient(circle at 82% 26%, rgba(var(--glow-secondary-rgb), 0.16), transparent 28%),
+      linear-gradient(145deg, rgba(var(--color-bg-rgb), 0.22), rgba(var(--color-bg-rgb), 0.08)),
+      linear-gradient(
+        145deg,
+        color-mix(in srgb, var(--mp-cover-start) 32%, rgba(var(--color-bg-rgb), 0.62) 68%),
+        color-mix(in srgb, var(--mp-cover-end) 28%, rgba(var(--color-bg-rgb), 0.58) 72%)
+      );
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.18),
       inset 0 -16px 24px rgba(14, 18, 32, 0.2);
@@ -1386,77 +1453,48 @@
     height: 100%;
   }
 
-  .mp-cover-orb {
-    fill: rgba(255, 255, 255, 0.14);
+  .mp-cover-halo {
+    fill: rgba(255, 255, 255, 0.055);
+    stroke: rgba(255, 255, 255, 0.18);
+    stroke-width: 1.2;
   }
 
-  .mp-cover-disc {
-    fill: rgba(8, 12, 24, 0.18);
-    stroke: rgba(255, 255, 255, 0.26);
-    stroke-width: 1.6;
-    transform-box: fill-box;
-    transform-origin: center;
+  .mp-cover-orbit {
+    stroke: rgba(255, 255, 255, 0.42);
+    stroke-width: 2.2;
+    stroke-linecap: round;
   }
 
-  .mp-cover-disc-ring {
-    stroke: rgba(255, 255, 255, 0.48);
-    stroke-width: 1.8;
-    transform-box: fill-box;
-    transform-origin: center;
+  .mp-cover-orbit.ghost {
+    opacity: 0.28;
   }
 
-  .mp-cover-disc-core {
-    fill: rgba(255, 255, 255, 0.9);
-  }
-
-  .mp-cover-wave {
-    stroke: rgba(255, 255, 255, 0.72);
-    stroke-width: 5;
+  .mp-cover-note-stem,
+  .mp-cover-note-bar {
+    stroke: rgba(255, 255, 255, 0.88);
+    stroke-width: 4.2;
     stroke-linecap: round;
     stroke-linejoin: round;
   }
 
-  .mp-cover-wave.ghost {
-    stroke-width: 3.5;
-    opacity: 0.34;
+  .mp-cover-note-dot {
+    fill: color-mix(in srgb, var(--mp-cover-accent) 84%, white 16%);
+    filter: drop-shadow(0 5px 10px rgba(0, 0, 0, 0.18));
   }
 
-  .mp-cover-needle {
-    stroke: rgba(255, 255, 255, 0.62);
-    stroke-width: 3;
+  .mp-cover-signal {
+    stroke: rgba(255, 255, 255, 0.56);
+    stroke-width: 2.6;
     stroke-linecap: round;
+    opacity: 0.8;
   }
 
-  .mp-cover-needle-dot {
-    fill: var(--mp-cover-accent);
+  .mp-cover-signal.ghost {
+    opacity: 0.36;
   }
 
-  .mp-cover-mark {
-    position: relative;
-    z-index: 1;
-    color: rgba(255, 255, 255, 0.94);
-    text-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.15rem;
-    height: 2.15rem;
-    border-radius: 999px;
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    background: rgba(11, 10, 15, 0.18);
-    box-shadow:
-      0 10px 18px rgba(0, 0, 0, 0.16),
-      inset 0 1px 0 rgba(255, 255, 255, 0.18);
-  }
-
-  .mp-cover-mark-icon {
-    width: 1rem;
-    height: 1rem;
-  }
-
-  .mp-fallback-cover.is-playing .mp-cover-disc,
-  .mp-fallback-cover.is-playing .mp-cover-disc-ring {
-    transform: scale(1.02);
+  .mp-fallback-cover.is-playing .mp-cover-halo {
+    animation: mp-cover-halo-pulse 1.8s ease-in-out infinite;
   }
 
   .mp-hero-copy {
@@ -1683,14 +1721,24 @@
     transform: translate3d(0, 10px, 0) scale(0.985);
     transform-origin: top center;
     transition:
-      max-height 0.42s cubic-bezier(0.22, 1, 0.36, 1),
-      opacity 0.28s ease,
-      transform 0.42s cubic-bezier(0.22, 1, 0.36, 1),
-      margin-top 0.28s ease,
-      padding 0.28s ease,
-      border-color 0.28s ease,
-      background 0.28s ease,
-      box-shadow 0.32s ease;
+      max-height 0.62s cubic-bezier(0.18, 0.92, 0.18, 1),
+      opacity 0.36s ease,
+      transform 0.62s cubic-bezier(0.18, 0.92, 0.18, 1),
+      margin-top 0.42s ease,
+      padding 0.42s ease,
+      border-color 0.42s ease,
+      background 0.42s ease,
+      box-shadow 0.48s ease;
+  }
+
+  #mp[data-anchor-y='bottom'] .mp-list-panel {
+    transform: translate3d(0, -8px, 0) scale(0.985);
+    transform-origin: bottom center;
+  }
+
+  #mp[data-anchor-y='top'] .mp-list-panel {
+    transform: translate3d(0, 8px, 0) scale(0.985);
+    transform-origin: top center;
   }
 
   .mp-list-panel.open {
@@ -1850,6 +1898,47 @@
     .mp-grip {
       height: 1.86rem;
       padding: 0 0.74rem;
+    }
+  }
+
+  @keyframes mp-orbit-breathe {
+    0%,
+    100% {
+      transform: scale(1);
+      opacity: 0.72;
+    }
+
+    50% {
+      transform: scale(1.08);
+      opacity: 1;
+    }
+  }
+
+  @keyframes mp-note-pulse {
+    0% {
+      transform: scale(0.62);
+      opacity: 0.2;
+    }
+
+    72%,
+    100% {
+      transform: scale(1.16);
+      opacity: 0;
+    }
+  }
+
+  @keyframes mp-cover-halo-pulse {
+    0%,
+    100% {
+      opacity: 0.7;
+      transform: scale(1);
+      transform-origin: center;
+    }
+
+    50% {
+      opacity: 1;
+      transform: scale(1.06);
+      transform-origin: center;
     }
   }
 </style>

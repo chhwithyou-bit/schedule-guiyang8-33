@@ -96,7 +96,7 @@
       </button>
     </section>
   {:else}
-    <section class="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(22rem,0.9fr)]">
+    <section class="personal-account-grid grid gap-6">
       <div class="space-y-6">
         <div class="personal-panel rounded-[32px] p-6 md:p-8">
           <div class="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
@@ -234,5 +234,18 @@
     box-shadow:
       0 20px 36px rgba(var(--shadow-rgb), 0.24),
       inset 0 1px 0 rgba(255, 255, 255, 0.26);
+  }
+
+  @media (min-width: 1280px) {
+    .personal-account-grid {
+      grid-template-columns: minmax(0, 1fr) minmax(28rem, 0.82fr);
+      align-items: start;
+    }
+  }
+
+  @media (min-width: 1536px) {
+    .personal-account-grid {
+      grid-template-columns: minmax(0, 1.04fr) minmax(30rem, 0.8fr);
+    }
   }
 </style>

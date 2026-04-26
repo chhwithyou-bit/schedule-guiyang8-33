@@ -35,13 +35,12 @@
   .community-showcase {
     position: relative;
     width: 100%;
-    /* Maintain a sleek wide aspect ratio */
-    aspect-ratio: 5 / 1.2;
-    min-height: 140px;
+    container-type: inline-size;
+    min-height: clamp(118px, 20cqw, 170px);
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 48px;
+    border-radius: clamp(28px, 5cqw, 44px);
     /* 移除厚重的背景，改为完全透明或极淡的渐变 */
     background: radial-gradient(circle at center, rgba(var(--glow-primary-rgb), 0.08), transparent 70%);
     border: 1px solid rgba(255, 255, 255, 0.03);
@@ -95,17 +94,21 @@
     z-index: 10;
     display: flex;
     align-items: center;
-    gap: 2.5rem;
-    padding: 0 2rem;
+    justify-content: center;
+    gap: clamp(0.9rem, 4cqw, 2.25rem);
+    width: 100%;
+    padding: 1.25rem clamp(1rem, 4cqw, 2rem);
+    flex-wrap: wrap;
   }
 
   .text-wrapper {
     position: relative;
     font-family: 'Outfit', 'SF Pro Display', 'PingFang SC', sans-serif;
-    font-size: clamp(2.5rem, 7.5vw, 6.5rem);
+    font-size: clamp(2.15rem, 10cqw, 5.45rem);
     font-weight: 900;
-    letter-spacing: -0.05em;
+    letter-spacing: 0;
     line-height: 1;
+    max-width: 100%;
     user-select: none;
   }
 
@@ -141,7 +144,9 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 0.6rem 1.25rem;
+    flex: 0 1 auto;
+    min-width: 0;
+    padding: 0.6rem clamp(0.9rem, 3cqw, 1.25rem);
     border-radius: 999px;
     background: rgba(var(--color-bg-rgb), 0.6);
     border: 1px solid rgba(var(--glow-primary-rgb), 0.3);
@@ -174,9 +179,9 @@
   }
 
   .status-text {
-    font-size: clamp(0.7rem, 1.5vw, 0.9rem);
+    font-size: clamp(0.68rem, 2.2cqw, 0.86rem);
     font-weight: 800;
-    letter-spacing: 0.25em;
+    letter-spacing: 0.16em;
     color: rgba(255, 255, 255, 0.85);
     text-transform: uppercase;
     white-space: nowrap;
@@ -226,7 +231,6 @@
 
   @media (max-width: 1024px) {
     .community-showcase {
-      aspect-ratio: auto;
       padding: 2.5rem 1.5rem;
       border-radius: 32px;
     }
@@ -246,7 +250,22 @@
       transform: none;
     }
     .text-wrapper {
-      font-size: clamp(3rem, 12vw, 5rem);
+      font-size: clamp(2.6rem, 11.5vw, 4.6rem);
+    }
+  }
+
+  @container (max-width: 520px) {
+    .content-wrapper {
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .text-wrapper {
+      font-size: clamp(2.35rem, 15cqw, 4rem);
+    }
+
+    .status-badge {
+      transform: none;
     }
   }
 

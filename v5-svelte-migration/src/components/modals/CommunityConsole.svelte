@@ -108,6 +108,7 @@
     ? tabs.filter((tab) => tab.id === 'account')
     : tabs.filter((tab) => (showDriveTab || tab.id !== 'drive') && (!allowedTabs || allowedTabs.includes(tab.id)));
   $: shouldRenderModalShell = openAsModal && !embedded;
+  $: isEmbeddedAccountPanel = embedded && accountOnly;
   $: activeTabMeta = availableTabs.find((tab) => tab.id === activeTab) || availableTabs[0];
 
   let activeTab: TabId = defaultTab;
@@ -1031,6 +1032,7 @@
 
     <div class="{embedded ? 'space-y-5' : 'xl:flex-1 xl:min-h-0 xl:overflow-hidden'}">
       <div class="{embedded ? 'space-y-5' : shouldRenderModalShell ? 'min-h-full space-y-5 pb-5' : 'xl:flex xl:flex-col xl:h-full xl:min-h-0'}">
+        {#if !isEmbeddedAccountPanel}
         <div class="console-hero-panel {activeTab === 'chats' && mobileChatView === 'detail' ? 'hidden xl:block' : ''} {embedded ? '' : shouldRenderModalShell ? 'mx-1 mt-4 md:mx-2 md:mt-5' : 'mx-4 mt-4 md:mx-5 md:mt-5'}">
           <div class="console-tab-shell flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between">
             <div class="console-tab-rail xl:max-w-[19rem]">
@@ -1072,6 +1074,7 @@
             </p>
           {/if}
         </div>
+        {/if}
 
       <div class="{embedded ? 'space-y-6' : shouldRenderModalShell ? 'space-y-6 px-5 pb-5 pt-1 md:px-6 md:pb-6' : 'px-5 pb-5 pt-1 md:px-6 md:pb-6 xl:flex-1 xl:min-h-0 xl:overflow-y-auto'}">
         {#if activeTab === 'account'}
@@ -1093,7 +1096,7 @@
                 </div>
               </section>
             {:else}
-              <section class="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(20rem,0.95fr)]">
+              <section class="account-layout {isEmbeddedAccountPanel ? 'is-embedded-account' : ''}">
                 <div class="console-panel p-6">
                   <div class="flex items-center gap-4">
                     <div class="flex h-16 w-16 items-center justify-center overflow-hidden rounded-[22px] bg-[var(--color-primary)] text-2xl font-black text-[var(--color-bg)]">
@@ -1112,7 +1115,7 @@
                     </div>
                   </div>
 
-                  <div class="mt-6 grid gap-4 md:grid-cols-3">
+                  <div class="account-form-grid {isEmbeddedAccountPanel ? 'is-embedded-account' : ''}">
                     <label class="block">
                       <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35 text-[var(--color-text,#fff4ed)]">个性签名</span>
                       <textarea bind:value={profileForm.signature} class="console-field h-28 w-full px-4 py-3 text-sm font-medium text-[var(--color-text,#fff4ed)] placeholder:text-[var(--color-text,#fff4ed)]/40" style="background-color: rgba(255, 255, 255, 0.18);"></textarea>
@@ -1775,5 +1778,48 @@
     line-height: 1.5;
     opacity: 0.68;
     text-transform: none;
+  }
+
+  .account-layout {
+    display: grid;
+    gap: 1.5rem;
+  }
+
+  .account-form-grid {
+    display: grid;
+    gap: 1rem;
+    margin-top: 1.5rem;
+  }
+
+  .account-form-grid .console-field {
+    min-height: 3.2rem;
+  }
+
+  @media (min-width: 768px) {
+    .account-form-grid {
+      grid-template-columns: minmax(0, 1.1fr) minmax(12rem, 0.95fr);
+    }
+
+    .account-form-grid label:first-child {
+      grid-row: span 2;
+    }
+
+    .account-form-grid.is-embedded-account {
+      grid-template-columns: 1fr;
+    }
+
+    .account-form-grid.is-embedded-account label:first-child {
+      grid-row: auto;
+    }
+  }
+
+  @media (min-width: 1280px) {
+    .account-layout {
+      grid-template-columns: minmax(0, 1.05fr) minmax(20rem, 0.95fr);
+    }
+
+    .account-layout.is-embedded-account {
+      grid-template-columns: 1fr;
+    }
   }
 </style>
