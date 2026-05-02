@@ -68,7 +68,7 @@
 
 **Step 3:** Ensure profile-to-chat transitions land in the Community messaging section.
 
-**Step 4:** Change post image upload flow so Google Drive is the source of truth and R2 stays cache/distribution.
+**Step 4:** Change post image upload flow so R2 is the primary user-facing store and Google Drive becomes the async archive/backfill layer.
 
 ### Task 5: Refocus admin on moderation plus media operations
 

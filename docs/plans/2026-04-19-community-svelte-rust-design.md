@@ -107,9 +107,9 @@ Planned domains:
 
 ### Media Flow
 
-- Post images are uploaded to Google Drive as the source of truth
+- Post images now write to R2 first as the user-facing source of truth
 - Public reads go through `/api/community/media/:key`
-- R2 acts as cache/distribution layer
+- Google Drive acts as the asynchronous archive/backfill source when configured
 - No user-facing drive module in the final IA
 
 ## Migration Strategy
