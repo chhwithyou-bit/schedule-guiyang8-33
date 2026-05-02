@@ -125,7 +125,7 @@
         detailScrollEl.scrollTo({
           top: Math.max(0, commentSectionEl.offsetTop - 24),
           left: 0,
-          behavior: 'smooth'
+          behavior: 'auto'
         });
       }
       await tick();
@@ -614,7 +614,7 @@
             </div>
           {/if}
 
-          <div bind:this={commentSectionEl} class="post-detail-comments border-t border-white/10 pt-10 pb-40 sm:pt-12 sm:pb-32">
+          <div bind:this={commentSectionEl} class="post-detail-comments border-t border-white/10 pt-10 pb-10 sm:pt-12 sm:pb-12">
             <h3 class="mb-8 flex items-center gap-3 text-2xl font-black uppercase tracking-tighter">
               留言
               <span class="text-sm font-bold opacity-30">({$selectedPost.comment_count || 0})</span>
@@ -715,7 +715,7 @@
         </div>
       </div>
 
-      <div class="post-detail-composer-wrap fixed bottom-0 left-0 right-0 p-4 sm:p-6">
+      <div class="post-detail-composer-wrap shrink-0 px-4 pb-4 pt-3 sm:px-6 sm:pb-6 sm:pt-4">
         <div class="post-detail-composer mx-auto flex max-w-3xl flex-col gap-3">
           {#if replyTarget}
             <div class="post-detail-reply-target flex items-center justify-between gap-3 rounded-2xl px-4 py-2 text-xs font-bold">
@@ -985,6 +985,9 @@
   }
 
   .post-detail-composer-wrap {
+    position: relative;
+    z-index: 1;
+    flex-shrink: 0;
     pointer-events: none;
     padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
     background: linear-gradient(180deg, rgba(var(--color-bg-rgb), 0) 0%, rgba(var(--color-bg-rgb), 0.18) 30%, rgba(var(--color-bg-rgb), 0.42) 100%);

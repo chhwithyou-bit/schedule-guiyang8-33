@@ -6,6 +6,8 @@ export type CommunitySession = CommunityUser & {
   authToken: string;
 };
 
+export const COMMUNITY_MEDIA_UPLOAD_ENDPOINT = '/api/community/media/upload';
+
 function isSessionLike(value: unknown): value is CommunitySession {
   if (!value || typeof value !== 'object') return false;
   const session = value as CommunitySession;
@@ -46,6 +48,11 @@ export function buildCommunityAuthHeader(authToken: string) {
   return `Bearer ${authToken}`;
 }
 
+export function isCommunityAdminRole(role: unknown) {
+  const normalizedRole = String(role || '').trim().toLowerCase();
+  return normalizedRole === 'admin' || normalizedRole === 'owner';
+}
+
 export function communityFetch(input: RequestInfo | URL, init: RequestInit = {}) {
   return fetch(input, {
     ...init,
@@ -59,5 +66,45 @@ export function persistCommunitySession(nextUser: unknown) {
     localStorage.setItem('commUser', JSON.stringify(nextUser));
   } else {
     localStorage.removeItem('commUser');
+  }
+}
+
+export async function refreshStoredCommunitySession(): Promise<CommunitySession | null> {
+  const storedSession = readStoredCommunitySession();
+  if (!storedSession?.authToken) {
+    return storedSession;
+  }
+
+  try {
+    const res = await fetch('/api/community/me', {
+      headers: {
+        Authorization: buildCommunityAuthHeader(storedSession.authToken)
+      }
+    });
+
+    if (res.status === 401 || res.status === 403) {
+      persistCommunitySession(null);
+      return null;
+    }
+
+    const data = await res.json();
+    if (!res.ok || !data?.ok || !data.user || typeof data.user !== 'object') {
+      return storedSession;
+    }
+
+    const nextSession = {
+      ...storedSession,
+      ...data.user,
+      authToken: storedSession.authToken
+    };
+
+    if (!isSessionLike(nextSession)) {
+      return storedSession;
+    }
+
+    persistCommunitySession(nextSession);
+    return nextSession;
+  } catch {
+    return storedSession;
   }
 }

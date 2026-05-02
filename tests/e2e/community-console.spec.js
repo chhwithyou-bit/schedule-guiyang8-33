@@ -131,7 +131,7 @@ test('personal view exposes the account editor and the user post list', async ({
   await expect(page.getByRole('heading', { name: 'debugger' }).first()).toBeVisible();
   await expect(page.locator('article').filter({ hasText: 'Own post from personal surface' })).toBeVisible();
 
-  const signatureInput = page.locator('.console-panel textarea').first();
+  const signatureInput = page.getByLabel('个性签名');
   await expect(signatureInput).toHaveValue('before save');
 });
 
@@ -153,11 +153,24 @@ test('mobile personal view keeps the account editor reachable', async ({ page })
   const heading = page.getByRole('heading', { name: 'debugger' }).first();
   await expect(heading).toBeVisible();
 
-  const signatureInput = page.locator('.console-panel textarea').first();
+  const signatureInput = page.getByLabel('个性签名');
   await signatureInput.scrollIntoViewIfNeeded();
   await expect(signatureInput).toBeVisible();
 
   const ownPost = page.locator('article').filter({ hasText: 'Own post from personal surface' }).first();
   await ownPost.scrollIntoViewIfNeeded();
   await expect(ownPost).toBeVisible();
+});
+
+test('saving the personal signature updates the visible personal summary', async ({ page }) => {
+  await openPersonalView(page);
+
+  const signatureInput = page.getByLabel('个性签名');
+  await signatureInput.fill('after save');
+  await expect(signatureInput).toHaveValue('after save');
+
+  await page.getByRole('button', { name: '保存资料' }).click();
+
+  await expect.poll(() => appState.savedProfile?.signature).toBe('after save');
+  await expect(page.locator('.personal-account-grid > div').first().locator('.personal-panel').first()).toContainText('after save');
 });

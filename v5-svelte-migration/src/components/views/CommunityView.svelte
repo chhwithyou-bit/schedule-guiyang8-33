@@ -8,6 +8,7 @@
   import { currentView, isAuthenticated, selectedPost, selectedProfile } from '../../stores/appState';
   import { openModal } from '../../stores/modalState';
   import { communityFetch } from '../../lib/communityApi';
+  import { navigateToView } from '../../lib/appRouter';
   import { installCommunityHistory, navigateCommunitySection, openCommunityProfile } from '../../lib/communityNavigation';
   import { communityViewState, type CommunitySection } from '../../stores/communityViewState';
 
@@ -147,7 +148,7 @@
   }
 
   function openMyProfile() {
-    currentView.set('profile');
+    navigateToView('profile');
   }
 
   function handlePostCreated() {

@@ -2,7 +2,12 @@
   import { fade } from 'svelte/transition';
   import { closeModal, openModal } from '../../stores/modalState';
   import { currentView, isAdmin, isAuthenticated, selectedProfile, user } from '../../stores/appState';
-  import { communityFetch, persistCommunitySession } from '../../lib/communityApi';
+  import {
+    COMMUNITY_MEDIA_UPLOAD_ENDPOINT,
+    communityFetch,
+    persistCommunitySession
+  } from '../../lib/communityApi';
+  import { navigateToView } from '../../lib/appRouter';
   import {
     communityConsoleState,
     resetCommunityConsoleState,
@@ -56,6 +61,12 @@
     avatar_url?: string;
   };
 
+  type ProfileForm = {
+    signature: string;
+    avatar_url: string;
+    background_url: string;
+  };
+
   const tabs: Array<{ id: TabId; label: string }> = [
     { id: 'account', label: '账号' },
     { id: 'drive', label: '网盘' },
@@ -86,11 +97,39 @@
   let activeTab: TabId = defaultTab;
   let authPrompt = '';
 
-  let profileForm = {
-    signature: '',
-    avatar_url: '',
-    background_url: ''
-  };
+  function buildProfileForm(source?: Partial<ProfileForm> | null): ProfileForm {
+    return {
+      signature: String(source?.signature || ''),
+      avatar_url: String(source?.avatar_url || ''),
+      background_url: String(source?.background_url || '')
+    };
+  }
+
+  function buildProfileFormSeed(source?: { id?: string; signature?: string | null; avatar_url?: string | null; background_url?: string | null } | null) {
+    return JSON.stringify([
+      String(source?.id || ''),
+      String(source?.signature || ''),
+      String(source?.avatar_url || ''),
+      String(source?.background_url || '')
+    ]);
+  }
+
+  function markProfileDirty() {
+    profileFormDirty = true;
+  }
+
+  function applyProfileFormPatch(patch: Partial<ProfileForm>) {
+    profileForm = {
+      ...profileForm,
+      ...patch
+    };
+    profileFormDirty = true;
+  }
+
+  let profileForm: ProfileForm = buildProfileForm();
+  let profileFormDirty = false;
+  let profileFormOwnerId = '';
+  let lastProfileFormSeed = '';
   let savingProfile = false;
   let profileMessage = '';
 
@@ -100,7 +139,7 @@
   let drivePath: Array<{ id: string | null; name: string }> = [{ id: null, name: '根目录' }];
   let loadingDrive = false;
   let driveError = '';
-  let uploadingDrive = false;
+  let uploadingMedia = false;
   let driveFeedback: DriveFeedback | null = null;
 
   let notifications: NotificationItem[] = [];
@@ -127,11 +166,23 @@
   }
 
   $: if ($user) {
-    profileForm = {
-      signature: $user.signature || '',
-      avatar_url: $user.avatar_url || '',
-      background_url: $user.background_url || ''
-    };
+    const nextOwnerId = String($user.id || '');
+    const nextSeed = buildProfileFormSeed($user);
+
+    if (nextOwnerId !== profileFormOwnerId) {
+      profileFormOwnerId = nextOwnerId;
+      lastProfileFormSeed = nextSeed;
+      profileFormDirty = false;
+      profileForm = buildProfileForm($user);
+    } else if (!profileFormDirty && nextSeed !== lastProfileFormSeed) {
+      lastProfileFormSeed = nextSeed;
+      profileForm = buildProfileForm($user);
+    }
+  } else if (profileFormOwnerId || profileForm.signature || profileForm.avatar_url || profileForm.background_url) {
+    profileFormOwnerId = '';
+    lastProfileFormSeed = '';
+    profileFormDirty = false;
+    profileForm = buildProfileForm();
   }
 
   $: if ($isAuthenticated && !accountOnly && $user?.id && initializedForUserId !== $user.id) {
@@ -479,7 +530,7 @@
     }
   }
 
-  async function handleDriveUpload(event: Event) {
+  async function handleMediaUpload(event: Event) {
     const input = event.currentTarget as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
@@ -489,7 +540,7 @@
       return;
     }
 
-    uploadingDrive = true;
+    uploadingMedia = true;
     driveError = '';
     setDriveFeedback(`正在上传「${file.name}」...`, 'info');
 
@@ -499,7 +550,7 @@
       const parentId = drivePath[drivePath.length - 1]?.id;
       if (parentId) formData.append('parent_id', parentId);
 
-      const res = await communityFetch('/api/community/drive/upload', {
+      const res = await communityFetch(COMMUNITY_MEDIA_UPLOAD_ENDPOINT, {
         method: 'POST',
         body: formData
       });
@@ -516,7 +567,7 @@
       driveError = '文件没传上去。';
       setDriveFeedback(driveError, 'error');
     } finally {
-      uploadingDrive = false;
+      uploadingMedia = false;
       input.value = '';
     }
   }
@@ -553,13 +604,13 @@
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const res = await communityFetch('/api/community/drive/upload', {
+      const res = await communityFetch(COMMUNITY_MEDIA_UPLOAD_ENDPOINT, {
         method: 'POST',
         body: formData
       });
       const data = await res.json();
       if (data.ok && data.file?.url) {
-        profileForm.avatar_url = data.file.url;
+        applyProfileFormPatch({ avatar_url: data.file.url });
       } else {
         profileMessage = data.msg || '头像上传失败';
       }
@@ -581,13 +632,13 @@
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const res = await communityFetch('/api/community/drive/upload', {
+      const res = await communityFetch(COMMUNITY_MEDIA_UPLOAD_ENDPOINT, {
         method: 'POST',
         body: formData
       });
       const data = await res.json();
       if (data.ok && data.file?.url) {
-        profileForm.background_url = data.file.url;
+        applyProfileFormPatch({ background_url: data.file.url });
       } else {
         profileMessage = data.msg || '背景图上传失败';
       }
@@ -624,6 +675,8 @@
         ...$user,
         ...(data.user || profileForm)
       };
+      profileFormDirty = false;
+      lastProfileFormSeed = '';
       user.set(nextUser);
       persistCommunitySession(nextUser);
       profileMessage = '资料已经保存好了。';
@@ -638,7 +691,7 @@
   function openMyProfile() {
     if (!$user) return;
     selectedProfile.set(null);
-    currentView.set('profile');
+    navigateToView('profile');
     if (!embedded) {
       handleClose();
     }
@@ -703,14 +756,14 @@
 
   function openAdminView() {
     if (!$isAdmin) return;
-    currentView.set('admin');
+    navigateToView('admin');
     if (!embedded) {
       handleClose();
     }
   }
 
   function openCommunityView() {
-    currentView.set('community');
+    navigateToView('community');
     if (!embedded) {
       handleClose();
     }
@@ -875,7 +928,7 @@
                     <div class="account-form-grid {isEmbeddedAccountPanel ? 'is-embedded-account' : ''}">
                       <label class="block">
                         <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35 text-[var(--color-text,#fff4ed)]">个性签名</span>
-                        <textarea bind:value={profileForm.signature} class="console-field h-28 w-full px-4 py-3 text-sm font-medium text-[var(--color-text,#fff4ed)] placeholder:text-[var(--color-text,#fff4ed)]/40" style="background-color: rgba(255, 255, 255, 0.18);"></textarea>
+                        <textarea bind:value={profileForm.signature} on:input={markProfileDirty} class="console-field h-28 w-full px-4 py-3 text-sm font-medium text-[var(--color-text,#fff4ed)] placeholder:text-[var(--color-text,#fff4ed)]/40" style="background-color: rgba(255, 255, 255, 0.18);"></textarea>
                       </label>
 
                       <label class="block">
@@ -962,8 +1015,8 @@
 
                     <div class="flex flex-wrap gap-3">
                       <label class="cursor-pointer console-pill console-pill--primary px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)]">
-                        {uploadingDrive ? '上传中...' : '上传文件'}
-                        <input type="file" class="hidden" disabled={uploadingDrive} on:change={handleDriveUpload} />
+                        {uploadingMedia ? '上传中...' : '上传媒体'}
+                        <input type="file" class="hidden" disabled={uploadingMedia} on:change={handleMediaUpload} />
                       </label>
                       <button type="button" class="console-pill console-pill--ghost px-5 py-3 text-xs font-black uppercase tracking-[0.2em]" on:click={createFolder}>
                         新建文件夹

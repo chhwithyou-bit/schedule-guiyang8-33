@@ -19,6 +19,7 @@
   import AdminView from './components/views/AdminView.svelte';
   import CommunityView from './components/views/CommunityView.svelte';
   import PersonalView from './components/views/PersonalView.svelte';
+  import { installAppRouter } from './lib/appRouter';
 
   let lenis: Lenis;
   let lenisFrame = 0;
@@ -288,6 +289,7 @@
   }
 
   onMount(() => {
+    const uninstallAppRouter = installAppRouter();
     preloadWallpaper();
 
     const failSafe = setTimeout(() => {
@@ -303,6 +305,7 @@
     window.addEventListener('keydown', handleModalFocus);
 
     return () => {
+      uninstallAppRouter();
       window.removeEventListener('keydown', handleGlobalKeydown);
       window.removeEventListener('keydown', handleModalFocus);
       clearTimeout(failSafe);

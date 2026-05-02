@@ -5,6 +5,7 @@ import {
   setCommunityViewState,
   type CommunitySection
 } from '../stores/communityViewState';
+import { applyAppRoute, navigateToAppRoute, navigateToCommunitySection as navigateToCommunitySectionRoute } from './appRouter';
 
 type CommunityHistoryState = {
   ycCommunityRoute: {
@@ -55,8 +56,10 @@ function applyCommunityRoute(route?: CommunityHistoryState['ycCommunityRoute']) 
       selectedProfile.set(null);
       return;
     }
-    currentView.set(route.view || 'community');
-    setCommunityViewState({ section: route.section || 'feed' });
+    applyAppRoute({
+      view: route.view || 'community',
+      section: route.section || 'feed'
+    });
     selectedPost.set(route.post || null);
     selectedProfile.set(route.profile || null);
   } finally {
@@ -84,15 +87,14 @@ export function installCommunityHistory() {
 }
 
 export function navigateCommunitySection(section: CommunitySection) {
-  currentView.set('community');
-  setCommunityViewState({ section });
-  selectedPost.set(null);
-  selectedProfile.set(null);
-  pushCommunityState(null, null);
+  navigateToCommunitySectionRoute(section);
 }
 
 export function openCommunityPost(post: any, mode: 'default' | 'comments' | 'report' = 'default') {
-  currentView.set('community');
+  navigateToAppRoute({
+    view: 'community',
+    section: get(communityViewState).section
+  });
   selectedProfile.set(null);
   const nextPost = {
     ...post,
@@ -106,7 +108,10 @@ export function openCommunityPost(post: any, mode: 'default' | 'comments' | 'rep
 export function openCommunityProfile(profile: any) {
   const profileId = profile?.user_id || profile?.id;
   if (!profileId) return;
-  currentView.set('community');
+  navigateToAppRoute({
+    view: 'community',
+    section: get(communityViewState).section
+  });
   selectedPost.set(null);
   const nextProfile = {
     id: profileId,

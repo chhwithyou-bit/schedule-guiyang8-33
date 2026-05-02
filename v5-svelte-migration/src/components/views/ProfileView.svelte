@@ -5,7 +5,11 @@
   import { selectedProfile, isAuthenticated, user, clearSelectedProfile } from '../../stores/appState';
   import { openModal } from '../../stores/modalState';
   import PostCard from './PostCard.svelte';
-  import { communityFetch, persistCommunitySession } from '../../lib/communityApi';
+  import {
+    COMMUNITY_MEDIA_UPLOAD_ENDPOINT,
+    communityFetch,
+    persistCommunitySession
+  } from '../../lib/communityApi';
   import { closeCommunitySurface } from '../../lib/communityNavigation';
   import { softReveal } from '../../lib/motion';
 
@@ -99,7 +103,7 @@
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const res = await communityFetch('/api/community/drive/upload', {
+      const res = await communityFetch(COMMUNITY_MEDIA_UPLOAD_ENDPOINT, {
         method: 'POST',
         body: formData
       });
@@ -124,7 +128,7 @@
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const res = await communityFetch('/api/community/drive/upload', {
+      const res = await communityFetch(COMMUNITY_MEDIA_UPLOAD_ENDPOINT, {
         method: 'POST',
         body: formData
       });

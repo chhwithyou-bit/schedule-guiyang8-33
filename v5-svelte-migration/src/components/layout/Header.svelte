@@ -3,8 +3,12 @@
 
   import { currentView, isAdmin, isAuthenticated, user } from '../../stores/appState';
   import { openModal } from '../../stores/modalState';
-  import { setCommunityViewState } from '../../stores/communityViewState';
-  import { readStoredCommunitySession } from '../../lib/communityApi';
+  import {
+    isCommunityAdminRole,
+    readStoredCommunitySession,
+    refreshStoredCommunitySession
+  } from '../../lib/communityApi';
+  import { navigateToCommunitySection, navigateToView } from '../../lib/appRouter';
 
   const SHOW_THRESHOLD = 60;
   const HIDE_THRESHOLD = 96;
@@ -15,29 +19,49 @@
   let isScrolled = false;
 
   function goHome() {
-    setCommunityViewState({ section: 'feed' });
-    currentView.set('community');
+    navigateToCommunitySection('feed');
   }
 
   function goProfile() {
-    currentView.set('profile');
+    navigateToView('profile');
+  }
+
+  function applyCommunitySession(nextUser: ReturnType<typeof readStoredCommunitySession>) {
+    user.set(nextUser);
+    isAuthenticated.set(Boolean(nextUser));
+    isAdmin.set(isCommunityAdminRole(nextUser?.role));
+  }
+
+  function clearCommunitySession() {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('commUser');
+    }
+    applyCommunitySession(null);
   }
 
   onMount(() => {
     try {
       const nextUser = readStoredCommunitySession();
       if (nextUser) {
-        user.set(nextUser);
-        isAuthenticated.set(true);
-        isAdmin.set(nextUser.role === 'admin' || nextUser.role === 'owner');
+        applyCommunitySession(nextUser);
+        void refreshStoredCommunitySession()
+          .then((refreshedUser) => {
+            if (refreshedUser) {
+              applyCommunitySession(refreshedUser);
+              return;
+            }
+
+            clearCommunitySession();
+          })
+          .catch((error) => {
+            console.error('Failed to refresh session', error);
+          });
       } else if (typeof window !== 'undefined') {
-        localStorage.removeItem('commUser');
-        user.set(null);
-        isAuthenticated.set(false);
-        isAdmin.set(false);
+        clearCommunitySession();
       }
     } catch (error) {
       console.error('Failed to restore session', error);
+      clearCommunitySession();
     }
 
     const handleScroll = () => {

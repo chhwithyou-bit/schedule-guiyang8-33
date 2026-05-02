@@ -66,6 +66,23 @@
     lastLoadedUserId = $user.id;
     void loadPersonalSurface();
   }
+
+  $: if ($isAuthenticated && $user?.id && profileData && (profileData.id === $user.id || profileData.user_id === $user.id)) {
+    if (
+      profileData.username !== $user.username ||
+      profileData.signature !== $user.signature ||
+      profileData.avatar_url !== $user.avatar_url ||
+      profileData.background_url !== $user.background_url
+    ) {
+      profileData = {
+        ...profileData,
+        username: $user.username ?? profileData.username,
+        signature: $user.signature ?? profileData.signature,
+        avatar_url: $user.avatar_url ?? profileData.avatar_url,
+        background_url: $user.background_url ?? profileData.background_url
+      };
+    }
+  }
 </script>
 
 <section class="space-y-8 pb-24">

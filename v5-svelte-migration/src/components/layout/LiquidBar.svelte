@@ -4,7 +4,7 @@
   import { currentView, isAdmin, isAuthenticated, type CurrentView } from '../../stores/appState';
   import { openModal } from '../../stores/modalState';
   import { setCommunityConsoleState } from '../../stores/communityConsoleState';
-  import { navigateCommunitySection } from '../../lib/communityNavigation';
+  import { navigateToCommunitySection, navigateToView } from '../../lib/appRouter';
 
   let className = '';
   export { className as class };
@@ -59,7 +59,7 @@
   }
 
   function handleNav(id: CurrentView) {
-    currentView.set(id);
+    navigateToView(id);
     closeBar();
   }
 
@@ -69,18 +69,18 @@
   }
 
   function openProfile() {
-    currentView.set('profile');
+    navigateToView('profile');
     closeBar();
   }
 
   function openNotifications() {
     setCommunityConsoleState({ tab: 'notifications', returnFocusSelector: '[data-liquid-target="notifications"]' });
-    navigateCommunitySection('notifications');
+    navigateToCommunitySection('notifications');
     closeBar();
   }
 
   function openFavorites() {
-    navigateCommunitySection('favorites');
+    navigateToCommunitySection('favorites');
     closeBar();
   }
 

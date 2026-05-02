@@ -232,6 +232,19 @@ struct PostLikeResult {
     like_count: i64,
 }
 
+struct MusicByteRange {
+    start: u64,
+    end: u64,
+    length: u64,
+    r2_range: Range,
+}
+
+enum MusicRangeRequest {
+    Full,
+    Partial(MusicByteRange),
+    Unsatisfiable,
+}
+
 #[derive(Deserialize)]
 struct AdminAction {
     action: String,
@@ -739,6 +752,120 @@ fn infer_music_mime_from_key(key: &str) -> &'static str {
     }
 }
 
+fn effective_music_content_type(key: &str, stored_content_type: Option<String>) -> String {
+    let trimmed = stored_content_type.unwrap_or_default().trim().to_string();
+    let lowered = trimmed.to_ascii_lowercase();
+
+    if trimmed.is_empty()
+        || lowered == "application/octet-stream"
+        || lowered == "binary/octet-stream"
+        || lowered == "application/unknown"
+    {
+        return infer_music_mime_from_key(key).to_string();
+    }
+
+    trimmed
+}
+
+fn parse_music_range_header(range_header: Option<String>, size: u64) -> MusicRangeRequest {
+    let Some(header) = range_header else {
+        return MusicRangeRequest::Full;
+    };
+
+    let header = header.trim();
+    if header.is_empty() {
+        return MusicRangeRequest::Full;
+    }
+
+    let Some(spec) = header
+        .strip_prefix("bytes=")
+        .or_else(|| header.strip_prefix("Bytes="))
+    else {
+        return MusicRangeRequest::Unsatisfiable;
+    };
+
+    if size == 0 || spec.contains(',') {
+        return MusicRangeRequest::Unsatisfiable;
+    }
+
+    let Some((start_text, end_text)) = spec.split_once('-') else {
+        return MusicRangeRequest::Unsatisfiable;
+    };
+
+    let last = size - 1;
+    let range_bounds = if start_text.trim().is_empty() {
+        let Ok(suffix_length) = end_text.trim().parse::<u64>() else {
+            return MusicRangeRequest::Unsatisfiable;
+        };
+        if suffix_length == 0 {
+            return MusicRangeRequest::Unsatisfiable;
+        }
+        let start = size.saturating_sub(suffix_length);
+        (start, last)
+    } else {
+        let Ok(start) = start_text.trim().parse::<u64>() else {
+            return MusicRangeRequest::Unsatisfiable;
+        };
+        if start > last {
+            return MusicRangeRequest::Unsatisfiable;
+        }
+        let end = if end_text.trim().is_empty() {
+            last
+        } else {
+            let Ok(parsed_end) = end_text.trim().parse::<u64>() else {
+                return MusicRangeRequest::Unsatisfiable;
+            };
+            parsed_end.min(last)
+        };
+        if end < start {
+            return MusicRangeRequest::Unsatisfiable;
+        }
+        (start, end)
+    };
+
+    let (start, end) = range_bounds;
+    let length = end - start + 1;
+    MusicRangeRequest::Partial(MusicByteRange {
+        start,
+        end,
+        length,
+        r2_range: Range::OffsetWithLength {
+            offset: start,
+            length,
+        },
+    })
+}
+
+fn build_music_file_headers(
+    content_type: &str,
+    size: u64,
+    range: Option<&MusicByteRange>,
+) -> Result<Headers> {
+    let headers = utils::cors_headers();
+    headers.set("Content-Type", content_type)?;
+    headers.set("Accept-Ranges", "bytes")?;
+    headers.set("Cache-Control", "public, max-age=3600")?;
+
+    if let Some(range) = range {
+        headers.set("Content-Length", &range.length.to_string())?;
+        headers.set(
+            "Content-Range",
+            &format!("bytes {}-{}/{}", range.start, range.end, size),
+        )?;
+    } else {
+        headers.set("Content-Length", &size.to_string())?;
+    }
+
+    Ok(headers)
+}
+
+fn music_range_not_satisfiable_response(size: u64) -> Result<Response> {
+    let headers = utils::cors_headers();
+    headers.set("Accept-Ranges", "bytes")?;
+    headers.set("Content-Range", &format!("bytes */{}", size))?;
+    Ok(Response::empty()?.with_status(416).with_headers(headers))
+}
+
 fn encode_music_key_for_url(key: &str) -> String {
     url::form_urlencoded::byte_serialize(key.as_bytes()).collect::<String>()
 }
@@ -770,7 +897,10 @@ fn build_music_track_payload(key: &str) -> Value {
     })
 }
 
-async fn fetch_drive_media(env: &Env, file_id: &str) -> Result<Option<Response>> {
+async fn fetch_drive_media_bytes(
+    env: &Env,
+    file_id: &str,
+) -> Result<Option<(Vec<u8>, String)>> {
     if file_id.trim().is_empty() {
         return Ok(None);
     }
@@ -802,9 +932,8 @@ async fn fetch_drive_media(env: &Env, file_id: &str) -> Result<Option<Response>>
         .headers()
         .get("Content-Type")?
         .unwrap_or_else(|| "application/octet-stream".to_string());
-    let (_, body) = resp.into_parts();
-    let headers = build_public_media_headers(&content_type, "MISS-GDrive")?;
-    Ok(Some(Response::from_body(body)?.with_headers(headers)))
+    let bytes = resp.bytes().await?;
+    Ok(Some((bytes, content_type)))
 }
 
 fn build_public_media_headers(content_type: &str, cache_status: &str) -> Result<Headers> {
@@ -821,6 +950,138 @@ fn build_public_media_headers(content_type: &str, cache_status: &str) -> Result<
     headers.set("X-Cache", cache_status)?;
 
     Ok(headers)
+}
+
+fn build_public_media_response_from_bytes(
+    bytes: Vec<u8>,
+    content_type: &str,
+    cache_status: &str,
+) -> Result<Response> {
+    let headers = build_public_media_headers(content_type, cache_status)?;
+    Ok(Response::from_body(bytes)?.with_headers(headers))
+}
+
+async fn handle_community_media_library_upload(
+    mut req: Request,
+    ctx: RouteContext<Context>,
+) -> Result<Response> {
+    let db = ctx.env.d1("COMMUNITY_DB")?;
+    let user = get_auth(&req, &db).await?;
+    let user = match user {
+        Some(u) => u,
+        None => return utils::json_resp(json!({"ok": false}), 401),
+    };
+
+    let form = req.form_data().await?;
+    let file = match form.get("file") {
+        Some(FormEntry::File(f)) => f,
+        _ => return utils::json_resp(json!({"ok": false, "msg": "file required"}), 400),
+    };
+
+    let parent_id = match form.get("parent_id") {
+        Some(FormEntry::Field(s)) => Some(s),
+        _ => None,
+    };
+
+    let name = file.name();
+    let size = file.size() as i64;
+    let mime_type = file.type_();
+    let buffer = file.bytes().await?;
+
+    db.prepare("INSERT INTO user_drive_stats (user_id, quota_bytes, used_bytes) VALUES (?, 0, 0) ON CONFLICT(user_id) DO NOTHING")
+        .bind(&[user.id.clone().into()])?
+        .run().await?;
+
+    let stats = db
+        .prepare("SELECT quota_bytes, used_bytes FROM user_drive_stats WHERE user_id = ?")
+        .bind(&[user.id.clone().into()])?
+        .first::<DriveStats>(None)
+        .await?
+        .unwrap_or(DriveStats {
+            quota_bytes: 0,
+            used_bytes: 0,
+        });
+    if stats.quota_bytes > 0 && stats.used_bytes + size > stats.quota_bytes {
+        return utils::json_resp(json!({"ok": false, "msg": "storage quota exceeded"}), 400);
+    }
+
+    let media_key = format!(
+        "media-{}.{}",
+        Uuid::new_v4(),
+        infer_extension_from_mime(&mime_type)
+    );
+    if let Err(err) = put_uploaded_media(&ctx.env, &media_key, &buffer, &mime_type).await {
+        return utils::json_resp(
+            json!({
+                "ok": false,
+                "msg": "Media cache upload failed",
+                "error": format!("{}", err)
+            }),
+            503,
+        );
+    }
+
+    let drive_sync = if has_drive_auth_config(&ctx.env) {
+        let archive_env = ctx.env.clone();
+        let archive_key = media_key.clone();
+        let archive_name = name.clone();
+        let archive_mime = mime_type.clone();
+        let archive_bytes = buffer.clone();
+        ctx.data.wait_until(async move {
+            sync_media_to_drive_archive(
+                archive_env,
+                archive_key,
+                archive_bytes,
+                archive_name,
+                archive_mime,
+            )
+            .await;
+        });
+        "pending"
+    } else {
+        write_drive_archive_status(&ctx.env, &media_key, "disabled", None, None).await;
+        "disabled"
+    };
+
+    let id = Uuid::new_v4().to_string();
+    let file_url = format!("/api/community/media/{}", media_key);
+    db.prepare("INSERT INTO drive_files (id, user_id, name, size, mime_type, url, parent_id, is_folder) VALUES (?, ?, ?, ?, ?, ?, ?, 0)")
+        .bind(&[
+            id.clone().into(),
+            user.id.clone().into(),
+            name.clone().into(),
+            size.into(),
+            mime_type.clone().into(),
+            file_url.clone().into(),
+            parent_id.clone().into(),
+        ])?
+        .run()
+        .await?;
+
+    db.prepare("INSERT INTO user_drive_stats (user_id, quota_bytes, used_bytes) VALUES (?, 0, ?) ON CONFLICT(user_id) DO UPDATE SET used_bytes = used_bytes + excluded.used_bytes, updated_at = CURRENT_TIMESTAMP")
+        .bind(&[user.id.clone().into(), size.into()])?
+        .run()
+        .await?;
+
+    utils::json_resp(
+        json!({
+            "ok": true,
+            "id": id,
+            "fileId": media_key,
+            "fromDrive": false,
+            "driveSync": drive_sync,
+            "file": {
+                "id": id,
+                "name": name,
+                "size": size,
+                "mime_type": mime_type,
+                "url": file_url,
+                "parent_id": parent_id,
+                "is_folder": 0
+            }
+        }),
+        200,
+    )
 }
 
 fn resolve_cached_media_status(existing_status: Option<String>) -> &'static str {
@@ -2073,7 +2334,7 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
                     "users": users,
                     "announcement": serde_json::from_str::<Value>(&announcement).unwrap_or(json!({"content": "", "updatedAt": null})),
                     "media_storage": {
-                        "mode": "google-drive-origin-r2-cache",
+                        "mode": "r2-primary-drive-archive",
                         "drive_auth_configured": has_drive_auth_config(&ctx.env),
                         "drive_folder_id": drive_folder_id,
                         "drive_folder_configured": !drive_folder_id.trim().is_empty(),
@@ -2321,123 +2582,11 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
                 .bind(&[id.into(), user.id.into()])?.run().await?;
             utils::json_resp(json!({"ok": true}), 200)
         })
-        .post_async("/api/community/drive/upload", |mut req, ctx| async move {
-            let db = ctx.env.d1("COMMUNITY_DB")?;
-            let user = get_auth(&req, &db).await?;
-            let user = match user {
-                Some(u) => u,
-                None => return utils::json_resp(json!({"ok": false}), 401)
-            };
-
-            let form = req.form_data().await?;
-            let file = match form.get("file") {
-                Some(FormEntry::File(f)) => f,
-                _ => return utils::json_resp(json!({"ok": false, "msg": "未找到文件"}), 400)
-            };
-
-            let parent_id = match form.get("parent_id") {
-                Some(FormEntry::Field(s)) => Some(s),
-                _ => None
-            };
-
-            let name = file.name();
-            let size = file.size() as i64;
-            let mime_type = file.type_();
-            let buffer = file.bytes().await?;
-
-            db.prepare("INSERT INTO user_drive_stats (user_id, quota_bytes, used_bytes) VALUES (?, 0, 0) ON CONFLICT(user_id) DO NOTHING")
-                .bind(&[user.id.clone().into()])?
-                .run().await?;
-
-            let stats = db.prepare("SELECT quota_bytes, used_bytes FROM user_drive_stats WHERE user_id = ?").bind(&[user.id.clone().into()])?.first::<DriveStats>(None).await?.unwrap_or(DriveStats { quota_bytes: 0, used_bytes: 0 });
-            if stats.quota_bytes > 0 && stats.used_bytes + size > stats.quota_bytes {
-                return utils::json_resp(json!({"ok": false, "msg": "空间不足"}), 400);
-            }
-
-            if !has_drive_auth_config(&ctx.env) {
-                let fallback_key = format!("fallback-{}.{}", Uuid::new_v4(), infer_extension_from_mime(&mime_type));
-                cache_uploaded_media(&ctx.env, &fallback_key, &buffer, &mime_type).await;
-
-                let id = Uuid::new_v4().to_string();
-                let file_url = format!("/api/community/media/{}", fallback_key);
-                db.prepare("INSERT INTO drive_files (id, user_id, name, size, mime_type, url, parent_id, is_folder) VALUES (?, ?, ?, ?, ?, ?, ?, 0)")
-                    .bind(&[
-                        id.clone().into(),
-                        user.id.clone().into(),
-                        name.clone().into(),
-                        size.into(),
-                        mime_type.clone().into(),
-                        file_url.clone().into(),
-                        parent_id.clone().into()
-                    ])?.run().await?;
-
-                db.prepare("INSERT INTO user_drive_stats (user_id, quota_bytes, used_bytes) VALUES (?, 0, ?) ON CONFLICT(user_id) DO UPDATE SET used_bytes = used_bytes + excluded.used_bytes, updated_at = CURRENT_TIMESTAMP")
-                    .bind(&[user.id.clone().into(), size.into()])?
-                    .run().await?;
-
-                return utils::json_resp(json!({
-                    "ok": true,
-                    "id": id,
-                    "fileId": fallback_key,
-                    "fromDrive": false,
-                    "file": {
-                        "id": id,
-                        "name": name,
-                        "size": size,
-                        "mime_type": mime_type,
-                        "url": file_url,
-                        "parent_id": parent_id,
-                        "is_folder": 0
-                    }
-                }), 200);
-            }
-
-            let drive_resp = match upload_to_drive(&ctx.env, buffer.clone(), &name, &mime_type).await {
-                Ok(resp) => resp,
-                Err(_) => {
-                    return utils::json_resp(json!({"ok": false, "msg": "云盘服务不可用"}), 503);
-                }
-            };
-            let drive_file_id = drive_resp["id"].as_str().unwrap_or_default().to_string();
-
-            if drive_file_id.is_empty() {
-                return utils::json_resp(json!({"ok": false, "msg": "上传到云端失败"}), 500);
-            }
-
-            cache_uploaded_media(&ctx.env, &drive_file_id, &buffer, &mime_type).await;
-
-            let id = Uuid::new_v4().to_string();
-            let file_url = format!("/api/community/media/{}", drive_file_id);
-            db.prepare("INSERT INTO drive_files (id, user_id, name, size, mime_type, url, parent_id, is_folder) VALUES (?, ?, ?, ?, ?, ?, ?, 0)")
-                .bind(&[
-                    id.clone().into(),
-                    user.id.clone().into(),
-                    name.clone().into(),
-                    size.into(),
-                    mime_type.clone().into(),
-                    file_url.clone().into(),
-                    parent_id.clone().into()
-                ])?.run().await?;
-
-            db.prepare("INSERT INTO user_drive_stats (user_id, quota_bytes, used_bytes) VALUES (?, 0, ?) ON CONFLICT(user_id) DO UPDATE SET used_bytes = used_bytes + excluded.used_bytes, updated_at = CURRENT_TIMESTAMP")
-                .bind(&[user.id.clone().into(), size.into()])?
-                .run().await?;
-
-            utils::json_resp(json!({
-                "ok": true,
-                "id": id,
-                "fileId": drive_file_id,
-                "fromDrive": true,
-                "file": {
-                    "id": id,
-                    "name": name,
-                    "size": size,
-                    "mime_type": mime_type,
-                    "url": file_url,
-                    "parent_id": parent_id,
-                    "is_folder": 0
-                }
-            }), 200)
+        .post_async("/api/community/media/upload", |req, ctx| async move {
+            handle_community_media_library_upload(req, ctx).await
+        })
+        .post_async("/api/community/drive/upload", |req, ctx| async move {
+            handle_community_media_library_upload(req, ctx).await
         })
         .get_async("/api/community/link-preview", |req, _ctx| async move {
             let url = req.url()?;
@@ -2655,7 +2804,15 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
                     }
 
                     for drive_file_id in candidate_ids {
-                        if let Ok(Some(mut response)) = fetch_drive_media(&ctx.env, &drive_file_id).await {
+                        if let Ok(Some((bytes, content_type))) =
+                            fetch_drive_media_bytes(&ctx.env, &drive_file_id).await
+                        {
+                            let _ = put_uploaded_media(&ctx.env, &key, &bytes, &content_type).await;
+                            let mut response = build_public_media_response_from_bytes(
+                                bytes,
+                                &content_type,
+                                "MISS-GDrive-REFILL",
+                            )?;
                             cache_public_media_response(&cache, &cache_key, &mut response).await;
                             return Ok(response);
                         }
@@ -2681,29 +2838,56 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
                 "playlist": list.clone()
             }), 200)
         })
-        .get_async("/api/music/file/:key", |_req, ctx| async move {
+        .get_async("/api/music/file/:key", |req, ctx| async move {
             let raw_key = ctx.param("key").unwrap().to_string();
             let decoded_key = decode_url_component_if_needed(&raw_key);
             let mut candidate_keys = vec![raw_key.clone()];
             if decoded_key != raw_key {
                 candidate_keys.push(decoded_key);
             }
+            let requested_range = req.headers().get("Range")?;
 
             let bucket = ctx.env.bucket("MUSIC_BUCKET")?;
 
             for key in candidate_keys {
-                let obj = bucket.get(&key).execute().await?;
-                if let Some(o) = obj {
-                    let headers = Headers::new();
-                    let content_type = o
-                        .http_metadata()
-                        .content_type
-                        .filter(|ct| !ct.trim().is_empty())
-                        .unwrap_or_else(|| infer_music_mime_from_key(&key).to_string());
-                    headers.set("Content-Type", &content_type)?;
-                    headers.set("Access-Control-Allow-Origin", "*")?;
-                    let bytes = o.body().unwrap().bytes().await?;
-                    return Ok(Response::from_bytes(bytes)?.with_headers(headers));
+                let Some(head) = bucket.head(key.clone()).await? else {
+                    continue;
+                };
+
+                let size = head.size();
+                let content_type = effective_music_content_type(&key, head.http_metadata().content_type);
+
+                match parse_music_range_header(requested_range.clone(), size) {
+                    MusicRangeRequest::Unsatisfiable => {
+                        return music_range_not_satisfiable_response(size);
+                    }
+                    MusicRangeRequest::Full => {
+                        let Some(o) = bucket.get(key.clone()).execute().await? else {
+                            continue;
+                        };
+                        let Some(body) = o.body() else {
+                            continue;
+                        };
+                        let headers = build_music_file_headers(&content_type, size, None)?;
+                        return Ok(Response::from_body(body.response_body()?)?.with_headers(headers));
+                    }
+                    MusicRangeRequest::Partial(range) => {
+                        let Some(o) = bucket
+                            .get(key.clone())
+                            .range(range.r2_range.clone())
+                            .execute()
+                            .await?
+                        else {
+                            continue;
+                        };
+                        let Some(body) = o.body() else {
+                            continue;
+                        };
+                        let headers = build_music_file_headers(&content_type, size, Some(&range))?;
+                        return Ok(Response::from_body(body.response_body()?)?
+                            .with_status(206)
+                            .with_headers(headers));
+                    }
                 }
             }
 

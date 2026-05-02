@@ -159,12 +159,12 @@
           <p class="mt-2 text-sm font-medium opacity-55">已经同步到管理视图的账号总数。</p>
         </article>
         <article class="admin-card p-6">
-          <p class="text-[10px] font-black uppercase tracking-widest opacity-30">Drive 原始存储</p>
+          <p class="text-[10px] font-black uppercase tracking-widest opacity-30">Drive 归档状态</p>
           <p class="mt-3 text-3xl font-black tracking-tight">{mediaStorage.drive_folder_configured ? '已配置' : '未配置'}</p>
           <p class="mt-2 text-sm font-medium opacity-55">帖子图片的原始文件存储位置。</p>
         </article>
         <article class="admin-card p-6">
-          <p class="text-[10px] font-black uppercase tracking-widest opacity-30">R2 缓存样本</p>
+          <p class="text-[10px] font-black uppercase tracking-widest opacity-30">R2 主存储样本</p>
           <p class="mt-3 text-3xl font-black tracking-tight">{mediaStorage.r2_sample_count || 0}</p>
           <p class="mt-2 text-sm font-medium opacity-55">当前抓到的缓存对象样本数。</p>
         </article>
@@ -253,7 +253,7 @@
         <div class="grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
           <section class="admin-card p-8">
             <p class="text-[10px] font-black uppercase tracking-widest opacity-30">媒体链路</p>
-            <h3 class="mt-2 text-2xl font-black tracking-tight">Google Drive 原始存储 + R2 缓存</h3>
+            <h3 class="mt-2 text-2xl font-black tracking-tight">R2 主存储 + Google Drive 归档</h3>
             <div class="mt-6 grid gap-4 sm:grid-cols-2">
               <article class="rounded-[28px] border border-white/10 bg-white/5 p-5">
                 <p class="text-[10px] font-black uppercase tracking-widest opacity-30">原始存储</p>
@@ -261,10 +261,10 @@
                 <p class="mt-2 text-sm font-medium opacity-65 break-all">{mediaStorage.drive_folder_id || '当前没有读取到文件夹 ID。'}</p>
               </article>
               <article class="rounded-[28px] border border-white/10 bg-white/5 p-5">
-                <p class="text-[10px] font-black uppercase tracking-widest opacity-30">缓存分发</p>
+                <p class="text-[10px] font-black uppercase tracking-widest opacity-30">R2 主存储</p>
                 <p class="mt-2 text-xl font-black tracking-tight">{mediaStorage.r2_configured === false ? 'R2 未接通' : `R2 样本对象 ${mediaStorage.r2_sample_count || 0} 个`}</p>
                 <p class="mt-2 text-sm font-medium opacity-65">
-                  {mediaStorage.r2_error || '帖子图片会先写入 Drive，再通过 `/api/community/media/:key` 命中 R2/边缘缓存。'}
+                  {mediaStorage.r2_error || '用户上传会先写入 R2，再异步归档到 Drive；访问 `/api/community/media/:key` 会优先命中 R2，miss 后回源并回填。'}
                 </p>
               </article>
             </div>
