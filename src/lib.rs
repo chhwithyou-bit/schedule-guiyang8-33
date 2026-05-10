@@ -922,7 +922,7 @@ async fn fetch_drive_media_bytes(
     init.with_headers(headers);
 
     let req = Request::new_with_init(&url, &init)?;
-    let resp = Fetch::Request(req).send().await?;
+    let mut resp = Fetch::Request(req).send().await?;
 
     if resp.status_code() != 200 {
         return Ok(None);
@@ -958,7 +958,7 @@ fn build_public_media_response_from_bytes(
     cache_status: &str,
 ) -> Result<Response> {
     let headers = build_public_media_headers(content_type, cache_status)?;
-    Ok(Response::from_body(bytes)?.with_headers(headers))
+    Ok(Response::from_bytes(bytes)?.with_headers(headers))
 }
 
 async fn handle_community_media_library_upload(
