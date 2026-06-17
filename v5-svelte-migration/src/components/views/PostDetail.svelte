@@ -171,7 +171,7 @@
 
   async function handleComment() {
     const content = newComment.trim();
-    if (!content) return;
+    if (!content || submitting) return;
     const activePost = $selectedPost;
     const postId = activePost?.id;
     if (!postId) return;
@@ -296,7 +296,8 @@
       if (!data.ok) return;
 
       const nextLiked = typeof data.liked === 'boolean' ? data.liked : data.action === 'liked';
-      const nextLikeCount = Math.max(0, Number($selectedPost.like_count || 0) + (nextLiked ? 1 : -1));
+      const fallbackCount = Math.max(0, Number($selectedPost.like_count || 0) + (nextLiked ? 1 : -1));
+      const nextLikeCount = Number(data.like_count ?? fallbackCount);
       selectedPost.update((current) => current
         ? { ...current, viewer_liked: nextLiked, like_count: nextLikeCount }
         : current
@@ -731,7 +732,8 @@
             bind:value={newComment}
             placeholder="想回一句什么，就写在这里。"
             class="post-detail-composer-input min-w-0 flex-1 rounded-2xl px-5 py-4 font-bold text-[var(--color-text,#fff4ed)] placeholder:text-[var(--color-text,#fff4ed)]/40 outline-none transition-all"
-            on:keydown={(e) => e.key === 'Enter' && handleComment()}
+            disabled={submitting}
+            on:keydown={(e) => e.key === 'Enter' && !submitting && handleComment()}
           />
           <button
             type="button"

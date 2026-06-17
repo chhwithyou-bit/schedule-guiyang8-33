@@ -27,6 +27,7 @@
 
   let uploadingAvatar = false;
   let uploadingBackground = false;
+  let togglingFollow = false;
 
   $: viewedProfileUserId = $selectedProfile?.id || $selectedProfile?.user_id || '';
   $: isOwnProfile = Boolean($isAuthenticated && $user?.id && viewedProfileUserId && $user.id === viewedProfileUserId);
@@ -40,6 +41,7 @@
     followingCount = 0;
     uploadingAvatar = false;
     uploadingBackground = false;
+    togglingFollow = false;
   }
 
   function primeProfileSurface() {
@@ -205,9 +207,10 @@
   async function fetchProfileData() {
     if (!$selectedProfile) return;
     const requestToken = ++profileRequestToken;
-    const profileId = $selectedProfile.id || $selectedProfile.user_id;
+    const profileId = String($selectedProfile.id || $selectedProfile.user_id || '');
+    if (!profileId) return;
     try {
-      const res = await communityFetch(`/api/community/profile?id=${profileId}`);
+      const res = await communityFetch(`/api/community/profile?id=${encodeURIComponent(profileId)}`);
       const data = await res.json();
       if (data.ok && requestToken === profileRequestToken && currentProfileId === profileId) {
         const nextUser = data.user || {};
@@ -227,10 +230,11 @@
   async function fetchUserPosts() {
     if (!$selectedProfile) return;
     const requestToken = ++postsRequestToken;
-    const profileId = $selectedProfile.id || $selectedProfile.user_id;
+    const profileId = String($selectedProfile.id || $selectedProfile.user_id || '');
+    if (!profileId) return;
     loading = true;
     try {
-      const res = await communityFetch(`/api/community/posts?userId=${profileId}`);
+      const res = await communityFetch(`/api/community/posts?userId=${encodeURIComponent(profileId)}`);
       const data = await res.json();
       if (data.ok && requestToken === postsRequestToken && currentProfileId === profileId) {
         posts = Array.isArray(data.posts) ? data.posts : [];
@@ -253,7 +257,9 @@
       return;
     }
     const profileId = $selectedProfile?.id || $selectedProfile?.user_id;
-    if (!profileId) return;
+    if (!profileId || togglingFollow) return;
+
+    togglingFollow = true;
     try {
       const res = await communityFetch('/api/community/follow', {
         method: 'POST',
@@ -269,9 +275,12 @@
           followers_count: followerCount,
           following_count: followingCount
         });
+        await fetchProfileData();
       }
     } catch (e) {
       console.error('Follow failed', e);
+    } finally {
+      togglingFollow = false;
     }
   }
 
@@ -425,6 +434,7 @@
                   <div class="flex flex-wrap gap-3 sm:ml-2">
                     <button
                       on:click={toggleFollow}
+                      disabled={togglingFollow}
                       class:is-active={!isFollowing}
                       class="profile-action-button rounded-2xl px-6 py-3 text-sm font-black uppercase tracking-[0.18em] transition-all hover:-translate-y-0.5"
                     >

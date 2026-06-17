@@ -185,7 +185,7 @@
     profileForm = buildProfileForm();
   }
 
-  $: if ($isAuthenticated && !accountOnly && $user?.id && initializedForUserId !== $user.id) {
+  $: if ($isAuthenticated && $user?.id && initializedForUserId !== $user.id) {
     initializedForUserId = $user.id;
     void bootstrapConsole();
   }
@@ -303,10 +303,10 @@
   }
 
   async function bootstrapConsole() {
-    const shouldLoadDriveList = availableTabs.some((tab) => tab.id === 'drive');
+    const shouldLoadDriveData = accountOnly || availableTabs.some((tab) => tab.id === 'drive');
     await Promise.allSettled([
-      loadDriveInfo(),
-      shouldLoadDriveList ? loadDriveList() : Promise.resolve(),
+      shouldLoadDriveData ? loadDriveInfo() : Promise.resolve(),
+      shouldLoadDriveData ? loadDriveList() : Promise.resolve(),
       loadNotifications()
     ]);
   }

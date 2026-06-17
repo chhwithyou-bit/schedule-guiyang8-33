@@ -113,7 +113,7 @@
 
   $: {
     const nextView = $currentView;
-    if (previousView && nextView !== previousView && $selectedProfile) {
+    if (previousView === 'community' && nextView !== previousView && $selectedProfile) {
       clearSelectedProfile();
     }
     previousView = nextView;

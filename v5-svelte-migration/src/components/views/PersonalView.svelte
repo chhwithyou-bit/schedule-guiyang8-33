@@ -5,6 +5,7 @@
   import { isAuthenticated, user } from '../../stores/appState';
   import { openModal } from '../../stores/modalState';
   import { communityFetch } from '../../lib/communityApi';
+  import { communityConsoleState } from '../../stores/communityConsoleState';
 
   let profileData: any = null;
   let posts: any[] = [];
@@ -12,6 +13,8 @@
   let loadingPosts = false;
   let requestToken = 0;
   let lastLoadedUserId = '';
+
+  $: showDrivePanel = $communityConsoleState.tab === 'drive';
 
   async function loadPersonalSurface() {
     if (!$isAuthenticated || !$user?.id) {
@@ -53,18 +56,44 @@
     void loadPersonalSurface();
   }
 
+  function handlePostUpdated(event: Event) {
+    const customEvent = event as CustomEvent<{ id?: string; patch?: Record<string, unknown> }>;
+    const postId = String(customEvent.detail?.id || '');
+    const patch = customEvent.detail?.patch;
+    if (postId && patch) posts = posts.map((item) => item.id === postId ? { ...item, ...patch } : item);
+  }
+
+  function handlePostDeleted(event: Event) {
+    const customEvent = event as CustomEvent<{ id?: string }>;
+    const postId = String(customEvent.detail?.id || '');
+    if (postId) posts = posts.filter((item) => item.id !== postId);
+  }
+
   onMount(() => {
     void loadPersonalSurface();
     window.addEventListener('post-created', handlePostCreated);
+    window.addEventListener('community-post-updated', handlePostUpdated as EventListener);
+    window.addEventListener('community-post-deleted', handlePostDeleted as EventListener);
   });
 
   onDestroy(() => {
     window.removeEventListener('post-created', handlePostCreated);
+    window.removeEventListener('community-post-updated', handlePostUpdated as EventListener);
+    window.removeEventListener('community-post-deleted', handlePostDeleted as EventListener);
   });
 
   $: if ($isAuthenticated && $user?.id && $user.id !== lastLoadedUserId) {
     lastLoadedUserId = $user.id;
     void loadPersonalSurface();
+  }
+
+  $: if (!$isAuthenticated && lastLoadedUserId) {
+    lastLoadedUserId = '';
+    requestToken += 1;
+    profileData = null;
+    posts = [];
+    loadingProfile = false;
+    loadingPosts = false;
   }
 
   $: if ($isAuthenticated && $user?.id && profileData && (profileData.id === $user.id || profileData.user_id === $user.id)) {
@@ -194,7 +223,12 @@
           </p>
         </div>
 
-        <CommunityConsole embedded={true} accountOnly={true} defaultTab="account" />
+        <CommunityConsole
+          embedded={true}
+          accountOnly={!showDrivePanel}
+          defaultTab={showDrivePanel ? 'drive' : 'account'}
+          showDriveTab={showDrivePanel}
+        />
       </div>
     </section>
   {/if}

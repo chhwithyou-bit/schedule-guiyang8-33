@@ -68,7 +68,8 @@
       const data = await res.json();
       if (data.ok) {
         const nextLiked = typeof data.liked === 'boolean' ? data.liked : data.action === 'liked';
-        const nextLikeCount = Math.max(0, Number(post.like_count || 0) + (nextLiked ? 1 : -1));
+        const fallbackCount = Math.max(0, Number(post.like_count || 0) + (nextLiked ? 1 : -1));
+        const nextLikeCount = Number(data.like_count ?? fallbackCount);
         post.viewer_liked = nextLiked;
         post.like_count = nextLikeCount;
         emitPostUpdated({ viewer_liked: nextLiked, like_count: nextLikeCount });

@@ -22,6 +22,7 @@
   let discoveryRequestToken = 0;
   let mounted = false;
   let lastLoadedSection: CommunitySection | '' = '';
+  let lastAuthState = false;
 
   const sections: Array<{ id: CommunitySection; label: string; count?: number }> = [
     { id: 'feed', label: '动态' },
@@ -64,6 +65,12 @@
       const suffix = params.toString() ? `?${params.toString()}` : '';
       const res = await communityFetch(`/api/community/posts${suffix}`);
       const data = await res.json();
+      // Re-check auth before committing: a favorites response that resolves after
+      // logout must not leak the previous account's bookmarks into the UI.
+      if ($communityViewState.section === 'favorites' && !$isAuthenticated) {
+        if (requestToken === postsRequestToken) posts = [];
+        return;
+      }
       if (data.ok && requestToken === postsRequestToken) {
         posts = Array.isArray(data.posts) ? data.posts : [];
       }
@@ -137,9 +144,22 @@
     loadSection($communityViewState.section);
   }
 
+  $: if (mounted && $isAuthenticated !== lastAuthState) {
+    lastAuthState = $isAuthenticated;
+    postsRequestToken += 1;
+
+    if (!$isAuthenticated && $communityViewState.section === 'favorites') {
+      posts = [];
+      loadingPosts = false;
+    } else if ($communityViewState.section !== 'notifications') {
+      loadSection($communityViewState.section);
+    }
+  }
+
   onMount(() => {
     mounted = true;
     lastLoadedSection = $communityViewState.section;
+    lastAuthState = $isAuthenticated;
     loadSection($communityViewState.section);
     void fetchAnnouncement();
     window.addEventListener('post-created', handlePostCreated);

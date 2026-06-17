@@ -22,19 +22,25 @@
     error = '';
     try {
       const uploaded = [] as typeof media;
+      let failedCount = 0;
+
       for (const file of files) {
-        const formData = new FormData();
-        formData.append('file', file);
-        const res = await communityFetch(COMMUNITY_MEDIA_UPLOAD_ENDPOINT, { method: 'POST', body: formData });
-        const data = await res.json();
-        const url = data?.file?.url || data?.url;
-        if (!res.ok || !data?.ok || !url) throw new Error(data?.msg || '图片没传上去，再试一次。');
-        uploaded.push({ type: 'image', url, fileId: data?.file?.id || data?.fileId });
+        try {
+          const formData = new FormData();
+          formData.append('file', file);
+          const res = await communityFetch(COMMUNITY_MEDIA_UPLOAD_ENDPOINT, { method: 'POST', body: formData });
+          const data = await res.json();
+          const url = data?.file?.url || data?.url;
+          if (!res.ok || !data?.ok || !url) throw new Error(data?.msg || '图片没传上去，再试一次。');
+          uploaded.push({ type: 'image', url, fileId: data?.file?.id || data?.fileId });
+        } catch (nextError) {
+          failedCount += 1;
+          console.error('Upload failed', nextError);
+        }
       }
-      media = [...media, ...uploaded];
-    } catch (nextError: any) {
-      console.error('Upload failed', nextError);
-      error = nextError?.message || '图片没传上去，再试一次。';
+
+      if (uploaded.length > 0) media = [...media, ...uploaded];
+      if (failedCount > 0) error = failedCount === files.length ? '图片没传上去，再试一次。' : `${failedCount} 张图片没传上去，其余已保留。`;
     } finally {
       uploading = false;
       input.value = '';
@@ -42,7 +48,7 @@
   }
 
   async function handleSubmit() {
-    if (!content.trim() && media.length === 0) return;
+    if (loading || uploading || (!content.trim() && media.length === 0)) return;
     if (!$isAuthenticated) {
       openModal('auth');
       return;
@@ -77,8 +83,20 @@
     media = media.filter((_, itemIndex) => itemIndex !== index);
   }
 
+  function handleKeydown(event: KeyboardEvent) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeModal();
+    }
+  }
+
   onMount(() => {
     requestAnimationFrame(() => contentInput?.focus());
+    document.addEventListener('keydown', handleKeydown);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeydown);
+    };
   });
 </script>
 
