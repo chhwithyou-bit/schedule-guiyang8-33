@@ -94,7 +94,7 @@
   {/if}
 
   {#if failed}
-    <div class="reliable-image__fallback absolute inset-0 flex flex-col items-center justify-center gap-2 px-4 text-center text-[11px] font-bold text-white/70">
+    <div class="reliable-image__fallback absolute inset-0 flex flex-col items-center justify-center gap-2 px-4 text-center text-[11px] font-bold text-[var(--ink-soft)]">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <rect x="3" y="3" width="18" height="18" rx="2.5"></rect>
         <circle cx="8.5" cy="8.5" r="1.4"></circle>
@@ -120,15 +120,15 @@
 
   .reliable-image__skeleton {
     background:
-      linear-gradient(90deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.02)),
-      rgba(255, 255, 255, 0.04);
+      linear-gradient(90deg, rgba(25, 25, 25, 0.02), rgba(25, 25, 25, 0.08), rgba(25, 25, 25, 0.02)),
+      rgba(250, 249, 245, 0.92);
     background-size: 200% 100%;
     animation: reliable-image-shimmer 1.4s ease-in-out infinite;
   }
 
   .reliable-image__fallback {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0.18));
-    backdrop-filter: blur(8px);
+    background: linear-gradient(180deg, rgba(250, 249, 245, 0.94), rgba(240, 238, 230, 0.96));
+    backdrop-filter: none;
   }
 
   @keyframes reliable-image-shimmer {

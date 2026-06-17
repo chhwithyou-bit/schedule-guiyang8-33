@@ -201,7 +201,7 @@
           {#each users as account}
             <div class="admin-card p-8">
               <div class="mb-6 flex items-center gap-4">
-                <div class="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-neutral-100 text-xl font-black dark:bg-neutral-800">
+                <div class="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-neutral-100 text-xl font-black">
                   {#if account.avatar_url}
                     <img src={account.avatar_url} alt="" class="h-full w-full object-cover" />
                   {:else}
@@ -367,6 +367,66 @@
   .admin-ghost:hover,
   .admin-danger:hover {
     transform: translateY(-1px);
+  }
+
+  .admin-card {
+    border-color: var(--hairline);
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow: 0 18px 50px rgba(var(--shadow-rgb), 0.055);
+    backdrop-filter: none;
+  }
+
+  .admin-tab {
+    border-color: var(--hairline);
+    background: transparent;
+    color: var(--ink-soft);
+    box-shadow: none;
+  }
+
+  .admin-tab.is-active,
+  .admin-primary {
+    border-color: var(--clay);
+    background: var(--clay);
+    color: var(--paper);
+    box-shadow: none;
+  }
+
+  .admin-ghost {
+    border: 1px solid var(--hairline);
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow: none;
+  }
+
+  .admin-danger {
+    border: 1px solid rgba(178, 54, 42, 0.24);
+    background: rgba(178, 54, 42, 0.07);
+    color: #8b2e24;
+    box-shadow: none;
+  }
+
+  .admin-view :global(textarea),
+  .admin-card :global(textarea) {
+    border-color: var(--hairline) !important;
+    background: var(--paper) !important;
+    color: var(--ink) !important;
+  }
+
+  .admin-view :global([class*=border-white]) {
+    border-color: var(--hairline) !important;
+  }
+
+  .admin-view :global([class*=bg-white]) {
+    background: var(--paper) !important;
+  }
+
+  .admin-view :global([class*=text-red]) {
+    color: #8b2e24 !important;
+  }
+
+  .admin-view :global([class*=text-green]) {
+    color: #557a46 !important;
   }
 
   @media (max-width: 640px) {

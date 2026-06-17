@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>8Community · 个人主页 v0</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F0EEE6;--surface:#FAF9F5;--ink:#191919;--ink-soft:#6B6862;
+    --clay:#CC785C;--clay-light:#D4A27F;--hairline:#E3DFD3;--hairline-strong:#D8D3C5;
+    --sans:'Space Grotesk',system-ui,sans-serif;--serif:'Newsreader',Georgia,serif;
+    --s1:8px;--s2:16px;--s3:24px;--s4:40px;--s5:64px;--s6:96px;
+    --r-card:12px;--r-btn:8px;--ease:cubic-bezier(0.4,0,0.2,1);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  body{background:var(--paper);color:var(--ink);font-family:var(--serif);font-size:17px;line-height:1.6;text-wrap:pretty}
+  ::selection{background:var(--clay-light);color:var(--ink)}
+
+  header{position:sticky;top:0;z-index:50;background:rgba(240,238,230,.82);backdrop-filter:saturate(1.1) blur(12px);border-bottom:1px solid var(--hairline)}
+  .header-inner{max-width:1080px;margin:0 auto;padding:var(--s3) var(--s4);display:flex;align-items:center;justify-content:space-between}
+  .wordmark{font-family:var(--sans);font-weight:600;font-size:20px;letter-spacing:-.01em}
+  .wordmark .slash{color:var(--clay);font-weight:500}
+  .header-actions{display:flex;align-items:center;gap:var(--s3)}
+  .nav-link{font-family:var(--sans);font-size:14px;color:var(--ink-soft);text-decoration:none;transition:color .18s var(--ease)}
+  .nav-link:hover{color:var(--ink)}
+
+  main{max-width:1080px;margin:0 auto;padding:var(--s5) var(--s4) var(--s6)}
+
+  /* 资料头 — 大留白,左对齐 editorial,不用横幅大图 */
+  .profile-head{display:flex;gap:var(--s4);align-items:flex-start;margin-bottom:var(--s5)}
+  .p-avatar{width:96px;height:96px;border-radius:999px;background:#7C9A8E;color:var(--paper);display:grid;place-items:center;font-family:var(--sans);font-weight:600;font-size:36px;flex-shrink:0}
+  .p-info{flex:1;padding-top:var(--s1)}
+  .p-name{font-family:var(--serif);font-size:clamp(32px,4vw,44px);font-weight:400;letter-spacing:-.02em;line-height:1.1;display:flex;align-items:center;gap:var(--s2)}
+  .p-lvl{font-family:var(--sans);font-size:12px;font-weight:500;color:var(--clay);border:1px solid var(--clay-light);border-radius:5px;padding:2px 8px}
+  .p-sign{font-family:var(--serif);font-size:18px;color:var(--ink-soft);margin-top:var(--s2);max-width:52ch}
+  .p-actions{display:flex;gap:var(--s2);margin-top:var(--s3)}
+  .btn-primary{font-family:var(--sans);font-size:14px;font-weight:500;color:var(--paper);background:var(--clay);border:none;border-radius:var(--r-btn);padding:10px 22px;cursor:pointer;transition:background .18s var(--ease),transform .18s var(--ease)}
+  .btn-primary:hover{background:#b5664c;transform:translateY(-1px)}
+  .btn-ghost{font-family:var(--sans);font-size:14px;font-weight:500;color:var(--ink);background:none;border:1px solid var(--hairline-strong);border-radius:var(--r-btn);padding:10px 22px;cursor:pointer;transition:border-color .18s var(--ease)}
+  .btn-ghost:hover{border-color:var(--ink)}
+
+  /* 数据条 — 数字大、标签小,极简,无卡片 */
+  .stats{display:flex;gap:var(--s5);padding:var(--s4) 0;border-top:1px solid var(--hairline);border-bottom:1px solid var(--hairline);margin-bottom:var(--s5)}
+  .stat .num{font-family:var(--sans);font-size:28px;font-weight:600;letter-spacing:-.02em}
+  .stat .lbl{font-family:var(--sans);font-size:12px;color:var(--ink-soft);letter-spacing:.06em;text-transform:uppercase;margin-top:2px}
+  .stat .num .unit{font-size:14px;color:var(--ink-soft);margin-left:2px}
+
+  /* XP 进度 — 一根极细线 */
+  .xp{margin-bottom:var(--s5)}
+  .xp-top{display:flex;justify-content:space-between;font-family:var(--sans);font-size:13px;color:var(--ink-soft);margin-bottom:var(--s1)}
+  .xp-bar{height:3px;background:var(--hairline);border-radius:999px;overflow:hidden}
+  .xp-fill{height:100%;width:62%;background:var(--clay);border-radius:999px}
+
+  .tabs{display:flex;gap:var(--s4);border-bottom:1px solid var(--hairline);margin-bottom:var(--s4)}
+  .tab{font-family:var(--sans);font-size:15px;font-weight:500;color:var(--ink-soft);background:none;border:none;padding:0 0 var(--s2);cursor:pointer;position:relative}
+  .tab[aria-selected="true"]{color:var(--ink)}
+  .tab[aria-selected="true"]::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--clay)}
+
+  .post{padding:var(--s4) 0;border-top:1px solid var(--hairline)}
+  .post:first-child{border-top:none}
+  .post-body{font-family:var(--serif);font-size:18px;line-height:1.65;margin-bottom:var(--s2);max-width:60ch}
+  .post-foot{font-family:var(--sans);font-size:13px;color:var(--ink-soft);display:flex;gap:var(--s4)}
+
+  @media(max-width:640px){
+    .header-inner,main{padding-left:var(--s3);padding-right:var(--s3)}
+    .profile-head{flex-direction:column;gap:var(--s3)}
+    .stats{gap:var(--s4);flex-wrap:wrap}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <div class="wordmark">8Community<span class="slash">/</span></div>
+    <div class="header-actions">
+      <a class="nav-link" href="#">返回社区</a>
+      <a class="nav-link" href="#">主题</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="profile-head">
+    <div class="p-avatar">林</div>
+    <div class="p-info">
+      <div class="p-name">林深 <span class="p-lvl">Lv.8</span></div>
+      <p class="p-sign">写代码,也写一点没人看的句子。</p>
+      <div class="p-actions">
+        <button class="btn-primary">关注</button>
+        <button class="btn-ghost">私信</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="num">128</div><div class="lbl">帖子</div></div>
+    <div class="stat"><div class="num">2.4<span class="unit">k</span></div><div class="lbl">关注者</div></div>
+    <div class="stat"><div class="num">86</div><div class="lbl">正在关注</div></div>
+    <div class="stat"><div class="num">1,810<span class="unit">xp</span></div><div class="lbl">经验</div></div>
+  </div>
+
+  <div class="xp">
+    <div class="xp-top"><span>Lv.8 · 距 Lv.9 还差 280 xp</span><span>62%</span></div>
+    <div class="xp-bar"><div class="xp-fill"></div></div>
+  </div>
+
+  <nav class="tabs">
+    <button class="tab" aria-selected="true">帖子</button>
+    <button class="tab" aria-selected="false">收藏</button>
+    <button class="tab" aria-selected="false">网盘</button>
+  </nav>
+
+  <div class="feed">
+    <article class="post">
+      <p class="post-body">把后端那一大坨逻辑拆成模块之后,整个人都清醒了。</p>
+      <div class="post-foot"><span>2 小时前</span><span>♥ 24</span><span>◌ 6</span></div>
+    </article>
+    <article class="post">
+      <p class="post-body">克制是一种奢侈。留白不是没东西,是给看的人喘口气的地方。</p>
+      <div class="post-foot"><span>3 天前</span><span>♥ 103</span><span>◌ 30</span></div>
+    </article>
+    <article class="post">
+      <p class="post-body">今天试了新主题色,暖白配陶土,意外地耐看。</p>
+      <div class="post-foot"><span>1 周前</span><span>♥ 41</span><span>◌ 9</span></div>
+    </article>
+  </div>
+</main>
+</body>
+</html>

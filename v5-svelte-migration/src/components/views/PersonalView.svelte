@@ -254,6 +254,45 @@
       inset 0 1px 0 rgba(255, 255, 255, 0.26);
   }
 
+  .personal-shell,
+  .personal-panel {
+    border-color: var(--hairline);
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow: 0 18px 50px rgba(var(--shadow-rgb), 0.055);
+    backdrop-filter: none;
+  }
+
+  .personal-shell__overlay {
+    display: none;
+  }
+
+  .personal-avatar,
+  .personal-stat {
+    border-color: var(--hairline);
+    background: var(--paper);
+    box-shadow: none;
+  }
+
+  .personal-primary {
+    background: var(--clay);
+    color: var(--paper);
+    box-shadow: none;
+  }
+
+  .personal-primary:hover {
+    background: #b5664c;
+    box-shadow: none;
+  }
+
+  .personal-panel :global(.bg-white\/5) {
+    background: var(--paper) !important;
+  }
+
+  .personal-panel :global(.border-white\/10) {
+    border-color: var(--hairline) !important;
+  }
+
   @media (min-width: 1280px) {
     .personal-account-grid {
       grid-template-columns: minmax(0, 1fr) minmax(28rem, 0.82fr);

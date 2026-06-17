@@ -292,7 +292,7 @@
   <div
     bind:this={profileSurfaceEl}
     data-testid="profile-view"
-    class="fixed inset-0 z-[11000] overflow-hidden bg-[var(--color-bg)]/92 backdrop-blur-md"
+    class="fixed inset-0 z-[11000] overflow-hidden bg-[var(--color-bg)]/96"
     role="dialog"
     aria-modal="true"
     aria-label={`${$selectedProfile.username || '用户'} 的个人主页`}
@@ -307,11 +307,11 @@
             {#if $selectedProfile.background_url}
               <img src={$selectedProfile.background_url} alt="Background" class="absolute inset-0 h-full w-full object-cover" />
             {:else}
-              <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.18),transparent_36%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02)),linear-gradient(160deg,#0d1330,#1f2947_55%,#121828)] opacity-95"></div>
+              <div class="profile-default-cover absolute inset-0"></div>
             {/if}
 
-            <div class="absolute inset-0 bg-gradient-to-b from-black/18 via-black/18 to-[var(--color-bg)]/92"></div>
-            <div class="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/18 to-transparent"></div>
+            <div class="profile-cover-shade absolute inset-0"></div>
+            <div class="profile-cover-top absolute inset-x-0 top-0 h-24"></div>
 
             <div class="relative z-[1] flex min-h-[inherit] flex-col p-4 sm:p-6 md:p-8">
               <div class="flex items-start justify-between gap-4">
@@ -457,7 +457,7 @@
           </section>
 
           <div class="space-y-8">
-            <h3 class="border-b border-neutral-100 pb-4 text-xl font-black uppercase tracking-tighter dark:border-neutral-900">
+            <h3 class="border-b border-neutral-100 pb-4 text-xl font-black uppercase tracking-tighter">
               发过的内容
               <span class="ml-2 text-sm opacity-30">({posts.length})</span>
             </h3>
@@ -549,6 +549,71 @@
       0 10px 24px rgba(var(--glow-primary-rgb), 0.18),
       inset 0 1px 0 rgba(255, 255, 255, 0.16);
     color: white;
+  }
+
+  .profile-shell,
+  .profile-summary-panel,
+  .profile-info-card,
+  .profile-identity-card,
+  .profile-stat-chip,
+  .profile-avatar-frame,
+  .profile-hero__control,
+  .profile-identity-chip,
+  .profile-avatar-action {
+    border-color: var(--hairline);
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow: 0 18px 50px rgba(var(--shadow-rgb), 0.055);
+    backdrop-filter: none;
+  }
+
+  .profile-hero {
+    background: var(--paper);
+  }
+
+  .profile-default-cover {
+    background:
+      linear-gradient(180deg, rgba(250, 249, 245, 0.94), rgba(240, 238, 230, 0.96)),
+      repeating-linear-gradient(90deg, rgba(25, 25, 25, 0.035) 0 1px, transparent 1px 64px);
+  }
+
+  .profile-cover-shade {
+    background: linear-gradient(180deg, rgba(250, 249, 245, 0.28), rgba(250, 249, 245, 0.92));
+  }
+
+  .profile-cover-top {
+    background: linear-gradient(180deg, rgba(250, 249, 245, 0.64), rgba(250, 249, 245, 0));
+  }
+
+  .profile-shell :global([class*=text-white]),
+  .profile-shell :global([class*=text-red]),
+  .profile-summary-panel :global([class*=text-white]) {
+    color: var(--ink) !important;
+  }
+
+  .profile-shell :global([class*=border-white]),
+  .profile-summary-panel :global([class*=border-white]),
+  .profile-info-card :global([class*=border-white]) {
+    border-color: var(--hairline) !important;
+  }
+
+  .profile-shell :global([class*=bg-white]),
+  .profile-summary-panel :global([class*=bg-white]),
+  .profile-info-card :global([class*=bg-white]) {
+    background: var(--paper) !important;
+  }
+
+  .profile-avatar-action,
+  .profile-action-button.is-active {
+    background: var(--clay);
+    color: var(--paper) !important;
+    box-shadow: none;
+  }
+
+  .profile-action-button:not(.is-active),
+  .profile-identity-chip,
+  .profile-hero__control {
+    background: var(--surface);
   }
 
   @media (max-width: 640px) {

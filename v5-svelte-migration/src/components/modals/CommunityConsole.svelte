@@ -97,7 +97,7 @@
   let activeTab: TabId = defaultTab;
   let authPrompt = '';
 
-  function buildProfileForm(source?: Partial<ProfileForm> | null): ProfileForm {
+  function buildProfileForm(source?: Partial<Record<keyof ProfileForm, string | null | undefined>> | null): ProfileForm {
     return {
       signature: String(source?.signature || ''),
       avatar_url: String(source?.avatar_url || ''),
@@ -806,7 +806,7 @@
 
 <div class={embedded ? 'relative z-0' : shouldRenderModalShell ? 'fixed inset-0 z-[11000] overflow-y-auto p-4 md:p-6' : 'fixed inset-0 z-[11000] overflow-y-auto xl:overflow-hidden xl:flex xl:items-center xl:justify-center p-4 md:p-6'} transition:fade={{ duration: 220 }}>
   {#if !embedded}
-    <button type="button" class="fixed inset-0 bg-black/60 backdrop-blur-xl" on:click={handleClose} aria-label="关闭控制台"></button>
+    <button type="button" class="console-scrim fixed inset-0" on:click={handleClose} aria-label="关闭控制台"></button>
   {/if}
 
   <section
@@ -815,7 +815,7 @@
     role={shouldRenderModalShell ? 'dialog' : undefined}
     aria-modal={shouldRenderModalShell ? 'true' : undefined}
     aria-labelledby={shouldRenderModalShell ? 'community-console-title' : undefined}
-    class="relative z-10 flex w-full flex-col text-[var(--color-text)] {embedded ? 'overflow-visible bg-transparent' : shouldRenderModalShell ? 'mx-auto min-h-[calc(100svh-2rem)] max-w-6xl rounded-[36px] border border-white/12 bg-[rgba(var(--color-bg-rgb),0.84)] shadow-[0_24px_60px_rgba(var(--shadow-rgb),0.16)] backdrop-blur-[20px]' : 'mx-auto xl:overflow-hidden xl:h-[min(90vh,56rem)] max-w-6xl rounded-[36px] border border-white/12 bg-[rgba(var(--color-bg-rgb),0.84)] shadow-[0_24px_60px_rgba(var(--shadow-rgb),0.16)] backdrop-blur-[20px]'}"
+    class="console-shell relative z-10 flex w-full flex-col text-[var(--color-text)] {embedded ? 'overflow-visible bg-transparent' : shouldRenderModalShell ? 'mx-auto min-h-[calc(100svh-2rem)] max-w-6xl rounded-[36px] border border-white/12 bg-[rgba(var(--color-bg-rgb),0.84)] shadow-[0_24px_60px_rgba(var(--shadow-rgb),0.16)] backdrop-blur-[20px]' : 'mx-auto xl:overflow-hidden xl:h-[min(90vh,56rem)] max-w-6xl rounded-[36px] border border-white/12 bg-[rgba(var(--color-bg-rgb),0.84)] shadow-[0_24px_60px_rgba(var(--shadow-rgb),0.16)] backdrop-blur-[20px]'}"
     transition:softReveal={{ y: 18, duration: 280, startScale: 0.988, blur: 6 }}
   >
     {#if !embedded}
@@ -1347,6 +1347,94 @@
 
   .account-form-grid .console-field {
     min-height: 3.2rem;
+  }
+
+  .console-scrim {
+    background: rgba(25, 25, 25, 0.18);
+    backdrop-filter: blur(3px);
+  }
+
+  .console-shell {
+    border-color: var(--hairline) !important;
+    background: var(--surface) !important;
+    color: var(--ink);
+    box-shadow: 0 24px 70px rgba(var(--shadow-rgb), 0.16) !important;
+    backdrop-filter: none !important;
+  }
+
+  .console-shell > header {
+    border-color: var(--hairline) !important;
+    background: var(--surface) !important;
+    backdrop-filter: none !important;
+  }
+
+  .console-hero-panel,
+  .console-panel,
+  .console-subpanel,
+  .console-empty-state,
+  .console-field,
+  .console-tab-card {
+    border-color: var(--hairline);
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
+  .console-hero-panel {
+    background: var(--paper);
+  }
+
+  .console-panel:hover,
+  .console-tab-card:hover {
+    border-color: var(--hairline-strong);
+    box-shadow: none;
+  }
+
+  .console-subpanel,
+  .console-empty-state,
+  .console-field,
+  .console-tab-card {
+    background: var(--paper);
+  }
+
+  .console-tab-card.is-active {
+    border-color: var(--clay);
+    background: var(--surface);
+    box-shadow: inset 0 -2px 0 var(--clay);
+  }
+
+  .console-pill--primary {
+    background: var(--clay);
+    color: var(--paper) !important;
+    box-shadow: none;
+  }
+
+  .console-pill--ghost,
+  .console-shell :global([class*=bg-\[rgba\(255\,255\,255\,0\.08\)\]]) {
+    border-color: var(--hairline) !important;
+    background: var(--surface) !important;
+    box-shadow: none;
+  }
+
+  .console-shell :global([class*=border-white]),
+  .console-shell :global([class*=border-red]) {
+    border-color: var(--hairline) !important;
+  }
+
+  .console-shell :global([class*=bg-white]),
+  .console-shell :global([class*=bg-\[rgba\(255\,255\,255]) {
+    background: var(--paper) !important;
+  }
+
+  .console-shell :global([class*=text-red]) {
+    color: #8b2e24 !important;
+  }
+
+  .console-field:focus,
+  .console-field:focus-visible {
+    border-color: var(--clay);
+    box-shadow: 0 0 0 2px rgba(var(--glow-primary-rgb), 0.12);
   }
 
   @media (min-width: 768px) {

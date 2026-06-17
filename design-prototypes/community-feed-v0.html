@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>8Community · Claude 风格重设计 v0</title>
+
+<!-- 字体替代说明:
+     标题 Styrene(付费)→ Space Grotesk(几何无衬线,近似)
+     正文 Tiempos(付费)→ Newsreader(优雅衬线,近似)
+     正式落地时换成官方授权字体 -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    /* 已核实的 Anthropic / Claude 配色 */
+    --paper:      #F0EEE6;   /* 纸感暖白底 */
+    --surface:    #FAF9F5;   /* 卡片面 */
+    --ink:        #191919;   /* 主文字 */
+    --ink-soft:   #6B6862;   /* 次级文字暖灰 */
+    --clay:       #CC785C;   /* 主强调陶土橙 */
+    --clay-light: #D4A27F;   /* 辅助暖色 */
+    --hairline:   #E3DFD3;   /* 1px 极淡描边 */
+    --hairline-strong: #D8D3C5;
+
+    --sans:  'Space Grotesk', system-ui, sans-serif;
+    --serif: 'Newsreader', Georgia, serif;
+
+    /* 8px 基准网格 */
+    --s1: 8px;  --s2: 16px; --s3: 24px; --s4: 40px; --s5: 64px; --s6: 96px;
+
+    --r-card: 12px; --r-btn: 8px;
+    --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 17px;
+    line-height: 1.6;
+    text-wrap: pretty;
+  }
+
+  ::selection { background: var(--clay-light); color: var(--ink); }
+
+  /* ---------- 顶栏 ---------- */
+  header {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(240, 238, 230, 0.82);
+    backdrop-filter: saturate(1.1) blur(12px);
+    border-bottom: 1px solid var(--hairline);
+  }
+  .header-inner {
+    max-width: 1080px; margin: 0 auto;
+    padding: var(--s3) var(--s4);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .wordmark {
+    font-family: var(--sans); font-weight: 600;
+    font-size: 20px; letter-spacing: -0.01em;
+    display: flex; align-items: baseline; gap: 2px;
+  }
+  .wordmark .slash { color: var(--clay); font-weight: 500; }
+
+  .header-actions { display: flex; align-items: center; gap: var(--s3); }
+  .nav-link {
+    font-family: var(--sans); font-size: 14px; color: var(--ink-soft);
+    text-decoration: none; transition: color .18s var(--ease);
+  }
+  .nav-link:hover { color: var(--ink); }
+
+  .avatar {
+    width: 34px; height: 34px; border-radius: 999px;
+    background: var(--clay); color: var(--paper);
+    font-family: var(--sans); font-weight: 600; font-size: 14px;
+    display: grid; place-items: center;
+    cursor: pointer; transition: transform .18s var(--ease);
+  }
+  .avatar:hover { transform: translateY(-1px); }
+
+  /* ---------- 主体 ---------- */
+  main { max-width: 1080px; margin: 0 auto; padding: var(--s6) var(--s4) var(--s6); }
+
+  /* 标语区 — 大留白,少字,editorial */
+  .lede { max-width: 640px; margin-bottom: var(--s6); }
+  .lede .eyebrow {
+    font-family: var(--sans); font-size: 12px; font-weight: 500;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--clay); margin-bottom: var(--s2);
+  }
+  .lede h1 {
+    font-family: var(--serif); font-weight: 400;
+    font-size: clamp(40px, 6vw, 64px);
+    line-height: 1.05; letter-spacing: -0.02em;
+  }
+  .lede h1 em { font-style: italic; color: var(--ink-soft); }
+
+  /* 分区切换 — 简洁文字 tab,无框 */
+  .sections {
+    display: flex; gap: var(--s4);
+    border-bottom: 1px solid var(--hairline);
+    margin-bottom: var(--s5);
+  }
+  .section-tab {
+    font-family: var(--sans); font-size: 15px; font-weight: 500;
+    color: var(--ink-soft); background: none; border: none;
+    padding: 0 0 var(--s2); cursor: pointer;
+    position: relative; transition: color .18s var(--ease);
+  }
+  .section-tab:hover { color: var(--ink); }
+  .section-tab[aria-selected="true"] { color: var(--ink); }
+  .section-tab[aria-selected="true"]::after {
+    content: ''; position: absolute; left: 0; right: 0; bottom: -1px;
+    height: 2px; background: var(--clay);
+  }
+  .section-tab .count {
+    font-size: 11px; color: var(--clay); margin-left: 4px; vertical-align: super;
+  }
+
+  /* 发帖入口 — 极简单行,大留白 */
+  .composer {
+    display: flex; align-items: center; gap: var(--s3);
+    padding: var(--s3); margin-bottom: var(--s5);
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-card);
+    cursor: text; transition: border-color .18s var(--ease);
+  }
+  .composer:hover { border-color: var(--hairline-strong); }
+  .composer .ph {
+    flex: 1; color: var(--ink-soft); font-family: var(--serif); font-size: 17px;
+  }
+  .btn-primary {
+    font-family: var(--sans); font-size: 14px; font-weight: 500;
+    color: var(--paper); background: var(--clay);
+    border: none; border-radius: var(--r-btn);
+    padding: 10px 20px; cursor: pointer;
+    transition: background .18s var(--ease), transform .18s var(--ease);
+  }
+  .btn-primary:hover { background: #b5664c; transform: translateY(-1px); }
+
+  /* ---------- 帖子流 ---------- */
+  .feed { display: flex; flex-direction: column; }
+
+  .post {
+    padding: var(--s4) 0;
+    border-top: 1px solid var(--hairline);
+    transition: opacity .2s var(--ease);
+  }
+  .post:first-child { border-top: none; }
+
+  .post-head { display: flex; align-items: center; gap: var(--s2); margin-bottom: var(--s3); }
+  .post-avatar {
+    width: 40px; height: 40px; border-radius: 999px;
+    display: grid; place-items: center;
+    font-family: var(--sans); font-weight: 600; font-size: 15px; color: var(--paper);
+    flex-shrink: 0;
+  }
+  .post-meta { display: flex; flex-direction: column; }
+  .post-author {
+    font-family: var(--sans); font-weight: 500; font-size: 15px; color: var(--ink);
+    display: flex; align-items: center; gap: var(--s1);
+  }
+  .lvl {
+    font-size: 10px; font-weight: 500; letter-spacing: .04em;
+    color: var(--clay); border: 1px solid var(--clay-light);
+    border-radius: 4px; padding: 1px 5px;
+  }
+  .post-time { font-family: var(--sans); font-size: 13px; color: var(--ink-soft); }
+
+  .post-body {
+    font-family: var(--serif); font-size: 18px; line-height: 1.65;
+    color: var(--ink); margin-bottom: var(--s3); max-width: 60ch;
+  }
+
+  /* 媒体占位 — 诚实占位,不编造图 */
+  .post-media {
+    aspect-ratio: 16 / 9; border-radius: var(--r-card);
+    background: var(--surface); border: 1px solid var(--hairline);
+    display: grid; place-items: center;
+    font-family: var(--sans); font-size: 13px; color: var(--ink-soft);
+    margin-bottom: var(--s3); max-width: 560px;
+  }
+
+  /* 互动栏 — 文字化,无重图标,克制 */
+  .post-actions {
+    display: flex; gap: var(--s4);
+    font-family: var(--sans); font-size: 13px; color: var(--ink-soft);
+  }
+  .act {
+    background: none; border: none; cursor: pointer;
+    color: var(--ink-soft); font-family: var(--sans); font-size: 13px;
+    display: flex; align-items: center; gap: 6px;
+    transition: color .18s var(--ease);
+  }
+  .act:hover { color: var(--ink); }
+  .act.is-on { color: var(--clay); }
+  .act .glyph { font-size: 15px; line-height: 1; }
+
+  /* ---------- 右侧留白 / 公告(克制) ---------- */
+  .layout { display: grid; grid-template-columns: 1fr; gap: var(--s5); }
+  @media (min-width: 900px) {
+    .layout { grid-template-columns: minmax(0, 1fr) 280px; gap: var(--s6); align-items: start; }
+  }
+  .aside { position: sticky; top: 120px; }
+  .announce {
+    border-left: 2px solid var(--clay);
+    padding-left: var(--s3); margin-bottom: var(--s5);
+  }
+  .announce .label {
+    font-family: var(--sans); font-size: 11px; font-weight: 500;
+    letter-spacing: .16em; text-transform: uppercase;
+    color: var(--clay); margin-bottom: var(--s2);
+  }
+  .announce p { font-family: var(--serif); font-size: 16px; color: var(--ink-soft); }
+
+  .aside-foot {
+    font-family: var(--sans); font-size: 12px; color: var(--ink-soft);
+    line-height: 2;
+  }
+  .aside-foot a { color: var(--ink-soft); text-decoration: none; display: block; transition: color .18s var(--ease); }
+  .aside-foot a:hover { color: var(--clay); }
+
+  footer {
+    max-width: 1080px; margin: 0 auto; padding: var(--s5) var(--s4) var(--s6);
+    border-top: 1px solid var(--hairline);
+    font-family: var(--sans); font-size: 12px; color: var(--ink-soft);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  footer .slash { color: var(--clay); }
+
+  @media (max-width: 640px) {
+    .header-inner, main, footer { padding-left: var(--s3); padding-right: var(--s3); }
+    main { padding-top: var(--s5); }
+    .sections { gap: var(--s3); overflow-x: auto; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="wordmark">8Community<span class="slash">/</span></div>
+    <div class="header-actions">
+      <a class="nav-link" href="#">个人主页</a>
+      <a class="nav-link" href="#">主题</a>
+      <div class="avatar" title="未登录占位">访</div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- 标语:少字、大留白、衬线大标题 -->
+  <div class="lede">
+    <div class="eyebrow">社区动态</div>
+    <h1>看看大家<em>在想什么</em></h1>
+  </div>
+
+  <div class="layout">
+    <div>
+      <!-- 真实的 4 个分区 -->
+      <nav class="sections" role="tablist">
+        <button class="section-tab" role="tab" aria-selected="true">动态</button>
+        <button class="section-tab" role="tab" aria-selected="false">发现</button>
+        <button class="section-tab" role="tab" aria-selected="false">收藏</button>
+        <button class="section-tab" role="tab" aria-selected="false">通知<span class="count">3</span></button>
+      </nav>
+
+      <!-- 发帖入口 -->
+      <div class="composer">
+        <div class="avatar" style="width:36px;height:36px">访</div>
+        <span class="ph">分享一点此刻的想法……</span>
+        <button class="btn-primary">发布</button>
+      </div>
+
+      <!-- 帖子流(示意内容,非真实数据) -->
+      <div class="feed">
+        <article class="post">
+          <div class="post-head">
+            <div class="post-avatar" style="background:#7C9A8E">林</div>
+            <div class="post-meta">
+              <div class="post-author">林深 <span class="lvl">Lv.8</span></div>
+              <div class="post-time">2 小时前</div>
+            </div>
+          </div>
+          <p class="post-body">把后端那一大坨逻辑拆成模块之后,整个人都清醒了。原来不是想不明白,是文件太长了。</p>
+          <div class="post-actions">
+            <button class="act is-on"><span class="glyph">♥</span> 24</button>
+            <button class="act"><span class="glyph">✦</span> 收藏</button>
+            <button class="act"><span class="glyph">↺</span> 转发</button>
+            <button class="act"><span class="glyph">◌</span> 6 条评论</button>
+          </div>
+        </article>
+
+        <article class="post">
+          <div class="post-head">
+            <div class="post-avatar" style="background:var(--clay)">阿</div>
+            <div class="post-meta">
+              <div class="post-author">阿茶 <span class="lvl">Lv.5</span></div>
+              <div class="post-time">昨天 21:40</div>
+            </div>
+          </div>
+          <p class="post-body">今天的雾蓝色傍晚。</p>
+          <div class="post-media">16 : 9 图片占位 · 真实图来自 R2 媒体</div>
+          <div class="post-actions">
+            <button class="act"><span class="glyph">♥</span> 58</button>
+            <button class="act is-on"><span class="glyph">✦</span> 已收藏</button>
+            <button class="act"><span class="glyph">↺</span> 转发</button>
+            <button class="act"><span class="glyph">◌</span> 12 条评论</button>
+          </div>
+        </article>
+
+        <article class="post">
+          <div class="post-head">
+            <div class="post-avatar" style="background:#9A7C8E">桥</div>
+            <div class="post-meta">
+              <div class="post-author">过桥 <span class="lvl">Lv.12</span></div>
+              <div class="post-time">3 天前</div>
+            </div>
+          </div>
+          <p class="post-body">克制是一种奢侈。留白不是没东西,是给看的人喘口气的地方。</p>
+          <div class="post-actions">
+            <button class="act"><span class="glyph">♥</span> 103</button>
+            <button class="act"><span class="glyph">✦</span> 收藏</button>
+            <button class="act is-on"><span class="glyph">↺</span> 已转发</button>
+            <button class="act"><span class="glyph">◌</span> 30 条评论</button>
+          </div>
+        </article>
+      </div>
+    </div>
+
+    <!-- 右栏:公告 + 克制导航,大量留白 -->
+    <aside class="aside">
+      <div class="announce">
+        <div class="label">公告</div>
+        <p>媒体已迁移到 R2,上传更快了。老链接仍可访问。</p>
+      </div>
+      <nav class="aside-foot">
+        <a href="#">发现新朋友 /</a>
+        <a href="#">我的收藏 /</a>
+        <a href="#">等级与经验 /</a>
+        <a href="#">社区公约 /</a>
+      </nav>
+    </aside>
+  </div>
+</main>
+
+<footer>
+  <span>8Community <span class="slash">/</span> 一个安静的角落</span>
+  <span>v0 设计原型 · 字体为免费近似替代</span>
+</footer>
+
+</body>
+</html>
