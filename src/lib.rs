@@ -1716,23 +1716,23 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
                 u.background_url,
                 COALESCE(u.xp, 0) as xp,
                 COALESCE(u.level, 1) as level,
-                (SELECT COUNT(*) FROM likes WHERE post_id = p.id) as likes_count,
-                (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comments_count,
-                (SELECT COUNT(*) FROM favorites WHERE post_id = p.id) as favorites_count
+                (SELECT COUNT(*) FROM likes WHERE post_id = p.id) as like_count,
+                (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comment_count,
+                (SELECT COUNT(*) FROM favorites WHERE post_id = p.id) as favorite_count
             ".to_string();
 
             let mut params: Vec<wasm_bindgen::JsValue> = Vec::new();
             if let Some(ref u) = user {
-                sql += ", EXISTS(SELECT 1 FROM likes l WHERE l.post_id = p.id AND l.user_id = ?) as viewer_has_liked";
+                sql += ", EXISTS(SELECT 1 FROM likes l WHERE l.post_id = p.id AND l.user_id = ?) as viewer_liked";
                 params.push(u.id.clone().into());
-                sql += ", (SELECT 1 FROM favorites WHERE post_id = p.id AND user_id = ?) as viewer_has_favorited";
+                sql += ", (SELECT 1 FROM favorites WHERE post_id = p.id AND user_id = ?) as viewer_favorited";
                 params.push(u.id.clone().into());
                 sql += ", CASE WHEN p.user_id = ? OR ? IN ('admin', 'owner') THEN 1 ELSE 0 END as can_delete";
                 params.push(u.id.clone().into());
                 params.push(normalize_community_role(&u.role).into());
             } else {
-                sql += ", 0 as viewer_has_liked";
-                sql += ", 0 as viewer_has_favorited";
+                sql += ", 0 as viewer_liked";
+                sql += ", 0 as viewer_favorited";
                 sql += ", 0 as can_delete";
             }
 
@@ -1785,11 +1785,11 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
                         u.background_url,
                         COALESCE(u.xp, 0) as xp,
                         COALESCE(u.level, 1) as level,
-                        0 as likes_count,
-                        0 as comments_count,
-                        0 as favorites_count,
-                        0 as viewer_has_liked,
-                        0 as viewer_has_favorited,
+                        0 as like_count,
+                        0 as comment_count,
+                        0 as favorite_count,
+                        0 as viewer_liked,
+                        0 as viewer_favorited,
                         0 as can_delete
                         FROM posts p LEFT JOIN users u ON p.user_id = u.id
                         WHERE p.id = ?
@@ -2003,14 +2003,14 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
                     u.background_url,
                     u.xp,
                     u.level,
-                    (SELECT COUNT(*) FROM comment_likes WHERE comment_id = c.id) as likes_count
+                    (SELECT COUNT(*) FROM comment_likes WHERE comment_id = c.id) as like_count
             ".to_string();
             let mut params: Vec<wasm_bindgen::JsValue> = vec![post_id.clone().into()];
             if let Some(ref viewer) = viewer {
-                sql.push_str(", (SELECT 1 FROM comment_likes WHERE comment_id = c.id AND user_id = ?) as viewer_has_liked");
+                sql.push_str(", (SELECT 1 FROM comment_likes WHERE comment_id = c.id AND user_id = ?) as viewer_liked");
                 params.push(viewer.id.clone().into());
             } else {
-                sql.push_str(", 0 as viewer_has_liked");
+                sql.push_str(", 0 as viewer_liked");
             }
             sql.push_str("
                 FROM comments c
@@ -2114,8 +2114,8 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
                     u.background_url,
                     u.xp,
                     u.level,
-                    0 as likes_count,
-                    0 as viewer_has_liked
+                    0 as like_count,
+                    0 as viewer_liked
                 FROM comments c
                 JOIN users u ON c.user_id = u.id
                 WHERE c.id = ?

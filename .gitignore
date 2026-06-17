@@ -21,3 +21,4 @@ docs/plans/*-execution-plan.md
 # Added by cargo
 
 /target
+.codegraph/
