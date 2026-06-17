@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const root = new URL('../..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
+import { fileURLToPath } from 'node:url';
+
+const root = fileURLToPath(new URL('../..', import.meta.url));
 const readText = (...parts) => readFileSync(join(root, ...parts), 'utf8');
 
 const backend = readText('src', 'lib.rs');
