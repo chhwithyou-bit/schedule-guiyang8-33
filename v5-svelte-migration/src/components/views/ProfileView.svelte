@@ -301,7 +301,7 @@
   <div
     bind:this={profileSurfaceEl}
     data-testid="profile-view"
-    class="fixed inset-0 z-[11000] overflow-hidden bg-[var(--color-bg)]/96"
+    class="profile-overlay"
     role="dialog"
     aria-modal="true"
     aria-label={`${$selectedProfile.username || '用户'} 的个人主页`}
@@ -497,6 +497,16 @@
 {/if}
 
 <style>
+  .profile-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 11000;
+    overflow: hidden;
+    isolation: isolate;
+    background: var(--paper);
+    color: var(--ink);
+  }
+
   .profile-shell,
   .profile-summary-panel,
   .profile-info-card {

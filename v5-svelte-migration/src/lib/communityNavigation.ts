@@ -108,10 +108,14 @@ export function openCommunityPost(post: any, mode: 'default' | 'comments' | 'rep
 export function openCommunityProfile(profile: any) {
   const profileId = profile?.user_id || profile?.id;
   if (!profileId) return;
-  navigateToAppRoute({
-    view: 'community',
-    section: get(communityViewState).section
-  });
+
+  if (get(currentView) !== 'community') {
+    navigateToAppRoute({
+      view: 'community',
+      section: get(communityViewState).section
+    });
+  }
+
   selectedPost.set(null);
   const nextProfile = {
     id: profileId,
