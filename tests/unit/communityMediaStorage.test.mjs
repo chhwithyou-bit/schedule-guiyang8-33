@@ -68,6 +68,26 @@ test('public media reads backfill R2 after Drive fallback', () => {
   assert.match(handler, /"MISS-GDrive-REFILL"/);
 });
 
+test('community API normalizes stored media keys before exposing image URLs', () => {
+  assert.match(workerSource, /fn normalize_media_url\(value: Option<String>\) -> Option<String>/);
+  assert.match(workerSource, /Some\(format!\("\/api\/community\/media\/\{\}", trimmed\)\)/);
+  assert.match(workerSource, /fn normalize_community_user_media\(user: &mut User\)/);
+  assert.match(workerSource, /fn normalize_community_post_media\(post: &mut Post\)/);
+  assert.match(workerSource, /fn normalize_community_comment_media\(comment: &mut Comment\)/);
+  assert.match(workerSource, /normalize_community_user_media\(&mut user\)/);
+  assert.match(workerSource, /normalize_community_post_media\(&mut post\)/);
+  assert.match(workerSource, /normalize_community_comment_media\(&mut comment\)/);
+
+  const profileHandler = sliceBetween('.get_async("/api/community/profile"', '.post_async("/api/community/profile"');
+  assert.match(profileHandler, /normalize_community_user_media\(&mut u\)/);
+
+  const profileSaveHandler = sliceBetween('.post_async("/api/community/profile"', '.get_async("/api/community/discovery"');
+  assert.match(profileSaveHandler, /with_community_level\(updated\)/);
+
+  const driveListHandler = sliceBetween('.get_async("/api/community/drive/list"', '.post_async("/api/community/drive/mkdir"');
+  assert.match(driveListHandler, /file\.url = normalize_media_url\(file\.url\.clone\(\)\)/);
+});
+
 test('admin media copy reflects R2 primary and Drive archive roles', () => {
   assert.match(workerSource, /"mode": "r2-primary-drive-archive"/);
   assert.match(adminViewSource, /R2 主存储/);

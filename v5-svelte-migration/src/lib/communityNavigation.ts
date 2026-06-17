@@ -6,6 +6,7 @@ import {
   type CommunitySection
 } from '../stores/communityViewState';
 import { applyAppRoute, navigateToAppRoute, navigateToCommunitySection as navigateToCommunitySectionRoute } from './appRouter';
+import { normalizeCommunityMediaUrl } from './communityApi';
 
 type CommunityHistoryState = {
   ycCommunityRoute: {
@@ -120,10 +121,10 @@ export function openCommunityProfile(profile: any) {
   const nextProfile = {
     id: profileId,
     username: profile.username,
-    avatar_url: profile.avatar_url,
+    avatar_url: normalizeCommunityMediaUrl(profile.avatar_url),
     role: profile.role,
     signature: profile.signature,
-    background_url: profile.background_url,
+    background_url: normalizeCommunityMediaUrl(profile.background_url),
     __openedAt: Date.now()
   };
   selectedProfile.set(nextProfile);

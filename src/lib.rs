@@ -470,6 +470,7 @@ fn is_community_admin_role(role: &str) -> bool {
 fn with_community_level(mut user: User) -> User {
     user.level = utils::get_community_level_from_xp(user.xp);
     user.role = normalize_community_role(&user.role);
+    normalize_community_user_media(&mut user);
     user
 }
 
@@ -662,10 +663,65 @@ fn normalize_media_url(value: Option<String>) -> Option<String> {
     if trimmed.starts_with("/api/community/media/")
         || trimmed.starts_with("http://")
         || trimmed.starts_with("https://")
+        || trimmed.starts_with("data:image/")
+        || trimmed.starts_with("/")
     {
         return Some(trimmed);
     }
+    if trimmed.starts_with("api/community/media/") {
+        return Some(format!("/{}", trimmed));
+    }
     Some(format!("/api/community/media/{}", trimmed))
+}
+
+fn normalize_media_json(value: Option<String>) -> Option<String> {
+    let raw = value?;
+    let Ok(mut parsed) = serde_json::from_str::<Value>(&raw) else {
+        return Some(raw);
+    };
+
+    let Some(items) = parsed.as_array_mut() else {
+        return Some(raw);
+    };
+
+    for item in items {
+        let Some(url) = item
+            .get("url")
+            .and_then(|value| value.as_str())
+            .map(|value| value.to_string()) else {
+            continue;
+        };
+
+        if let Some(normalized_url) = normalize_media_url(Some(url)) {
+            item["url"] = Value::String(normalized_url);
+        }
+    }
+
+    Some(parsed.to_string())
+}
+
+fn normalize_community_user_media(user: &mut User) {
+    user.avatar_url = normalize_media_url(user.avatar_url.take());
+    user.background_url = normalize_media_url(user.background_url.take());
+}
+
+fn normalize_community_post_media(post: &mut Post) {
+    post.avatar_url = normalize_media_url(post.avatar_url.take());
+    post.background_url = normalize_media_url(post.background_url.take());
+    post.media_json = normalize_media_json(post.media_json.take());
+
+    if let Some(repost) = post.repost_data.as_mut() {
+        normalize_community_post_media(repost);
+    }
+}
+
+fn normalize_community_comment_media(comment: &mut Comment) {
+    comment.avatar_url = normalize_media_url(comment.avatar_url.take());
+    comment.background_url = normalize_media_url(comment.background_url.take());
+}
+
+fn normalize_community_notification_media(notification: &mut Notification) {
+    notification.avatar_url = normalize_media_url(notification.avatar_url.take());
 }
 
 fn extract_media_file_id(value: &str) -> Option<String> {
@@ -1624,9 +1680,8 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
         })
         .get_async("/api/community/me", |req, ctx| async move {
             let db = ctx.env.d1("COMMUNITY_DB")?;
-            if let Some(mut user) = get_auth(&req, &db).await? {
-                user.level = utils::get_community_level_from_xp(user.xp);
-                utils::json_resp(json!({"ok": true, "user": user}), 200)
+            if let Some(user) = get_auth(&req, &db).await? {
+                utils::json_resp(json!({"ok": true, "user": with_community_level(user)}), 200)
             } else {
                 utils::json_resp(json!({"ok": false}), 401)
             }
@@ -1739,9 +1794,14 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
                         FROM posts p LEFT JOIN users u ON p.user_id = u.id
                         WHERE p.id = ?
                     ";
-                    let r_post = db.prepare(r_sql).bind(&[rid.clone().into()])?.first::<Post>(None).await?;
+                    let mut r_post = db.prepare(r_sql).bind(&[rid.clone().into()])?.first::<Post>(None).await?;
+                    if let Some(ref mut repost) = r_post {
+                        repost.level = Some(utils::get_community_level_from_xp(repost.xp.unwrap_or(0)));
+                        normalize_community_post_media(repost);
+                    }
                     post.repost_data = r_post.map(Box::new);
                 }
+                normalize_community_post_media(&mut post);
                 posts.push(post);
             }
 
@@ -1968,6 +2028,7 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
             let mut comments = Vec::new();
             for mut comment in results {
                 comment.level = Some(utils::get_community_level_from_xp(comment.xp.unwrap_or(0)));
+                normalize_community_comment_media(&mut comment);
                 comments.push(comment);
             }
 
@@ -2065,6 +2126,7 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
             .await?;
             if let Some(ref mut comment) = comment {
                 comment.level = Some(utils::get_community_level_from_xp(comment.xp.unwrap_or(0)));
+                normalize_community_comment_media(comment);
             }
 
             let comment_count = db.prepare("SELECT COUNT(*) as count FROM comments WHERE post_id = ?")
@@ -2137,7 +2199,7 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
                 None => return utils::json_resp(json!({"ok": false}), 401)
             };
 
-            let results = db.prepare("
+            let mut results = db.prepare("
                 SELECT n.*, u.username, u.avatar_url FROM notifications n
                 JOIN users u ON n.from_user_id = u.id
                 WHERE n.user_id = ?
@@ -2145,6 +2207,9 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
                   AND n.type IN ('like', 'comment', 'reply', 'repost', 'comment_like')
                 ORDER BY n.created_at DESC LIMIT 50
             ").bind(&[user.id.clone().into(), user.id.into()])?.all().await?.results::<Notification>()?;
+            for notification in results.iter_mut() {
+                normalize_community_notification_media(notification);
+            }
 
             utils::json_resp(json!({"ok": true, "notifications": results}), 200)
         })
@@ -2194,6 +2259,7 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
                     }
                 }
 
+                normalize_community_user_media(&mut u);
                 utils::json_resp(json!({"ok": true, "user": u}), 200)
             } else {
                 utils::json_resp(json!({"ok": false}), 404)
@@ -2216,14 +2282,12 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
                 .bind(&[signature.into(), background_url.into(), avatar_url.into(), user.id.clone().into()])?
                 .run().await?;
 
-            let mut updated = db.prepare("SELECT id, username, avatar_url, background_url, signature, level, xp, role, is_banned, created_at FROM users WHERE id = ?")
+            let updated = db.prepare("SELECT id, username, avatar_url, background_url, signature, level, xp, role, is_banned, created_at FROM users WHERE id = ?")
                 .bind(&[user.id.into()])?
                 .first::<User>(None)
                 .await?
                 .unwrap_or_default();
-            updated.level = utils::get_community_level_from_xp(updated.xp);
-
-            utils::json_resp(json!({"ok": true, "user": updated}), 200)
+            utils::json_resp(json!({"ok": true, "user": with_community_level(updated)}), 200)
         })
         .get_async("/api/community/discovery", |req, ctx| async move {
             let db = ctx.env.d1("COMMUNITY_DB")?;

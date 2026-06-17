@@ -8,6 +8,7 @@
   import {
     COMMUNITY_MEDIA_UPLOAD_ENDPOINT,
     communityFetch,
+    normalizeCommunityMediaUrl,
     persistCommunitySession
   } from '../../lib/communityApi';
   import { closeCommunitySurface } from '../../lib/communityNavigation';
@@ -71,8 +72,8 @@
 
   async function saveProfileMedia(patch: { avatar_url?: string; background_url?: string }) {
     const signature = String($selectedProfile?.signature || $user?.signature || '');
-    const avatar_url = String(patch.avatar_url ?? $selectedProfile?.avatar_url ?? $user?.avatar_url ?? '');
-    const background_url = String(patch.background_url ?? $selectedProfile?.background_url ?? $user?.background_url ?? '');
+    const avatar_url = String(normalizeCommunityMediaUrl(patch.avatar_url ?? $selectedProfile?.avatar_url ?? $user?.avatar_url) || '');
+    const background_url = String(normalizeCommunityMediaUrl(patch.background_url ?? $selectedProfile?.background_url ?? $user?.background_url) || '');
 
     const res = await communityFetch('/api/community/profile', {
       method: 'POST',
@@ -111,7 +112,7 @@
       });
       const data = await res.json();
       if (data.ok && data.file?.url) {
-        await saveProfileMedia({ avatar_url: data.file.url });
+        await saveProfileMedia({ avatar_url: normalizeCommunityMediaUrl(data.file.url) || data.file.url });
       }
     } catch (e) {
       console.error(e);
@@ -136,7 +137,7 @@
       });
       const data = await res.json();
       if (data.ok && data.file?.url) {
-        await saveProfileMedia({ background_url: data.file.url });
+        await saveProfileMedia({ background_url: normalizeCommunityMediaUrl(data.file.url) || data.file.url });
       }
     } catch (e) {
       console.error(e);

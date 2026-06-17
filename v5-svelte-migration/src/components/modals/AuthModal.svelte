@@ -3,7 +3,7 @@
   import { fade, fly } from 'svelte/transition';
   import { closeModal } from '../../stores/modalState';
   import { isAdmin, isAuthenticated, user } from '../../stores/appState';
-  import { buildCommunityAuthHeader, persistCommunitySession } from '../../lib/communityApi';
+  import { buildCommunityAuthHeader, normalizeCommunityMediaUrl, persistCommunitySession } from '../../lib/communityApi';
 
   let usernameInput: HTMLInputElement | null = null;
   let isRegister = false;
@@ -22,7 +22,12 @@
     });
     const data = await res.json();
     if (!res.ok || !data?.ok || !data.user) throw new Error(data?.msg || '账号已认证，但资料加载失败。');
-    return { ...data.user, authToken };
+    return {
+      ...data.user,
+      authToken,
+      avatar_url: normalizeCommunityMediaUrl(data.user.avatar_url),
+      background_url: normalizeCommunityMediaUrl(data.user.background_url)
+    };
   }
 
   async function handleSubmit() {

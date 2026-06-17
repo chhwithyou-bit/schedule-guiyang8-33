@@ -5,6 +5,7 @@
   import {
     COMMUNITY_MEDIA_UPLOAD_ENDPOINT,
     communityFetch,
+    normalizeCommunityMediaUrl,
     persistCommunitySession
   } from '../../lib/communityApi';
   import { navigateToView } from '../../lib/appRouter';
@@ -100,8 +101,8 @@
   function buildProfileForm(source?: Partial<Record<keyof ProfileForm, string | null | undefined>> | null): ProfileForm {
     return {
       signature: String(source?.signature || ''),
-      avatar_url: String(source?.avatar_url || ''),
-      background_url: String(source?.background_url || '')
+      avatar_url: String(normalizeCommunityMediaUrl(source?.avatar_url) || ''),
+      background_url: String(normalizeCommunityMediaUrl(source?.background_url) || '')
     };
   }
 
@@ -610,7 +611,7 @@
       });
       const data = await res.json();
       if (data.ok && data.file?.url) {
-        applyProfileFormPatch({ avatar_url: data.file.url });
+        applyProfileFormPatch({ avatar_url: normalizeCommunityMediaUrl(data.file.url) || data.file.url });
       } else {
         profileMessage = data.msg || '头像上传失败';
       }
@@ -638,7 +639,7 @@
       });
       const data = await res.json();
       if (data.ok && data.file?.url) {
-        applyProfileFormPatch({ background_url: data.file.url });
+        applyProfileFormPatch({ background_url: normalizeCommunityMediaUrl(data.file.url) || data.file.url });
       } else {
         profileMessage = data.msg || '背景图上传失败';
       }

@@ -3,7 +3,7 @@
 
   import { currentView, isAdmin, isAuthenticated, user } from '../../stores/appState';
   import { openModal } from '../../stores/modalState';
-  import { isCommunityAdminRole, readStoredCommunitySession, refreshStoredCommunitySession } from '../../lib/communityApi';
+  import { isCommunityAdminRole, normalizeCommunityMediaUrl, readStoredCommunitySession, refreshStoredCommunitySession } from '../../lib/communityApi';
   import { navigateToCommunitySection, navigateToView } from '../../lib/appRouter';
 
   let isScrolled = false;
@@ -21,7 +21,11 @@
   }
 
   function applyCommunitySession(nextUser: ReturnType<typeof readStoredCommunitySession>) {
-    user.set(nextUser);
+    user.set(nextUser ? {
+      ...nextUser,
+      avatar_url: normalizeCommunityMediaUrl(nextUser.avatar_url),
+      background_url: normalizeCommunityMediaUrl(nextUser.background_url)
+    } : null);
     isAuthenticated.set(Boolean(nextUser));
     isAdmin.set(isCommunityAdminRole(nextUser?.role));
   }
