@@ -56,6 +56,9 @@ mod utils {
     pub fn json_resp<T: Serialize>(data: T, status: u16) -> Result<Response> {
         let headers = cors_headers();
         let _ = headers.set("Content-Type", "application/json;charset=UTF-8");
+        let _ = headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+        let _ = headers.set("Pragma", "no-cache");
+        let _ = headers.set("Expires", "0");
 
         Ok(Response::from_json(&data)?
             .with_status(status)
@@ -1436,7 +1439,7 @@ async fn toggle_post_like(db: &D1Database, user: &User, post_id: &str) -> Result
         .bind(&[post_id.into()])?
         .first::<Value>(None)
         .await?
-        .and_then(|value| value["count"].as_i64())
+        .and_then(|value| value["count"].as_i64().or_else(|| value["count"].as_f64().map(|f| f as i64)))
         .unwrap_or(0);
 
     Ok(PostLikeResult { liked, like_count })
@@ -1947,7 +1950,7 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
                 .bind(&[post_id.into()])?
                 .first::<Value>(None)
                 .await?
-                .and_then(|value| value["count"].as_i64())
+                .and_then(|value| value["count"].as_i64().or_else(|| value["count"].as_f64().map(|f| f as i64)))
                 .unwrap_or(0);
 
             utils::json_resp(json!({"ok": true, "favorited": favorited, "favorite_count": favorite_count}), 200)
@@ -2133,7 +2136,7 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
                 .bind(&[post_id.into()])?
                 .first::<Value>(None)
                 .await?
-                .and_then(|value| value["count"].as_i64())
+                .and_then(|value| value["count"].as_i64().or_else(|| value["count"].as_f64().map(|f| f as i64)))
                 .unwrap_or(0);
 
             utils::json_resp(json!({"ok": true, "comment": comment, "comment_count": comment_count}), 200)
@@ -2186,7 +2189,7 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
                 .bind(&[comment_id.into()])?
                 .first::<Value>(None)
                 .await?
-                .and_then(|value| value["count"].as_i64())
+                .and_then(|value| value["count"].as_i64().or_else(|| value["count"].as_f64().map(|f| f as i64)))
                 .unwrap_or(0);
 
             utils::json_resp(json!({"ok": true, "liked": liked, "like_count": like_count}), 200)
