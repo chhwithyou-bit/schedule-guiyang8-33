@@ -62,7 +62,7 @@ test('public media reads backfill R2 after Drive fallback', () => {
   assert.match(workerSource, /async fn fetch_drive_media_bytes\(/);
   assert.match(workerSource, /fn build_public_media_response_from_bytes\(/);
 
-  const handler = sliceBetween('.get_async("/api/community/media/:key"', '.get_async("/api/music"');
+  const handler = sliceBetween('.get_async("/api/community/media/:key"', '.post_async("/api/proxy-gemini"');
   assert.match(handler, /fetch_drive_media_bytes\(&ctx\.env, &drive_file_id\)\.await/);
   assert.match(handler, /put_uploaded_media\(&ctx\.env, &key, &bytes, &content_type\)\.await/);
   assert.match(handler, /"MISS-GDrive-REFILL"/);

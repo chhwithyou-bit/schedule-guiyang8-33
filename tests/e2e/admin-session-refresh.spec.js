@@ -69,7 +69,6 @@ test.beforeEach(async ({ page }) => {
       });
     }
     if (pathname === '/api/community/drive/list') return fulfill({ ok: true, files: [] });
-    if (pathname === '/api/music') return fulfill([]);
     if (pathname === '/api/schedule') return fulfill({ ok: true, S: [], EV: {}, SJ: {} });
 
     return fulfill({ ok: true });

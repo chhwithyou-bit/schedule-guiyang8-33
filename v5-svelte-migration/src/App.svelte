@@ -14,6 +14,7 @@
   import AdminView from './components/views/AdminView.svelte';
   import CommunityView from './components/views/CommunityView.svelte';
   import CommunityConsole from './components/modals/CommunityConsole.svelte';
+  import ImageViewer from './components/modals/ImageViewer.svelte';
   import { installAppRouter } from './lib/appRouter';
 
   let mainContent: HTMLElement;
@@ -155,6 +156,8 @@
   {:else if $activeModal === 'console'}
     <CommunityConsole openAsModal={true} />
   {/if}
+
+  <ImageViewer />
 </div>
 
 <style>

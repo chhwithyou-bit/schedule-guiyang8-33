@@ -1,7 +1,7 @@
 <script lang="ts">
   import { fade } from 'svelte/transition';
   import { closeModal, openModal } from '../../stores/modalState';
-  import { currentView, isAdmin, isAuthenticated, selectedProfile, user } from '../../stores/appState';
+  import { currentView, isAdmin, isAuthenticated, selectedProfile, user, selectedPost, unreadNotificationsCount } from '../../stores/appState';
   import {
     COMMUNITY_MEDIA_UPLOAD_ENDPOINT,
     communityFetch,
@@ -56,6 +56,7 @@
     id: string;
     type: string;
     target_id?: string | null;
+    navigate_id?: string | null;
     created_at?: string;
     username?: string;
     avatar_url?: string;
@@ -79,10 +80,10 @@
 
   const tabDescriptions: Record<TabId, string> = {
     drive: '浏览、上传和整理社区网盘。',
-    notifications: '查看最近的点赞、评论、回复和转发提醒。'
+    notifications: '查看最近的点赞、评论、回复、转发和关注提醒。'
   };
 
-  const allowedNotificationTypes = new Set(['like', 'comment', 'reply', 'repost', 'comment_like']);
+  const allowedNotificationTypes = new Set(['like', 'comment', 'reply', 'repost', 'comment_like', 'follow']);
 
   $: availableTabs = tabs.filter((tab) => allowedTabs ? allowedTabs.includes(tab.id) : (showDriveTab || tab.id !== 'drive'));
   $: shouldRenderModalShell = openAsModal && !embedded;
@@ -519,6 +520,12 @@
       notifications = Array.isArray(data.notifications)
         ? data.notifications.filter((item: NotificationItem) => allowedNotificationTypes.has(item.type))
         : [];
+      
+      // Mark as read
+      if ($unreadNotificationsCount > 0) {
+        communityFetch('/api/community/notifications/read', { method: 'POST' }).catch(() => {});
+        unreadNotificationsCount.set(0);
+      }
     } catch (error) {
       console.error('Failed to load notifications', error);
       notificationError = '提醒没加载出来。';
@@ -528,6 +535,18 @@
   }
 
 
+
+  function handleNotificationClick(item: NotificationItem) {
+    if (!item.navigate_id) return;
+    if (item.type === 'follow') {
+      selectedProfile.set({ id: item.navigate_id, username: item.username, avatar_url: item.avatar_url });
+    } else {
+      selectedPost.set({ id: item.navigate_id } as any);
+    }
+    if (!embedded) {
+      handleClose();
+    }
+  }
 
   function openAuth() {
     openModal('auth');
@@ -562,7 +581,8 @@
       comment_like: '赞了你的评论',
       repost: '转发了你的动态',
       comment: '评论了你的帖子',
-      reply: '回复了你的评论'
+      reply: '回复了你的评论',
+      follow: '关注了你'
     };
     return map[type] || type;
   }
@@ -638,7 +658,7 @@
     role={shouldRenderModalShell ? 'dialog' : undefined}
     aria-modal={shouldRenderModalShell ? 'true' : undefined}
     aria-labelledby={shouldRenderModalShell ? 'community-console-title' : undefined}
-    class="console-shell relative z-10 flex w-full flex-col text-[var(--color-text)] {embedded ? 'overflow-visible bg-transparent' : shouldRenderModalShell ? 'mx-auto min-h-[calc(100svh-2rem)] max-w-6xl rounded-[36px] border border-white/12 bg-[rgba(var(--color-bg-rgb),0.84)] shadow-[0_24px_60px_rgba(var(--shadow-rgb),0.16)] backdrop-blur-[20px]' : 'mx-auto xl:overflow-hidden xl:h-[min(90vh,56rem)] max-w-6xl rounded-[36px] border border-white/12 bg-[rgba(var(--color-bg-rgb),0.84)] shadow-[0_24px_60px_rgba(var(--shadow-rgb),0.16)] backdrop-blur-[20px]'}"
+    class="console-shell relative z-10 flex w-full flex-col text-[var(--color-text)] {embedded ? 'is-embedded overflow-visible bg-transparent' : shouldRenderModalShell ? 'mx-auto min-h-[calc(100svh-2rem)] max-w-6xl rounded-[36px] border border-white/12 bg-[rgba(var(--color-bg-rgb),0.84)] shadow-[0_24px_60px_rgba(var(--shadow-rgb),0.16)] backdrop-blur-[20px]' : 'mx-auto xl:overflow-hidden xl:h-[min(90vh,56rem)] max-w-6xl rounded-[36px] border border-white/12 bg-[rgba(var(--color-bg-rgb),0.84)] shadow-[0_24px_60px_rgba(var(--shadow-rgb),0.16)] backdrop-blur-[20px]'}"
     transition:softReveal={{ y: 18, duration: 280, startScale: 0.988, blur: 6 }}
   >
     {#if !embedded}
@@ -870,12 +890,12 @@
                     {/each}
                   {:else if notifications.length > 0}
                     {#each notifications as item (item.id)}
-                      <article class="console-subpanel px-4 py-4">
+                      <button type="button" class="console-subpanel px-4 py-4 w-full text-left transition-transform hover:scale-[1.01] hover:border-white/20" on:click={() => handleNotificationClick(item)}>
                         <div class="flex items-center justify-between gap-4">
                           <p class="text-sm font-black">{item.username || '系统'} {formatNotification(item.type)}</p>
                           <p class="text-[10px] font-black uppercase tracking-[0.18em] opacity-30">{formatDate(item.created_at)}</p>
                         </div>
-                      </article>
+                      </button>
                     {/each}
                   {:else}
                     <div class="console-empty-state px-4 py-10 text-center text-sm font-bold opacity-50">
@@ -1071,7 +1091,7 @@
     backdrop-filter: blur(3px);
   }
 
-  .console-shell {
+  .console-shell:not(.is-embedded) {
     border-color: var(--hairline) !important;
     background: var(--surface) !important;
     color: var(--ink);

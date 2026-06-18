@@ -22,7 +22,6 @@ async function installApiMocks(page) {
       body: JSON.stringify(data)
     });
 
-    if (pathname === '/api/music') return fulfill([]);
     if (pathname === '/api/schedule') return fulfill({ ok: true, S: [], EV: {}, SJ: {} });
     if (pathname === '/api/community/posts') return fulfill({ ok: true, posts: [] });
     if (pathname === '/api/community/comments') return fulfill({ ok: true, comments: [] });

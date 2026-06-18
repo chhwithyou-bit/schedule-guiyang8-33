@@ -1,9 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { currentView, isAdmin, isAuthenticated, selectedProfile, user, type CurrentView } from '../../stores/appState';
+  import { currentView, isAdmin, isAuthenticated, selectedProfile, user, unreadNotificationsCount, type CurrentView } from '../../stores/appState';
   import { openModal } from '../../stores/modalState';
   import { setCommunityConsoleState } from '../../stores/communityConsoleState';
   import { navigateToCommunitySection, navigateToView } from '../../lib/appRouter';
+  import { communityFetch } from '../../lib/communityApi';
 
   let className = '';
   export { className as class };
@@ -17,6 +18,23 @@
   ] as Array<{ id: CurrentView; label: string }>;
 
   $: currentViewLabel = views.find((view) => view.id === $currentView)?.label || '菜单';
+
+  async function fetchUnreadCount() {
+    if (!$isAuthenticated) return;
+    try {
+      const res = await communityFetch('/api/community/notifications/unread_count');
+      const data = await res.json();
+      if (data.ok) {
+        unreadNotificationsCount.set(data.count);
+      }
+    } catch (e) {
+      // Ignore
+    }
+  }
+
+  $: if ($isAuthenticated) {
+    fetchUnreadCount();
+  }
 
   function closeBar() {
     isExpanded = false;
@@ -50,6 +68,7 @@
   }
 
   onMount(() => {
+    fetchUnreadCount();
     const handlePointerDown = (event: PointerEvent) => {
       if (!isExpanded || !shellRef) return;
       if (!shellRef.contains(event.target as Node)) closeBar();
@@ -72,12 +91,15 @@
   <div bind:this={shellRef} class="liquid-shell {isExpanded ? 'is-expanded' : ''}">
     <button
       type="button"
-      class="liquid-trigger"
+      class="liquid-trigger relative"
       on:click={() => (isExpanded = !isExpanded)}
       aria-expanded={isExpanded}
       aria-controls="liquid-bar-panel"
       aria-haspopup="dialog"
     >
+      {#if $unreadNotificationsCount > 0}
+        <span class="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-red-500 shadow-sm animate-pulse"></span>
+      {/if}
       <span class="slash" aria-hidden="true">/</span>
       <span class="trigger-copy">
         <small>Quick</small>
@@ -107,7 +129,12 @@
           <button type="button" class="liquid-compose-btn" on:click={openComposer}>
             <span>{$isAuthenticated ? '发一条' : '登录后发帖'}</span><span aria-hidden="true">/</span>
           </button>
-          <button type="button" data-liquid-target="notifications" class="liquid-console-btn" on:click={openNotifications}>通知</button>
+          <button type="button" data-liquid-target="notifications" class="liquid-console-btn flex items-center justify-between" on:click={openNotifications}>
+            <span>通知</span>
+            {#if $unreadNotificationsCount > 0}
+              <span class="flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">{$unreadNotificationsCount > 99 ? '99+' : $unreadNotificationsCount}</span>
+            {/if}
+          </button>
           <button type="button" data-liquid-target="favorites" class="liquid-console-btn" on:click={openFavorites}>收藏</button>
           {#if $isAuthenticated}
             <button type="button" class="liquid-console-btn" on:click={() => { selectedProfile.set($user); closeBar(); }}>个人主页</button>

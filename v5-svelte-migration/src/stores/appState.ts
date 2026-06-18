@@ -60,9 +60,11 @@ export const themeInitialized = writable<boolean>(false);
 export const user = writable<CommunityUser | null>(null);
 export const isAuthenticated = writable<boolean>(false);
 export const isAdmin = writable<boolean>(false);
+export const unreadNotificationsCount = writable<number>(0);
 
 export const selectedPost = writable<CommunityPost | null>(null);
 export const selectedProfile = writable<CommunityProfile | null>(null);
+export const previewImageUrl = writable<string | null>(null);
 
 export function clearSelectedProfile() {
   selectedProfile.set(null);

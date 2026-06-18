@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { isAdmin, isAuthenticated, user } from '../../stores/appState';
+  import { isAdmin, isAuthenticated, user, previewImageUrl } from '../../stores/appState';
   import { openModal } from '../../stores/modalState';
   import { communityFetch } from '../../lib/communityApi';
   import { openCommunityPost, openCommunityProfile } from '../../lib/communityNavigation';
@@ -161,14 +161,24 @@
   </button>
 
   {#if media.length > 0}
-    <button type="button" class="post-media {media.length > 1 ? 'is-grid' : ''}" aria-label="打开动态详情" on:click={() => openPostDetail()}>
+    <div class="post-media {media.length > 1 ? 'is-grid' : ''}" aria-label="动态图片">
       {#each media.slice(0, 4) as item, index}
-        <span class="media-cell">
-          <ReliableImage src={item.url} alt="Post media" imgClass="h-full w-full object-cover" retries={2} retryDelay={500} loading="lazy" />
-          {#if index === 3 && media.length > 4}<span class="more">+{media.length - 4}</span>{/if}
-        </span>
+        {#if index === 3 && media.length > 4}
+          <!-- svelte-ignore a11y-click-events-have-key-events -->
+          <!-- svelte-ignore a11y-no-static-element-interactions -->
+          <div class="media-cell cursor-pointer" on:click={() => openPostDetail()}>
+            <ReliableImage src={item.url} alt="Post media" imgClass="h-full w-full object-cover" retries={2} retryDelay={500} loading="lazy" />
+            <span class="more">+{media.length - 4}</span>
+          </div>
+        {:else}
+          <!-- svelte-ignore a11y-click-events-have-key-events -->
+          <!-- svelte-ignore a11y-no-static-element-interactions -->
+          <div class="media-cell cursor-pointer transition-transform hover:scale-[1.02] hover:z-10" on:click={(e) => { e.stopPropagation(); previewImageUrl.set(item.url); }}>
+            <ReliableImage src={item.url} alt="Post media" imgClass="h-full w-full object-cover" retries={2} retryDelay={500} loading="lazy" />
+          </div>
+        {/if}
       {/each}
-    </button>
+    </div>
   {/if}
 
   <footer class="post-actions">

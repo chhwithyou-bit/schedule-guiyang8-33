@@ -1,7 +1,7 @@
 <script lang="ts">
   import { fade } from 'svelte/transition';
   import { tick } from 'svelte';
-  import { selectedPost, isAuthenticated, user, isAdmin } from '../../stores/appState';
+  import { selectedPost, isAuthenticated, user, isAdmin, previewImageUrl } from '../../stores/appState';
   import { openModal } from '../../stores/modalState';
   import { communityFetch } from '../../lib/communityApi';
   import { closeCommunitySurface, openCommunityProfile } from '../../lib/communityNavigation';
@@ -600,7 +600,9 @@
           {#if media.length > 0}
             <div class="mb-12 space-y-4">
               {#each media as item, i}
-                <div class="post-detail-media-frame min-h-[220px] overflow-hidden rounded-3xl">
+                <!-- svelte-ignore a11y-click-events-have-key-events -->
+                <!-- svelte-ignore a11y-no-static-element-interactions -->
+                <div class="post-detail-media-frame min-h-[220px] cursor-pointer overflow-hidden rounded-3xl transition-transform hover:scale-[1.01]" on:click={() => previewImageUrl.set(item.url)}>
                   <ReliableImage
                     src={item.url}
                     alt="Content"

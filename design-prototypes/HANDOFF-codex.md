@@ -59,7 +59,6 @@
 - **网盘** — 列表/上传/建文件夹/重命名/删除（`/api/community/drive/*`），含配额显示
 - **管理后台** — 举报处理、封禁、公告编辑（`/api/community/admin/*`）
 - **举报** — 帖子/评论/用户（`/api/community/report`）
-- **音乐播放器** — 现有 `MusicPlayer.svelte`，重做样式（`/api/music`）
 
 ---
 
@@ -72,7 +71,7 @@
 src/
   App.svelte                  主壳（现用 GSAP+Lenis 重动效，背景大图）
   components/
-    layout/   Header LiquidBar MusicPlayer PageTransition
+    layout/   Header LiquidBar PageTransition
     modals/   AuthModal CommunityConsole PostModal
     ui/       AnimatedHeading CommunityWordmark CustomCursor LoadingScreen Preloader ReliableImage ThemeSwitcher
     views/    AdminView CommunityView PersonalView PostCard PostDetail ProfileView
@@ -102,7 +101,6 @@ src/
 媒体    POST /api/community/media/upload    GET /api/community/media/:key
 网盘    GET /drive/list /drive/info   POST /drive/upload /drive/mkdir /drive/rename /drive/delete
 后台    GET /api/community/admin/data    POST /api/community/admin/action
-音乐    GET /api/music   /api/music/file/:key
 其它    /api/data /api/schedule（日程KV） /api/nodes（代理节点）
 ```
 
@@ -128,7 +126,7 @@ src/
 2. 重写 `App.svelte` 壳（去 GSAP/Lenis/背景大图，改纸感底 + 轻动效）。
 3. 按原型重写 4 个核心页面：CommunityView / ProfileView / PostDetail / AuthModal。
 4. PostCard、Header、发帖弹窗 PostModal。
-5. 补齐缺的：发现 / 通知 / 网盘 / 后台 / 举报 / 音乐播放器。
+5. 补齐缺的：发现 / 通知 / 网盘 / 后台 / 举报。
 6. 跑 `npm run dev`（项目根 wrangler dev）或 `v5-svelte-migration` 内 `npm run dev` 验证；不破坏现有 API 对接。
 
 ## 8. 验收
