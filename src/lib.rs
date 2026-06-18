@@ -3070,3 +3070,68 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
         })
         .run(req, env).await
 }
+
+#[event(scheduled)]
+pub async fn scheduled(_event: worker::ScheduledEvent, env: Env, _ctx: worker::ScheduleContext) {
+    if let Ok(bucket) = env.bucket("COMMUNITY_R2") {
+        let max_bytes: f64 = 9_000_000_000.0;
+        let target_bytes: f64 = 8_000_000_000.0;
+
+        let mut total_size: f64 = 0.0;
+        
+        #[derive(Clone)]
+        struct R2Item {
+            key: String,
+            size: f64,
+            uploaded: f64,
+        }
+        
+        let mut all_objects: Vec<R2Item> = Vec::new();
+        let mut cursor: Option<String> = None;
+
+        loop {
+            let mut list_op = bucket.list();
+            if let Some(c) = &cursor {
+                list_op = list_op.cursor(c.clone());
+            }
+            
+            match list_op.execute().await {
+                Ok(list_res) => {
+                    for obj in list_res.objects() {
+                        let size = obj.size() as f64;
+                        total_size += size;
+                        
+                        let uploaded = obj.uploaded().get_time();
+                        
+                        all_objects.push(R2Item {
+                            key: obj.key().clone(),
+                            size,
+                            uploaded,
+                        });
+                    }
+                    
+                    if list_res.truncated() {
+                        cursor = list_res.cursor();
+                    } else {
+                        break;
+                    }
+                }
+                Err(_) => break,
+            }
+        }
+
+        if total_size > max_bytes {
+            all_objects.sort_by(|a, b| a.uploaded.partial_cmp(&b.uploaded).unwrap_or(std::cmp::Ordering::Equal));
+
+            let mut current_size = total_size;
+            for item in all_objects {
+                if current_size <= target_bytes {
+                    break;
+                }
+                if bucket.delete(&item.key).await.is_ok() {
+                    current_size -= item.size;
+                }
+            }
+        }
+    }
+}

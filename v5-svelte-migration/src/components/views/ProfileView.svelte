@@ -355,8 +355,7 @@
               <div class="profile-default-cover absolute inset-0"></div>
             {/if}
 
-            <div class="profile-cover-shade absolute inset-0"></div>
-            <div class="profile-cover-top absolute inset-x-0 top-0 h-24"></div>
+            <div class="profile-cover-top absolute inset-x-0 top-0 h-24 pointer-events-none"></div>
 
             <div class="relative z-[1] flex min-h-[inherit] flex-col p-4 sm:p-6 md:p-8">
               <div class="flex items-start justify-between gap-4">
@@ -640,10 +639,6 @@
     background:
       linear-gradient(180deg, rgba(250, 249, 245, 0.94), rgba(240, 238, 230, 0.96)),
       repeating-linear-gradient(90deg, rgba(25, 25, 25, 0.035) 0 1px, transparent 1px 64px);
-  }
-
-  .profile-cover-shade {
-    background: linear-gradient(180deg, rgba(250, 249, 245, 0.28), rgba(250, 249, 245, 0.92));
   }
 
   .profile-cover-top {

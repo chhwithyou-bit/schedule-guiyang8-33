@@ -33,3 +33,6 @@ GDRIVE_FOLDER_ID = "1JLM76eGeMI7AJB3PXiuPAQzEnt9AJhtg"
 
 [build]
 command = "node scripts/build-worker.mjs"
+
+[triggers]
+crons = ["0 0 * * *"]

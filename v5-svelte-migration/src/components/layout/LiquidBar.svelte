@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { currentView, isAdmin, isAuthenticated, selectedProfile, type CurrentView } from '../../stores/appState';
+  import { currentView, isAdmin, isAuthenticated, selectedProfile, user, type CurrentView } from '../../stores/appState';
   import { openModal } from '../../stores/modalState';
   import { setCommunityConsoleState } from '../../stores/communityConsoleState';
   import { navigateToCommunitySection, navigateToView } from '../../lib/appRouter';
