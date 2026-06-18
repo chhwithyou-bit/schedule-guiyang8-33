@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { currentView, isAdmin, isAuthenticated, type CurrentView } from '../../stores/appState';
+  import { currentView, isAdmin, isAuthenticated, selectedProfile, type CurrentView } from '../../stores/appState';
   import { openModal } from '../../stores/modalState';
   import { setCommunityConsoleState } from '../../stores/communityConsoleState';
   import { navigateToCommunitySection, navigateToView } from '../../lib/appRouter';
@@ -13,7 +13,6 @@
 
   $: views = [
     { id: 'community', label: '社区' },
-    { id: 'profile', label: '个人' },
     ...($isAdmin ? [{ id: 'admin', label: '管理' }] : [])
   ] as Array<{ id: CurrentView; label: string }>;
 
@@ -35,7 +34,7 @@
 
   function openNotifications() {
     setCommunityConsoleState({ tab: 'notifications', returnFocusSelector: '[data-liquid-target="notifications"]' });
-    navigateToCommunitySection('notifications');
+    openModal('console');
     closeBar();
   }
 
@@ -46,7 +45,7 @@
 
   function openDrive() {
     setCommunityConsoleState({ tab: 'drive', returnFocusSelector: '[data-liquid-target="drive"]' });
-    navigateToView('profile');
+    openModal('console');
     closeBar();
   }
 
@@ -111,6 +110,7 @@
           <button type="button" data-liquid-target="notifications" class="liquid-console-btn" on:click={openNotifications}>通知</button>
           <button type="button" data-liquid-target="favorites" class="liquid-console-btn" on:click={openFavorites}>收藏</button>
           {#if $isAuthenticated}
+            <button type="button" class="liquid-console-btn" on:click={() => { selectedProfile.set($user); closeBar(); }}>个人主页</button>
             <button type="button" data-liquid-target="drive" class="liquid-console-btn" on:click={openDrive}>网盘</button>
           {/if}
         </div>

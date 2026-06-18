@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
 
-  import { currentView, isAdmin, isAuthenticated, user } from '../../stores/appState';
+  import { currentView, isAdmin, isAuthenticated, user, selectedProfile } from '../../stores/appState';
   import { openModal } from '../../stores/modalState';
   import { isCommunityAdminRole, normalizeCommunityMediaUrl, readStoredCommunitySession, refreshStoredCommunitySession } from '../../lib/communityApi';
   import { navigateToCommunitySection, navigateToView } from '../../lib/appRouter';
@@ -13,7 +13,7 @@
   }
 
   function goProfile() {
-    navigateToView('profile');
+    selectedProfile.set($user);
   }
 
   function goAdmin() {
@@ -73,7 +73,7 @@
     <nav class="header-actions" aria-label="主导航">
       <button type="button" data-header-target="community" on:click={goHome} class="nav-link {$currentView === 'community' ? 'is-active' : ''}">社区</button>
       {#if $isAuthenticated}
-        <button type="button" data-header-target="profile" on:click={goProfile} class="nav-link {$currentView === 'profile' ? 'is-active' : ''}">个人</button>
+        <button type="button" data-header-target="profile" on:click={goProfile} class="nav-link">个人</button>
       {/if}
       {#if $isAdmin}
         <button type="button" on:click={goAdmin} class="nav-link {$currentView === 'admin' ? 'is-active' : ''}">管理</button>
@@ -83,7 +83,7 @@
         <button
           type="button"
           on:click={goProfile}
-          class="header-avatar-shell {$currentView === 'profile' ? 'is-active' : ''}"
+          class="header-avatar-shell"
           aria-label="打开个人页面"
         >
           {#if $user?.avatar_url}

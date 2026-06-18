@@ -8,13 +8,12 @@
 
   import Header from './components/layout/Header.svelte';
   import LiquidBar from './components/layout/LiquidBar.svelte';
-  import MusicPlayer from './components/layout/MusicPlayer.svelte';
   import PageTransition from './components/layout/PageTransition.svelte';
   import AuthModal from './components/modals/AuthModal.svelte';
   import PostModal from './components/modals/PostModal.svelte';
   import AdminView from './components/views/AdminView.svelte';
   import CommunityView from './components/views/CommunityView.svelte';
-  import PersonalView from './components/views/PersonalView.svelte';
+  import CommunityConsole from './components/modals/CommunityConsole.svelte';
   import { installAppRouter } from './lib/appRouter';
 
   let mainContent: HTMLElement;
@@ -24,7 +23,6 @@
 
   const viewMap: Record<string, any> = {
     community: CommunityView,
-    profile: PersonalView,
     admin: AdminView
   };
 
@@ -150,12 +148,12 @@
     </main>
   </div>
 
-  <MusicPlayer />
-
   {#if $activeModal === 'auth'}
     <AuthModal />
   {:else if $activeModal === 'comm-post'}
     <PostModal />
+  {:else if $activeModal === 'console'}
+    <CommunityConsole openAsModal={true} />
   {/if}
 </div>
 

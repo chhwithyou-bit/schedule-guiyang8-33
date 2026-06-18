@@ -48,9 +48,9 @@
     }
   }
 
-  async function fetchPosts() {
+  async function fetchPosts(background = false) {
     const requestToken = ++postsRequestToken;
-    loadingPosts = true;
+    if (!background) loadingPosts = true;
 
     if ($communityViewState.section === 'favorites' && !$isAuthenticated) {
       posts = [];
@@ -75,7 +75,7 @@
         posts = Array.isArray(data.posts) ? data.posts : [];
       }
     } catch (error) {
-      if (requestToken === postsRequestToken) posts = [];
+      if (requestToken === postsRequestToken && !background) posts = [];
       console.error('Failed to fetch posts', error);
     } finally {
       if (requestToken === postsRequestToken) loadingPosts = false;
@@ -156,6 +156,8 @@
     }
   }
 
+  let refreshInterval: ReturnType<typeof setInterval>;
+
   onMount(() => {
     mounted = true;
     lastLoadedSection = $communityViewState.section;
@@ -168,8 +170,15 @@
     window.addEventListener('community-announcement-updated', fetchAnnouncement);
     const uninstallHistory = installCommunityHistory();
 
+    refreshInterval = setInterval(() => {
+      if ($communityViewState.section === 'feed' && !query.trim()) {
+        void fetchPosts(true);
+      }
+    }, 15000); // Poll every 15 seconds for new posts
+
     return () => {
       mounted = false;
+      clearInterval(refreshInterval);
       window.removeEventListener('post-created', handlePostCreated);
       window.removeEventListener('community-post-updated', handlePostUpdated as EventListener);
       window.removeEventListener('community-post-deleted', handlePostDeleted as EventListener);
