@@ -143,7 +143,7 @@
   <LiquidBar class="liquid-bar-dock" />
 
   <div bind:this={mainContent} class="main-content-assembly">
-    <main id="main-content" tabindex="-1" class="view-wrapper mx-auto w-full max-w-[1080px] px-6 pb-40 pt-32 md:px-10 md:pb-44 md:pt-36">
+    <main id="main-content" tabindex="-1" class="view-wrapper mx-auto w-full max-w-[1280px] px-6 pb-40 pt-32 md:px-10 md:pb-44 md:pt-36">
       <PageTransition url={$currentView}>
         <svelte:component this={viewMap[$currentView]} />
       </PageTransition>

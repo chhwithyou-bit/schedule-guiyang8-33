@@ -373,7 +373,7 @@
 
   .layout {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 280px;
+    grid-template-columns: minmax(0, 1fr) 320px;
     gap: var(--s6);
     align-items: start;
   }

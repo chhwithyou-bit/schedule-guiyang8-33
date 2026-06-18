@@ -140,19 +140,19 @@ struct DriveFile {
     id: String,
     user_id: String,
     name: String,
-    size: i64,
+    size: f64,
     mime_type: String,
     url: Option<String>,
     parent_id: Option<String>,
-    is_folder: i32,
+    is_folder: f64,
     created_at: String,
     updated_at: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 struct DriveStats {
-    quota_bytes: i64,
-    used_bytes: i64,
+    quota_bytes: f64,
+    used_bytes: f64,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -1057,10 +1057,10 @@ async fn handle_community_media_library_upload(
         .first::<DriveStats>(None)
         .await?
         .unwrap_or(DriveStats {
-            quota_bytes: 0,
-            used_bytes: 0,
+            quota_bytes: 0.0,
+            used_bytes: 0.0,
         });
-    if stats.quota_bytes > 0 && stats.used_bytes + size > stats.quota_bytes {
+    if stats.quota_bytes > 0.0 && stats.used_bytes + (size as f64) > stats.quota_bytes {
         return utils::json_resp(json!({"ok": false, "msg": "storage quota exceeded"}), 400);
     }
 
@@ -2575,7 +2575,7 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
             db.prepare("INSERT INTO user_drive_stats (user_id, quota_bytes, used_bytes) VALUES (?, 0, 0) ON CONFLICT(user_id) DO NOTHING")
                 .bind(&[user.id.clone().into()])?
                 .run().await?;
-            let stats = db.prepare("SELECT quota_bytes, used_bytes FROM user_drive_stats WHERE user_id = ?").bind(&[user.id.into()])?.first::<DriveStats>(None).await?.unwrap_or(DriveStats { quota_bytes: 0, used_bytes: 0 });
+            let stats = db.prepare("SELECT quota_bytes, used_bytes FROM user_drive_stats WHERE user_id = ?").bind(&[user.id.into()])?.first::<DriveStats>(None).await?.unwrap_or(DriveStats { quota_bytes: 0.0, used_bytes: 0.0 });
             utils::json_resp(json!({"ok": true, "stats": stats}), 200)
         })
         .get_async("/api/community/drive/list", |req, ctx| async move {
