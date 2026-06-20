@@ -16,10 +16,6 @@ fallbacks = []
 directory = "./public"
 
 [[r2_buckets]]
-binding = "MUSIC_BUCKET"
-bucket_name = "music"
-
-[[r2_buckets]]
 binding = "COMMUNITY_R2"
 bucket_name = "community-media"
 

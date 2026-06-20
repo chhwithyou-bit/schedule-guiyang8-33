@@ -9,7 +9,6 @@
 
   import Header from './components/layout/Header.svelte';
   import LiquidBar from './components/layout/LiquidBar.svelte';
-  import MusicPlayer from './components/layout/MusicPlayer.svelte';
   import PageTransition from './components/layout/PageTransition.svelte';
   import AuthModal from './components/modals/AuthModal.svelte';
   import PostModal from './components/modals/PostModal.svelte';
@@ -34,7 +33,6 @@
   let canFinishLoading = false;
   const ASSEMBLY_MOTION = {
     ease: 'expo.out',
-    softEase: 'power3.out',
     contentDuration: 0.72,
     surfaceDuration: 0.78
   } as const;
@@ -247,18 +245,6 @@
         },
         '-=0.42'
       );
-      timeline.from(
-        '#mp',
-        {
-          y: 12,
-          scale: 0.992,
-          opacity: 0,
-          duration: 0.58,
-          ease: ASSEMBLY_MOTION.softEase,
-          clearProps: 'transform,opacity'
-        },
-        '-=0.34'
-      );
     } catch (error) {
       console.error('Assembly animation failed, forcing visibility:', error);
       if (mainContent) {
@@ -351,7 +337,6 @@
 
   {#if !isLoading && $themeInitialized}
     <CustomCursor />
-    <MusicPlayer />
   {/if}
 
   {#if $activeModal === 'auth'}

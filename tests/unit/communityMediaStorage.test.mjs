@@ -44,6 +44,20 @@ test('drive upload stages media in R2 before async Drive archiving', () => {
   assert.match(handler, /"fromDrive": false/);
 });
 
+test('media upload binds D1-compatible values for size and optional parent folder', () => {
+  const handler = sliceBetween(
+    'async fn handle_community_media_library_upload(',
+    'fn resolve_cached_media_status('
+  );
+
+  assert.match(handler, /let size_js = wasm_bindgen::JsValue::from_f64\(size as f64\);/);
+  assert.match(handler, /let parent_id_js = match parent_id\.clone\(\) \{/);
+  assert.match(handler, /None => wasm_bindgen::JsValue::NULL/);
+  assert.match(handler, /size_js\.clone\(\)/);
+  assert.match(handler, /parent_id_js/);
+  assert.doesNotMatch(handler, /parent_id\.clone\(\)\.into\(\)/);
+});
+
 test('media upload alias is the frontend-facing endpoint', () => {
   assert.match(workerSource, /\.post_async\("\/api\/community\/media\/upload"/);
   assert.match(
@@ -62,7 +76,7 @@ test('public media reads backfill R2 after Drive fallback', () => {
   assert.match(workerSource, /async fn fetch_drive_media_bytes\(/);
   assert.match(workerSource, /fn build_public_media_response_from_bytes\(/);
 
-  const handler = sliceBetween('.get_async("/api/community/media/:key"', '.get_async("/api/music"');
+  const handler = sliceBetween('.get_async("/api/community/media/:key"', '.post_async("/api/proxy-gemini"');
   assert.match(handler, /fetch_drive_media_bytes\(&ctx\.env, &drive_file_id\)\.await/);
   assert.match(handler, /put_uploaded_media\(&ctx\.env, &key, &bytes, &content_type\)\.await/);
   assert.match(handler, /"MISS-GDrive-REFILL"/);

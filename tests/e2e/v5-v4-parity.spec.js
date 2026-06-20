@@ -285,7 +285,6 @@ function installApiMocks(page, state) {
 
     if (pathname === '/api/community/announcement') return fulfill({ ok: true, announcement: null });
     if (pathname === '/api/community/notifications') return fulfill({ ok: true, notifications: [] });
-    if (pathname === '/api/music') return fulfill([]);
     if (pathname === '/api/schedule') return fulfill({ ok: true, S: [], EV: {}, SJ: {} });
 
     return fulfill({

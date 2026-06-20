@@ -232,19 +232,6 @@ struct PostLikeResult {
     like_count: i64,
 }
 
-struct MusicByteRange {
-    start: u64,
-    end: u64,
-    length: u64,
-    r2_range: Range,
-}
-
-enum MusicRangeRequest {
-    Full,
-    Partial(MusicByteRange),
-    Unsatisfiable,
-}
-
 #[derive(Deserialize)]
 struct AdminAction {
     action: String,
@@ -709,167 +696,6 @@ fn elapsed_ms(start_ms: i64) -> i64 {
     (now_ms() - start_ms).max(0)
 }
 
-fn is_supported_music_key(key: &str) -> bool {
-    let lowered = key.trim().to_ascii_lowercase();
-    [
-        ".mp3", ".wav", ".m4a", ".aac", ".ogg", ".oga", ".flac", ".webm",
-    ]
-    .iter()
-    .any(|ext| lowered.ends_with(ext))
-}
-
-fn music_display_name_from_key(key: &str) -> String {
-    let filename = key.trim().rsplit('/').next().unwrap_or(key).trim();
-
-    if filename.is_empty() {
-        return "Unknown".to_string();
-    }
-
-    match filename.rsplit_once('.') {
-        Some((stem, _)) if !stem.trim().is_empty() => stem.trim().to_string(),
-        _ => filename.to_string(),
-    }
-}
-
-fn infer_music_mime_from_key(key: &str) -> &'static str {
-    let lowered = key.to_ascii_lowercase();
-    if lowered.ends_with(".mp3") {
-        "audio/mpeg"
-    } else if lowered.ends_with(".wav") {
-        "audio/wav"
-    } else if lowered.ends_with(".m4a") {
-        "audio/mp4"
-    } else if lowered.ends_with(".aac") {
-        "audio/aac"
-    } else if lowered.ends_with(".ogg") || lowered.ends_with(".oga") {
-        "audio/ogg"
-    } else if lowered.ends_with(".flac") {
-        "audio/flac"
-    } else if lowered.ends_with(".webm") {
-        "audio/webm"
-    } else {
-        "audio/mpeg"
-    }
-}
-
-fn effective_music_content_type(key: &str, stored_content_type: Option<String>) -> String {
-    let trimmed = stored_content_type.unwrap_or_default().trim().to_string();
-    let lowered = trimmed.to_ascii_lowercase();
-
-    if trimmed.is_empty()
-        || lowered == "application/octet-stream"
-        || lowered == "binary/octet-stream"
-        || lowered == "application/unknown"
-    {
-        return infer_music_mime_from_key(key).to_string();
-    }
-
-    trimmed
-}
-
-fn parse_music_range_header(range_header: Option<String>, size: u64) -> MusicRangeRequest {
-    let Some(header) = range_header else {
-        return MusicRangeRequest::Full;
-    };
-
-    let header = header.trim();
-    if header.is_empty() {
-        return MusicRangeRequest::Full;
-    }
-
-    let Some(spec) = header
-        .strip_prefix("bytes=")
-        .or_else(|| header.strip_prefix("Bytes="))
-    else {
-        return MusicRangeRequest::Unsatisfiable;
-    };
-
-    if size == 0 || spec.contains(',') {
-        return MusicRangeRequest::Unsatisfiable;
-    }
-
-    let Some((start_text, end_text)) = spec.split_once('-') else {
-        return MusicRangeRequest::Unsatisfiable;
-    };
-
-    let last = size - 1;
-    let range_bounds = if start_text.trim().is_empty() {
-        let Ok(suffix_length) = end_text.trim().parse::<u64>() else {
-            return MusicRangeRequest::Unsatisfiable;
-        };
-        if suffix_length == 0 {
-            return MusicRangeRequest::Unsatisfiable;
-        }
-        let start = size.saturating_sub(suffix_length);
-        (start, last)
-    } else {
-        let Ok(start) = start_text.trim().parse::<u64>() else {
-            return MusicRangeRequest::Unsatisfiable;
-        };
-        if start > last {
-            return MusicRangeRequest::Unsatisfiable;
-        }
-        let end = if end_text.trim().is_empty() {
-            last
-        } else {
-            let Ok(parsed_end) = end_text.trim().parse::<u64>() else {
-                return MusicRangeRequest::Unsatisfiable;
-            };
-            parsed_end.min(last)
-        };
-        if end < start {
-            return MusicRangeRequest::Unsatisfiable;
-        }
-        (start, end)
-    };
-
-    let (start, end) = range_bounds;
-    let length = end - start + 1;
-    MusicRangeRequest::Partial(MusicByteRange {
-        start,
-        end,
-        length,
-        r2_range: Range::OffsetWithLength {
-            offset: start,
-            length,
-        },
-    })
-}
-
-fn build_music_file_headers(
-    content_type: &str,
-    size: u64,
-    range: Option<&MusicByteRange>,
-) -> Result<Headers> {
-    let headers = utils::cors_headers();
-    headers.set("Content-Type", content_type)?;
-    headers.set("Accept-Ranges", "bytes")?;
-    headers.set("Cache-Control", "public, max-age=3600")?;
-
-    if let Some(range) = range {
-        headers.set("Content-Length", &range.length.to_string())?;
-        headers.set(
-            "Content-Range",
-            &format!("bytes {}-{}/{}", range.start, range.end, size),
-        )?;
-    } else {
-        headers.set("Content-Length", &size.to_string())?;
-    }
-
-    Ok(headers)
-}
-
-fn music_range_not_satisfiable_response(size: u64) -> Result<Response> {
-    let headers = utils::cors_headers();
-    headers.set("Accept-Ranges", "bytes")?;
-    headers.set("Content-Range", &format!("bytes */{}", size))?;
-    Ok(Response::empty()?.with_status(416).with_headers(headers))
-}
-
-fn encode_music_key_for_url(key: &str) -> String {
-    url::form_urlencoded::byte_serialize(key.as_bytes()).collect::<String>()
-}
-
 fn decode_url_component_if_needed(value: &str) -> String {
     if !value.contains('%') {
         return value.to_string();
@@ -883,18 +709,6 @@ fn decode_url_component_if_needed(value: &str) -> String {
     }
 
     value.to_string()
-}
-
-fn build_music_track_payload(key: &str) -> Value {
-    let name = music_display_name_from_key(key);
-    let encoded_key = encode_music_key_for_url(key);
-    json!({
-        "id": key,
-        "name": name,
-        "title": name,
-        "artist": "Unknown",
-        "url": format!("/api/music/file/{}", encoded_key)
-    })
 }
 
 async fn fetch_drive_media_bytes(
@@ -985,6 +799,7 @@ async fn handle_community_media_library_upload(
 
     let name = file.name();
     let size = file.size() as i64;
+    let size_js = wasm_bindgen::JsValue::from_f64(size as f64);
     let mime_type = file.type_();
     let buffer = file.bytes().await?;
 
@@ -1045,21 +860,25 @@ async fn handle_community_media_library_upload(
 
     let id = Uuid::new_v4().to_string();
     let file_url = format!("/api/community/media/{}", media_key);
+    let parent_id_js = match parent_id.clone() {
+        Some(value) => value.into(),
+        None => wasm_bindgen::JsValue::NULL,
+    };
     db.prepare("INSERT INTO drive_files (id, user_id, name, size, mime_type, url, parent_id, is_folder) VALUES (?, ?, ?, ?, ?, ?, ?, 0)")
         .bind(&[
             id.clone().into(),
             user.id.clone().into(),
             name.clone().into(),
-            size.into(),
+            size_js.clone(),
             mime_type.clone().into(),
             file_url.clone().into(),
-            parent_id.clone().into(),
+            parent_id_js,
         ])?
         .run()
         .await?;
 
     db.prepare("INSERT INTO user_drive_stats (user_id, quota_bytes, used_bytes) VALUES (?, 0, ?) ON CONFLICT(user_id) DO UPDATE SET used_bytes = used_bytes + excluded.used_bytes, updated_at = CURRENT_TIMESTAMP")
-        .bind(&[user.id.clone().into(), size.into()])?
+        .bind(&[user.id.clone().into(), size_js])?
         .run()
         .await?;
 
@@ -2821,77 +2640,6 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
                     Response::error("Not Found", 404)
                 }
             }
-        })
-        .get_async("/api/music", |_req, ctx| async move {
-            let bucket = ctx.env.bucket("MUSIC_BUCKET")?;
-            let objects = bucket.list().execute().await?;
-            let mut list = Vec::new();
-            for obj in objects.objects() {
-                let key = obj.key();
-                if is_supported_music_key(&key) {
-                    list.push(build_music_track_payload(&key));
-                }
-            }
-            utils::json_resp(json!({
-                "ok": true,
-                "list": list,
-                "playlist": list.clone()
-            }), 200)
-        })
-        .get_async("/api/music/file/:key", |req, ctx| async move {
-            let raw_key = ctx.param("key").unwrap().to_string();
-            let decoded_key = decode_url_component_if_needed(&raw_key);
-            let mut candidate_keys = vec![raw_key.clone()];
-            if decoded_key != raw_key {
-                candidate_keys.push(decoded_key);
-            }
-            let requested_range = req.headers().get("Range")?;
-
-            let bucket = ctx.env.bucket("MUSIC_BUCKET")?;
-
-            for key in candidate_keys {
-                let Some(head) = bucket.head(key.clone()).await? else {
-                    continue;
-                };
-
-                let size = head.size();
-                let content_type = effective_music_content_type(&key, head.http_metadata().content_type);
-
-                match parse_music_range_header(requested_range.clone(), size) {
-                    MusicRangeRequest::Unsatisfiable => {
-                        return music_range_not_satisfiable_response(size);
-                    }
-                    MusicRangeRequest::Full => {
-                        let Some(o) = bucket.get(key.clone()).execute().await? else {
-                            continue;
-                        };
-                        let Some(body) = o.body() else {
-                            continue;
-                        };
-                        let headers = build_music_file_headers(&content_type, size, None)?;
-                        return Ok(Response::from_body(body.response_body()?)?.with_headers(headers));
-                    }
-                    MusicRangeRequest::Partial(range) => {
-                        let Some(o) = bucket
-                            .get(key.clone())
-                            .range(range.r2_range.clone())
-                            .execute()
-                            .await?
-                        else {
-                            continue;
-                        };
-                        let Some(body) = o.body() else {
-                            continue;
-                        };
-                        let headers = build_music_file_headers(&content_type, size, Some(&range))?;
-                        return Ok(Response::from_body(body.response_body()?)?
-                            .with_status(206)
-                            .with_headers(headers));
-                    }
-                }
-            }
-
-            Response::error("Not Found", 404)
         })
         .post_async("/api/proxy-gemini", |mut req, ctx| async move {
             let body = req.text().await?;

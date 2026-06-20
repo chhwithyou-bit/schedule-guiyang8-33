@@ -42,7 +42,6 @@ test.beforeEach(async ({ page }) => {
       body: JSON.stringify(data)
     });
 
-    if (pathname === '/api/music') return fulfill([]);
     if (pathname === '/api/schedule') return fulfill({ ok: true, S: [], EV: {}, SJ: {} });
 
     if (pathname === '/api/community/posts' && req.method() === 'GET') {
