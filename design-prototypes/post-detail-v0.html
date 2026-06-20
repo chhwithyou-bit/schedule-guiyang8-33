@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>8Community · 帖子详情 v0</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F0EEE6;--surface:#FAF9F5;--ink:#191919;--ink-soft:#6B6862;
+    --clay:#CC785C;--clay-light:#D4A27F;--hairline:#E3DFD3;--hairline-strong:#D8D3C5;
+    --sans:'Space Grotesk',system-ui,sans-serif;--serif:'Newsreader',Georgia,serif;
+    --s1:8px;--s2:16px;--s3:24px;--s4:40px;--s5:64px;--s6:96px;
+    --r-card:12px;--r-btn:8px;--ease:cubic-bezier(0.4,0,0.2,1);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  body{background:var(--paper);color:var(--ink);font-family:var(--serif);font-size:17px;line-height:1.6;text-wrap:pretty}
+  ::selection{background:var(--clay-light);color:var(--ink)}
+
+  header{position:sticky;top:0;z-index:50;background:rgba(240,238,230,.82);backdrop-filter:saturate(1.1) blur(12px);border-bottom:1px solid var(--hairline)}
+  .header-inner{max-width:720px;margin:0 auto;padding:var(--s3) var(--s4);display:flex;align-items:center;gap:var(--s3)}
+  .back{font-family:var(--sans);font-size:14px;color:var(--ink-soft);text-decoration:none;display:flex;align-items:center;gap:6px;transition:color .18s var(--ease)}
+  .back:hover{color:var(--ink)}
+  .back .arrow{color:var(--clay)}
+
+  main{max-width:720px;margin:0 auto;padding:var(--s5) var(--s4) var(--s6)}
+
+  /* 主帖 — 阅读级排版,大字大行距 */
+  .post-head{display:flex;align-items:center;gap:var(--s2);margin-bottom:var(--s4)}
+  .post-avatar{width:48px;height:48px;border-radius:999px;background:#7C9A8E;color:var(--paper);display:grid;place-items:center;font-family:var(--sans);font-weight:600;font-size:18px;flex-shrink:0}
+  .post-author{font-family:var(--sans);font-weight:500;font-size:16px;display:flex;align-items:center;gap:var(--s1)}
+  .lvl{font-size:10px;font-weight:500;color:var(--clay);border:1px solid var(--clay-light);border-radius:4px;padding:1px 5px}
+  .post-time{font-family:var(--sans);font-size:13px;color:var(--ink-soft);margin-top:2px}
+
+  .post-body{font-family:var(--serif);font-size:22px;line-height:1.7;letter-spacing:-.005em;margin-bottom:var(--s4)}
+  .post-media{aspect-ratio:16/9;border-radius:var(--r-card);background:var(--surface);border:1px solid var(--hairline);display:grid;place-items:center;font-family:var(--sans);font-size:13px;color:var(--ink-soft);margin-bottom:var(--s4)}
+
+  .post-actions{display:flex;gap:var(--s4);padding:var(--s3) 0;border-top:1px solid var(--hairline);border-bottom:1px solid var(--hairline);margin-bottom:var(--s5);font-family:var(--sans);font-size:14px}
+  .act{background:none;border:none;cursor:pointer;color:var(--ink-soft);font-family:var(--sans);font-size:14px;display:flex;align-items:center;gap:6px;transition:color .18s var(--ease)}
+  .act:hover{color:var(--ink)}
+  .act.is-on{color:var(--clay)}
+  .act .glyph{font-size:16px}
+
+  /* 评论区 */
+  .comments-title{font-family:var(--sans);font-size:13px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:var(--s4)}
+
+  /* 评论输入 */
+  .comment-box{display:flex;gap:var(--s2);margin-bottom:var(--s5)}
+  .cb-avatar{width:36px;height:36px;border-radius:999px;background:var(--clay);color:var(--paper);display:grid;place-items:center;font-family:var(--sans);font-weight:600;font-size:14px;flex-shrink:0}
+  .cb-field{flex:1;background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r-card);padding:var(--s2) var(--s3);font-family:var(--serif);font-size:16px;color:var(--ink-soft)}
+  .cb-submit{font-family:var(--sans);font-size:13px;font-weight:500;color:var(--paper);background:var(--clay);border:none;border-radius:var(--r-btn);padding:8px 16px;align-self:flex-start;margin-top:2px;cursor:pointer}
+
+  .comment{display:flex;gap:var(--s2);padding:var(--s3) 0;border-top:1px solid var(--hairline)}
+  .c-avatar{width:34px;height:34px;border-radius:999px;color:var(--paper);display:grid;place-items:center;font-family:var(--sans);font-weight:600;font-size:13px;flex-shrink:0}
+  .c-main{flex:1}
+  .c-head{display:flex;align-items:baseline;gap:var(--s2);margin-bottom:4px}
+  .c-author{font-family:var(--sans);font-weight:500;font-size:14px}
+  .c-time{font-family:var(--sans);font-size:12px;color:var(--ink-soft)}
+  .c-text{font-family:var(--serif);font-size:16px;line-height:1.6}
+  .c-foot{font-family:var(--sans);font-size:12px;color:var(--ink-soft);display:flex;gap:var(--s3);margin-top:var(--s1)}
+  .c-foot button{background:none;border:none;color:var(--ink-soft);font-family:var(--sans);font-size:12px;cursor:pointer}
+  .c-foot button:hover{color:var(--clay)}
+  /* 嵌套回复 */
+  .c-reply{margin-left:46px}
+
+  @media(max-width:640px){.header-inner,main{padding-left:var(--s3);padding-right:var(--s3)}}
+</style>
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <a class="back" href="#"><span class="arrow">/</span> 返回动态</a>
+  </div>
+</header>
+
+<main>
+  <article>
+    <div class="post-head">
+      <div class="post-avatar">阿</div>
+      <div>
+        <div class="post-author">阿茶 <span class="lvl">Lv.5</span></div>
+        <div class="post-time">昨天 21:40</div>
+      </div>
+    </div>
+    <p class="post-body">今天的雾蓝色傍晚。走在回家的路上,觉得这种安静很难得,就想拍下来。</p>
+    <div class="post-media">16 : 9 图片占位 · 真实图来自 R2 媒体</div>
+    <div class="post-actions">
+      <button class="act"><span class="glyph">♥</span> 58</button>
+      <button class="act is-on"><span class="glyph">✦</span> 已收藏</button>
+      <button class="act"><span class="glyph">↺</span> 转发</button>
+      <button class="act"><span class="glyph">◌</span> 12 条评论</button>
+    </div>
+  </article>
+
+  <div class="comments-title">评论 · 12</div>
+
+  <div class="comment-box">
+    <div class="cb-avatar">访</div>
+    <div class="cb-field">说点什么……</div>
+    <button class="cb-submit">发送</button>
+  </div>
+
+  <div class="comment">
+    <div class="c-avatar" style="background:#9A7C8E">桥</div>
+    <div class="c-main">
+      <div class="c-head"><span class="c-author">过桥</span><span class="c-time">2 小时前</span></div>
+      <div class="c-text">这个色调真的很舒服,像旧胶片。</div>
+      <div class="c-foot"><button>♥ 8</button><button>回复</button></div>
+    </div>
+  </div>
+
+  <div class="comment c-reply">
+    <div class="c-avatar" style="background:var(--clay)">阿</div>
+    <div class="c-main">
+      <div class="c-head"><span class="c-author">阿茶</span><span class="c-time">1 小时前</span></div>
+      <div class="c-text">是手机直出,没怎么修。</div>
+      <div class="c-foot"><button>♥ 3</button><button>回复</button></div>
+    </div>
+  </div>
+
+  <div class="comment">
+    <div class="c-avatar" style="background:#7C9A8E">林</div>
+    <div class="c-main">
+      <div class="c-head"><span class="c-author">林深</span><span class="c-time">40 分钟前</span></div>
+      <div class="c-text">收藏了,谢谢分享。</div>
+      <div class="c-foot"><button>♥ 1</button><button>回复</button></div>
+    </div>
+  </div>
+</main>
+</body>
+</html>

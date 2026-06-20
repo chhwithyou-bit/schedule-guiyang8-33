@@ -1,10 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { fade } from 'svelte/transition';
+  import { fade, fly } from 'svelte/transition';
   import { closeModal } from '../../stores/modalState';
   import { isAdmin, isAuthenticated, user } from '../../stores/appState';
-  import { buildCommunityAuthHeader, persistCommunitySession } from '../../lib/communityApi';
-  import { softReveal } from '../../lib/motion';
+  import { buildCommunityAuthHeader, normalizeCommunityMediaUrl, persistCommunitySession } from '../../lib/communityApi';
 
   let usernameInput: HTMLInputElement | null = null;
   let isRegister = false;
@@ -19,19 +18,15 @@
 
   async function hydrateCurrentUser(authToken: string) {
     const res = await fetch('/api/community/me', {
-      headers: {
-        Authorization: buildCommunityAuthHeader(authToken)
-      }
+      headers: { Authorization: buildCommunityAuthHeader(authToken) }
     });
     const data = await res.json();
-
-    if (!res.ok || !data?.ok || !data.user) {
-      throw new Error(data?.msg || '账号已认证，但资料加载失败。');
-    }
-
+    if (!res.ok || !data?.ok || !data.user) throw new Error(data?.msg || '账号已认证，但资料加载失败。');
     return {
       ...data.user,
-      authToken
+      authToken,
+      avatar_url: normalizeCommunityMediaUrl(data.user.avatar_url),
+      background_url: normalizeCommunityMediaUrl(data.user.background_url)
     };
   }
 
@@ -41,31 +36,20 @@
 
     loading = true;
     error = '';
-
     try {
       const endpoint = isRegister ? '/api/community/register' : '/api/community/login';
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: normalizedUsername,
-          password
-        })
+        body: JSON.stringify({ username: normalizedUsername, password })
       });
       const data = await res.json();
-
       if (!res.ok || !data?.ok || typeof data.token !== 'string') {
         error = data?.msg || '登录没有成功，再试一次。';
         return;
       }
 
-      const authToken = data.token.trim();
-      if (!authToken) {
-        throw new Error('认证成功，但没有拿到可用会话。');
-      }
-
-      const nextUser = await hydrateCurrentUser(authToken);
-
+      const nextUser = await hydrateCurrentUser(data.token.trim());
       user.set(nextUser);
       isAuthenticated.set(true);
       isAdmin.set(nextUser?.role === 'admin' || nextUser?.role === 'owner');
@@ -78,16 +62,11 @@
     }
   }
 
-  onMount(() => {
-    usernameInput?.focus();
-  });
+  onMount(() => usernameInput?.focus());
 </script>
 
-<div
-  class="fixed inset-0 z-[11000] flex items-center justify-center p-6"
-  transition:fade={{ duration: 300 }}
->
-  <button type="button" class="absolute inset-0 bg-black/50 backdrop-blur-xl" on:click={closeModal} aria-label="关闭登录弹窗"></button>
+<div class="auth-frame" transition:fade={{ duration: 160 }}>
+  <button type="button" class="scrim" on:click={closeModal} aria-label="关闭登录弹窗"></button>
 
   <div
     data-modal-shell="true"
@@ -96,66 +75,212 @@
     aria-labelledby="auth-modal-title"
     aria-describedby="auth-modal-description"
     tabindex="-1"
-    class="relative w-full max-w-md overflow-hidden rounded-[40px] border border-white/10 bg-[rgba(var(--color-bg-rgb),0.82)] p-10 text-[var(--color-text,#fff4ed)] shadow-2xl backdrop-blur-[22px]"
-    transition:softReveal={{ y: 18, duration: 280, startScale: 0.985, blur: 6 }}
+    class="modal"
+    in:fly={{ y: 12, duration: 220 }}
   >
-    <div class="relative z-10">
-      <h2 id="auth-modal-title" class="mb-2 text-4xl font-black uppercase tracking-tighter text-[var(--color-text,#fff4ed)]">
-        {isRegister ? '来这里安个家' : '回来就好'}
-      </h2>
-      <p id="auth-modal-description" class="mb-8 text-sm font-bold uppercase tracking-widest text-[var(--color-text,#fff4ed)] opacity-40">
-        {isRegister ? '起个名字，就能开始发帖和参与评论。' : '输入账号密码，继续刚才的内容。'}
-      </p>
+    <button type="button" class="close" on:click={closeModal} aria-label="关闭">×</button>
+    <div class="brand">8Community<span>/</span></div>
 
-      <form on:submit|preventDefault={handleSubmit} class="space-y-4">
-        <div>
-          <label class="mb-2 ml-4 block text-[10px] font-black uppercase tracking-widest text-[var(--color-text,#fff4ed)] opacity-30" for="username">{usernameLabel}</label>
-          <input
-            bind:this={usernameInput}
-            id="username"
-            type="text"
-            bind:value={username}
-            placeholder={usernamePlaceholder}
-            class="w-full rounded-2xl border border-white/30 bg-white/15 px-6 py-4 font-bold text-[var(--color-text,#fff4ed)] outline-none transition-all placeholder:text-[var(--color-text,#fff4ed)]/40 focus:ring-2 focus:ring-[var(--color-primary,#fac7b7)]"
-            style="background-color: rgba(255, 255, 255, 0.18);"
-          />
-        </div>
+    <h1 id="auth-modal-title" class="title">{isRegister ? '来这里安个家' : '回来就好'}</h1>
+    <p id="auth-modal-description" class="subtitle">{isRegister ? '起个名字，就能开始说话。' : '一个安静的角落，等你继续。'}</p>
 
-        <div>
-          <label class="mb-2 ml-4 block text-[10px] font-black uppercase tracking-widest text-[var(--color-text,#fff4ed)] opacity-30" for="password">密码</label>
-          <input
-            id="password"
-            type="password"
-            bind:value={password}
-            placeholder={passwordPlaceholder}
-            class="w-full rounded-2xl border border-white/30 bg-white/15 px-6 py-4 font-bold text-[var(--color-text,#fff4ed)] outline-none transition-all placeholder:text-[var(--color-text,#fff4ed)]/40 focus:ring-2 focus:ring-[var(--color-primary,#fac7b7)]"
-            style="background-color: rgba(255, 255, 255, 0.18);"
-          />
-        </div>
-
-        {#if error}
-          <p class="rounded-xl bg-red-50 px-4 py-2 text-xs font-bold text-red-500 dark:bg-red-900/20">{error}</p>
-        {/if}
-
-        <button
-          type="submit"
-          disabled={loading}
-          class="w-full rounded-2xl bg-[var(--color-primary,#fac7b7)] py-5 text-lg font-black text-[var(--color-button-text,#231b22)] shadow-lg transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50"
-        >
-          {loading ? '正在处理...' : (isRegister ? '注册并进入' : '登录')}
-        </button>
-      </form>
-
-      <div class="mt-8 text-center">
-        <button
-          on:click={() => isRegister = !isRegister}
-          class="text-[10px] font-black uppercase tracking-widest opacity-30 transition-opacity hover:opacity-100"
-        >
-          {isRegister ? '已经有账号了，直接登录' : '还没有账号？现在注册'}
-        </button>
-      </div>
+    <div class="switch" role="tablist" aria-label="登录注册切换">
+      <button type="button" aria-pressed={!isRegister} on:click={() => (isRegister = false)}>登录</button>
+      <button type="button" aria-pressed={isRegister} on:click={() => (isRegister = true)}>注册</button>
     </div>
 
-    <div class="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-[var(--color-primary)] opacity-5 blur-3xl"></div>
+    <form on:submit|preventDefault={handleSubmit}>
+      <label class="field" for="username">
+        <span>{usernameLabel}</span>
+        <input bind:this={usernameInput} data-modal-initial-focus="true" id="username" type="text" bind:value={username} placeholder={usernamePlaceholder} />
+      </label>
+
+      <label class="field" for="password">
+        <span>密码</span>
+        <input id="password" type="password" bind:value={password} placeholder={passwordPlaceholder} />
+      </label>
+
+      {#if error}<p class="error">{error}</p>{/if}
+
+      <button type="submit" class="submit" disabled={loading || !username.trim() || !password}>
+        {loading ? '正在处理...' : (isRegister ? '注册并进入 /' : '登录 /')}
+      </button>
+    </form>
+
+    <p class="foot-note">
+      {isRegister ? '已经有账号？' : '还没有账号？'}
+      <button type="button" on:click={() => (isRegister = !isRegister)}>{isRegister ? '直接登录' : '现在注册'}</button>
+    </p>
   </div>
 </div>
+
+<style>
+  .auth-frame {
+    position: fixed;
+    inset: 0;
+    z-index: 11000;
+    display: grid;
+    place-items: center;
+    padding: var(--s3);
+  }
+
+  .scrim {
+    position: absolute;
+    inset: 0;
+    background: rgba(25, 25, 25, 0.18);
+    backdrop-filter: blur(2px);
+  }
+
+  .modal {
+    position: relative;
+    width: min(100%, 420px);
+    border: 1px solid var(--hairline);
+    border-radius: 16px;
+    background: var(--surface);
+    box-shadow: 0 24px 60px -24px rgba(25, 25, 25, 0.22);
+    padding: var(--s5) var(--s4) var(--s4);
+  }
+
+  .close {
+    position: absolute;
+    top: var(--s3);
+    right: var(--s3);
+    width: 30px;
+    height: 30px;
+    border: 1px solid var(--hairline);
+    border-radius: 999px;
+    color: var(--ink-soft);
+    font-family: var(--sans);
+    transition: border-color 180ms ease, color 180ms ease;
+  }
+
+  .close:hover {
+    border-color: var(--ink);
+    color: var(--ink);
+  }
+
+  .brand {
+    margin-bottom: var(--s4);
+    text-align: center;
+    font-family: var(--sans);
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  .brand span {
+    color: var(--clay);
+  }
+
+  .title {
+    margin-bottom: var(--s1);
+    text-align: center;
+    font-family: var(--serif);
+    font-size: 32px;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+  }
+
+  .subtitle {
+    margin-bottom: var(--s5);
+    color: var(--ink-soft);
+    text-align: center;
+  }
+
+  .switch {
+    display: flex;
+    margin-bottom: var(--s4);
+    border: 1px solid var(--hairline);
+    border-radius: 999px;
+    background: var(--paper);
+    padding: 3px;
+  }
+
+  .switch button {
+    flex: 1;
+    border-radius: 999px;
+    color: var(--ink-soft);
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 500;
+    padding: 9px 0;
+    transition: background 180ms ease, color 180ms ease;
+  }
+
+  .switch button[aria-pressed='true'] {
+    background: var(--clay);
+    color: var(--paper);
+  }
+
+  .field {
+    display: block;
+    margin-bottom: var(--s3);
+  }
+
+  .field span {
+    display: block;
+    margin-bottom: var(--s1);
+    color: var(--ink-soft);
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .field input {
+    width: 100%;
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-btn);
+    background: var(--paper);
+    padding: 12px 14px;
+    font-size: 17px;
+  }
+
+  .field input:focus {
+    border-color: var(--clay);
+    outline: none;
+  }
+
+  .error {
+    margin-bottom: var(--s3);
+    border: 1px solid rgba(178, 54, 42, 0.2);
+    border-radius: var(--r-btn);
+    background: rgba(178, 54, 42, 0.07);
+    color: #8b2e24;
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+
+  .submit {
+    width: 100%;
+    border-radius: var(--r-btn);
+    background: var(--clay);
+    color: var(--paper);
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 500;
+    margin-top: var(--s2);
+    padding: 13px 0;
+    transition: background 180ms ease, transform 180ms ease;
+  }
+
+  .submit:hover:not(:disabled) {
+    background: #b5664c;
+    transform: translateY(-1px);
+  }
+
+  .submit:disabled {
+    opacity: 0.5;
+  }
+
+  .foot-note {
+    margin-top: var(--s4);
+    color: var(--ink-soft);
+    font-size: 14px;
+    text-align: center;
+  }
+
+  .foot-note button {
+    color: var(--clay);
+  }
+</style>

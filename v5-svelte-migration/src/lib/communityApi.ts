@@ -8,6 +8,30 @@ export type CommunitySession = CommunityUser & {
 
 export const COMMUNITY_MEDIA_UPLOAD_ENDPOINT = '/api/community/media/upload';
 
+export function normalizeCommunityMediaUrl(value: unknown): string | null {
+  const trimmed = String(value || '').trim();
+  if (!trimmed) return null;
+  if (
+    trimmed.startsWith('/api/community/media/') ||
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('https://') ||
+    trimmed.startsWith('data:image/') ||
+    trimmed.startsWith('/')
+  ) {
+    return trimmed;
+  }
+  if (trimmed.startsWith('api/community/media/')) return `/${trimmed}`;
+  return `/api/community/media/${trimmed}`;
+}
+
+function normalizeCommunitySessionMedia(session: CommunitySession): CommunitySession {
+  return {
+    ...session,
+    avatar_url: normalizeCommunityMediaUrl(session.avatar_url),
+    background_url: normalizeCommunityMediaUrl(session.background_url)
+  };
+}
+
 function isSessionLike(value: unknown): value is CommunitySession {
   if (!value || typeof value !== 'object') return false;
   const session = value as CommunitySession;
@@ -21,7 +45,7 @@ export function readStoredCommunitySession(): CommunitySession | null {
     const raw = localStorage.getItem('commUser');
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    return isSessionLike(parsed) ? parsed : null;
+    return isSessionLike(parsed) ? normalizeCommunitySessionMedia(parsed) : null;
   } catch {
     return null;
   }
@@ -29,7 +53,7 @@ export function readStoredCommunitySession(): CommunitySession | null {
 
 export function getCommunitySession(): CommunitySession | null {
   const activeUser = get(user);
-  if (isSessionLike(activeUser)) return activeUser;
+  if (isSessionLike(activeUser)) return normalizeCommunitySessionMedia(activeUser);
   return readStoredCommunitySession();
 }
 
@@ -63,7 +87,7 @@ export function communityFetch(input: RequestInfo | URL, init: RequestInit = {})
 export function persistCommunitySession(nextUser: unknown) {
   if (typeof window === 'undefined') return;
   if (isSessionLike(nextUser)) {
-    localStorage.setItem('commUser', JSON.stringify(nextUser));
+    localStorage.setItem('commUser', JSON.stringify(normalizeCommunitySessionMedia(nextUser)));
   } else {
     localStorage.removeItem('commUser');
   }

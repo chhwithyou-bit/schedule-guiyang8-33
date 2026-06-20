@@ -1,10 +1,11 @@
 <script lang="ts">
   import { fade } from 'svelte/transition';
   import { closeModal, openModal } from '../../stores/modalState';
-  import { currentView, isAdmin, isAuthenticated, selectedProfile, user } from '../../stores/appState';
+  import { currentView, isAdmin, isAuthenticated, selectedProfile, user, selectedPost, unreadNotificationsCount } from '../../stores/appState';
   import {
     COMMUNITY_MEDIA_UPLOAD_ENDPOINT,
     communityFetch,
+    normalizeCommunityMediaUrl,
     persistCommunitySession
   } from '../../lib/communityApi';
   import { navigateToView } from '../../lib/appRouter';
@@ -20,8 +21,7 @@
   type TabId = CommunityConsoleTab;
 
   export let embedded = false;
-  export let accountOnly = false;
-  export let defaultTab: TabId = 'account';
+  export let defaultTab: TabId = 'drive';
   export let openAsModal = false;
   export let allowedTabs: TabId[] | null = null;
   export let showDriveTab = false;
@@ -56,6 +56,7 @@
     id: string;
     type: string;
     target_id?: string | null;
+    navigate_id?: string | null;
     created_at?: string;
     username?: string;
     avatar_url?: string;
@@ -68,70 +69,30 @@
   };
 
   const tabs: Array<{ id: TabId; label: string }> = [
-    { id: 'account', label: '账号' },
     { id: 'drive', label: '网盘' },
     { id: 'notifications', label: '提醒' }
   ];
 
   const tabHero: Record<TabId, { eyebrow: string; title: string }> = {
-    account: { eyebrow: 'account', title: '资料与账号设置' },
     drive: { eyebrow: 'drive', title: '文件与网盘空间' },
     notifications: { eyebrow: 'alerts', title: '互动提醒与通知' }
   };
 
   const tabDescriptions: Record<TabId, string> = {
-    account: '管理账号、资料和个性设置。',
     drive: '浏览、上传和整理社区网盘。',
-    notifications: '查看最近的点赞、评论、回复和转发提醒。'
+    notifications: '查看最近的点赞、评论、回复、转发和关注提醒。'
   };
 
-  const allowedNotificationTypes = new Set(['like', 'comment', 'reply', 'repost', 'comment_like']);
+  const allowedNotificationTypes = new Set(['like', 'comment', 'reply', 'repost', 'comment_like', 'follow']);
 
-  $: availableTabs = accountOnly
-    ? tabs.filter((tab) => tab.id === 'account')
-    : tabs.filter((tab) => allowedTabs ? allowedTabs.includes(tab.id) : (showDriveTab || tab.id !== 'drive'));
+  $: availableTabs = tabs.filter((tab) => allowedTabs ? allowedTabs.includes(tab.id) : (showDriveTab || tab.id !== 'drive'));
   $: shouldRenderModalShell = openAsModal && !embedded;
-  $: isEmbeddedAccountPanel = embedded && accountOnly;
   $: activeTabMeta = availableTabs.find((tab) => tab.id === activeTab) || availableTabs[0];
 
   let activeTab: TabId = defaultTab;
   let authPrompt = '';
 
-  function buildProfileForm(source?: Partial<ProfileForm> | null): ProfileForm {
-    return {
-      signature: String(source?.signature || ''),
-      avatar_url: String(source?.avatar_url || ''),
-      background_url: String(source?.background_url || '')
-    };
-  }
 
-  function buildProfileFormSeed(source?: { id?: string; signature?: string | null; avatar_url?: string | null; background_url?: string | null } | null) {
-    return JSON.stringify([
-      String(source?.id || ''),
-      String(source?.signature || ''),
-      String(source?.avatar_url || ''),
-      String(source?.background_url || '')
-    ]);
-  }
-
-  function markProfileDirty() {
-    profileFormDirty = true;
-  }
-
-  function applyProfileFormPatch(patch: Partial<ProfileForm>) {
-    profileForm = {
-      ...profileForm,
-      ...patch
-    };
-    profileFormDirty = true;
-  }
-
-  let profileForm: ProfileForm = buildProfileForm();
-  let profileFormDirty = false;
-  let profileFormOwnerId = '';
-  let lastProfileFormSeed = '';
-  let savingProfile = false;
-  let profileMessage = '';
 
   let driveStats: DriveStats = { quota_bytes: 0, used_bytes: 0, available_bytes: 0 };
   let driveUsagePercent = 0;
@@ -146,8 +107,6 @@
   let loadingNotifications = false;
   let notificationError = '';
 
-  let uploadingAvatar = false;
-  let uploadingBackground = false;
   let initializedForUserId = '';
   let shellRef: HTMLElement | null = null;
   let closeButtonRef: HTMLButtonElement | null = null;
@@ -161,31 +120,9 @@
     activeTab = $communityConsoleState.tab;
   }
 
-  $: if (accountOnly && activeTab !== 'account') {
-    activeTab = 'account';
-  }
 
-  $: if ($user) {
-    const nextOwnerId = String($user.id || '');
-    const nextSeed = buildProfileFormSeed($user);
 
-    if (nextOwnerId !== profileFormOwnerId) {
-      profileFormOwnerId = nextOwnerId;
-      lastProfileFormSeed = nextSeed;
-      profileFormDirty = false;
-      profileForm = buildProfileForm($user);
-    } else if (!profileFormDirty && nextSeed !== lastProfileFormSeed) {
-      lastProfileFormSeed = nextSeed;
-      profileForm = buildProfileForm($user);
-    }
-  } else if (profileFormOwnerId || profileForm.signature || profileForm.avatar_url || profileForm.background_url) {
-    profileFormOwnerId = '';
-    lastProfileFormSeed = '';
-    profileFormDirty = false;
-    profileForm = buildProfileForm();
-  }
-
-  $: if ($isAuthenticated && !accountOnly && $user?.id && initializedForUserId !== $user.id) {
+  $: if ($isAuthenticated && $user?.id && initializedForUserId !== $user.id) {
     initializedForUserId = $user.id;
     void bootstrapConsole();
   }
@@ -298,30 +235,26 @@
 
   function requireAuth(message: string) {
     authPrompt = message;
-    activeTab = 'account';
-    setCommunityConsoleState({ tab: 'account' });
   }
 
   async function bootstrapConsole() {
-    const shouldLoadDriveList = availableTabs.some((tab) => tab.id === 'drive');
+    const shouldLoadDriveData = availableTabs.some((tab) => tab.id === 'drive');
     await Promise.allSettled([
-      loadDriveInfo(),
-      shouldLoadDriveList ? loadDriveList() : Promise.resolve(),
+      shouldLoadDriveData ? loadDriveInfo() : Promise.resolve(),
+      shouldLoadDriveData ? loadDriveList() : Promise.resolve(),
       loadNotifications()
     ]);
   }
 
   async function switchTab(tab: TabId) {
-    if (accountOnly && tab !== 'account') {
-      return;
-    }
 
     if (!availableTabs.some((item) => item.id === tab)) {
       return;
     }
 
-    if (!$isAuthenticated && tab !== 'account') {
+    if (!$isAuthenticated) {
       requireAuth('登录后才能查看这一块。');
+      openAuth();
       return;
     }
 
@@ -587,6 +520,12 @@
       notifications = Array.isArray(data.notifications)
         ? data.notifications.filter((item: NotificationItem) => allowedNotificationTypes.has(item.type))
         : [];
+      
+      // Mark as read
+      if ($unreadNotificationsCount > 0) {
+        communityFetch('/api/community/notifications/read', { method: 'POST' }).catch(() => {});
+        unreadNotificationsCount.set(0);
+      }
     } catch (error) {
       console.error('Failed to load notifications', error);
       notificationError = '提醒没加载出来。';
@@ -595,103 +534,15 @@
     }
   }
 
-  async function handleAvatarUpload(event: Event) {
-    const input = event.currentTarget as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) return;
 
-    uploadingAvatar = true;
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const res = await communityFetch(COMMUNITY_MEDIA_UPLOAD_ENDPOINT, {
-        method: 'POST',
-        body: formData
-      });
-      const data = await res.json();
-      if (data.ok && data.file?.url) {
-        applyProfileFormPatch({ avatar_url: data.file.url });
-      } else {
-        profileMessage = data.msg || '头像上传失败';
-      }
-    } catch (e) {
-      console.error(e);
-      profileMessage = '头像上传失败';
-    } finally {
-      uploadingAvatar = false;
-      input.value = '';
+
+  function handleNotificationClick(item: NotificationItem) {
+    if (!item.navigate_id) return;
+    if (item.type === 'follow') {
+      selectedProfile.set({ id: item.navigate_id, username: item.username, avatar_url: item.avatar_url });
+    } else {
+      selectedPost.set({ id: item.navigate_id } as any);
     }
-  }
-
-  async function handleBackgroundUpload(event: Event) {
-    const input = event.currentTarget as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) return;
-
-    uploadingBackground = true;
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const res = await communityFetch(COMMUNITY_MEDIA_UPLOAD_ENDPOINT, {
-        method: 'POST',
-        body: formData
-      });
-      const data = await res.json();
-      if (data.ok && data.file?.url) {
-        applyProfileFormPatch({ background_url: data.file.url });
-      } else {
-        profileMessage = data.msg || '背景图上传失败';
-      }
-    } catch (e) {
-      console.error(e);
-      profileMessage = '背景图上传失败';
-    } finally {
-      uploadingBackground = false;
-      input.value = '';
-    }
-  }
-
-  async function saveProfile() {
-    if (!$isAuthenticated) {
-      requireAuth('登录后才能保存资料。');
-      return;
-    }
-    savingProfile = true;
-    profileMessage = '';
-
-    try {
-      const res = await communityFetch('/api/community/profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(profileForm)
-      });
-      const data = await res.json();
-      if (!data.ok) {
-        profileMessage = data.msg || '资料没保存成功。';
-        return;
-      }
-
-      const nextUser = {
-        ...$user,
-        ...(data.user || profileForm)
-      };
-      profileFormDirty = false;
-      lastProfileFormSeed = '';
-      user.set(nextUser);
-      persistCommunitySession(nextUser);
-      profileMessage = '资料已经保存好了。';
-    } catch (error) {
-      console.error('Failed to save profile', error);
-      profileMessage = '资料没保存成功。';
-    } finally {
-      savingProfile = false;
-    }
-  }
-
-  function openMyProfile() {
-    if (!$user) return;
-    selectedProfile.set(null);
-    navigateToView('profile');
     if (!embedded) {
       handleClose();
     }
@@ -701,16 +552,7 @@
     openModal('auth');
   }
 
-  function logout() {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('commUser');
-    }
-    resetCommunityConsoleState();
-    user.set(null);
-    isAuthenticated.set(false);
-    isAdmin.set(false);
-    closeModal();
-  }
+
 
   function formatBytes(value = 0) {
     if (!value) return '0 B';
@@ -739,7 +581,8 @@
       comment_like: '赞了你的评论',
       repost: '转发了你的动态',
       comment: '评论了你的帖子',
-      reply: '回复了你的评论'
+      reply: '回复了你的评论',
+      follow: '关注了你'
     };
     return map[type] || type;
   }
@@ -806,7 +649,7 @@
 
 <div class={embedded ? 'relative z-0' : shouldRenderModalShell ? 'fixed inset-0 z-[11000] overflow-y-auto p-4 md:p-6' : 'fixed inset-0 z-[11000] overflow-y-auto xl:overflow-hidden xl:flex xl:items-center xl:justify-center p-4 md:p-6'} transition:fade={{ duration: 220 }}>
   {#if !embedded}
-    <button type="button" class="fixed inset-0 bg-black/60 backdrop-blur-xl" on:click={handleClose} aria-label="关闭控制台"></button>
+    <button type="button" class="console-scrim fixed inset-0" on:click={handleClose} aria-label="关闭控制台"></button>
   {/if}
 
   <section
@@ -815,7 +658,7 @@
     role={shouldRenderModalShell ? 'dialog' : undefined}
     aria-modal={shouldRenderModalShell ? 'true' : undefined}
     aria-labelledby={shouldRenderModalShell ? 'community-console-title' : undefined}
-    class="relative z-10 flex w-full flex-col text-[var(--color-text)] {embedded ? 'overflow-visible bg-transparent' : shouldRenderModalShell ? 'mx-auto min-h-[calc(100svh-2rem)] max-w-6xl rounded-[36px] border border-white/12 bg-[rgba(var(--color-bg-rgb),0.84)] shadow-[0_24px_60px_rgba(var(--shadow-rgb),0.16)] backdrop-blur-[20px]' : 'mx-auto xl:overflow-hidden xl:h-[min(90vh,56rem)] max-w-6xl rounded-[36px] border border-white/12 bg-[rgba(var(--color-bg-rgb),0.84)] shadow-[0_24px_60px_rgba(var(--shadow-rgb),0.16)] backdrop-blur-[20px]'}"
+    class="console-shell relative z-10 flex w-full flex-col text-[var(--color-text)] {embedded ? 'is-embedded overflow-visible bg-transparent' : shouldRenderModalShell ? 'mx-auto min-h-[calc(100svh-2rem)] max-w-6xl rounded-[36px] border border-white/12 bg-[rgba(var(--color-bg-rgb),0.84)] shadow-[0_24px_60px_rgba(var(--shadow-rgb),0.16)] backdrop-blur-[20px]' : 'mx-auto xl:overflow-hidden xl:h-[min(90vh,56rem)] max-w-6xl rounded-[36px] border border-white/12 bg-[rgba(var(--color-bg-rgb),0.84)] shadow-[0_24px_60px_rgba(var(--shadow-rgb),0.16)] backdrop-blur-[20px]'}"
     transition:softReveal={{ y: 18, duration: 280, startScale: 0.988, blur: 6 }}
   >
     {#if !embedded}
@@ -887,112 +730,6 @@
         {/if}
 
         <div class="{embedded ? 'space-y-6' : shouldRenderModalShell ? 'space-y-6 px-5 pb-5 pt-1 md:px-6 md:pb-6' : 'px-5 pb-5 pt-1 md:px-6 md:pb-6 xl:flex-1 xl:min-h-0 xl:overflow-y-auto'}">
-          {#if activeTab === 'account'}
-            <div class="space-y-6">
-              {#if !$isAuthenticated}
-                <section class="console-panel p-6">
-                  <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">先登录一个</p>
-                  <h3 class="mt-3 text-3xl font-black tracking-tight">账号入口已经恢复</h3>
-                  <p class="mt-3 max-w-2xl text-sm font-medium leading-7 opacity-70">
-                    登录后可以在这里编辑资料，回社区后直接发帖、评论和查看互动提醒。
-                  </p>
-                  <div class="mt-5 flex flex-wrap gap-3">
-                    <button type="button" class="console-pill console-pill--primary px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)]" on:click={openAuth}>
-                      登录 / 注册
-                    </button>
-                    <button type="button" class="console-pill console-pill--ghost px-5 py-3 text-xs font-black uppercase tracking-[0.2em]" on:click={openCommunityView}>
-                      回到社区
-                    </button>
-                  </div>
-                </section>
-              {:else}
-                <section class="account-layout {isEmbeddedAccountPanel ? 'is-embedded-account' : ''}">
-                  <div class="console-panel p-6">
-                    <div class="flex items-center gap-4">
-                      <div class="flex h-16 w-16 items-center justify-center overflow-hidden rounded-[22px] bg-[var(--color-primary)] text-2xl font-black text-[var(--color-bg)]">
-                        {#if $user?.avatar_url}
-                          <img src={$user.avatar_url} alt={$user?.username || 'user'} class="h-full w-full object-cover" />
-                        {:else}
-                          {$user?.username?.slice(0, 1).toUpperCase() || 'U'}
-                        {/if}
-                      </div>
-
-                      <div class="min-w-0 flex-1">
-                        <h3 class="truncate text-3xl font-black tracking-tight">{$user?.username}</h3>
-                        <p class="mt-1 text-[10px] font-black uppercase tracking-[0.24em] opacity-35">
-                          {formatRoleLabel($user?.role)} / LV.{$user?.level || 1} / XP.{$user?.xp || 0}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div class="account-form-grid {isEmbeddedAccountPanel ? 'is-embedded-account' : ''}">
-                      <label class="block">
-                        <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35 text-[var(--color-text,#fff4ed)]">个性签名</span>
-                        <textarea bind:value={profileForm.signature} on:input={markProfileDirty} class="console-field h-28 w-full px-4 py-3 text-sm font-medium text-[var(--color-text,#fff4ed)] placeholder:text-[var(--color-text,#fff4ed)]/40" style="background-color: rgba(255, 255, 255, 0.18);"></textarea>
-                      </label>
-
-                      <label class="block">
-                        <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35 text-[var(--color-text,#fff4ed)]">上传头像</span>
-                        <div class="console-field relative w-full px-4 py-3 text-sm font-medium text-[var(--color-text,#fff4ed)]">
-                          <span class="opacity-70">{uploadingAvatar ? '正在上传...' : (profileForm.avatar_url ? '已上传，点击更换' : '点击选择图片')}</span>
-                          <input type="file" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" on:change={handleAvatarUpload} disabled={uploadingAvatar} />
-                        </div>
-                      </label>
-                      <label class="block">
-                        <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] opacity-35 text-[var(--color-text,#fff4ed)]">上传主页壁纸</span>
-                        <div class="console-field relative w-full px-4 py-3 text-sm font-medium text-[var(--color-text,#fff4ed)]">
-                          <span class="opacity-70">{uploadingBackground ? '正在上传...' : (profileForm.background_url ? '已上传，点击更换' : '点击选择图片')}</span>
-                          <input type="file" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" on:change={handleBackgroundUpload} disabled={uploadingBackground} />
-                        </div>
-                      </label>
-                    </div>
-
-                    <div class="mt-5 flex flex-wrap gap-3">
-                      <button type="button" class="console-pill console-pill--primary px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)] disabled:opacity-50" on:click={saveProfile} disabled={savingProfile}>
-                        {savingProfile ? '正在保存...' : '保存资料'}
-                      </button>
-                      <button type="button" class="console-pill console-pill--ghost px-5 py-3 text-xs font-black uppercase tracking-[0.2em]" on:click={openMyProfile}>
-                        打开主页
-                      </button>
-                      <button type="button" class="rounded-full border border-red-400/20 bg-red-500/10 px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-red-200 transition-transform hover:scale-105" on:click={logout}>
-                        退出登录
-                      </button>
-                    </div>
-
-                    {#if profileMessage}
-                      <p class="mt-4 text-sm font-bold opacity-75">{profileMessage}</p>
-                    {/if}
-                  </div>
-
-                  <div class="console-panel p-6">
-                    <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">现在的情况</p>
-                    <div class="mt-4 grid gap-4 md:grid-cols-2">
-                      <div class="console-subpanel p-4">
-                        <p class="text-[10px] font-black uppercase tracking-[0.2em] opacity-35">提醒</p>
-                        <p class="mt-2 text-2xl font-black tracking-tight">{notifications.length}</p>
-                        <p class="mt-1 text-sm font-medium opacity-65">点赞、评论、回复和转发都会汇总到通知里。</p>
-                      </div>
-                      <div class="console-subpanel p-4">
-                        <p class="text-[10px] font-black uppercase tracking-[0.2em] opacity-35">网盘占用</p>
-                        <p class="mt-2 text-2xl font-black tracking-tight">{formatBytes(driveStats.used_bytes || 0)}</p>
-                        <p class="mt-1 text-sm font-medium opacity-65">总配额 {formatBytes(driveStats.quota_bytes || 0)}</p>
-                      </div>
-                      <div class="console-subpanel p-4">
-                        <p class="text-[10px] font-black uppercase tracking-[0.2em] opacity-35">文件</p>
-                        <p class="mt-2 text-2xl font-black tracking-tight">{driveItems.length}</p>
-                        <p class="mt-1 text-sm font-medium opacity-65">头像、壁纸和帖子媒体继续走同一个媒体系统。</p>
-                      </div>
-                      <div class="console-subpanel p-4">
-                        <p class="text-[10px] font-black uppercase tracking-[0.2em] opacity-35">身份</p>
-                        <p class="mt-2 text-2xl font-black tracking-tight">{$isAdmin ? '管理员' : '成员'}</p>
-                        <p class="mt-1 text-sm font-medium opacity-65">账号入口和资料面板保持固定可达。</p>
-                      </div>
-                    </div>
-                  </div>
-                </section>
-              {/if}
-            </div>
-          {/if}
 
           {#if activeTab === 'drive'}
             {#if !$isAuthenticated}
@@ -1153,12 +890,12 @@
                     {/each}
                   {:else if notifications.length > 0}
                     {#each notifications as item (item.id)}
-                      <article class="console-subpanel px-4 py-4">
+                      <button type="button" class="console-subpanel px-4 py-4 w-full text-left transition-transform hover:scale-[1.01] hover:border-white/20" on:click={() => handleNotificationClick(item)}>
                         <div class="flex items-center justify-between gap-4">
                           <p class="text-sm font-black">{item.username || '系统'} {formatNotification(item.type)}</p>
                           <p class="text-[10px] font-black uppercase tracking-[0.18em] opacity-30">{formatDate(item.created_at)}</p>
                         </div>
-                      </article>
+                      </button>
                     {/each}
                   {:else}
                     <div class="console-empty-state px-4 py-10 text-center text-sm font-bold opacity-50">
@@ -1347,6 +1084,94 @@
 
   .account-form-grid .console-field {
     min-height: 3.2rem;
+  }
+
+  .console-scrim {
+    background: rgba(25, 25, 25, 0.18);
+    backdrop-filter: blur(3px);
+  }
+
+  .console-shell:not(.is-embedded) {
+    border-color: var(--hairline) !important;
+    background: var(--surface) !important;
+    color: var(--ink);
+    box-shadow: 0 24px 70px rgba(var(--shadow-rgb), 0.16) !important;
+    backdrop-filter: none !important;
+  }
+
+  .console-shell > header {
+    border-color: var(--hairline) !important;
+    background: var(--surface) !important;
+    backdrop-filter: none !important;
+  }
+
+  .console-hero-panel,
+  .console-panel,
+  .console-subpanel,
+  .console-empty-state,
+  .console-field,
+  .console-tab-card {
+    border-color: var(--hairline);
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
+  .console-hero-panel {
+    background: var(--paper);
+  }
+
+  .console-panel:hover,
+  .console-tab-card:hover {
+    border-color: var(--hairline-strong);
+    box-shadow: none;
+  }
+
+  .console-subpanel,
+  .console-empty-state,
+  .console-field,
+  .console-tab-card {
+    background: var(--paper);
+  }
+
+  .console-tab-card.is-active {
+    border-color: var(--clay);
+    background: var(--surface);
+    box-shadow: inset 0 -2px 0 var(--clay);
+  }
+
+  .console-pill--primary {
+    background: var(--clay);
+    color: var(--paper) !important;
+    box-shadow: none;
+  }
+
+  .console-pill--ghost,
+  .console-shell :global([class*=bg-\[rgba\(255\,255\,255\,0\.08\)\]]) {
+    border-color: var(--hairline) !important;
+    background: var(--surface) !important;
+    box-shadow: none;
+  }
+
+  .console-shell :global([class*=border-white]),
+  .console-shell :global([class*=border-red]) {
+    border-color: var(--hairline) !important;
+  }
+
+  .console-shell :global([class*=bg-white]),
+  .console-shell :global([class*=bg-\[rgba\(255\,255\,255]) {
+    background: var(--paper) !important;
+  }
+
+  .console-shell :global([class*=text-red]) {
+    color: #8b2e24 !important;
+  }
+
+  .console-field:focus,
+  .console-field:focus-visible {
+    border-color: var(--clay);
+    box-shadow: 0 0 0 2px rgba(var(--glow-primary-rgb), 0.12);
   }
 
   @media (min-width: 768px) {

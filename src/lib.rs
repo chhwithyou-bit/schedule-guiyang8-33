@@ -56,6 +56,9 @@ mod utils {
     pub fn json_resp<T: Serialize>(data: T, status: u16) -> Result<Response> {
         let headers = cors_headers();
         let _ = headers.set("Content-Type", "application/json;charset=UTF-8");
+        let _ = headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+        let _ = headers.set("Pragma", "no-cache");
+        let _ = headers.set("Expires", "0");
 
         Ok(Response::from_json(&data)?
             .with_status(status)
@@ -137,19 +140,19 @@ struct DriveFile {
     id: String,
     user_id: String,
     name: String,
-    size: i64,
+    size: f64,
     mime_type: String,
     url: Option<String>,
     parent_id: Option<String>,
-    is_folder: i32,
+    is_folder: f64,
     created_at: String,
     updated_at: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 struct DriveStats {
-    quota_bytes: i64,
-    used_bytes: i64,
+    quota_bytes: f64,
+    used_bytes: f64,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -224,6 +227,7 @@ struct Notification {
     created_at: String,
     username: Option<String>,
     avatar_url: Option<String>,
+    navigate_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -231,6 +235,7 @@ struct PostLikeResult {
     liked: bool,
     like_count: i64,
 }
+
 
 #[derive(Deserialize)]
 struct AdminAction {
@@ -457,6 +462,7 @@ fn is_community_admin_role(role: &str) -> bool {
 fn with_community_level(mut user: User) -> User {
     user.level = utils::get_community_level_from_xp(user.xp);
     user.role = normalize_community_role(&user.role);
+    normalize_community_user_media(&mut user);
     user
 }
 
@@ -649,10 +655,65 @@ fn normalize_media_url(value: Option<String>) -> Option<String> {
     if trimmed.starts_with("/api/community/media/")
         || trimmed.starts_with("http://")
         || trimmed.starts_with("https://")
+        || trimmed.starts_with("data:image/")
+        || trimmed.starts_with("/")
     {
         return Some(trimmed);
     }
+    if trimmed.starts_with("api/community/media/") {
+        return Some(format!("/{}", trimmed));
+    }
     Some(format!("/api/community/media/{}", trimmed))
+}
+
+fn normalize_media_json(value: Option<String>) -> Option<String> {
+    let raw = value?;
+    let Ok(mut parsed) = serde_json::from_str::<Value>(&raw) else {
+        return Some(raw);
+    };
+
+    let Some(items) = parsed.as_array_mut() else {
+        return Some(raw);
+    };
+
+    for item in items {
+        let Some(url) = item
+            .get("url")
+            .and_then(|value| value.as_str())
+            .map(|value| value.to_string()) else {
+            continue;
+        };
+
+        if let Some(normalized_url) = normalize_media_url(Some(url)) {
+            item["url"] = Value::String(normalized_url);
+        }
+    }
+
+    Some(parsed.to_string())
+}
+
+fn normalize_community_user_media(user: &mut User) {
+    user.avatar_url = normalize_media_url(user.avatar_url.take());
+    user.background_url = normalize_media_url(user.background_url.take());
+}
+
+fn normalize_community_post_media(post: &mut Post) {
+    post.avatar_url = normalize_media_url(post.avatar_url.take());
+    post.background_url = normalize_media_url(post.background_url.take());
+    post.media_json = normalize_media_json(post.media_json.take());
+
+    if let Some(repost) = post.repost_data.as_mut() {
+        normalize_community_post_media(repost);
+    }
+}
+
+fn normalize_community_comment_media(comment: &mut Comment) {
+    comment.avatar_url = normalize_media_url(comment.avatar_url.take());
+    comment.background_url = normalize_media_url(comment.background_url.take());
+}
+
+fn normalize_community_notification_media(notification: &mut Notification) {
+    notification.avatar_url = normalize_media_url(notification.avatar_url.take());
 }
 
 fn extract_media_file_id(value: &str) -> Option<String> {
@@ -813,10 +874,10 @@ async fn handle_community_media_library_upload(
         .first::<DriveStats>(None)
         .await?
         .unwrap_or(DriveStats {
-            quota_bytes: 0,
-            used_bytes: 0,
+            quota_bytes: 0.0,
+            used_bytes: 0.0,
         });
-    if stats.quota_bytes > 0 && stats.used_bytes + size > stats.quota_bytes {
+    if stats.quota_bytes > 0.0 && stats.used_bytes + (size as f64) > stats.quota_bytes {
         return utils::json_resp(json!({"ok": false, "msg": "storage quota exceeded"}), 400);
     }
 
@@ -1199,7 +1260,7 @@ async fn toggle_post_like(db: &D1Database, user: &User, post_id: &str) -> Result
         .bind(&[post_id.into()])?
         .first::<Value>(None)
         .await?
-        .and_then(|value| value["count"].as_i64())
+        .and_then(|value| value["count"].as_i64().or_else(|| value["count"].as_f64().map(|f| f as i64)))
         .unwrap_or(0);
 
     Ok(PostLikeResult { liked, like_count })
@@ -1443,9 +1504,8 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
         })
         .get_async("/api/community/me", |req, ctx| async move {
             let db = ctx.env.d1("COMMUNITY_DB")?;
-            if let Some(mut user) = get_auth(&req, &db).await? {
-                user.level = utils::get_community_level_from_xp(user.xp);
-                utils::json_resp(json!({"ok": true, "user": user}), 200)
+            if let Some(user) = get_auth(&req, &db).await? {
+                utils::json_resp(json!({"ok": true, "user": with_community_level(user)}), 200)
             } else {
                 utils::json_resp(json!({"ok": false}), 401)
             }
@@ -1480,23 +1540,23 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
                 u.background_url,
                 COALESCE(u.xp, 0) as xp,
                 COALESCE(u.level, 1) as level,
-                (SELECT COUNT(*) FROM likes WHERE post_id = p.id) as likes_count,
-                (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comments_count,
-                (SELECT COUNT(*) FROM favorites WHERE post_id = p.id) as favorites_count
+                (SELECT COUNT(*) FROM likes WHERE post_id = p.id) as like_count,
+                (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comment_count,
+                (SELECT COUNT(*) FROM favorites WHERE post_id = p.id) as favorite_count
             ".to_string();
 
             let mut params: Vec<wasm_bindgen::JsValue> = Vec::new();
             if let Some(ref u) = user {
-                sql += ", EXISTS(SELECT 1 FROM likes l WHERE l.post_id = p.id AND l.user_id = ?) as viewer_has_liked";
+                sql += ", EXISTS(SELECT 1 FROM likes l WHERE l.post_id = p.id AND l.user_id = ?) as viewer_liked";
                 params.push(u.id.clone().into());
-                sql += ", (SELECT 1 FROM favorites WHERE post_id = p.id AND user_id = ?) as viewer_has_favorited";
+                sql += ", (SELECT 1 FROM favorites WHERE post_id = p.id AND user_id = ?) as viewer_favorited";
                 params.push(u.id.clone().into());
                 sql += ", CASE WHEN p.user_id = ? OR ? IN ('admin', 'owner') THEN 1 ELSE 0 END as can_delete";
                 params.push(u.id.clone().into());
                 params.push(normalize_community_role(&u.role).into());
             } else {
-                sql += ", 0 as viewer_has_liked";
-                sql += ", 0 as viewer_has_favorited";
+                sql += ", 0 as viewer_liked";
+                sql += ", 0 as viewer_favorited";
                 sql += ", 0 as can_delete";
             }
 
@@ -1549,18 +1609,23 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
                         u.background_url,
                         COALESCE(u.xp, 0) as xp,
                         COALESCE(u.level, 1) as level,
-                        0 as likes_count,
-                        0 as comments_count,
-                        0 as favorites_count,
-                        0 as viewer_has_liked,
-                        0 as viewer_has_favorited,
+                        0 as like_count,
+                        0 as comment_count,
+                        0 as favorite_count,
+                        0 as viewer_liked,
+                        0 as viewer_favorited,
                         0 as can_delete
                         FROM posts p LEFT JOIN users u ON p.user_id = u.id
                         WHERE p.id = ?
                     ";
-                    let r_post = db.prepare(r_sql).bind(&[rid.clone().into()])?.first::<Post>(None).await?;
+                    let mut r_post = db.prepare(r_sql).bind(&[rid.clone().into()])?.first::<Post>(None).await?;
+                    if let Some(ref mut repost) = r_post {
+                        repost.level = Some(utils::get_community_level_from_xp(repost.xp.unwrap_or(0)));
+                        normalize_community_post_media(repost);
+                    }
                     post.repost_data = r_post.map(Box::new);
                 }
+                normalize_community_post_media(&mut post);
                 posts.push(post);
             }
 
@@ -1706,7 +1771,7 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
                 .bind(&[post_id.into()])?
                 .first::<Value>(None)
                 .await?
-                .and_then(|value| value["count"].as_i64())
+                .and_then(|value| value["count"].as_i64().or_else(|| value["count"].as_f64().map(|f| f as i64)))
                 .unwrap_or(0);
 
             utils::json_resp(json!({"ok": true, "favorited": favorited, "favorite_count": favorite_count}), 200)
@@ -1762,14 +1827,14 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
                     u.background_url,
                     u.xp,
                     u.level,
-                    (SELECT COUNT(*) FROM comment_likes WHERE comment_id = c.id) as likes_count
+                    (SELECT COUNT(*) FROM comment_likes WHERE comment_id = c.id) as like_count
             ".to_string();
             let mut params: Vec<wasm_bindgen::JsValue> = vec![post_id.clone().into()];
             if let Some(ref viewer) = viewer {
-                sql.push_str(", (SELECT 1 FROM comment_likes WHERE comment_id = c.id AND user_id = ?) as viewer_has_liked");
+                sql.push_str(", (SELECT 1 FROM comment_likes WHERE comment_id = c.id AND user_id = ?) as viewer_liked");
                 params.push(viewer.id.clone().into());
             } else {
-                sql.push_str(", 0 as viewer_has_liked");
+                sql.push_str(", 0 as viewer_liked");
             }
             sql.push_str("
                 FROM comments c
@@ -1787,6 +1852,7 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
             let mut comments = Vec::new();
             for mut comment in results {
                 comment.level = Some(utils::get_community_level_from_xp(comment.xp.unwrap_or(0)));
+                normalize_community_comment_media(&mut comment);
                 comments.push(comment);
             }
 
@@ -1872,8 +1938,8 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
                     u.background_url,
                     u.xp,
                     u.level,
-                    0 as likes_count,
-                    0 as viewer_has_liked
+                    0 as like_count,
+                    0 as viewer_liked
                 FROM comments c
                 JOIN users u ON c.user_id = u.id
                 WHERE c.id = ?
@@ -1884,13 +1950,14 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
             .await?;
             if let Some(ref mut comment) = comment {
                 comment.level = Some(utils::get_community_level_from_xp(comment.xp.unwrap_or(0)));
+                normalize_community_comment_media(comment);
             }
 
             let comment_count = db.prepare("SELECT COUNT(*) as count FROM comments WHERE post_id = ?")
                 .bind(&[post_id.into()])?
                 .first::<Value>(None)
                 .await?
-                .and_then(|value| value["count"].as_i64())
+                .and_then(|value| value["count"].as_i64().or_else(|| value["count"].as_f64().map(|f| f as i64)))
                 .unwrap_or(0);
 
             utils::json_resp(json!({"ok": true, "comment": comment, "comment_count": comment_count}), 200)
@@ -1943,7 +2010,7 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
                 .bind(&[comment_id.into()])?
                 .first::<Value>(None)
                 .await?
-                .and_then(|value| value["count"].as_i64())
+                .and_then(|value| value["count"].as_i64().or_else(|| value["count"].as_f64().map(|f| f as i64)))
                 .unwrap_or(0);
 
             utils::json_resp(json!({"ok": true, "liked": liked, "like_count": like_count}), 200)
@@ -1956,16 +2023,58 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
                 None => return utils::json_resp(json!({"ok": false}), 401)
             };
 
-            let results = db.prepare("
-                SELECT n.*, u.username, u.avatar_url FROM notifications n
+            let mut results = db.prepare("
+                SELECT n.*, u.username, u.avatar_url,
+                  CASE 
+                    WHEN n.type IN ('like', 'repost', 'comment') THEN n.target_id
+                    WHEN n.type IN ('reply', 'comment_like') THEN (SELECT post_id FROM comments WHERE id = n.target_id)
+                    WHEN n.type = 'follow' THEN n.from_user_id
+                  END as navigate_id
+                FROM notifications n
                 JOIN users u ON n.from_user_id = u.id
                 WHERE n.user_id = ?
                   AND n.from_user_id <> ?
-                  AND n.type IN ('like', 'comment', 'reply', 'repost', 'comment_like')
+                  AND n.type IN ('like', 'comment', 'reply', 'repost', 'comment_like', 'follow')
                 ORDER BY n.created_at DESC LIMIT 50
             ").bind(&[user.id.clone().into(), user.id.into()])?.all().await?.results::<Notification>()?;
+            for notification in results.iter_mut() {
+                normalize_community_notification_media(notification);
+            }
 
             utils::json_resp(json!({"ok": true, "notifications": results}), 200)
+        })
+        .get_async("/api/community/notifications/unread_count", |req, ctx| async move {
+            let db = ctx.env.d1("COMMUNITY_DB")?;
+            let user = get_auth(&req, &db).await?;
+            let user = match user {
+                Some(u) => u,
+                None => return utils::json_resp(json!({"ok": false}), 401)
+            };
+
+            let count = db.prepare("
+                SELECT COUNT(*) as c FROM notifications 
+                WHERE user_id = ? AND from_user_id <> ? AND is_read = 0 
+                AND type IN ('like', 'comment', 'reply', 'repost', 'comment_like', 'follow')
+            ").bind(&[user.id.clone().into(), user.id.into()])?
+              .first::<Value>(None).await?
+              .and_then(|v| v["c"].as_i64())
+              .unwrap_or(0);
+
+            utils::json_resp(json!({"ok": true, "count": count}), 200)
+        })
+        .post_async("/api/community/notifications/read", |req, ctx| async move {
+            let db = ctx.env.d1("COMMUNITY_DB")?;
+            let user = get_auth(&req, &db).await?;
+            let user = match user {
+                Some(u) => u,
+                None => return utils::json_resp(json!({"ok": false}), 401)
+            };
+
+            db.prepare("UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0")
+              .bind(&[user.id.into()])?
+              .run().await?;
+
+            utils::json_resp(json!({"ok": true}), 200)
         })
         .get_async("/api/community/announcement", |_req, ctx| async move {
             let kv = ctx.env.kv("SCHEDULE_KV")?;
@@ -2013,6 +2122,7 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
                     }
                 }
 
+                normalize_community_user_media(&mut u);
                 utils::json_resp(json!({"ok": true, "user": u}), 200)
             } else {
                 utils::json_resp(json!({"ok": false}), 404)
@@ -2035,14 +2145,12 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
                 .bind(&[signature.into(), background_url.into(), avatar_url.into(), user.id.clone().into()])?
                 .run().await?;
 
-            let mut updated = db.prepare("SELECT id, username, avatar_url, background_url, signature, level, xp, role, is_banned, created_at FROM users WHERE id = ?")
+            let updated = db.prepare("SELECT id, username, avatar_url, background_url, signature, level, xp, role, is_banned, created_at FROM users WHERE id = ?")
                 .bind(&[user.id.into()])?
                 .first::<User>(None)
                 .await?
                 .unwrap_or_default();
-            updated.level = utils::get_community_level_from_xp(updated.xp);
-
-            utils::json_resp(json!({"ok": true, "user": updated}), 200)
+            utils::json_resp(json!({"ok": true, "user": with_community_level(updated)}), 200)
         })
         .get_async("/api/community/discovery", |req, ctx| async move {
             let db = ctx.env.d1("COMMUNITY_DB")?;
@@ -2327,7 +2435,7 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
             db.prepare("INSERT INTO user_drive_stats (user_id, quota_bytes, used_bytes) VALUES (?, 0, 0) ON CONFLICT(user_id) DO NOTHING")
                 .bind(&[user.id.clone().into()])?
                 .run().await?;
-            let stats = db.prepare("SELECT quota_bytes, used_bytes FROM user_drive_stats WHERE user_id = ?").bind(&[user.id.into()])?.first::<DriveStats>(None).await?.unwrap_or(DriveStats { quota_bytes: 0, used_bytes: 0 });
+            let stats = db.prepare("SELECT quota_bytes, used_bytes FROM user_drive_stats WHERE user_id = ?").bind(&[user.id.into()])?.first::<DriveStats>(None).await?.unwrap_or(DriveStats { quota_bytes: 0.0, used_bytes: 0.0 });
             utils::json_resp(json!({"ok": true, "stats": stats}), 200)
         })
         .get_async("/api/community/drive/list", |req, ctx| async move {
@@ -2750,4 +2858,69 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
             }
         })
         .run(req, env).await
+}
+
+#[event(scheduled)]
+pub async fn scheduled(_event: worker::ScheduledEvent, env: Env, _ctx: worker::ScheduleContext) {
+    if let Ok(bucket) = env.bucket("COMMUNITY_R2") {
+        let max_bytes: f64 = 9_000_000_000.0;
+        let target_bytes: f64 = 8_000_000_000.0;
+
+        let mut total_size: f64 = 0.0;
+        
+        #[derive(Clone)]
+        struct R2Item {
+            key: String,
+            size: f64,
+            uploaded: f64,
+        }
+        
+        let mut all_objects: Vec<R2Item> = Vec::new();
+        let mut cursor: Option<String> = None;
+
+        loop {
+            let mut list_op = bucket.list();
+            if let Some(c) = &cursor {
+                list_op = list_op.cursor(c.clone());
+            }
+            
+            match list_op.execute().await {
+                Ok(list_res) => {
+                    for obj in list_res.objects() {
+                        let size = obj.size() as f64;
+                        total_size += size;
+                        
+                        let uploaded = obj.uploaded().as_millis() as f64;
+                        
+                        all_objects.push(R2Item {
+                            key: obj.key().clone(),
+                            size,
+                            uploaded,
+                        });
+                    }
+                    
+                    if list_res.truncated() {
+                        cursor = list_res.cursor();
+                    } else {
+                        break;
+                    }
+                }
+                Err(_) => break,
+            }
+        }
+
+        if total_size > max_bytes {
+            all_objects.sort_by(|a, b| a.uploaded.partial_cmp(&b.uploaded).unwrap_or(std::cmp::Ordering::Equal));
+
+            let mut current_size = total_size;
+            for item in all_objects {
+                if current_size <= target_bytes {
+                    break;
+                }
+                if bucket.delete(&item.key).await.is_ok() {
+                    current_size -= item.size;
+                }
+            }
+        }
+    }
 }

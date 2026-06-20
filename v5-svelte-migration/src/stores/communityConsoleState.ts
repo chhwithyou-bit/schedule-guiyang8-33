@@ -1,6 +1,6 @@
 import { writable } from 'svelte/store';
 
-export type CommunityConsoleTab = 'account' | 'drive' | 'notifications';
+export type CommunityConsoleTab = 'drive' | 'notifications';
 
 export type CommunityConsoleState = {
   tab: CommunityConsoleTab;
@@ -10,12 +10,12 @@ export type CommunityConsoleState = {
 const STORAGE_KEY = 'communityConsoleState';
 
 const initialState: CommunityConsoleState = {
-  tab: 'account',
+  tab: 'drive',
   returnFocusSelector: ''
 };
 
 function isCommunityConsoleTab(value: unknown): value is CommunityConsoleTab {
-  return ['account', 'drive', 'notifications'].includes(String(value || ''));
+  return ['drive', 'notifications'].includes(String(value || ''));
 }
 
 function normalizeCommunityConsoleState(value: unknown): CommunityConsoleState {

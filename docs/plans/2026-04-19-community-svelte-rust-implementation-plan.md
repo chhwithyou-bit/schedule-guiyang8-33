@@ -22,7 +22,7 @@
 
 **Step 2:** Add canonical top-level routing for `community`, `profile`, and `admin`.
 
-**Step 3:** Preserve shell-level music/theme/loading behavior.
+**Step 3:** Preserve shell-level theme/loading behavior.
 
 **Step 4:** Verify shell navigation compiles and the removed routes are no longer primary entrypoints.
 

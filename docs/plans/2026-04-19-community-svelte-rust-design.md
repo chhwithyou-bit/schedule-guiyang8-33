@@ -11,7 +11,7 @@ Collapse the site into one canonical Svelte frontend and one canonical Rust Work
 - Admin
 
 The Community area must include feed, discovery/search, messaging, groups, and notifications.
-Music floating player, theme switcher, and loading animation remain as shell-level features.
+Theme switcher and loading animation remain as shell-level features.
 
 ## Frozen Product Scope
 
@@ -31,7 +31,6 @@ Music floating player, theme switcher, and loading animation remain as shell-lev
 - Announcements
 - Admin moderation
 - Admin media/storage operations
-- Floating music widget
 - Theme switching
 - Loading animation
 
@@ -79,7 +78,6 @@ Music floating player, theme switcher, and loading animation remain as shell-lev
 - One rounded visual language across cards, buttons, drawers, and modals
 - No square panels inside rounded-glass shells
 - Mobile-first safe spacing and no overlay collisions
-- Floating music player must avoid major action zones
 - Theme switcher and loader stay at shell level, not page-local
 
 ## Architecture Direction

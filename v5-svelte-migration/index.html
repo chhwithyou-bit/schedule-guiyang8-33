@@ -1,18 +1,19 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>8Community V5</title>
-    <!-- FOUC Prevention Script -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <!-- Claude paper theme FOUC prevention -->
     <script>
       (function() {
         try {
-          var theme = localStorage.getItem('siteTheme') || 'theme-default';
-          var isDarkTheme = ['theme-default', 'theme-spring', 'theme-summer', 'theme-autumn'].indexOf(theme) !== -1;
-          document.documentElement.setAttribute('data-theme', theme);
-          document.documentElement.classList.toggle('dark', isDarkTheme);
-          document.documentElement.style.colorScheme = isDarkTheme ? 'dark' : 'light';
+          document.documentElement.setAttribute('data-theme', 'theme-default');
+          document.documentElement.classList.remove('dark');
+          document.documentElement.style.colorScheme = 'light';
         } catch (e) {}
       })();
     </script>
