@@ -576,7 +576,7 @@
 </script>
 
 {#if $selectedPost}
-  <div data-testid="post-detail" class="post-detail-frame fixed inset-0 z-[11000] p-2 sm:p-4">
+  <div data-testid="post-detail" class="post-detail-frame fixed left-0 right-0 z-[11000] p-2 sm:p-4">
     <div class="post-detail-backdrop absolute inset-0" aria-hidden="true"></div>
     <div
       class="post-detail-shell relative flex h-full flex-col overflow-hidden"
@@ -879,6 +879,10 @@
 <style>
   .post-detail-frame {
     isolation: isolate;
+    top: var(--app-modal-viewport-top, 0);
+    bottom: auto;
+    height: var(--app-modal-viewport-height, 100dvh);
+    overflow: hidden;
   }
 
   .post-detail-backdrop {

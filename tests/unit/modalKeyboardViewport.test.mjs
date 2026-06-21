@@ -16,7 +16,8 @@ test('modal shells follow the mobile visual viewport above the keyboard', () => 
   const authModal = read('v5-svelte-migration', 'src', 'components', 'modals', 'AuthModal.svelte');
   const postModal = read('v5-svelte-migration', 'src', 'components', 'modals', 'PostModal.svelte');
 
-  assert.match(app, /window\.visualViewport\?\.addEventListener\('resize', syncModalViewport\)/);
+  assert.match(app, /window\.visualViewport\?\.addEventListener\('resize', handleViewportChange\)/);
+  assert.match(app, /window\.visualViewport\?\.removeEventListener\('resize', handleViewportChange\)/);
   assert.match(app, /--app-modal-viewport-height/);
   assert.match(app, /--app-modal-viewport-top/);
 
@@ -29,4 +30,13 @@ test('modal shells follow the mobile visual viewport above the keyboard', () => 
     assert.match(source, /overscroll-behavior:\s*contain/);
     assert.doesNotMatch(frame, /inset:\s*0;/);
   }
+});
+
+test('focused text inputs are scrolled into the visible keyboard viewport', () => {
+  const app = read('v5-svelte-migration', 'src', 'App.svelte');
+
+  assert.match(app, /function keepFocusedInputAboveKeyboard\(\)/);
+  assert.match(app, /window\.addEventListener\('focusin', keepFocusedInputAboveKeyboard\)/);
+  assert.match(app, /findScrollParent\(active\)/);
+  assert.match(app, /window\.scrollBy\(\{ top: delta, behavior: 'auto' \}\)/);
 });

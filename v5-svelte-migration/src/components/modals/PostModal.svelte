@@ -107,46 +107,93 @@
     data-modal-shell="true"
     role="dialog"
     aria-modal="true"
-    aria-label="发点近况"
+    aria-label="写动态"
     tabindex="-1"
     class="post-modal-shell"
     in:fly={{ y: 12, duration: 220 }}
   >
-    <button type="button" class="close" on:click={closeModal} aria-label="关闭发帖弹窗">×</button>
-    <p class="ui-kicker">Post</p>
-    <h2 id="post-modal-title">发点近况</h2>
-    <p class="sub">{$isAuthenticated ? `现在是 ${$user?.username || '你'} 在发帖。` : '登录后就能发帖，也能顺手传图。'}</p>
-
-    <textarea
-      bind:this={contentInput}
-      data-modal-initial-focus="true"
-      bind:value={content}
-      placeholder="今天想说什么，直接写下来。"
-      class="composer-input"
-    ></textarea>
-
-    {#if media.length > 0}
-      <div class="media-grid">
-        {#each media as item, index}
-          <figure>
-            <img src={item.url} alt="预览" />
-            <button type="button" on:click={() => removeMedia(index)} aria-label="移除图片">移除</button>
-          </figure>
-        {/each}
+    <header class="composer-topbar">
+      <button type="button" class="composer-cancel" on:click={closeModal}>取消</button>
+      <div class="composer-title">
+        <span>8Community</span>
+        <strong>写动态</strong>
       </div>
-    {/if}
-
-    {#if error}<p class="error">{error}</p>{/if}
-
-    <div class="actions">
-      <button type="button" class="ui-button-ghost" on:click={() => fileInput?.click()} disabled={uploading}>
-        {uploading ? '上传中' : '加图片'}
+      <button
+        type="button"
+        class="composer-publish"
+        on:click={handleSubmit}
+        disabled={loading || uploading || (!content.trim() && media.length === 0)}
+      >
+        {loading ? '发布中' : '发布'}
       </button>
-      <input bind:this={fileInput} type="file" accept="image/*" multiple hidden on:change={handleFileUpload} />
+    </header>
 
-      <button type="button" class="ui-button-primary submit" on:click={handleSubmit} disabled={loading || uploading || (!content.trim() && media.length === 0)}>
-        {loading ? '正在发出...' : '发出去'}
-      </button>
+    <div class="composer-scroll">
+      <section class="composer-card" aria-labelledby="post-modal-title">
+        <div class="composer-author">
+          <span class="author-avatar">{$isAuthenticated ? ($user?.username?.slice(0, 1).toUpperCase() || '我') : '/'}</span>
+          <div>
+            <h2 id="post-modal-title">{$isAuthenticated ? ($user?.username || '我') : '登录后发布'}</h2>
+            <p>{$isAuthenticated ? '发布到社区动态' : '登录后就能发布，也能顺手传图。'}</p>
+          </div>
+        </div>
+
+        <textarea
+          bind:this={contentInput}
+          data-modal-initial-focus="true"
+          bind:value={content}
+          placeholder="今天想说什么？"
+          class="composer-input"
+        ></textarea>
+
+        <div class="media-area">
+          {#if media.length > 0}
+            <div class="media-grid">
+              {#each media as item, index}
+                <figure>
+                  <img src={item.url} alt="预览" />
+                  <button type="button" on:click={() => removeMedia(index)} aria-label="移除图片">移除</button>
+                </figure>
+              {/each}
+            </div>
+          {/if}
+
+          <button type="button" class="media-add" on:click={() => fileInput?.click()} disabled={uploading}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="3" width="18" height="18" rx="3"></rect>
+              <circle cx="8.5" cy="8.5" r="1.5"></circle>
+              <path d="m21 15-5-5L5 21"></path>
+            </svg>
+            <span>{uploading ? '上传中' : '加图片'}</span>
+          </button>
+          <input bind:this={fileInput} type="file" accept="image/*" multiple hidden on:change={handleFileUpload} />
+        </div>
+      </section>
+
+      <section class="publish-panel" aria-label="发布设置">
+        <div class="publish-row">
+          <span class="row-icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 20h9"></path>
+              <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
+            </svg>
+          </span>
+          <span>发布到</span>
+          <strong>社区动态</strong>
+        </div>
+        <div class="publish-row">
+          <span class="row-icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+          </span>
+          <span>谁可以看</span>
+          <strong>所有人可见</strong>
+        </div>
+      </section>
+
+      {#if error}<p class="error">{error}</p>{/if}
     </div>
   </div>
 </div>
@@ -175,65 +222,159 @@
 
   .post-modal-shell {
     position: relative;
-    width: min(100%, 560px);
+    display: flex;
+    width: min(100%, 680px);
     max-height: calc(var(--app-modal-viewport-height, 100dvh) - (var(--s3) * 2));
+    flex-direction: column;
     border: 1px solid var(--hairline);
-    border-radius: 16px;
-    background: var(--surface);
-    box-shadow: 0 24px 60px -24px rgba(25, 25, 25, 0.22);
-    padding: var(--s5) var(--s4) var(--s4);
-    overflow-y: auto;
+    border-radius: 28px;
+    background:
+      linear-gradient(180deg, rgba(250, 249, 245, 0.96), rgba(240, 238, 230, 0.96)),
+      var(--paper);
+    box-shadow: 0 28px 72px rgba(25, 25, 25, 0.16);
+    overflow: hidden;
   }
 
-  .close {
-    position: absolute;
-    top: var(--s3);
-    right: var(--s3);
-    width: 30px;
-    height: 30px;
-    border: 1px solid var(--hairline);
-    border-radius: 999px;
+  .composer-topbar {
+    display: grid;
+    grid-template-columns: minmax(4.5rem, 1fr) auto minmax(4.5rem, 1fr);
+    align-items: center;
+    gap: var(--s3);
+    border-bottom: 1px solid var(--hairline);
+    background: rgba(250, 249, 245, 0.92);
+    padding: var(--s3) var(--s4);
+  }
+
+  .composer-cancel,
+  .composer-publish {
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .composer-cancel {
+    justify-self: start;
+    color: var(--ink-soft);
+  }
+
+  .composer-title {
+    display: grid;
+    gap: 2px;
+    text-align: center;
+  }
+
+  .composer-title span {
     color: var(--ink-soft);
     font-family: var(--sans);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  .composer-title strong {
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    font-weight: 800;
+  }
+
+  .composer-publish {
+    justify-self: end;
+    min-width: 72px;
+    border-radius: var(--r-btn);
+    background: var(--clay);
+    color: var(--paper);
+    padding: 10px 16px;
+  }
+
+  .composer-publish:disabled {
+    background: rgba(178, 116, 91, 0.28);
+    color: rgba(250, 249, 245, 0.82);
+  }
+
+  .composer-scroll {
+    min-height: 0;
+    overflow-y: auto;
+    padding: var(--s4);
+  }
+
+  .composer-card,
+  .publish-panel {
+    border: 1px solid var(--hairline);
+    border-radius: 24px;
+    background: var(--surface);
+  }
+
+  .composer-card {
+    padding: var(--s4);
+  }
+
+  .composer-author {
+    display: flex;
+    align-items: center;
+    gap: var(--s3);
+    margin-bottom: var(--s3);
+  }
+
+  .author-avatar {
+    display: grid;
+    width: 42px;
+    height: 42px;
+    flex: 0 0 auto;
+    place-items: center;
+    border-radius: 999px;
+    background: var(--clay);
+    color: var(--paper);
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 800;
   }
 
   h2 {
-    margin-top: var(--s1);
-    font-family: var(--serif);
-    font-size: clamp(30px, 5vw, 42px);
-    font-weight: 400;
-    letter-spacing: -0.02em;
-    line-height: 1.1;
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    font-weight: 800;
+    line-height: 1.2;
   }
 
-  .sub {
-    margin-top: var(--s2);
-    margin-bottom: var(--s4);
+  .composer-author p {
+    margin-top: 3px;
     color: var(--ink-soft);
+    font-family: var(--sans);
+    font-size: 12px;
   }
 
   .composer-input {
     width: 100%;
-    min-height: 180px;
-    resize: vertical;
-    border: 1px solid var(--hairline);
-    border-radius: var(--r-card);
-    background: var(--paper);
-    padding: var(--s3);
-    font-size: 18px;
-    line-height: 1.65;
+    min-height: 240px;
+    resize: none;
+    border: 0;
+    background: transparent;
+    padding: var(--s2) 0 var(--s4);
+    color: var(--ink);
+    font-size: 21px;
+    line-height: 1.7;
   }
 
   .composer-input:focus {
-    border-color: var(--clay);
     outline: none;
+  }
+
+  .composer-input::placeholder {
+    color: rgba(25, 25, 25, 0.34);
+  }
+
+  .media-area {
+    display: grid;
+    gap: var(--s3);
   }
 
   .media-grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: var(--s2);
-    margin-top: var(--s3);
   }
 
   figure {
@@ -261,6 +402,61 @@
     padding: 4px 6px;
   }
 
+  .media-add {
+    display: inline-flex;
+    width: fit-content;
+    align-items: center;
+    gap: 8px;
+    border: 1px dashed var(--hairline-strong);
+    border-radius: var(--r-btn);
+    background: var(--paper);
+    color: var(--ink-soft);
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 800;
+    padding: 12px 14px;
+  }
+
+  .media-add:disabled {
+    opacity: 0.55;
+  }
+
+  .publish-panel {
+    display: grid;
+    margin-top: var(--s3);
+    overflow: hidden;
+  }
+
+  .publish-row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: var(--s3);
+    min-height: 58px;
+    padding: 0 var(--s4);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 800;
+  }
+
+  .publish-row + .publish-row {
+    border-top: 1px solid var(--hairline);
+  }
+
+  .publish-row strong {
+    color: var(--ink-soft);
+    font-size: 13px;
+  }
+
+  .row-icon {
+    display: grid;
+    width: 28px;
+    height: 28px;
+    place-items: center;
+    color: var(--ink-soft);
+  }
+
   .error {
     margin-top: var(--s3);
     border: 1px solid rgba(178, 54, 42, 0.2);
@@ -271,28 +467,41 @@
     font-size: 14px;
   }
 
-  .actions {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--s2);
-    margin-top: var(--s4);
-  }
-
-  .submit {
-    min-width: 120px;
-  }
-
   @media (max-width: 520px) {
     .post-modal-frame {
-      align-items: end;
-      padding: var(--s2);
-      padding-bottom: max(var(--s2), env(safe-area-inset-bottom));
+      padding: 0;
     }
 
     .post-modal-shell {
-      max-height: calc(var(--app-modal-viewport-height, 100dvh) - 1rem - env(safe-area-inset-bottom));
-      padding: var(--s4) var(--s3) var(--s3);
+      width: 100%;
+      height: var(--app-modal-viewport-height, 100dvh);
+      max-height: var(--app-modal-viewport-height, 100dvh);
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+    }
+
+    .composer-topbar {
+      padding: max(14px, env(safe-area-inset-top)) var(--s3) 12px;
+    }
+
+    .composer-scroll {
+      padding: var(--s3);
+      padding-bottom: max(var(--s4), env(safe-area-inset-bottom));
+    }
+
+    .composer-card {
+      border-radius: 20px;
+      padding: var(--s3);
+    }
+
+    .composer-input {
+      min-height: 280px;
+      font-size: 20px;
+    }
+
+    .publish-panel {
+      border-radius: 20px;
     }
 
     .media-grid {

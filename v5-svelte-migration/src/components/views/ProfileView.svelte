@@ -565,7 +565,11 @@
 <style>
   .profile-overlay {
     position: fixed;
-    inset: 0;
+    top: var(--app-modal-viewport-top, 0);
+    left: 0;
+    right: 0;
+    bottom: auto;
+    height: var(--app-modal-viewport-height, 100dvh);
     z-index: 11000;
     overflow: hidden;
     isolation: isolate;

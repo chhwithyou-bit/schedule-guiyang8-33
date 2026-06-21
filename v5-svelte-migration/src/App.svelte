@@ -88,6 +88,69 @@
     rootStyle.setProperty('--app-modal-viewport-top', `${Math.round(top)}px`);
   }
 
+  function getModalViewportBounds() {
+    const rootStyle = getComputedStyle(document.documentElement);
+    const height = Number.parseFloat(rootStyle.getPropertyValue('--app-modal-viewport-height')) || window.visualViewport?.height || window.innerHeight;
+    const top = Number.parseFloat(rootStyle.getPropertyValue('--app-modal-viewport-top')) || window.visualViewport?.offsetTop || 0;
+
+    return {
+      top,
+      bottom: top + height
+    };
+  }
+
+  function isKeyboardTextField(element: Element | null): element is HTMLElement {
+    if (!(element instanceof HTMLElement)) return false;
+    if (element.isContentEditable) return true;
+    if (element instanceof HTMLTextAreaElement) return true;
+    if (!(element instanceof HTMLInputElement)) return false;
+
+    return !['button', 'checkbox', 'color', 'file', 'hidden', 'image', 'radio', 'range', 'reset', 'submit'].includes(element.type);
+  }
+
+  function findScrollParent(element: HTMLElement) {
+    let current = element.parentElement;
+
+    while (current && current !== document.body) {
+      const style = getComputedStyle(current);
+      const canScroll = /(auto|scroll)/.test(`${style.overflowY} ${style.overflow}`);
+      if (canScroll && current.scrollHeight > current.clientHeight) return current;
+      current = current.parentElement;
+    }
+
+    return null;
+  }
+
+  function keepFocusedInputAboveKeyboard() {
+    const active = document.activeElement;
+    if (!isKeyboardTextField(active)) return;
+
+    requestAnimationFrame(() => {
+      const bounds = getModalViewportBounds();
+      const margin = 18;
+      const rect = active.getBoundingClientRect();
+
+      if (rect.bottom <= bounds.bottom - margin && rect.top >= bounds.top + margin) return;
+
+      const scrollParent = findScrollParent(active);
+      const delta = rect.bottom - (bounds.bottom - margin);
+
+      if (scrollParent && delta > 0) {
+        scrollParent.scrollBy({ top: delta, behavior: 'auto' });
+        return;
+      }
+
+      if (delta > 0) {
+        window.scrollBy({ top: delta, behavior: 'auto' });
+      }
+    });
+  }
+
+  function handleViewportChange() {
+    syncModalViewport();
+    keepFocusedInputAboveKeyboard();
+  }
+
   function syncModalAccessibility(modalId: string | null) {
     if (typeof document === 'undefined' || !mainContent) return;
 
@@ -140,18 +203,20 @@
     const uninstallAppRouter = installAppRouter();
     window.addEventListener('keydown', handleGlobalKeydown);
     window.addEventListener('keydown', handleModalFocus);
+    window.addEventListener('focusin', keepFocusedInputAboveKeyboard);
     window.addEventListener('resize', syncModalViewport);
-    window.visualViewport?.addEventListener('resize', syncModalViewport);
-    window.visualViewport?.addEventListener('scroll', syncModalViewport);
+    window.visualViewport?.addEventListener('resize', handleViewportChange);
+    window.visualViewport?.addEventListener('scroll', handleViewportChange);
     syncModalViewport();
 
     return () => {
       uninstallAppRouter();
       window.removeEventListener('keydown', handleGlobalKeydown);
       window.removeEventListener('keydown', handleModalFocus);
+      window.removeEventListener('focusin', keepFocusedInputAboveKeyboard);
       window.removeEventListener('resize', syncModalViewport);
-      window.visualViewport?.removeEventListener('resize', syncModalViewport);
-      window.visualViewport?.removeEventListener('scroll', syncModalViewport);
+      window.visualViewport?.removeEventListener('resize', handleViewportChange);
+      window.visualViewport?.removeEventListener('scroll', handleViewportChange);
     };
   });
 </script>
