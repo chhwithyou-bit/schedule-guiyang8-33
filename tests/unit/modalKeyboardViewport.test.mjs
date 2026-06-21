@@ -40,3 +40,15 @@ test('focused text inputs are scrolled into the visible keyboard viewport', () =
   assert.match(app, /findScrollParent\(active\)/);
   assert.match(app, /window\.scrollBy\(\{ top: delta, behavior: 'auto' \}\)/);
 });
+
+test('auth modal has a compact mobile keyboard layout', () => {
+  const authModal = read('v5-svelte-migration', 'src', 'components', 'modals', 'AuthModal.svelte');
+
+  assert.match(authModal, /let keyboardOpen = false/);
+  assert.match(authModal, /viewport\.height < window\.innerHeight - 120/);
+  assert.match(authModal, /class:keyboard-compact=\{keyboardOpen\}/);
+  assert.match(authModal, /\.modal\.keyboard-compact/);
+  assert.match(authModal, /\.modal\.keyboard-compact \.title/);
+  assert.match(authModal, /\.modal\.keyboard-compact \.field input/);
+  assert.match(authModal, /position:\s*fixed;\s*[\s\S]*?inset:\s*0;\s*[\s\S]*?background:\s*rgba\(25,\s*25,\s*25,\s*0\.18\)/);
+});

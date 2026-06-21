@@ -11,6 +11,7 @@
   let password = '';
   let loading = false;
   let error = '';
+  let keyboardOpen = false;
 
   $: usernameLabel = isRegister ? '用户名' : '账号';
   $: usernamePlaceholder = isRegister ? '想让大家怎么叫你' : '输入你的用户名';
@@ -62,7 +63,22 @@
     }
   }
 
-  onMount(() => usernameInput?.focus());
+  function syncKeyboardOpen() {
+    const viewport = window.visualViewport;
+    keyboardOpen = Boolean(viewport && window.innerWidth <= 640 && viewport.height < window.innerHeight - 120);
+  }
+
+  onMount(() => {
+    usernameInput?.focus();
+    syncKeyboardOpen();
+    window.visualViewport?.addEventListener('resize', syncKeyboardOpen);
+    window.visualViewport?.addEventListener('scroll', syncKeyboardOpen);
+
+    return () => {
+      window.visualViewport?.removeEventListener('resize', syncKeyboardOpen);
+      window.visualViewport?.removeEventListener('scroll', syncKeyboardOpen);
+    };
+  });
 </script>
 
 <div class="auth-frame" transition:fade={{ duration: 160 }}>
@@ -76,6 +92,7 @@
     aria-describedby="auth-modal-description"
     tabindex="-1"
     class="modal"
+    class:keyboard-compact={keyboardOpen}
     in:fly={{ y: 12, duration: 220 }}
   >
     <button type="button" class="close" on:click={closeModal} aria-label="关闭">×</button>
@@ -130,7 +147,7 @@
   }
 
   .scrim {
-    position: absolute;
+    position: fixed;
     inset: 0;
     background: rgba(25, 25, 25, 0.18);
     backdrop-filter: blur(2px);
@@ -293,14 +310,105 @@
 
   @media (max-width: 520px) {
     .auth-frame {
-      align-items: end;
-      padding: var(--s2);
-      padding-bottom: max(var(--s2), env(safe-area-inset-bottom));
+      align-items: stretch;
+      padding: 0;
     }
 
     .modal {
-      max-height: calc(var(--app-modal-viewport-height, 100dvh) - 1rem - env(safe-area-inset-bottom));
-      padding: var(--s4) var(--s3) var(--s3);
+      display: flex;
+      width: 100%;
+      height: var(--app-modal-viewport-height, 100dvh);
+      max-height: var(--app-modal-viewport-height, 100dvh);
+      flex-direction: column;
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+      padding: max(var(--s4), env(safe-area-inset-top)) var(--s3) max(var(--s3), env(safe-area-inset-bottom));
+    }
+
+    .close {
+      top: max(var(--s3), env(safe-area-inset-top));
+      right: var(--s3);
+    }
+
+    .brand {
+      margin-bottom: var(--s3);
+      padding-right: 42px;
+      text-align: left;
+    }
+
+    .title {
+      margin-top: auto;
+      font-size: 30px;
+      text-align: left;
+    }
+
+    .subtitle {
+      margin-bottom: var(--s4);
+      text-align: left;
+    }
+
+    .switch {
+      flex: 0 0 auto;
+      margin-bottom: var(--s3);
+    }
+
+    form {
+      flex: 0 0 auto;
+    }
+
+    .foot-note {
+      margin-top: var(--s3);
+    }
+
+    .modal.keyboard-compact {
+      justify-content: flex-start;
+      overflow-y: auto;
+      padding-top: max(var(--s3), env(safe-area-inset-top));
+    }
+
+    .modal.keyboard-compact .brand {
+      margin-bottom: var(--s2);
+      font-size: 16px;
+    }
+
+    .modal.keyboard-compact .title {
+      margin-top: 0;
+      margin-bottom: 2px;
+      font-family: var(--sans);
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+
+    .modal.keyboard-compact .subtitle {
+      margin-bottom: var(--s3);
+      font-size: 14px;
+    }
+
+    .modal.keyboard-compact .switch {
+      margin-bottom: var(--s3);
+    }
+
+    .modal.keyboard-compact .field {
+      margin-bottom: var(--s2);
+    }
+
+    .modal.keyboard-compact .field span {
+      margin-bottom: 6px;
+    }
+
+    .modal.keyboard-compact .field input {
+      padding: 10px 12px;
+    }
+
+    .modal.keyboard-compact .submit {
+      margin-top: var(--s1);
+      padding: 11px 0;
+    }
+
+    .modal.keyboard-compact .foot-note {
+      margin-top: var(--s2);
     }
   }
 </style>
