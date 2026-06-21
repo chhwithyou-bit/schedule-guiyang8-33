@@ -50,5 +50,7 @@ test('auth modal uses compact mobile layout without keyboard heuristics', () => 
   assert.match(authModal, /justify-content:\s*flex-start/);
   assert.match(authModal, /font-family:\s*var\(--sans\);\s*[\s\S]*?font-size:\s*20px/);
   assert.match(authModal, /\.field input\s*\{\s*[\s\S]*?padding:\s*10px 12px/);
+  assert.match(authModal, /\.auth-frame::before\s*\{\s*[\s\S]*?position:\s*fixed;\s*[\s\S]*?inset:\s*0;\s*[\s\S]*?background:\s*var\(--surface\)/);
+  assert.match(authModal, /\.scrim\s*\{\s*[\s\S]*?background:\s*transparent;\s*[\s\S]*?backdrop-filter:\s*none/);
   assert.match(authModal, /position:\s*fixed;\s*[\s\S]*?inset:\s*0;\s*[\s\S]*?background:\s*rgba\(25,\s*25,\s*25,\s*0\.18\)/);
 });

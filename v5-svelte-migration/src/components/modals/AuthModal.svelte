@@ -115,24 +115,31 @@
 </div>
 
 <style>
-  .auth-frame {
-    position: fixed;
-    top: var(--app-modal-viewport-top, 0);
-    left: 0;
-    right: 0;
+	  .auth-frame {
+	    position: fixed;
+	    top: var(--app-modal-viewport-top, 0);
+	    left: 0;
+	    right: 0;
     height: var(--app-modal-viewport-height, 100dvh);
     z-index: 11000;
     display: grid;
     place-items: center;
     padding: var(--s3);
     overflow-y: auto;
-    overscroll-behavior: contain;
-  }
+	    overscroll-behavior: contain;
+	  }
 
-  .scrim {
-    position: fixed;
-    inset: 0;
-    background: rgba(25, 25, 25, 0.18);
+	  .auth-frame::before {
+	    content: '';
+	    position: fixed;
+	    inset: 0;
+	    background: var(--surface);
+	  }
+
+	  .scrim {
+	    position: fixed;
+	    inset: 0;
+	    background: rgba(25, 25, 25, 0.18);
     backdrop-filter: blur(2px);
   }
 
@@ -291,14 +298,25 @@
     color: var(--clay);
   }
 
-  @media (max-width: 520px) {
-    .auth-frame {
-      align-items: stretch;
-      padding: 0;
-    }
+	  @media (max-width: 520px) {
+	    .auth-frame {
+	      align-items: stretch;
+	      padding: 0;
+	    }
 
-    .modal {
-      display: flex;
+	    .auth-frame::before {
+	      background:
+	        linear-gradient(180deg, rgba(250, 249, 245, 0.98), rgba(240, 238, 230, 0.98)),
+	        var(--paper);
+	    }
+
+	    .scrim {
+	      background: transparent;
+	      backdrop-filter: none;
+	    }
+
+	    .modal {
+	      display: flex;
       width: 100%;
       height: var(--app-modal-viewport-height, 100dvh);
       max-height: var(--app-modal-viewport-height, 100dvh);
