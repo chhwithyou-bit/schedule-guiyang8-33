@@ -69,12 +69,12 @@
 
   const tabHero: Record<TabId, { eyebrow: string; title: string }> = {
     drive: { eyebrow: 'square', title: '公共广场' },
-    notifications: { eyebrow: 'alerts', title: '提醒中心' }
+    notifications: { eyebrow: 'alerts', title: '提醒' }
   };
 
   const tabDescriptions: Record<TabId, string> = {
-    drive: '共享文件、图片和视频。',
-    notifications: '点赞、评论、关注。'
+    drive: '文件、图片、视频',
+    notifications: '点赞、评论、关注'
   };
 
   const allowedNotificationTypes = new Set(['like', 'comment', 'reply', 'repost', 'comment_like', 'follow']);
@@ -82,11 +82,10 @@
   $: availableTabs = tabs.filter((tab) => allowedTabs ? allowedTabs.includes(tab.id) : (showDriveTab || tab.id !== 'drive'));
   $: shouldRenderModalShell = openAsModal && !embedded;
   $: activeTabMeta = availableTabs.find((tab) => tab.id === activeTab) || availableTabs[0];
+  $: shouldShowTabGrid = availableTabs.length > 1;
 
   let activeTab: TabId = defaultTab;
   let authPrompt = '';
-
-
 
   let driveStats: DriveStats = { quota_bytes: 0, used_bytes: 0, available_bytes: 0 };
   let driveUsagePercent = 0;
@@ -115,8 +114,6 @@
   $: if ($communityConsoleState.tab && activeTab !== $communityConsoleState.tab && availableTabs.some((tab) => tab.id === $communityConsoleState.tab)) {
     activeTab = $communityConsoleState.tab;
   }
-
-
 
   $: if ($isAuthenticated && $user?.id && initializedForUserId !== $user.id) {
     initializedForUserId = $user.id;
@@ -714,20 +711,22 @@
               <p class="mt-2 text-sm font-medium leading-7 opacity-65">{tabDescriptions[activeTabMeta?.id || 'drive']}</p>
             </div>
 
-            <div class="min-w-0 flex-1">
-              <div class="console-tab-grid">
-                {#each availableTabs as tab}
-                  <button
-                    type="button"
-                    class="console-tab-card {activeTab === tab.id ? 'is-active' : ''}"
-                    on:click={() => switchTab(tab.id)}
-                  >
-                    <span class="console-tab-card__label">{tab.label}</span>
-                    <span class="console-tab-card__hint">{tabDescriptions[tab.id]}</span>
-                  </button>
-                {/each}
+            {#if shouldShowTabGrid}
+              <div class="min-w-0 flex-1">
+                <div class="console-tab-grid">
+                  {#each availableTabs as tab}
+                    <button
+                      type="button"
+                      class="console-tab-card {activeTab === tab.id ? 'is-active' : ''}"
+                      on:click={() => switchTab(tab.id)}
+                    >
+                      <span class="console-tab-card__label">{tab.label}</span>
+                      <span class="console-tab-card__hint">{tabDescriptions[tab.id]}</span>
+                    </button>
+                  {/each}
+                </div>
               </div>
-            </div>
+            {/if}
 
             <div class="flex flex-wrap gap-2 lg:justify-end">
               {#if $isAdmin}
@@ -743,7 +742,7 @@
             </div>
           </div>
 
-          {#if !$isAuthenticated}
+          {#if !$isAuthenticated && !embedded}
             <p class="mt-3 rounded-[20px] border border-white/10 bg-[rgba(255,255,255,0.06)] px-4 py-3 text-sm font-medium leading-7 opacity-75">
               {authPrompt || '登录后继续。'}
             </p>
@@ -754,75 +753,70 @@
 
           {#if activeTab === 'drive'}
             {#if !$isAuthenticated}
-              <div class="console-panel p-6">
-                <p class="text-sm font-bold opacity-70">{authPrompt || '登录后进入公共广场。'}</p>
-                <button type="button" class="mt-4 console-pill console-pill--primary px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)]" on:click={openAuth}>
+              <div class="console-panel auth-required-panel p-5">
+                <p class="text-sm font-bold opacity-70">{authPrompt || '登录后浏览和上传共享文件。'}</p>
+                <button type="button" class="mt-4 square-button square-button--primary" on:click={openAuth}>
                   先去登录
                 </button>
               </div>
             {:else}
-              <div class="space-y-5">
-                <section class="console-panel public-square-panel p-5 md:p-6">
-                  <div class="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-                    <div>
-                      <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">PUBLIC SQUARE</p>
-                      <h3 class="mt-2 text-2xl font-black tracking-tight">共享文件夹</h3>
-                      <div class="mt-3 flex flex-wrap items-center gap-2 text-xs font-bold opacity-55">
-                        <span>{driveItems.length} 项</span>
-                        <span>已用 {formatBytes(driveStats.used_bytes || 0)}</span>
+              <div class="public-square-space">
+                <section class="public-square-toolbar">
+                  <div class="public-square-summary">
+                    <p class="public-square-kicker">共享文件夹</p>
+                    <div class="public-square-meta">
+                      <span>{driveItems.length} 项</span>
+                      <span>{formatBytes(driveStats.used_bytes || 0)}</span>
                         {#if driveStats.quota_bytes}
-                          <span>剩余 {formatBytes(driveStats.available_bytes || 0)}</span>
+                        <span>剩余 {formatBytes(driveStats.available_bytes || 0)}</span>
                         {/if}
-                      </div>
-                    </div>
-
-                    <div class="public-square-actions">
-                      <form class="folder-create" on:submit|preventDefault={createFolder}>
-                        <input
-                          class="console-field folder-create__input px-4 py-3 text-sm font-semibold"
-                          bind:value={newFolderName}
-                          maxlength="48"
-                          placeholder="文件夹名字"
-                          aria-label="文件夹名字"
-                        />
-                        <button type="submit" class="console-pill console-pill--ghost folder-create__button px-4 py-3 text-xs font-black uppercase tracking-[0.16em]">
-                          创建
-                        </button>
-                      </form>
-                      <label class="cursor-pointer console-pill console-pill--primary px-5 py-3 text-xs font-black uppercase tracking-[0.16em] text-[var(--color-bg)]">
-                        {uploadingMedia ? '上传中...' : '上传'}
-                        <input type="file" class="hidden" multiple disabled={uploadingMedia} on:change={handleMediaUpload} />
-                      </label>
-                      <button type="button" class="console-pill console-pill--ghost px-4 py-3 text-xs font-black uppercase tracking-[0.16em]" on:click={refreshDriveData}>
-                        刷新
-                      </button>
                     </div>
                   </div>
 
+                  <div class="public-square-actions">
+                    <form class="folder-create" on:submit|preventDefault={createFolder}>
+                      <input
+                        class="console-field folder-create__input"
+                        bind:value={newFolderName}
+                        maxlength="48"
+                        placeholder="文件夹名字"
+                        aria-label="文件夹名字"
+                      />
+                      <button type="submit" class="square-button square-button--secondary folder-create__button">
+                        创建
+                      </button>
+                    </form>
+                    <label class="square-button square-button--primary">
+                      {uploadingMedia ? '上传中...' : '上传'}
+                      <input type="file" class="hidden" multiple disabled={uploadingMedia} on:change={handleMediaUpload} />
+                    </label>
+                    <button type="button" class="square-button square-button--secondary" on:click={refreshDriveData}>
+                      刷新
+                    </button>
+                  </div>
+
                   {#if driveStats.quota_bytes}
-                    <div class="mt-5">
-                      <div class="h-2 overflow-hidden rounded-full bg-white/10">
-                        <div class="h-full rounded-full bg-[var(--color-primary)] transition-[width] duration-300" style="width: {driveUsagePercent}%"></div>
-                      </div>
+                    <div class="drive-meter">
+                      <div class="drive-meter__bar" style="width: {driveUsagePercent}%"></div>
                     </div>
                   {/if}
                 </section>
 
-                <section class="console-panel p-5 md:p-6">
-                  <div class="flex flex-wrap items-center gap-2">
+                <section class="drive-browser">
+                  <div class="drive-breadcrumbs">
                     {#each drivePath as crumb, index}
-                      <button type="button" class="console-pill console-pill--ghost px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em]" on:click={() => goToDrivePath(index)}>
+                      <button type="button" class="drive-crumb" on:click={() => goToDrivePath(index)}>
                         {crumb.name}
                       </button>
                     {/each}
                   </div>
 
                   {#if driveFeedback}
-                    <p class="mt-4 rounded-2xl border px-4 py-3 text-sm font-bold {driveFeedback.tone === 'success' ? 'border-emerald-400/20 bg-emerald-500/10 text-emerald-100' : driveFeedback.tone === 'error' ? 'border-red-400/20 bg-red-500/10 text-red-200' : 'border-white/10 bg-[rgba(255,255,255,0.06)] text-[var(--color-text)]/85'}">{driveFeedback.text}</p>
+                    <p class="square-feedback {driveFeedback.tone === 'success' ? 'is-success' : driveFeedback.tone === 'error' ? 'is-error' : ''}">{driveFeedback.text}</p>
                   {/if}
 
                   {#if driveError}
-                    <p class="mt-4 rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-200">{driveError}</p>
+                    <p class="square-feedback is-error">{driveError}</p>
                   {/if}
 
                   <div class="drive-grid mt-5">
@@ -856,23 +850,23 @@
                               <p class="mt-2 truncate text-xs font-semibold opacity-50">由 {getDriveOwnerLabel(item)} 创建</p>
                             </div>
                             <div class="drive-card__actions">
-                            {#if item.is_folder}
-                              <button type="button" class="console-pill console-pill--primary px-4 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--color-bg)]" on:click={() => enterFolder(item)}>
-                                {getDriveItemOpenLabel(item)}
-                              </button>
-                            {:else if item.url}
-                              <a href={item.url} target="_blank" rel="noreferrer" class="console-pill console-pill--primary px-4 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--color-bg)]">
-                                {getDriveItemOpenLabel(item)}
-                              </a>
-                            {/if}
-                            {#if isOwnDriveItem(item)}
-                              <button type="button" class="console-pill console-pill--ghost px-4 py-2 text-[10px] font-black uppercase tracking-[0.16em]" on:click={() => renameDriveItem(item)}>
-                                改名
-                              </button>
-                              <button type="button" class="danger-pill px-4 py-2 text-[10px] font-black uppercase tracking-[0.16em]" on:click={() => deleteDriveItem(item)}>
-                                删除
-                              </button>
-                            {/if}
+                              {#if item.is_folder}
+                                <button type="button" class="drive-action is-primary" on:click={() => enterFolder(item)}>
+                                  {getDriveItemOpenLabel(item)}
+                                </button>
+                              {:else if item.url}
+                                <a href={item.url} target="_blank" rel="noreferrer" class="drive-action is-primary">
+                                  {getDriveItemOpenLabel(item)}
+                                </a>
+                              {/if}
+                              {#if isOwnDriveItem(item)}
+                                <button type="button" class="drive-action" on:click={() => renameDriveItem(item)}>
+                                  改名
+                                </button>
+                                <button type="button" class="drive-action is-danger" on:click={() => deleteDriveItem(item)}>
+                                  删除
+                                </button>
+                              {/if}
                             </div>
                           </div>
                         </article>
@@ -1100,10 +1094,52 @@
     text-transform: none;
   }
 
-  .public-square-actions {
+  .public-square-space {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .public-square-toolbar,
+  .drive-browser {
+    border: 1px solid var(--hairline);
+    border-radius: 1.25rem;
+    background: var(--surface);
+  }
+
+  .public-square-toolbar {
+    display: grid;
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .public-square-summary {
+    display: flex;
+    min-width: 0;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .public-square-kicker {
+    color: var(--ink);
+    font-size: 1rem;
+    font-weight: 800;
+  }
+
+  .public-square-meta {
     display: flex;
     flex-wrap: wrap;
     gap: 0.75rem;
+    color: var(--ink-soft);
+    font-size: 0.78rem;
+    font-weight: 700;
+  }
+
+  .public-square-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
     align-items: center;
   }
 
@@ -1111,20 +1147,118 @@
     display: grid;
     grid-template-columns: minmax(10rem, 1fr) auto;
     gap: 0.5rem;
-    width: min(100%, 24rem);
+    width: min(100%, 23rem);
   }
 
   .folder-create__input {
     min-width: 0;
+    min-height: 2.5rem;
+    padding: 0 0.8rem;
+    font-size: 0.86rem;
+    font-weight: 650;
   }
 
-  .folder-create__button {
+  .square-button,
+  .drive-action,
+  .drive-crumb {
+    display: inline-flex;
+    min-height: 2.5rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.75rem;
+    font-family: var(--sans);
+    font-size: 0.75rem;
+    font-weight: 800;
+    line-height: 1;
+    transition:
+      border-color 160ms ease,
+      background 160ms ease,
+      color 160ms ease,
+      transform 160ms ease;
+  }
+
+  .square-button {
+    cursor: pointer;
+    padding: 0 0.95rem;
     white-space: nowrap;
+  }
+
+  .square-button--primary {
+    border: 1px solid var(--clay);
+    background: var(--clay);
+    color: var(--paper);
+  }
+
+  .square-button--secondary {
+    border: 1px solid var(--hairline);
+    background: var(--paper);
+    color: var(--ink);
+  }
+
+  .square-button:hover,
+  .drive-action:hover,
+  .drive-crumb:hover {
+    transform: translateY(-1px);
+  }
+
+  .drive-meter {
+    height: 0.375rem;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--paper);
+  }
+
+  .drive-meter__bar {
+    height: 100%;
+    border-radius: inherit;
+    background: var(--clay);
+    transition: width 220ms ease;
+  }
+
+  .drive-browser {
+    padding: 1rem;
+  }
+
+  .drive-breadcrumbs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .drive-crumb {
+    min-height: 2.15rem;
+    border: 1px solid var(--hairline);
+    background: var(--paper);
+    color: var(--ink-soft);
+    padding: 0 0.75rem;
+  }
+
+  .square-feedback {
+    margin-top: 1rem;
+    border: 1px solid var(--hairline);
+    border-radius: 1rem;
+    background: var(--paper);
+    color: var(--ink);
+    padding: 0.8rem 0.9rem;
+    font-size: 0.86rem;
+    font-weight: 750;
+  }
+
+  .square-feedback.is-success {
+    border-color: rgba(34, 120, 72, 0.22);
+    background: rgba(34, 120, 72, 0.07);
+    color: #227848;
+  }
+
+  .square-feedback.is-error {
+    border-color: rgba(139, 46, 36, 0.22);
+    background: rgba(139, 46, 36, 0.07);
+    color: #8b2e24;
   }
 
   .drive-grid {
     display: grid;
-    gap: 1rem;
+    gap: 0.85rem;
     grid-template-columns: repeat(auto-fill, minmax(13.5rem, 1fr));
   }
 
@@ -1133,55 +1267,59 @@
     min-width: 0;
     overflow: hidden;
     flex-direction: column;
-    border-radius: 1.75rem;
+    border-radius: 1rem;
   }
 
   .drive-card__preview {
     display: flex;
-    aspect-ratio: 16 / 10;
+    aspect-ratio: 16 / 9;
     align-items: center;
     justify-content: center;
     overflow: hidden;
     border-bottom: 1px solid var(--hairline);
-    background: color-mix(in srgb, var(--surface) 72%, var(--ink) 6%);
-    color: var(--ink);
-    font-size: 0.72rem;
+    background: color-mix(in srgb, var(--paper) 80%, var(--ink) 5%);
+    color: var(--ink-soft);
+    font-size: 0.68rem;
     font-weight: 900;
-    letter-spacing: 0.16em;
+    letter-spacing: 0.12em;
   }
 
   .drive-card__body {
     display: grid;
-    gap: 1rem;
-    padding: 1rem;
+    gap: 0.8rem;
+    padding: 0.9rem;
   }
 
   .drive-card__actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
+    gap: 0.4rem;
   }
 
-  .danger-pill {
-    border-radius: 999px;
-    border: 1px solid rgba(139, 46, 36, 0.2);
-    background: rgba(139, 46, 36, 0.08);
+  .drive-action {
+    min-height: 2.1rem;
+    border: 1px solid var(--hairline);
+    background: var(--surface);
+    color: var(--ink);
+    padding: 0 0.7rem;
+    text-decoration: none;
+  }
+
+  .drive-action.is-primary {
+    border-color: var(--clay);
+    background: var(--clay);
+    color: var(--paper);
+  }
+
+  .drive-action.is-danger {
+    border-color: rgba(139, 46, 36, 0.2);
+    background: rgba(139, 46, 36, 0.06);
     color: #8b2e24;
-    transition:
-      transform 0.18s ease,
-      background 0.18s ease,
-      border-color 0.18s ease;
-  }
-
-  .danger-pill:hover {
-    transform: translateY(-1px);
-    border-color: rgba(139, 46, 36, 0.32);
-    background: rgba(139, 46, 36, 0.12);
   }
 
   .drive-empty {
     grid-column: 1 / -1;
-    border-radius: 1.75rem;
+    border-radius: 1rem;
   }
 
   .console-scrim {
@@ -1212,9 +1350,7 @@
     border-color: var(--hairline);
     background: var(--surface);
     color: var(--ink);
-    box-shadow:
-      0 12px 28px rgba(var(--shadow-rgb), 0.08),
-      inset 0 1px 0 rgba(255, 255, 255, 0.42);
+    box-shadow: 0 10px 24px rgba(var(--shadow-rgb), 0.055);
     backdrop-filter: none;
   }
 
@@ -1227,12 +1363,15 @@
     border-radius: 2rem;
   }
 
+  .console-panel.auth-required-panel {
+    max-width: 32rem;
+    border-radius: 1.25rem;
+  }
+
   .console-panel:hover,
   .console-tab-card:hover {
     border-color: var(--hairline-strong);
-    box-shadow:
-      0 16px 34px rgba(var(--shadow-rgb), 0.11),
-      inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    box-shadow: 0 12px 28px rgba(var(--shadow-rgb), 0.075);
   }
 
   .console-subpanel,
@@ -1285,21 +1424,13 @@
   }
 
   .drive-card.console-subpanel {
-    border-radius: 1.75rem;
-  }
-
-  .public-square-panel {
-    overflow: hidden;
+    border-radius: 1rem;
+    box-shadow: none;
   }
 
   @media (max-width: 640px) {
-    .public-square-actions {
-      align-items: stretch;
-      flex-direction: column;
-    }
-
-    .folder-create,
-    .public-square-actions :global(.console-pill) {
+    .public-square-actions,
+    .square-button {
       width: 100%;
     }
 

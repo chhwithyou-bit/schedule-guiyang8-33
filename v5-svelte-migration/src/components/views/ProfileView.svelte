@@ -591,11 +591,10 @@
     backdrop-filter: blur(18px) saturate(1.05);
   }
 
-	  .profile-hero__control,
-	  .profile-identity-chip,
-	  .profile-stat-chip,
-	  .profile-action-button,
-	  .profile-avatar-action {
+  .profile-hero__control,
+  .profile-stat-chip,
+  .profile-action-button,
+  .profile-avatar-action {
     border: 1px solid rgba(255, 255, 255, 0.14);
     box-shadow:
       0 14px 30px rgba(var(--shadow-rgb), 0.14),
@@ -603,11 +602,10 @@
     backdrop-filter: blur(18px) saturate(1.06);
   }
 
-	  .profile-hero__control,
-	  .profile-identity-chip,
-	  .profile-stat-chip,
-	  .profile-action-button,
-	  .profile-avatar-action {
+  .profile-hero__control,
+  .profile-stat-chip,
+  .profile-action-button,
+  .profile-avatar-action {
     background:
       linear-gradient(145deg, rgba(var(--glow-primary-rgb), 0.14), rgba(var(--glow-secondary-rgb), 0.08)),
       rgba(var(--color-bg-rgb), 0.22);
@@ -625,13 +623,12 @@
     color: white;
   }
 
-	  .profile-shell,
-	  .profile-summary-panel,
-	  .profile-info-card,
-	  .profile-stat-chip,
-	  .profile-hero__control,
-	  .profile-identity-chip,
-	  .profile-avatar-action {
+  .profile-shell,
+  .profile-summary-panel,
+  .profile-info-card,
+  .profile-stat-chip,
+  .profile-hero__control,
+  .profile-avatar-action {
     border-color: var(--hairline);
     background: var(--surface);
     color: var(--ink);
@@ -678,9 +675,8 @@
     box-shadow: none;
   }
 
-	  .profile-action-button:not(.is-active),
-	  .profile-identity-chip,
-	  .profile-hero__control {
+  .profile-action-button:not(.is-active),
+  .profile-hero__control {
     background: var(--surface);
   }
 
