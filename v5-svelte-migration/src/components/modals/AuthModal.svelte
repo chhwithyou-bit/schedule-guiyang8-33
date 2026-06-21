@@ -11,7 +11,6 @@
   let password = '';
   let loading = false;
   let error = '';
-  let keyboardOpen = false;
 
   $: usernameLabel = isRegister ? '用户名' : '账号';
   $: usernamePlaceholder = isRegister ? '想让大家怎么叫你' : '输入你的用户名';
@@ -63,22 +62,7 @@
     }
   }
 
-  function syncKeyboardOpen() {
-    const viewport = window.visualViewport;
-    keyboardOpen = Boolean(viewport && window.innerWidth <= 640 && viewport.height < window.innerHeight - 120);
-  }
-
-  onMount(() => {
-    usernameInput?.focus();
-    syncKeyboardOpen();
-    window.visualViewport?.addEventListener('resize', syncKeyboardOpen);
-    window.visualViewport?.addEventListener('scroll', syncKeyboardOpen);
-
-    return () => {
-      window.visualViewport?.removeEventListener('resize', syncKeyboardOpen);
-      window.visualViewport?.removeEventListener('scroll', syncKeyboardOpen);
-    };
-  });
+  onMount(() => usernameInput?.focus());
 </script>
 
 <div class="auth-frame" transition:fade={{ duration: 160 }}>
@@ -92,7 +76,6 @@
     aria-describedby="auth-modal-description"
     tabindex="-1"
     class="modal"
-    class:keyboard-compact={keyboardOpen}
     in:fly={{ y: 12, duration: 220 }}
   >
     <button type="button" class="close" on:click={closeModal} aria-label="关闭">×</button>
@@ -320,10 +303,11 @@
       height: var(--app-modal-viewport-height, 100dvh);
       max-height: var(--app-modal-viewport-height, 100dvh);
       flex-direction: column;
+      justify-content: flex-start;
       border: 0;
       border-radius: 0;
       box-shadow: none;
-      padding: max(var(--s4), env(safe-area-inset-top)) var(--s3) max(var(--s3), env(safe-area-inset-bottom));
+      padding: max(var(--s3), env(safe-area-inset-top)) var(--s3) max(var(--s3), env(safe-area-inset-bottom));
     }
 
     .close {
@@ -332,19 +316,25 @@
     }
 
     .brand {
-      margin-bottom: var(--s3);
+      margin-bottom: var(--s2);
       padding-right: 42px;
       text-align: left;
+      font-size: 16px;
     }
 
     .title {
-      margin-top: auto;
-      font-size: 30px;
+      margin-top: 0;
+      margin-bottom: 2px;
+      font-family: var(--sans);
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: 0;
       text-align: left;
     }
 
     .subtitle {
-      margin-bottom: var(--s4);
+      margin-bottom: var(--s3);
+      font-size: 14px;
       text-align: left;
     }
 
@@ -357,57 +347,24 @@
       flex: 0 0 auto;
     }
 
-    .foot-note {
-      margin-top: var(--s3);
-    }
-
-    .modal.keyboard-compact {
-      justify-content: flex-start;
-      overflow-y: auto;
-      padding-top: max(var(--s3), env(safe-area-inset-top));
-    }
-
-    .modal.keyboard-compact .brand {
-      margin-bottom: var(--s2);
-      font-size: 16px;
-    }
-
-    .modal.keyboard-compact .title {
-      margin-top: 0;
-      margin-bottom: 2px;
-      font-family: var(--sans);
-      font-size: 20px;
-      font-weight: 800;
-      letter-spacing: 0;
-    }
-
-    .modal.keyboard-compact .subtitle {
-      margin-bottom: var(--s3);
-      font-size: 14px;
-    }
-
-    .modal.keyboard-compact .switch {
-      margin-bottom: var(--s3);
-    }
-
-    .modal.keyboard-compact .field {
+    .field {
       margin-bottom: var(--s2);
     }
 
-    .modal.keyboard-compact .field span {
+    .field span {
       margin-bottom: 6px;
     }
 
-    .modal.keyboard-compact .field input {
+    .field input {
       padding: 10px 12px;
     }
 
-    .modal.keyboard-compact .submit {
+    .submit {
       margin-top: var(--s1);
       padding: 11px 0;
     }
 
-    .modal.keyboard-compact .foot-note {
+    .foot-note {
       margin-top: var(--s2);
     }
   }

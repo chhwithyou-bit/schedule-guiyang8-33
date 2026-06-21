@@ -41,14 +41,14 @@ test('focused text inputs are scrolled into the visible keyboard viewport', () =
   assert.match(app, /window\.scrollBy\(\{ top: delta, behavior: 'auto' \}\)/);
 });
 
-test('auth modal has a compact mobile keyboard layout', () => {
+test('auth modal uses compact mobile layout without keyboard heuristics', () => {
   const authModal = read('v5-svelte-migration', 'src', 'components', 'modals', 'AuthModal.svelte');
 
-  assert.match(authModal, /let keyboardOpen = false/);
-  assert.match(authModal, /viewport\.height < window\.innerHeight - 120/);
-  assert.match(authModal, /class:keyboard-compact=\{keyboardOpen\}/);
-  assert.match(authModal, /\.modal\.keyboard-compact/);
-  assert.match(authModal, /\.modal\.keyboard-compact \.title/);
-  assert.match(authModal, /\.modal\.keyboard-compact \.field input/);
+  assert.doesNotMatch(authModal, /keyboard-compact/);
+  assert.doesNotMatch(authModal, /syncKeyboardOpen/);
+  assert.match(authModal, /@media \(max-width:\s*520px\)/);
+  assert.match(authModal, /justify-content:\s*flex-start/);
+  assert.match(authModal, /font-family:\s*var\(--sans\);\s*[\s\S]*?font-size:\s*20px/);
+  assert.match(authModal, /\.field input\s*\{\s*[\s\S]*?padding:\s*10px 12px/);
   assert.match(authModal, /position:\s*fixed;\s*[\s\S]*?inset:\s*0;\s*[\s\S]*?background:\s*rgba\(25,\s*25,\s*25,\s*0\.18\)/);
 });
