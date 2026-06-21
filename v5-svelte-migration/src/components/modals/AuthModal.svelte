@@ -117,11 +117,16 @@
 <style>
   .auth-frame {
     position: fixed;
-    inset: 0;
+    top: var(--app-modal-viewport-top, 0);
+    left: 0;
+    right: 0;
+    height: var(--app-modal-viewport-height, 100dvh);
     z-index: 11000;
     display: grid;
     place-items: center;
     padding: var(--s3);
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   .scrim {
@@ -134,11 +139,13 @@
   .modal {
     position: relative;
     width: min(100%, 420px);
+    max-height: calc(var(--app-modal-viewport-height, 100dvh) - (var(--s3) * 2));
     border: 1px solid var(--hairline);
     border-radius: 16px;
     background: var(--surface);
     box-shadow: 0 24px 60px -24px rgba(25, 25, 25, 0.22);
     padding: var(--s5) var(--s4) var(--s4);
+    overflow-y: auto;
   }
 
   .close {
@@ -282,5 +289,18 @@
 
   .foot-note button {
     color: var(--clay);
+  }
+
+  @media (max-width: 520px) {
+    .auth-frame {
+      align-items: end;
+      padding: var(--s2);
+      padding-bottom: max(var(--s2), env(safe-area-inset-bottom));
+    }
+
+    .modal {
+      max-height: calc(var(--app-modal-viewport-height, 100dvh) - 1rem - env(safe-area-inset-bottom));
+      padding: var(--s4) var(--s3) var(--s3);
+    }
   }
 </style>

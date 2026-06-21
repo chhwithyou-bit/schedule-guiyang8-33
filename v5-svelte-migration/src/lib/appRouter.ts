@@ -1,6 +1,6 @@
 import { get } from 'svelte/store';
 
-import { currentView, selectedPost, selectedProfile, type CurrentView } from '../stores/appState';
+import { currentView, selectedPost, selectedProfile, user, type CurrentView } from '../stores/appState';
 import { communityViewState, setCommunityViewState, type CommunitySection } from '../stores/communityViewState';
 import { buildAppLocationHash, parseAppLocationHash } from './appRouteState.mjs';
 
@@ -34,7 +34,7 @@ function currentRoute(): AppRoute {
 export function applyAppRoute(routeInput: Partial<AppRoute>) {
   const route = normalizeRoute(routeInput);
   selectedPost.set(null);
-  selectedProfile.set(null);
+  selectedProfile.set(route.view === 'profile' ? get(user) : null);
   currentView.set(route.view);
 
   if (route.view === 'community') {

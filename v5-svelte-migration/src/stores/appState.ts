@@ -1,6 +1,6 @@
 import { writable } from 'svelte/store';
 
-export type CurrentView = 'community' | 'admin';
+export type CurrentView = 'community' | 'profile' | 'admin';
 export type CommunityRole = 'user' | 'admin' | 'owner' | string;
 
 export type CommunityUser = {

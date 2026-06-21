@@ -11,6 +11,7 @@
 
   let isExpanded = false;
   let shellRef: HTMLDivElement | null = null;
+  let unreadRefreshInterval: ReturnType<typeof setInterval> | null = null;
 
   $: views = [
     { id: 'community', label: '社区' },
@@ -20,7 +21,10 @@
   $: currentViewLabel = views.find((view) => view.id === $currentView)?.label || '菜单';
 
   async function fetchUnreadCount() {
-    if (!$isAuthenticated) return;
+    if (!$isAuthenticated) {
+      unreadNotificationsCount.set(0);
+      return;
+    }
     try {
       const res = await communityFetch('/api/community/notifications/unread_count');
       const data = await res.json();
@@ -69,6 +73,7 @@
 
   onMount(() => {
     fetchUnreadCount();
+    unreadRefreshInterval = setInterval(fetchUnreadCount, 10000);
     const handlePointerDown = (event: PointerEvent) => {
       if (!isExpanded || !shellRef) return;
       if (!shellRef.contains(event.target as Node)) closeBar();
@@ -81,6 +86,7 @@
     document.addEventListener('pointerdown', handlePointerDown);
     document.addEventListener('keydown', handleEscape);
     return () => {
+      if (unreadRefreshInterval) clearInterval(unreadRefreshInterval);
       document.removeEventListener('pointerdown', handlePointerDown);
       document.removeEventListener('keydown', handleEscape);
     };

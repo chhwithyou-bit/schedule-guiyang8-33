@@ -13,6 +13,7 @@
   import PostModal from './components/modals/PostModal.svelte';
   import AdminView from './components/views/AdminView.svelte';
   import CommunityView from './components/views/CommunityView.svelte';
+  import ProfileView from './components/views/ProfileView.svelte';
   import CommunityConsole from './components/modals/CommunityConsole.svelte';
   import ImageViewer from './components/modals/ImageViewer.svelte';
   import { installAppRouter } from './lib/appRouter';
@@ -24,6 +25,7 @@
 
   const viewMap: Record<string, any> = {
     community: CommunityView,
+    profile: ProfileView,
     admin: AdminView
   };
 
@@ -74,12 +76,25 @@
     }
   }
 
+  function syncModalViewport() {
+    if (typeof window === 'undefined') return;
+
+    const viewport = window.visualViewport;
+    const height = viewport?.height || window.innerHeight;
+    const top = viewport?.offsetTop || 0;
+    const rootStyle = document.documentElement.style;
+
+    rootStyle.setProperty('--app-modal-viewport-height', `${Math.round(height)}px`);
+    rootStyle.setProperty('--app-modal-viewport-top', `${Math.round(top)}px`);
+  }
+
   function syncModalAccessibility(modalId: string | null) {
     if (typeof document === 'undefined' || !mainContent) return;
 
     if (modalId) {
       mainContent.setAttribute('aria-hidden', 'true');
       document.body.classList.add('modal-open');
+      syncModalViewport();
       return;
     }
 
@@ -112,7 +127,7 @@
 
   $: {
     const nextView = $currentView;
-    if (previousView === 'community' && nextView !== previousView && $selectedProfile) {
+    if (previousView === 'community' && nextView !== previousView && nextView !== 'profile' && $selectedProfile) {
       clearSelectedProfile();
     }
     previousView = nextView;
@@ -125,11 +140,18 @@
     const uninstallAppRouter = installAppRouter();
     window.addEventListener('keydown', handleGlobalKeydown);
     window.addEventListener('keydown', handleModalFocus);
+    window.addEventListener('resize', syncModalViewport);
+    window.visualViewport?.addEventListener('resize', syncModalViewport);
+    window.visualViewport?.addEventListener('scroll', syncModalViewport);
+    syncModalViewport();
 
     return () => {
       uninstallAppRouter();
       window.removeEventListener('keydown', handleGlobalKeydown);
       window.removeEventListener('keydown', handleModalFocus);
+      window.removeEventListener('resize', syncModalViewport);
+      window.visualViewport?.removeEventListener('resize', syncModalViewport);
+      window.visualViewport?.removeEventListener('scroll', syncModalViewport);
     };
   });
 </script>
@@ -224,6 +246,7 @@
 
   :global(body.modal-open) {
     overflow: hidden !important;
+    overscroll-behavior: contain;
   }
 
   @media (max-width: 640px) {

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { fade } from 'svelte/transition';
   import { closeModal, openModal } from '../../stores/modalState';
-  import { currentView, isAdmin, isAuthenticated, selectedProfile, user, selectedPost, unreadNotificationsCount } from '../../stores/appState';
+  import { isAdmin, isAuthenticated, selectedProfile, user, selectedPost, unreadNotificationsCount } from '../../stores/appState';
   import {
     COMMUNITY_MEDIA_UPLOAD_ENDPOINT,
     communityFetch,
@@ -111,6 +111,7 @@
   let shellRef: HTMLElement | null = null;
   let closeButtonRef: HTMLButtonElement | null = null;
   let shellFocusPrimed = false;
+  let notificationsRefreshInterval: ReturnType<typeof setInterval> | null = null;
 
   $: if (availableTabs.length > 0 && !availableTabs.some((tab) => tab.id === activeTab)) {
     activeTab = availableTabs[0].id;
@@ -226,8 +227,14 @@
 
     window.addEventListener('community-console-tab-request', handleConsoleTabRequest as EventListener);
     document.addEventListener('keydown', handleDocumentKeydown);
+    notificationsRefreshInterval = setInterval(() => {
+      if ($isAuthenticated && activeTab === 'notifications') {
+        void loadNotifications(true);
+      }
+    }, 10000);
 
     return () => {
+      if (notificationsRefreshInterval) clearInterval(notificationsRefreshInterval);
       window.removeEventListener('community-console-tab-request', handleConsoleTabRequest as EventListener);
       document.removeEventListener('keydown', handleDocumentKeydown);
     };
@@ -505,16 +512,19 @@
     }
   }
 
-  async function loadNotifications() {
+  async function loadNotifications(background = false) {
     if (!$isAuthenticated) return;
-    loadingNotifications = true;
-    notificationError = '';
+    if (background && loadingNotifications) return;
+    if (!background) {
+      loadingNotifications = true;
+      notificationError = '';
+    }
 
     try {
       const res = await communityFetch('/api/community/notifications');
       const data = await res.json();
       if (!data.ok) {
-        notificationError = data.msg || '提醒没加载出来。';
+        if (!background) notificationError = data.msg || '提醒没加载出来。';
         return;
       }
       notifications = Array.isArray(data.notifications)
@@ -528,9 +538,9 @@
       }
     } catch (error) {
       console.error('Failed to load notifications', error);
-      notificationError = '提醒没加载出来。';
+      if (!background) notificationError = '提醒没加载出来。';
     } finally {
-      loadingNotifications = false;
+      if (!background) loadingNotifications = false;
     }
   }
 
@@ -551,8 +561,6 @@
   function openAuth() {
     openModal('auth');
   }
-
-
 
   function formatBytes(value = 0) {
     if (!value) return '0 B';
@@ -605,8 +613,10 @@
     }
   }
 
-  function openCommunityView() {
-    navigateToView('community');
+  function openMyProfile() {
+    if (!$user) return;
+    navigateToView('profile');
+    selectedProfile.set({ ...$user, __openedAt: Date.now() });
     if (!embedded) {
       handleClose();
     }
@@ -665,7 +675,7 @@
       <header class="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-white/10 bg-[rgba(var(--color-bg-rgb),0.78)] px-5 py-4 backdrop-blur-[20px] md:px-6">
         <div>
           <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">控制台导航</p>
-          <h2 id="community-console-title" class="mt-1 text-2xl font-black tracking-tight">{accountOnly ? '账号面板' : '账号 / 网盘 / 提醒'}</h2>
+          <h2 id="community-console-title" class="mt-1 text-2xl font-black tracking-tight">网盘 / 提醒</h2>
         </div>
 
         <div class="flex items-center gap-3">
@@ -683,51 +693,49 @@
 
     <div class="{embedded ? 'space-y-5' : 'xl:flex-1 xl:min-h-0 xl:overflow-hidden'}">
       <div class="{embedded ? 'space-y-5' : shouldRenderModalShell ? 'min-h-full space-y-5 pb-5' : 'xl:flex xl:flex-col xl:h-full xl:min-h-0'}">
-        {#if !isEmbeddedAccountPanel}
-          <div class="console-hero-panel {embedded ? '' : shouldRenderModalShell ? 'mx-1 mt-4 md:mx-2 md:mt-5' : 'mx-4 mt-4 md:mx-5 md:mt-5'}">
-            <div class="console-tab-shell flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between">
-              <div class="console-tab-rail xl:max-w-[19rem]">
-                <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">{tabHero[activeTabMeta?.id || 'account'].eyebrow}</p>
-                <h3 class="mt-2 text-2xl font-black tracking-tight">{tabHero[activeTabMeta?.id || 'account'].title}</h3>
-                <p class="mt-2 text-sm font-medium leading-7 opacity-65">{tabDescriptions[activeTabMeta?.id || 'account']}</p>
-              </div>
+        <div class="console-hero-panel {embedded ? '' : shouldRenderModalShell ? 'mx-1 mt-4 md:mx-2 md:mt-5' : 'mx-4 mt-4 md:mx-5 md:mt-5'}">
+          <div class="console-tab-shell flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between">
+            <div class="console-tab-rail xl:max-w-[19rem]">
+              <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">{tabHero[activeTabMeta?.id || 'drive'].eyebrow}</p>
+              <h3 class="mt-2 text-2xl font-black tracking-tight">{tabHero[activeTabMeta?.id || 'drive'].title}</h3>
+              <p class="mt-2 text-sm font-medium leading-7 opacity-65">{tabDescriptions[activeTabMeta?.id || 'drive']}</p>
+            </div>
 
-              <div class="min-w-0 flex-1">
-                <div class="console-tab-grid">
-                  {#each availableTabs as tab}
-                    <button
-                      type="button"
-                      class="console-tab-card {activeTab === tab.id ? 'is-active' : ''}"
-                      on:click={() => switchTab(tab.id)}
-                    >
-                      <span class="console-tab-card__label">{tab.label}</span>
-                      <span class="console-tab-card__hint">{tabDescriptions[tab.id]}</span>
-                    </button>
-                  {/each}
-                </div>
-              </div>
-
-              <div class="flex flex-wrap gap-2 lg:justify-end">
-                {#if $isAdmin}
-                  <button type="button" class="console-pill console-pill--ghost px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em]" on:click={openAdminView}>
-                    管理后台
+            <div class="min-w-0 flex-1">
+              <div class="console-tab-grid">
+                {#each availableTabs as tab}
+                  <button
+                    type="button"
+                    class="console-tab-card {activeTab === tab.id ? 'is-active' : ''}"
+                    on:click={() => switchTab(tab.id)}
+                  >
+                    <span class="console-tab-card__label">{tab.label}</span>
+                    <span class="console-tab-card__hint">{tabDescriptions[tab.id]}</span>
                   </button>
-                {/if}
-                {#if $isAuthenticated}
-                  <button type="button" class="console-pill console-pill--ghost px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em]" on:click={openMyProfile}>
-                    我的主页
-                  </button>
-                {/if}
+                {/each}
               </div>
             </div>
 
-            {#if !$isAuthenticated}
-              <p class="mt-3 rounded-[20px] border border-white/10 bg-[rgba(255,255,255,0.06)] px-4 py-3 text-sm font-medium leading-7 opacity-75">
-                {authPrompt || '先登录，就能继续发帖、评论和查看互动提醒。'}
-              </p>
-            {/if}
+            <div class="flex flex-wrap gap-2 lg:justify-end">
+              {#if $isAdmin}
+                <button type="button" class="console-pill console-pill--ghost px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em]" on:click={openAdminView}>
+                  管理后台
+                </button>
+              {/if}
+              {#if $isAuthenticated}
+                <button type="button" class="console-pill console-pill--ghost px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em]" on:click={openMyProfile}>
+                  我的主页
+                </button>
+              {/if}
+            </div>
           </div>
-        {/if}
+
+          {#if !$isAuthenticated}
+            <p class="mt-3 rounded-[20px] border border-white/10 bg-[rgba(255,255,255,0.06)] px-4 py-3 text-sm font-medium leading-7 opacity-75">
+              {authPrompt || '先登录，就能继续发帖、评论和查看互动提醒。'}
+            </p>
+          {/if}
+        </div>
 
         <div class="{embedded ? 'space-y-6' : shouldRenderModalShell ? 'space-y-6 px-5 pb-5 pt-1 md:px-6 md:pb-6' : 'px-5 pb-5 pt-1 md:px-6 md:pb-6 xl:flex-1 xl:min-h-0 xl:overflow-y-auto'}">
 
@@ -874,7 +882,7 @@
                     <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">提醒</p>
                     <h3 class="mt-1 text-2xl font-black tracking-tight">{notifications.length} 条更新</h3>
                   </div>
-                  <button type="button" class="console-pill console-pill--ghost px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em]" on:click={loadNotifications}>
+                  <button type="button" class="console-pill console-pill--ghost px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em]" on:click={() => loadNotifications()}>
                     刷新
                   </button>
                 </div>

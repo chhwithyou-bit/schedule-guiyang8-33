@@ -31,6 +31,14 @@
     { id: 'notifications', label: '通知' }
   ];
 
+  function commitPosts(nextPosts: any[]) {
+    posts = nextPosts;
+    if ($selectedPost?.id) {
+      const refreshedPost = nextPosts.find((item) => item.id === $selectedPost?.id);
+      if (refreshedPost) selectedPost.set({ ...$selectedPost, ...refreshedPost });
+    }
+  }
+
   function applyPostPatch(postId: string, patch: Record<string, unknown>) {
     posts = posts.map((item) => item.id === postId ? { ...item, ...patch } : item);
     if ($selectedPost?.id === postId) selectedPost.set({ ...$selectedPost, ...patch });
@@ -68,14 +76,14 @@
       // Re-check auth before committing: a favorites response that resolves after
       // logout must not leak the previous account's bookmarks into the UI.
       if ($communityViewState.section === 'favorites' && !$isAuthenticated) {
-        if (requestToken === postsRequestToken) posts = [];
+        if (requestToken === postsRequestToken) commitPosts([]);
         return;
       }
       if (data.ok && requestToken === postsRequestToken) {
-        posts = Array.isArray(data.posts) ? data.posts : [];
+        commitPosts(Array.isArray(data.posts) ? data.posts : []);
       }
     } catch (error) {
-      if (requestToken === postsRequestToken && !background) posts = [];
+      if (requestToken === postsRequestToken && !background) commitPosts([]);
       console.error('Failed to fetch posts', error);
     } finally {
       if (requestToken === postsRequestToken) loadingPosts = false;
@@ -92,9 +100,9 @@
     }
   }
 
-  async function fetchDiscovery() {
+  async function fetchDiscovery(background = false) {
     const requestToken = ++discoveryRequestToken;
-    loadingDiscovery = true;
+    if (!background) loadingDiscovery = true;
 
     try {
       const suffix = query.trim() ? `?q=${encodeURIComponent(query.trim())}` : '';
@@ -104,7 +112,7 @@
         discoveredUsers = Array.isArray(data.users) ? data.users : [];
       }
     } catch (error) {
-      if (requestToken === discoveryRequestToken) discoveredUsers = [];
+      if (requestToken === discoveryRequestToken && !background) discoveredUsers = [];
       console.error('Failed to fetch discovery', error);
     } finally {
       if (requestToken === discoveryRequestToken) loadingDiscovery = false;
@@ -139,6 +147,18 @@
     void fetchPosts();
   }
 
+  function refreshActiveSectionInBackground() {
+    if ($communityViewState.section === 'feed' || $communityViewState.section === 'favorites') {
+      void fetchPosts(true);
+      return;
+    }
+
+    if ($communityViewState.section === 'discovery') {
+      void fetchDiscovery(true);
+      if (query.trim()) void fetchPosts(true);
+    }
+  }
+
   $: if (mounted && $communityViewState.section !== lastLoadedSection) {
     lastLoadedSection = $communityViewState.section;
     loadSection($communityViewState.section);
@@ -170,11 +190,7 @@
     window.addEventListener('community-announcement-updated', fetchAnnouncement);
     const uninstallHistory = installCommunityHistory();
 
-    refreshInterval = setInterval(() => {
-      if ($communityViewState.section === 'feed' && !query.trim()) {
-        void fetchPosts(true);
-      }
-    }, 15000); // Poll every 15 seconds for new posts
+    refreshInterval = setInterval(refreshActiveSectionInBackground, 10000);
 
     return () => {
       mounted = false;

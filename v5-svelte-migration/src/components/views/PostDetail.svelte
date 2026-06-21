@@ -1,6 +1,6 @@
 <script lang="ts">
   import { fade } from 'svelte/transition';
-  import { tick } from 'svelte';
+  import { onDestroy, onMount, tick } from 'svelte';
   import { selectedPost, isAuthenticated, user, isAdmin, previewImageUrl } from '../../stores/appState';
   import { openModal } from '../../stores/modalState';
   import { communityFetch } from '../../lib/communityApi';
@@ -19,6 +19,9 @@
   let favoritingPost = false;
   let deletingPost = false;
   let postLikeBurst = false;
+  let recentCommentId = '';
+  let highlightedCommentId = '';
+  let pulsingCommentLikes: Set<string> = new Set();
   let reportComposerOpen = false;
   let reportReason = '';
   let reportMessage = '';
@@ -29,6 +32,7 @@
   let lastLoadedPostId = '';
   let lastRequestedSurfaceKey = '';
   let commentsRequestToken = 0;
+  let commentsRefreshInterval: ReturnType<typeof setInterval> | null = null;
 
   function emitPostUpdated(patch: Record<string, unknown>) {
     if (typeof window === 'undefined' || !$selectedPost?.id) return;
@@ -65,6 +69,43 @@
     return roots;
   }
 
+  function patchComment(commentId: string, patch: Record<string, unknown>) {
+    comments = comments.map((item) =>
+      String(item.id) === commentId
+        ? {
+            ...item,
+            ...patch
+          }
+        : item
+    );
+  }
+
+  function pulseCommentLike(commentId: string) {
+    const next = new Set(pulsingCommentLikes);
+    next.add(commentId);
+    pulsingCommentLikes = next;
+    window.setTimeout(() => {
+      const current = new Set(pulsingCommentLikes);
+      current.delete(commentId);
+      pulsingCommentLikes = current;
+    }, 360);
+  }
+
+  async function focusCommentRow(commentId: string, parentId = '') {
+    if (!commentId) return;
+    recentCommentId = commentId;
+    highlightedCommentId = parentId || commentId;
+    await tick();
+
+    const row = detailScrollEl?.querySelector<HTMLElement>(`[data-comment-id="${CSS.escape(commentId)}"]`);
+    row?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    window.setTimeout(() => {
+      if (recentCommentId === commentId) recentCommentId = '';
+      if (highlightedCommentId === (parentId || commentId)) highlightedCommentId = '';
+    }, 1400);
+  }
+
   $: if (currentPostId && currentPostId !== lastLoadedPostId) {
     lastLoadedPostId = currentPostId;
     resetDetailSurface();
@@ -97,6 +138,9 @@
     reporting = false;
     reportMessage = '';
     reportReason = '';
+    recentCommentId = '';
+    highlightedCommentId = '';
+    pulsingCommentLikes = new Set();
     reportComposerOpen = Boolean($selectedPost?.__openReportComposer);
     scrollDetailToTop();
   }
@@ -140,25 +184,36 @@
     }
   }
 
-  async function fetchComments() {
+  function normalizeComments(items: any[]) {
+    return items.map((comment: any) => ({
+      ...comment,
+      like_count: Number(comment.like_count || 0),
+      viewer_liked: Boolean(comment.viewer_liked)
+    }));
+  }
+
+  function updateSelectedPostCommentCount(nextCount: number) {
+    const currentCount = Number($selectedPost?.comment_count || 0);
+    if (!$selectedPost || nextCount === currentCount) return;
+    selectedPost.update((current) => current ? { ...current, comment_count: nextCount } : current);
+    emitPostUpdated({ comment_count: nextCount });
+  }
+
+  async function fetchComments(background = false) {
     if (!$selectedPost) return;
+    if (background && loading) return;
     const requestToken = ++commentsRequestToken;
     const postId = $selectedPost.id;
-    loading = true;
+    if (!background) loading = true;
     try {
       const res = await communityFetch(`/api/community/comments?postId=${postId}`);
       const data = await res.json();
       if (data.ok && requestToken === commentsRequestToken && $selectedPost?.id === postId) {
-        comments = Array.isArray(data.comments)
-          ? data.comments.map((comment: any) => ({
-              ...comment,
-              like_count: Number(comment.like_count || 0),
-              viewer_liked: Boolean(comment.viewer_liked)
-            }))
-          : [];
+        comments = Array.isArray(data.comments) ? normalizeComments(data.comments) : [];
+        updateSelectedPostCommentCount(comments.length);
       }
     } catch (e) {
-      if (requestToken === commentsRequestToken && $selectedPost?.id === postId) {
+      if (requestToken === commentsRequestToken && $selectedPost?.id === postId && !background) {
         comments = [];
       }
       console.error('Failed to fetch comments', e);
@@ -174,6 +229,7 @@
     if (!content || submitting) return;
     const activePost = $selectedPost;
     const postId = activePost?.id;
+    const submittedReplyTarget = replyTarget;
     if (!postId) return;
     if (!$isAuthenticated) {
       openModal('auth');
@@ -195,7 +251,9 @@
         const nextCommentCount = Number(data.comment_count ?? ((activePost.comment_count || 0) + 1));
         newComment = '';
         replyTarget = null;
+        let insertedCommentId = '';
         if (data.comment) {
+          insertedCommentId = String(data.comment.id || '');
           comments = [
             ...comments,
             {
@@ -218,6 +276,7 @@
         if (!data.comment) {
           await fetchComments();
         }
+        await focusCommentRow(insertedCommentId, submittedReplyTarget?.id ? String(submittedReplyTarget.id) : '');
       }
     } catch (e) {
       console.error('Failed to post comment', e);
@@ -238,6 +297,16 @@
     const nextLiking = new Set(likingComments);
     nextLiking.add(commentId);
     likingComments = nextLiking;
+    const previousLiked = Boolean(comment.viewer_liked);
+    const previousLikeCount = Number(comment.like_count || 0);
+    const optimisticLiked = !previousLiked;
+    const optimisticLikeCount = Math.max(0, previousLikeCount + (optimisticLiked ? 1 : -1));
+
+    patchComment(commentId, {
+      viewer_liked: optimisticLiked,
+      like_count: optimisticLikeCount
+    });
+    if (optimisticLiked) pulseCommentLike(commentId);
 
     try {
       const res = await communityFetch('/api/community/comments/like', {
@@ -246,21 +315,26 @@
         body: JSON.stringify({ comment_id: commentId })
       });
       const data = await res.json();
-      if (!data.ok) return;
+      if (!data.ok) {
+        patchComment(commentId, {
+          viewer_liked: previousLiked,
+          like_count: previousLikeCount
+        });
+        return;
+      }
 
       const liked = Boolean(data.liked);
-      const fallbackCount = Math.max(0, Number(comment.like_count || 0) + (liked ? 1 : -1));
+      const fallbackCount = Math.max(0, previousLikeCount + (liked ? 1 : -1));
       const likeCount = Number(data.like_count ?? fallbackCount);
-      comments = comments.map((item) =>
-        item.id === commentId
-          ? {
-              ...item,
-              viewer_liked: liked,
-              like_count: likeCount
-            }
-          : item
-      );
+      patchComment(commentId, {
+        viewer_liked: liked,
+        like_count: likeCount
+      });
     } catch (e) {
+      patchComment(commentId, {
+        viewer_liked: previousLiked,
+        like_count: previousLikeCount
+      });
       console.error('Failed to like comment', e);
     } finally {
       const next = new Set(likingComments);
@@ -271,7 +345,13 @@
 
   function startReply(comment: any) {
     replyTarget = comment;
-    void tick().then(() => commentInputEl?.focus());
+    highlightedCommentId = String(comment?.id || '');
+    void tick().then(() => {
+      commentInputEl?.focus();
+      window.setTimeout(() => {
+        if (highlightedCommentId === String(comment?.id || '')) highlightedCommentId = '';
+      }, 1200);
+    });
   }
 
   function cancelReply() {
@@ -286,6 +366,24 @@
     if (!$selectedPost || likingPost) return;
 
     likingPost = true;
+    const previousPost = { ...$selectedPost };
+    const nextLiked = !Boolean($selectedPost.viewer_liked);
+    const nextLikeCount = Math.max(0, Number($selectedPost.like_count || 0) + (nextLiked ? 1 : -1));
+    selectedPost.update((current) => current
+      ? { ...current, viewer_liked: nextLiked, like_count: nextLikeCount }
+      : current
+    );
+    if (nextLiked) {
+      postLikeBurst = false;
+      requestAnimationFrame(() => {
+        postLikeBurst = true;
+        window.setTimeout(() => {
+          postLikeBurst = false;
+        }, 420);
+      });
+    }
+    emitPostUpdated({ viewer_liked: nextLiked, like_count: nextLikeCount });
+
     try {
       const res = await communityFetch('/api/community/posts/like', {
         method: 'POST',
@@ -293,26 +391,29 @@
         body: JSON.stringify({ post_id: $selectedPost.id })
       });
       const data = await res.json();
-      if (!data.ok) return;
+      if (!data.ok) {
+        selectedPost.update((current) => current
+          ? { ...current, viewer_liked: previousPost.viewer_liked, like_count: previousPost.like_count }
+          : current
+        );
+        emitPostUpdated({ viewer_liked: previousPost.viewer_liked, like_count: previousPost.like_count });
+        return;
+      }
 
-      const nextLiked = typeof data.liked === 'boolean' ? data.liked : data.action === 'liked';
-      const fallbackCount = Math.max(0, Number($selectedPost.like_count || 0) + (nextLiked ? 1 : -1));
-      const nextLikeCount = Number(data.like_count ?? fallbackCount);
+      const serverLiked = typeof data.liked === 'boolean' ? data.liked : data.action === 'liked';
+      const fallbackCount = Math.max(0, Number(previousPost.like_count || 0) + (serverLiked ? 1 : -1));
+      const serverLikeCount = Number(data.like_count ?? fallbackCount);
       selectedPost.update((current) => current
-        ? { ...current, viewer_liked: nextLiked, like_count: nextLikeCount }
+        ? { ...current, viewer_liked: serverLiked, like_count: serverLikeCount }
         : current
       );
-      if (nextLiked) {
-        postLikeBurst = false;
-        requestAnimationFrame(() => {
-          postLikeBurst = true;
-          window.setTimeout(() => {
-            postLikeBurst = false;
-          }, 520);
-        });
-      }
-      emitPostUpdated({ viewer_liked: nextLiked, like_count: nextLikeCount });
+      emitPostUpdated({ viewer_liked: serverLiked, like_count: serverLikeCount });
     } catch (e) {
+      selectedPost.update((current) => current
+        ? { ...current, viewer_liked: previousPost.viewer_liked, like_count: previousPost.like_count }
+        : current
+      );
+      emitPostUpdated({ viewer_liked: previousPost.viewer_liked, like_count: previousPost.like_count });
       console.error('Failed to like post', e);
     } finally {
       likingPost = false;
@@ -462,6 +563,16 @@
   let media: any[] = [];
 
   $: media = $selectedPost ? safeJsonArray($selectedPost.media_json || '').filter((m) => m && m.url) : [];
+
+  onMount(() => {
+    commentsRefreshInterval = setInterval(() => {
+      if (currentPostId) void fetchComments(true);
+    }, 8000);
+  });
+
+  onDestroy(() => {
+    if (commentsRefreshInterval) clearInterval(commentsRefreshInterval);
+  });
 </script>
 
 {#if $selectedPost}
@@ -469,7 +580,7 @@
     <div class="post-detail-backdrop absolute inset-0" aria-hidden="true"></div>
     <div
       class="post-detail-shell relative flex h-full flex-col overflow-hidden"
-      transition:softReveal={{ x: 18, y: 0, duration: 260, startScale: 0.992, blur: 4 }}
+      transition:softReveal={{ x: 10, y: 0, duration: 320, startScale: 0.996, blur: 2 }}
     >
       <header class="post-detail-header flex items-center justify-between gap-4 px-4 py-4 sm:px-6 sm:py-6">
         <button type="button" data-testid="post-detail-close" on:click={close} aria-label="返回动态列表" class="post-detail-toolbar-button p-2 -ml-2 transition-all">
@@ -638,7 +749,12 @@
             {:else if commentTree.length > 0}
               <div class="space-y-4 sm:space-y-5">
                 {#each commentTree as comment}
-                  <div class="post-detail-comment-row flex gap-4 rounded-[24px] px-3 py-3 sm:px-4" data-testid="comment-row" in:fade>
+                  <div
+                    class="post-detail-comment-row flex gap-4 rounded-[24px] px-3 py-3 sm:px-4 {recentCommentId === String(comment.id) ? 'is-new' : ''} {highlightedCommentId === String(comment.id) ? 'is-highlighted' : ''}"
+                    data-testid="comment-row"
+                    data-comment-id={comment.id}
+                    in:fade={{ duration: 180 }}
+                  >
                     <!-- svelte-ignore a11y-click-events-have-key-events -->
                     <!-- svelte-ignore a11y-no-static-element-interactions -->
                     <div on:click={() => handleProfileClick(comment)} class="post-detail-comment-avatar h-10 w-10 flex-shrink-0 cursor-pointer overflow-hidden rounded-full">
@@ -667,14 +783,14 @@
                       <div class="mt-3 flex flex-wrap items-center gap-2">
                         <button
                           type="button"
-                          class="post-detail-comment-like inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-black transition-all {comment.viewer_liked ? 'is-active' : ''}"
+                          class="post-detail-comment-like inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-black transition-all {comment.viewer_liked ? 'is-active' : ''} {pulsingCommentLikes.has(String(comment.id)) ? 'is-pulsing' : ''}"
                           aria-label={comment.viewer_liked ? '取消点赞这条评论' : '点赞这条评论'}
                           aria-pressed={Boolean(comment.viewer_liked)}
                           disabled={likingComments.has(comment.id)}
                           on:click={() => toggleCommentLike(comment)}
                         >
                           <svg width="14" height="14" viewBox="0 0 24 24" fill={comment.viewer_liked ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l7.78-7.78a5.5 5.5 0 0 0 1.06-8.84z"></path></svg>
-                          <span>{comment.like_count || 0}</span>
+                          <span class="like-count" aria-live="polite">{comment.like_count || 0}</span>
                         </button>
                         <button type="button" data-testid="comment-reply" class="post-detail-comment-like inline-flex items-center rounded-full px-3 py-1.5 text-[11px] font-black transition-all" on:click={() => startReply(comment)}>
                           回复
@@ -684,7 +800,12 @@
                       {#if comment.replies?.length}
                         <div class="mt-3 space-y-2 border-l border-white/10 pl-3">
                           {#each comment.replies as reply}
-                            <div class="post-detail-reply rounded-[18px] px-3 py-2" data-testid="comment-reply-row">
+                            <div
+                              class="post-detail-reply rounded-[18px] px-3 py-2 {recentCommentId === String(reply.id) ? 'is-new' : ''}"
+                              data-testid="comment-reply-row"
+                              data-comment-id={reply.id}
+                              in:fade={{ duration: 180 }}
+                            >
                               <div class="flex flex-wrap items-center gap-2">
                                 <button type="button" class="text-xs font-black transition-colors hover:text-[var(--color-primary)]" on:click={() => handleProfileClick(reply)}>
                                   {reply.username}
@@ -695,9 +816,9 @@
                               </div>
                               <p class="mt-1 whitespace-pre-wrap text-sm font-medium leading-relaxed opacity-78">{reply.content}</p>
                               <div class="mt-2 flex flex-wrap gap-2">
-                                <button type="button" class="post-detail-comment-like inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-black transition-all {reply.viewer_liked ? 'is-active' : ''}" on:click={() => toggleCommentLike(reply)}>
+                                <button type="button" class="post-detail-comment-like inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-black transition-all {reply.viewer_liked ? 'is-active' : ''} {pulsingCommentLikes.has(String(reply.id)) ? 'is-pulsing' : ''}" on:click={() => toggleCommentLike(reply)}>
                                   <svg width="14" height="14" viewBox="0 0 24 24" fill={reply.viewer_liked ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l7.78-7.78a5.5 5.5 0 0 0 1.06-8.84z"></path></svg>
-                                  <span>{reply.like_count || 0}</span>
+                                  <span class="like-count" aria-live="polite">{reply.like_count || 0}</span>
                                 </button>
                                 <button type="button" class="post-detail-comment-like inline-flex items-center rounded-full px-3 py-1.5 text-[11px] font-black transition-all" on:click={() => startReply(comment)}>回复</button>
                               </div>
@@ -743,7 +864,7 @@
             on:click={handleComment}
             aria-label="发布评论"
             disabled={submitting || !newComment.trim()}
-            class="post-detail-composer-submit inline-flex h-14 items-center justify-center gap-2 rounded-2xl px-5 text-[var(--color-bg,#231b22)] transition-all hover:scale-[1.03] active:scale-95 disabled:opacity-30 disabled:hover:scale-100"
+            class="post-detail-composer-submit inline-flex h-14 items-center justify-center gap-2 rounded-2xl px-5 text-[var(--color-bg,#231b22)] transition-all hover:scale-[1.015] active:scale-[0.985] disabled:opacity-30 disabled:hover:scale-100 {submitting ? 'is-sending' : ''}"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
             <span class="text-xs font-black uppercase tracking-[0.18em]">{submitting ? '发布中…' : '发布评论'}</span>
@@ -890,7 +1011,7 @@
   }
 
   .post-detail-action-button.is-bursting svg {
-    animation: post-detail-like-burst 520ms cubic-bezier(0.2, 1.45, 0.28, 1);
+    animation: post-detail-like-burst 420ms var(--motion-ease-apple);
   }
 
   .post-detail-report-panel {
@@ -967,6 +1088,16 @@
     border-color: rgba(var(--glow-primary-rgb), 0.2);
   }
 
+  .post-detail-comment-like svg,
+  .post-detail-comment-like .like-count,
+  .post-detail-action-button svg,
+  .post-detail-action-button span {
+    transform-origin: center;
+    transition:
+      transform var(--motion-duration-fast) var(--motion-ease-apple),
+      color var(--motion-duration-fast) var(--motion-ease-standard);
+  }
+
   .post-detail-comment-like.is-active {
     border-color: rgba(248, 113, 113, 0.28);
     color: rgb(248, 113, 113);
@@ -975,9 +1106,51 @@
       rgba(var(--color-bg-rgb), 0.12);
   }
 
+  .post-detail-comment-like.is-pulsing svg {
+    animation: comment-like-press 360ms var(--motion-ease-apple);
+  }
+
+  .post-detail-comment-like.is-pulsing .like-count {
+    animation: count-soft-rise 360ms var(--motion-ease-apple);
+  }
+
   .post-detail-reply {
     border: 1px solid rgba(var(--glow-primary-rgb), 0.09);
     background: rgba(var(--color-bg-rgb), 0.13);
+  }
+
+  .post-detail-comment-row,
+  .post-detail-reply {
+    position: relative;
+    overflow: hidden;
+    transition:
+      background-color 260ms var(--motion-ease-standard),
+      border-color 260ms var(--motion-ease-standard),
+      transform 260ms var(--motion-ease-apple);
+  }
+
+  .post-detail-comment-row.is-new,
+  .post-detail-reply.is-new {
+    animation: comment-settle 560ms var(--motion-ease-apple) both;
+  }
+
+  .post-detail-comment-row.is-highlighted,
+  .post-detail-comment-row.is-new,
+  .post-detail-reply.is-new {
+    border-color: color-mix(in srgb, var(--clay) 34%, var(--hairline));
+    background: color-mix(in srgb, var(--clay) 8%, var(--surface));
+  }
+
+  .post-detail-comment-row.is-highlighted::after,
+  .post-detail-comment-row.is-new::after,
+  .post-detail-reply.is-new::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(90deg, transparent, rgba(var(--glow-primary-rgb), 0.12), transparent);
+    transform: translateX(-105%);
+    animation: comment-warm-sweep 880ms var(--motion-ease-apple) both;
   }
 
   .post-detail-comment-like:disabled {
@@ -997,6 +1170,20 @@
 
   .post-detail-composer {
     pointer-events: auto;
+  }
+
+  .post-detail-composer-submit {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .post-detail-composer-submit.is-sending::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.22), transparent);
+    transform: translateX(-105%);
+    animation: composer-sending-sheen 920ms var(--motion-ease-apple) infinite;
   }
 
   .post-detail-backdrop {
@@ -1147,16 +1334,76 @@
 
   @keyframes post-detail-like-burst {
     0% {
-      transform: scale(0.82) rotate(-8deg);
+      transform: scale(0.9) rotate(-3deg);
       filter: drop-shadow(0 0 0 rgba(248, 113, 113, 0));
     }
-    42% {
-      transform: scale(1.34) rotate(7deg);
-      filter: drop-shadow(0 0 12px rgba(248, 113, 113, 0.46));
+    46% {
+      transform: scale(1.16) rotate(3deg);
+      filter: drop-shadow(0 0 8px rgba(248, 113, 113, 0.28));
     }
     100% {
       transform: scale(1) rotate(0deg);
       filter: drop-shadow(0 0 0 rgba(248, 113, 113, 0));
+    }
+  }
+
+  @keyframes comment-like-press {
+    0% {
+      transform: scale(0.92);
+    }
+    48% {
+      transform: scale(1.14);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+
+  @keyframes count-soft-rise {
+    0% {
+      opacity: 0.72;
+      transform: translateY(2px);
+    }
+    54% {
+      opacity: 1;
+      transform: translateY(-2px);
+    }
+    100% {
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes comment-settle {
+    0% {
+      opacity: 0;
+      transform: translate3d(0, 10px, 0) scale(0.994);
+    }
+    100% {
+      opacity: 1;
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+  }
+
+  @keyframes comment-warm-sweep {
+    0% {
+      opacity: 0;
+      transform: translateX(-105%);
+    }
+    22% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+      transform: translateX(105%);
+    }
+  }
+
+  @keyframes composer-sending-sheen {
+    0% {
+      transform: translateX(-105%);
+    }
+    100% {
+      transform: translateX(105%);
     }
   }
 </style>

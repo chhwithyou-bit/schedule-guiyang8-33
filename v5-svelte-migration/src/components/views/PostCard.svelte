@@ -10,6 +10,7 @@
   let isLiking = false;
   let isFavoriting = false;
   let isDeleting = false;
+  let likePulse = false;
 
   function emitPostUpdated(patch: Record<string, unknown>) {
     if (typeof window === 'undefined') return;
@@ -59,6 +60,23 @@
     if (isLiking) return;
 
     isLiking = true;
+    const previousLiked = Boolean(post.viewer_liked);
+    const previousLikeCount = Number(post.like_count || 0);
+    const optimisticLiked = !previousLiked;
+    const optimisticLikeCount = Math.max(0, previousLikeCount + (optimisticLiked ? 1 : -1));
+    post.viewer_liked = optimisticLiked;
+    post.like_count = optimisticLikeCount;
+    emitPostUpdated({ viewer_liked: optimisticLiked, like_count: optimisticLikeCount });
+    if (optimisticLiked) {
+      likePulse = false;
+      requestAnimationFrame(() => {
+        likePulse = true;
+        window.setTimeout(() => {
+          likePulse = false;
+        }, 360);
+      });
+    }
+
     try {
       const res = await communityFetch('/api/community/posts/like', {
         method: 'POST',
@@ -68,13 +86,20 @@
       const data = await res.json();
       if (data.ok) {
         const nextLiked = typeof data.liked === 'boolean' ? data.liked : data.action === 'liked';
-        const fallbackCount = Math.max(0, Number(post.like_count || 0) + (nextLiked ? 1 : -1));
+        const fallbackCount = Math.max(0, previousLikeCount + (nextLiked ? 1 : -1));
         const nextLikeCount = Number(data.like_count ?? fallbackCount);
         post.viewer_liked = nextLiked;
         post.like_count = nextLikeCount;
         emitPostUpdated({ viewer_liked: nextLiked, like_count: nextLikeCount });
+      } else {
+        post.viewer_liked = previousLiked;
+        post.like_count = previousLikeCount;
+        emitPostUpdated({ viewer_liked: previousLiked, like_count: previousLikeCount });
       }
     } catch (error) {
+      post.viewer_liked = previousLiked;
+      post.like_count = previousLikeCount;
+      emitPostUpdated({ viewer_liked: previousLiked, like_count: previousLikeCount });
       console.error('Like failed', error);
     } finally {
       isLiking = false;
@@ -182,8 +207,8 @@
   {/if}
 
   <footer class="post-actions">
-    <button type="button" data-testid="post-like" on:click={toggleLike} aria-label="点赞这条内容" class:active={post.viewer_liked} disabled={isLiking}>
-      <span aria-hidden="true">♡</span>{post.like_count || 0}
+    <button type="button" data-testid="post-like" on:click={toggleLike} aria-label="点赞这条内容" class:active={post.viewer_liked} class:pulsing={likePulse} disabled={isLiking}>
+      <span aria-hidden="true" class="action-symbol">♡</span><span class="action-count" aria-live="polite">{post.like_count || 0}</span>
     </button>
     <button type="button" data-testid="post-comment" on:click={handleCommentClick} aria-label="查看评论">
       <span aria-hidden="true">◦</span>{post.comment_count || 0}
@@ -343,6 +368,12 @@
     transition: color 180ms var(--motion-ease-apple), transform 180ms var(--motion-ease-apple);
   }
 
+  .post-actions button .action-symbol,
+  .post-actions button .action-count {
+    display: inline-block;
+    transform-origin: center;
+  }
+
   .post-actions button:hover {
     color: var(--ink);
     transform: translateY(-1px);
@@ -350,5 +381,39 @@
 
   .post-actions button.active {
     color: var(--clay);
+  }
+
+  .post-actions button.pulsing .action-symbol {
+    animation: feed-like-press 360ms var(--motion-ease-apple);
+  }
+
+  .post-actions button.pulsing .action-count {
+    animation: feed-count-rise 360ms var(--motion-ease-apple);
+  }
+
+  @keyframes feed-like-press {
+    0% {
+      transform: scale(0.92);
+    }
+    48% {
+      transform: scale(1.16);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+
+  @keyframes feed-count-rise {
+    0% {
+      opacity: 0.72;
+      transform: translateY(2px);
+    }
+    54% {
+      opacity: 1;
+      transform: translateY(-2px);
+    }
+    100% {
+      transform: translateY(0);
+    }
   }
 </style>

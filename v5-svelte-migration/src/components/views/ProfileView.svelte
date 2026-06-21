@@ -2,7 +2,7 @@
   import { fly } from 'svelte/transition';
   import { onMount, onDestroy } from 'svelte';
   import { tick } from 'svelte';
-  import { selectedProfile, isAuthenticated, user, clearSelectedProfile } from '../../stores/appState';
+  import { selectedProfile, isAuthenticated, isAdmin, user, clearSelectedProfile } from '../../stores/appState';
   import { openModal } from '../../stores/modalState';
   import PostCard from './PostCard.svelte';
   import {
@@ -11,6 +11,7 @@
     normalizeCommunityMediaUrl,
     persistCommunitySession
   } from '../../lib/communityApi';
+  import { navigateToCommunitySection } from '../../lib/appRouter';
   import { closeCommunitySurface } from '../../lib/communityNavigation';
   import { softReveal } from '../../lib/motion';
 
@@ -321,7 +322,10 @@
   }
 
   function close() {
-    closeCommunitySurface(() => clearSelectedProfile());
+    closeCommunitySurface(() => {
+      clearSelectedProfile();
+      navigateToCommunitySection('feed');
+    });
   }
 
   function handleOverlayKeydown(event: KeyboardEvent) {
