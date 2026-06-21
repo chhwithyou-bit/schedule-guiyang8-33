@@ -248,37 +248,37 @@
 </div>
 
 <style>
-  .app-container {
-    position: relative;
-    overflow-x: hidden;
-    background:
-      linear-gradient(180deg, rgba(250, 249, 245, 0.52), rgba(240, 238, 230, 0.9)),
-      var(--paper);
-    color: var(--ink);
-    font-family: var(--serif);
-  }
+	  .app-container {
+	    position: relative;
+	    overflow-x: hidden;
+	    background:
+	      linear-gradient(180deg, rgba(250, 249, 245, 0.52), rgba(240, 238, 230, 0.9)),
+	      var(--paper);
+	    color: var(--ink);
+	    font-family: var(--serif);
+	  }
 
   .app-background {
     position: fixed;
     inset: 0;
     z-index: 0;
-    pointer-events: none;
-    background:
-      linear-gradient(180deg, rgba(250, 249, 245, 0.66), rgba(240, 238, 230, 0.94)),
-      var(--paper);
-  }
+	    pointer-events: none;
+	    background:
+	      linear-gradient(180deg, rgba(250, 249, 245, 0.66), rgba(240, 238, 230, 0.94)),
+	      var(--paper);
+	  }
 
   .app-background::after {
     content: '';
     position: absolute;
     inset: 0;
-    opacity: 0.33;
-    background-image:
-      linear-gradient(rgba(25, 25, 25, 0.025) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(25, 25, 25, 0.018) 1px, transparent 1px);
-    background-size: 32px 32px;
-    mask-image: linear-gradient(180deg, black, transparent 82%);
-  }
+	    opacity: 0.33;
+	    background-image:
+	      linear-gradient(rgba(25, 25, 25, 0.025) 1px, transparent 1px),
+	      linear-gradient(90deg, rgba(25, 25, 25, 0.018) 1px, transparent 1px);
+	    background-size: 32px 32px;
+	    mask-image: linear-gradient(180deg, black, transparent 82%);
+	  }
 
   .main-content-assembly {
     position: relative;
@@ -314,9 +314,9 @@
     overscroll-behavior: contain;
   }
 
-  @media (max-width: 640px) {
-    .view-wrapper {
-      padding-top: 6.5rem;
-    }
-  }
+	  @media (max-width: 640px) {
+	    .view-wrapper {
+	      padding-top: 5.5rem;
+	    }
+	  }
 </style>

@@ -172,10 +172,10 @@
     </button>
 
     <div class="post-meta">
-      <div class="post-author">
-        <span>{post.username || 'Anonymous'}</span>
-        <span class="lvl">Lv.{post.level || 1}</span>
-        {#if post.role === 'admin'}<span class="lvl">管理员</span>{/if}
+	      <div class="post-author">
+	        <span>{post.username || 'Anonymous'}</span>
+	        <span class="lvl">Lv.{post.level || 1}</span>
+	        {#if post.role === 'admin'}<span class="lvl">管理员</span>{/if}
       </div>
       <time>{dateStr}</time>
     </div>
@@ -208,10 +208,10 @@
 
   <footer class="post-actions">
     <button type="button" data-testid="post-like" on:click={toggleLike} aria-label="点赞这条内容" class:active={post.viewer_liked} class:pulsing={likePulse} disabled={isLiking}>
-      <span aria-hidden="true" class="action-symbol">♡</span><span class="action-count" aria-live="polite">{post.like_count || 0}</span>
+	      <span aria-hidden="true" class="action-symbol">♡</span><span class="action-count" aria-live="polite">{post.like_count || 0}</span>
     </button>
     <button type="button" data-testid="post-comment" on:click={handleCommentClick} aria-label="查看评论">
-      <span aria-hidden="true">◦</span>{post.comment_count || 0}
+	      <span aria-hidden="true">◦</span>{post.comment_count || 0}
     </button>
     <button type="button" data-testid="post-favorite" on:click={toggleFavorite} aria-label={post.viewer_favorited ? '取消收藏这条帖子' : '收藏这条帖子'} aria-pressed={Boolean(post.viewer_favorited)} class:active={post.viewer_favorited} disabled={isFavoriting}>
       <span aria-hidden="true">☆</span>{post.favorite_count || 0}
@@ -224,20 +224,20 @@
 </article>
 
 <style>
-  .post-card {
-    padding: var(--s4) 0;
-    border-top: 1px solid var(--hairline);
-  }
+	  .post-card {
+	    padding: var(--s4) 0;
+	    border-top: 1px solid var(--hairline);
+	  }
 
-  .post-card:first-child {
-    border-top: none;
-  }
+	  .post-card:first-child {
+	    border-top: none;
+	  }
 
   .post-head {
     display: flex;
     align-items: center;
     gap: var(--s2);
-    margin-bottom: var(--s3);
+	    margin-bottom: var(--s3);
   }
 
   .post-avatar {
@@ -248,7 +248,7 @@
     place-items: center;
     overflow: hidden;
     border-radius: 999px;
-    background: var(--clay);
+	    background: var(--clay);
     color: var(--paper);
     font-family: var(--sans);
     font-size: 15px;
@@ -275,24 +275,24 @@
     flex-wrap: wrap;
     align-items: center;
     gap: var(--s1);
-    font-family: var(--sans);
-    font-size: 15px;
-    font-weight: 500;
+	    font-family: var(--sans);
+	    font-size: 15px;
+	    font-weight: 500;
     color: var(--ink);
   }
 
   .post-meta time {
-    display: block;
-    margin-top: 1px;
-    color: var(--ink-soft);
+	    display: block;
+	    margin-top: 1px;
+	    color: var(--ink-soft);
     font-family: var(--sans);
     font-size: 13px;
   }
 
   .lvl {
-    border: 1px solid var(--clay-light);
-    border-radius: 4px;
-    color: var(--clay);
+	    border: 1px solid var(--clay-light);
+	    border-radius: 4px;
+	    color: var(--clay);
     font-family: var(--sans);
     font-size: 10px;
     font-weight: 500;
@@ -307,24 +307,24 @@
   }
 
   .post-body {
-    max-width: 60ch;
-    margin-bottom: var(--s3);
-    white-space: pre-wrap;
-    color: var(--ink);
-    font-family: var(--serif);
-    font-size: 18px;
-    line-height: 1.65;
-  }
+	    max-width: 60ch;
+	    margin-bottom: var(--s3);
+	    white-space: pre-wrap;
+	    color: var(--ink);
+	    font-family: var(--serif);
+	    font-size: 18px;
+	    line-height: 1.65;
+	  }
 
   .post-media {
     display: grid;
-    width: min(560px, 100%);
+	    width: min(560px, 100%);
     aspect-ratio: 16 / 9;
     margin-bottom: var(--s3);
     overflow: hidden;
-    border: 1px solid var(--hairline);
-    border-radius: var(--r-card);
-    background: var(--surface);
+	    border: 1px solid var(--hairline);
+	    border-radius: var(--r-card);
+	    background: var(--surface);
   }
 
   .post-media.is-grid {
@@ -337,7 +337,7 @@
     position: relative;
     min-height: 0;
     overflow: hidden;
-    background: var(--paper);
+	    background: var(--paper);
   }
 
   .more {
@@ -355,18 +355,18 @@
   .post-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: clamp(0.85rem, 3vw, var(--s4));
-    color: var(--ink-soft);
+	    gap: clamp(0.85rem, 3vw, var(--s4));
+	    color: var(--ink-soft);
     font-family: var(--sans);
-    font-size: 13px;
-  }
+	    font-size: 13px;
+	  }
 
-  .post-actions button {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    transition: color 180ms var(--motion-ease-apple), transform 180ms var(--motion-ease-apple);
-  }
+	  .post-actions button {
+	    display: inline-flex;
+	    align-items: center;
+	    gap: 6px;
+	    transition: color 180ms var(--motion-ease-apple), transform 180ms var(--motion-ease-apple);
+	  }
 
   .post-actions button .action-symbol,
   .post-actions button .action-count {
@@ -374,14 +374,14 @@
     transform-origin: center;
   }
 
-  .post-actions button:hover {
-    color: var(--ink);
-    transform: translateY(-1px);
-  }
+	  .post-actions button:hover {
+	    color: var(--ink);
+	    transform: translateY(-1px);
+	  }
 
-  .post-actions button.active {
-    color: var(--clay);
-  }
+	  .post-actions button.active {
+	    color: var(--clay);
+	  }
 
   .post-actions button.pulsing .action-symbol {
     animation: feed-like-press 360ms var(--motion-ease-apple);

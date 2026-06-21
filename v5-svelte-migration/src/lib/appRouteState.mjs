@@ -1,14 +1,14 @@
 const DEFAULT_VIEW = 'community';
 const DEFAULT_SECTION = 'feed';
 const KNOWN_VIEWS = new Set(['community', 'profile', 'admin']);
-const KNOWN_SECTIONS = new Set(['feed', 'discovery', 'notifications', 'favorites']);
+const KNOWN_SECTIONS = new Set(['feed', 'discovery', 'square', 'notifications', 'favorites']);
 
 /**
  * @typedef {'community' | 'profile' | 'admin'} AppView
  */
 
 /**
- * @typedef {'feed' | 'discovery' | 'notifications' | 'favorites'} CommunitySection
+ * @typedef {'feed' | 'discovery' | 'square' | 'notifications' | 'favorites'} CommunitySection
  */
 
 /**

@@ -139,6 +139,7 @@ struct Report {
 struct DriveFile {
     id: String,
     user_id: String,
+    username: Option<String>,
     name: String,
     size: f64,
     mime_type: String,
@@ -2448,8 +2449,8 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
             let url = req.url()?;
             let parent_id = url.query_pairs().find(|(k, _)| k == "parent_id").map(|(_, v)| v.to_string());
 
-            let mut sql = "SELECT * FROM drive_files WHERE user_id = ? ".to_string();
-            let mut params = vec![user.id.into()];
+            let mut sql = "SELECT drive_files.*, users.username FROM drive_files LEFT JOIN users ON users.id = drive_files.user_id WHERE 1 = 1 ".to_string();
+            let mut params: Vec<wasm_bindgen::JsValue> = vec![];
             if let Some(pid) = parent_id {
                 sql += " AND parent_id = ? ";
                 params.push(pid.into());
@@ -2505,8 +2506,48 @@ pub async fn main(req: Request, env: Env, fetch_ctx: Context) -> Result<Response
             let body: Value = req.json().await?;
             let id = body["id"].as_str().unwrap_or("");
 
-            db.prepare("DELETE FROM drive_files WHERE id = ? AND user_id = ?")
-                .bind(&[id.into(), user.id.into()])?.run().await?;
+            let foreign_child_count = db.prepare("SELECT COUNT(*) AS used_bytes, 0 AS quota_bytes FROM drive_files WHERE parent_id = ? AND user_id != ?")
+                .bind(&[id.into(), user.id.clone().into()])?
+                .first::<DriveStats>(None)
+                .await?
+                .unwrap_or(DriveStats { quota_bytes: 0.0, used_bytes: 0.0 });
+            if foreign_child_count.used_bytes > 0.0 {
+                return utils::json_resp(json!({"ok": false, "msg": "文件夹里还有其他成员的内容，不能直接删除。"}), 400);
+            }
+
+            let deleted_bytes = db.prepare(
+                "WITH RECURSIVE descendants AS (
+                    SELECT id, size FROM drive_files WHERE id = ? AND user_id = ?
+                    UNION ALL
+                    SELECT drive_files.id, drive_files.size FROM drive_files
+                    INNER JOIN descendants ON drive_files.parent_id = descendants.id
+                    WHERE drive_files.user_id = ?
+                )
+                SELECT 0 AS quota_bytes, COALESCE(SUM(size), 0) AS used_bytes FROM descendants"
+            )
+                .bind(&[id.into(), user.id.clone().into(), user.id.clone().into()])?
+                .first::<DriveStats>(None)
+                .await?
+                .unwrap_or(DriveStats { quota_bytes: 0.0, used_bytes: 0.0 });
+
+            db.prepare(
+                "WITH RECURSIVE descendants AS (
+                    SELECT id FROM drive_files WHERE id = ? AND user_id = ?
+                    UNION ALL
+                    SELECT drive_files.id FROM drive_files
+                    INNER JOIN descendants ON drive_files.parent_id = descendants.id
+                    WHERE drive_files.user_id = ?
+                )
+                DELETE FROM drive_files WHERE id IN (SELECT id FROM descendants) AND user_id = ?"
+            )
+                .bind(&[id.into(), user.id.clone().into(), user.id.clone().into(), user.id.clone().into()])?
+                .run().await?;
+
+            if deleted_bytes.used_bytes > 0.0 {
+                db.prepare("UPDATE user_drive_stats SET used_bytes = MAX(0, used_bytes - ?), updated_at = CURRENT_TIMESTAMP WHERE user_id = ?")
+                    .bind(&[wasm_bindgen::JsValue::from_f64(deleted_bytes.used_bytes), user.id.into()])?
+                    .run().await?;
+            }
             utils::json_resp(json!({"ok": true}), 200)
         })
         .post_async("/api/community/media/upload", |req, ctx| async move {

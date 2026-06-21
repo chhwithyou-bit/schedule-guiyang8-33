@@ -1,6 +1,6 @@
 import { writable } from 'svelte/store';
 
-export type CommunitySection = 'feed' | 'discovery' | 'notifications' | 'favorites';
+export type CommunitySection = 'feed' | 'discovery' | 'square' | 'notifications' | 'favorites';
 
 export type CommunityViewState = {
   section: CommunitySection;

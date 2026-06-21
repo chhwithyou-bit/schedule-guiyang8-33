@@ -134,7 +134,7 @@
           <span class="author-avatar">{$isAuthenticated ? ($user?.username?.slice(0, 1).toUpperCase() || '我') : '/'}</span>
           <div>
             <h2 id="post-modal-title">{$isAuthenticated ? ($user?.username || '我') : '登录后发布'}</h2>
-            <p>{$isAuthenticated ? '发布到社区动态' : '登录后就能发布，也能顺手传图。'}</p>
+	            <p>{$isAuthenticated ? '发布到社区动态' : '登录后就能发布，也能顺手传图。'}</p>
           </div>
         </div>
 
@@ -178,8 +178,8 @@
               <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
             </svg>
           </span>
-          <span>发布到</span>
-          <strong>社区动态</strong>
+	            <span>发布到</span>
+	          <strong>社区动态</strong>
         </div>
         <div class="publish-row">
           <span class="row-icon" aria-hidden="true">
@@ -188,8 +188,8 @@
               <circle cx="12" cy="12" r="3"></circle>
             </svg>
           </span>
-          <span>谁可以看</span>
-          <strong>所有人可见</strong>
+	          <span>谁可以看</span>
+	          <strong>所有人可见</strong>
         </div>
       </section>
 
@@ -216,22 +216,22 @@
   .scrim {
     position: absolute;
     inset: 0;
-    background: rgba(25, 25, 25, 0.18);
-    backdrop-filter: blur(2px);
+	    background: rgba(25, 25, 25, 0.18);
+	    backdrop-filter: blur(2px);
   }
 
   .post-modal-shell {
     position: relative;
     display: flex;
-    width: min(100%, 680px);
+	    width: min(100%, 680px);
     max-height: calc(var(--app-modal-viewport-height, 100dvh) - (var(--s3) * 2));
     flex-direction: column;
     border: 1px solid var(--hairline);
-    border-radius: 28px;
-    background:
-      linear-gradient(180deg, rgba(250, 249, 245, 0.96), rgba(240, 238, 230, 0.96)),
-      var(--paper);
-    box-shadow: 0 28px 72px rgba(25, 25, 25, 0.16);
+	    border-radius: 28px;
+	    background:
+	      linear-gradient(180deg, rgba(250, 249, 245, 0.96), rgba(240, 238, 230, 0.96)),
+	      var(--paper);
+	    box-shadow: 0 28px 72px rgba(25, 25, 25, 0.16);
     overflow: hidden;
   }
 
@@ -241,15 +241,15 @@
     align-items: center;
     gap: var(--s3);
     border-bottom: 1px solid var(--hairline);
-    background: rgba(250, 249, 245, 0.92);
-    padding: var(--s3) var(--s4);
+	    background: rgba(250, 249, 245, 0.92);
+	    padding: var(--s3) var(--s4);
   }
 
   .composer-cancel,
   .composer-publish {
-    font-family: var(--sans);
-    font-size: 14px;
-    font-weight: 700;
+	    font-family: var(--sans);
+	    font-size: 14px;
+	    font-weight: 700;
   }
 
   .composer-cancel {
@@ -267,7 +267,7 @@
     color: var(--ink-soft);
     font-family: var(--sans);
     font-size: 10px;
-    font-weight: 800;
+	    font-weight: 800;
     letter-spacing: 0.18em;
     text-transform: uppercase;
   }
@@ -283,31 +283,31 @@
     justify-self: end;
     min-width: 72px;
     border-radius: var(--r-btn);
-    background: var(--clay);
+	    background: var(--clay);
     color: var(--paper);
     padding: 10px 16px;
   }
 
   .composer-publish:disabled {
-    background: rgba(178, 116, 91, 0.28);
+	    background: rgba(178, 116, 91, 0.28);
     color: rgba(250, 249, 245, 0.82);
   }
 
   .composer-scroll {
     min-height: 0;
     overflow-y: auto;
-    padding: var(--s4);
+	    padding: var(--s4);
   }
 
   .composer-card,
   .publish-panel {
     border: 1px solid var(--hairline);
-    border-radius: 24px;
-    background: var(--surface);
+	    border-radius: 24px;
+	    background: var(--surface);
   }
 
   .composer-card {
-    padding: var(--s4);
+	    padding: var(--s4);
   }
 
   .composer-author {
@@ -324,18 +324,18 @@
     flex: 0 0 auto;
     place-items: center;
     border-radius: 999px;
-    background: var(--clay);
+	    background: var(--clay);
     color: var(--paper);
     font-family: var(--sans);
     font-size: 14px;
-    font-weight: 800;
+	    font-weight: 800;
   }
 
   h2 {
     color: var(--ink);
     font-family: var(--sans);
     font-size: 16px;
-    font-weight: 800;
+	    font-weight: 800;
     line-height: 1.2;
   }
 
@@ -348,13 +348,13 @@
 
   .composer-input {
     width: 100%;
-    min-height: 240px;
+	    min-height: 240px;
     resize: none;
     border: 0;
     background: transparent;
     padding: var(--s2) 0 var(--s4);
     color: var(--ink);
-    font-size: 21px;
+	    font-size: 21px;
     line-height: 1.7;
   }
 
@@ -363,7 +363,7 @@
   }
 
   .composer-input::placeholder {
-    color: rgba(25, 25, 25, 0.34);
+	    color: rgba(25, 25, 25, 0.34);
   }
 
   .media-area {
@@ -382,7 +382,7 @@
     aspect-ratio: 1;
     overflow: hidden;
     border: 1px solid var(--hairline);
-    border-radius: var(--r-btn);
+	    border-radius: var(--r-btn);
   }
 
   figure img {
@@ -409,11 +409,11 @@
     gap: 8px;
     border: 1px dashed var(--hairline-strong);
     border-radius: var(--r-btn);
-    background: var(--paper);
+	    background: var(--paper);
     color: var(--ink-soft);
     font-family: var(--sans);
     font-size: 13px;
-    font-weight: 800;
+	    font-weight: 800;
     padding: 12px 14px;
   }
 
@@ -437,7 +437,7 @@
     color: var(--ink);
     font-family: var(--sans);
     font-size: 14px;
-    font-weight: 800;
+	    font-weight: 800;
   }
 
   .publish-row + .publish-row {

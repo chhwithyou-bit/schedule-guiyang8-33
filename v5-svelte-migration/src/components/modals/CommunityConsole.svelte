@@ -4,9 +4,7 @@
   import { isAdmin, isAuthenticated, selectedProfile, user, selectedPost, unreadNotificationsCount } from '../../stores/appState';
   import {
     COMMUNITY_MEDIA_UPLOAD_ENDPOINT,
-    communityFetch,
-    normalizeCommunityMediaUrl,
-    persistCommunitySession
+    communityFetch
   } from '../../lib/communityApi';
   import { navigateToView } from '../../lib/appRouter';
   import {
@@ -28,6 +26,8 @@
 
   type DriveItem = {
     id: string;
+    user_id?: string;
+    username?: string;
     name: string;
     size?: number;
     mime_type?: string;
@@ -62,25 +62,19 @@
     avatar_url?: string;
   };
 
-  type ProfileForm = {
-    signature: string;
-    avatar_url: string;
-    background_url: string;
-  };
-
   const tabs: Array<{ id: TabId; label: string }> = [
-    { id: 'drive', label: '网盘' },
+    { id: 'drive', label: '公共广场' },
     { id: 'notifications', label: '提醒' }
   ];
 
   const tabHero: Record<TabId, { eyebrow: string; title: string }> = {
-    drive: { eyebrow: 'drive', title: '文件与网盘空间' },
-    notifications: { eyebrow: 'alerts', title: '互动提醒与通知' }
+    drive: { eyebrow: 'square', title: '公共广场' },
+    notifications: { eyebrow: 'alerts', title: '提醒中心' }
   };
 
   const tabDescriptions: Record<TabId, string> = {
-    drive: '浏览、上传和整理社区网盘。',
-    notifications: '查看最近的点赞、评论、回复、转发和关注提醒。'
+    drive: '共享文件、图片和视频。',
+    notifications: '点赞、评论、关注。'
   };
 
   const allowedNotificationTypes = new Set(['like', 'comment', 'reply', 'repost', 'comment_like', 'follow']);
@@ -102,6 +96,7 @@
   let driveError = '';
   let uploadingMedia = false;
   let driveFeedback: DriveFeedback | null = null;
+  let newFolderName = '';
 
   let notifications: NotificationItem[] = [];
   let loadingNotifications = false;
@@ -322,6 +317,14 @@
     return '打开文件';
   }
 
+  function isOwnDriveItem(item: DriveItem) {
+    return Boolean($user?.id && item.user_id === $user.id);
+  }
+
+  function getDriveOwnerLabel(item: DriveItem) {
+    return item.username || (isOwnDriveItem(item) ? '我' : '成员');
+  }
+
   async function loadDriveInfo() {
     if (!$isAuthenticated) return;
 
@@ -388,8 +391,11 @@
       return;
     }
 
-    const name = prompt('新文件夹叫什么？');
-    if (!name || !name.trim()) return;
+    const name = newFolderName.trim();
+    if (!name) {
+      setDriveFeedback('先给文件夹起个名字。', 'error');
+      return;
+    }
 
     clearDriveFeedback();
 
@@ -408,8 +414,9 @@
         setDriveFeedback(driveError, 'error');
         return;
       }
+      newFolderName = '';
       await loadDriveList();
-      setDriveFeedback(`已创建文件夹「${name.trim()}」。`, 'success');
+      setDriveFeedback(`已创建「${name}」。`, 'success');
     } catch (error) {
       console.error('Failed to create folder', error);
       driveError = '文件夹没建成功。';
@@ -472,8 +479,8 @@
 
   async function handleMediaUpload(event: Event) {
     const input = event.currentTarget as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) return;
+    const files = Array.from(input.files || []);
+    if (files.length === 0) return;
     if (!$isAuthenticated) {
       requireAuth('登录后才能上传文件。');
       input.value = '';
@@ -482,26 +489,32 @@
 
     uploadingMedia = true;
     driveError = '';
-    setDriveFeedback(`正在上传「${file.name}」...`, 'info');
+    setDriveFeedback(`正在上传 ${files.length} 个文件...`, 'info');
 
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const parentId = drivePath[drivePath.length - 1]?.id;
-      if (parentId) formData.append('parent_id', parentId);
+      let failedCount = 0;
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        const parentId = drivePath[drivePath.length - 1]?.id;
+        if (parentId) formData.append('parent_id', parentId);
 
-      const res = await communityFetch(COMMUNITY_MEDIA_UPLOAD_ENDPOINT, {
-        method: 'POST',
-        body: formData
-      });
-      const data = await res.json();
-      if (!data.ok) {
-        driveError = data.msg || '文件没传上去。';
-        setDriveFeedback(driveError, 'error');
-        return;
+        const res = await communityFetch(COMMUNITY_MEDIA_UPLOAD_ENDPOINT, {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        if (!data.ok) {
+          failedCount += 1;
+        }
       }
       await refreshDriveData();
-      setDriveFeedback(`「${file.name}」已上传。`, 'success');
+      if (failedCount > 0) {
+        driveError = `${failedCount} 个文件没传上去。`;
+        setDriveFeedback(files.length === failedCount ? driveError : `已上传 ${files.length - failedCount} 个，${failedCount} 个失败。`, files.length === failedCount ? 'error' : 'info');
+      } else {
+        setDriveFeedback(`已上传 ${files.length} 个文件。`, 'success');
+      }
     } catch (error) {
       console.error('Failed to upload drive file', error);
       driveError = '文件没传上去。';
@@ -675,7 +688,7 @@
       <header class="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-white/10 bg-[rgba(var(--color-bg-rgb),0.78)] px-5 py-4 backdrop-blur-[20px] md:px-6">
         <div>
           <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">控制台导航</p>
-          <h2 id="community-console-title" class="mt-1 text-2xl font-black tracking-tight">网盘 / 提醒</h2>
+          <h2 id="community-console-title" class="mt-1 text-2xl font-black tracking-tight">{activeTabMeta?.label || '公共广场'}</h2>
         </div>
 
         <div class="flex items-center gap-3">
@@ -732,7 +745,7 @@
 
           {#if !$isAuthenticated}
             <p class="mt-3 rounded-[20px] border border-white/10 bg-[rgba(255,255,255,0.06)] px-4 py-3 text-sm font-medium leading-7 opacity-75">
-              {authPrompt || '先登录，就能继续发帖、评论和查看互动提醒。'}
+              {authPrompt || '登录后继续。'}
             </p>
           {/if}
         </div>
@@ -742,49 +755,60 @@
           {#if activeTab === 'drive'}
             {#if !$isAuthenticated}
               <div class="console-panel p-6">
-                <p class="text-sm font-bold opacity-70">{authPrompt || '登录后才能访问网盘。'}</p>
+                <p class="text-sm font-bold opacity-70">{authPrompt || '登录后进入公共广场。'}</p>
                 <button type="button" class="mt-4 console-pill console-pill--primary px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)]" on:click={openAuth}>
                   先去登录
                 </button>
               </div>
             {:else}
               <div class="space-y-5">
-                <section class="console-panel p-6">
-                  <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <section class="console-panel public-square-panel p-5 md:p-6">
+                  <div class="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
                     <div>
-                      <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">网盘情况</p>
-                      <h3 class="mt-2 text-3xl font-black tracking-tight">{formatBytes(driveStats.used_bytes || 0)} / {formatBytes(driveStats.quota_bytes || 0)}</h3>
-                      <p class="mt-2 text-sm font-medium opacity-65">这里可以直接浏览、上传、重命名和删除媒体文件。</p>
-                      <p class="mt-2 text-xs font-bold opacity-55">剩余可用 {formatBytes(driveStats.available_bytes || 0)}</p>
+                      <p class="text-[10px] font-black uppercase tracking-[0.24em] opacity-35">PUBLIC SQUARE</p>
+                      <h3 class="mt-2 text-2xl font-black tracking-tight">共享文件夹</h3>
+                      <div class="mt-3 flex flex-wrap items-center gap-2 text-xs font-bold opacity-55">
+                        <span>{driveItems.length} 项</span>
+                        <span>已用 {formatBytes(driveStats.used_bytes || 0)}</span>
+                        {#if driveStats.quota_bytes}
+                          <span>剩余 {formatBytes(driveStats.available_bytes || 0)}</span>
+                        {/if}
+                      </div>
                     </div>
 
-                    <div class="flex flex-wrap gap-3">
-                      <label class="cursor-pointer console-pill console-pill--primary px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--color-bg)]">
-                        {uploadingMedia ? '上传中...' : '上传媒体'}
-                        <input type="file" class="hidden" disabled={uploadingMedia} on:change={handleMediaUpload} />
+                    <div class="public-square-actions">
+                      <form class="folder-create" on:submit|preventDefault={createFolder}>
+                        <input
+                          class="console-field folder-create__input px-4 py-3 text-sm font-semibold"
+                          bind:value={newFolderName}
+                          maxlength="48"
+                          placeholder="文件夹名字"
+                          aria-label="文件夹名字"
+                        />
+                        <button type="submit" class="console-pill console-pill--ghost folder-create__button px-4 py-3 text-xs font-black uppercase tracking-[0.16em]">
+                          创建
+                        </button>
+                      </form>
+                      <label class="cursor-pointer console-pill console-pill--primary px-5 py-3 text-xs font-black uppercase tracking-[0.16em] text-[var(--color-bg)]">
+                        {uploadingMedia ? '上传中...' : '上传'}
+                        <input type="file" class="hidden" multiple disabled={uploadingMedia} on:change={handleMediaUpload} />
                       </label>
-                      <button type="button" class="console-pill console-pill--ghost px-5 py-3 text-xs font-black uppercase tracking-[0.2em]" on:click={createFolder}>
-                        新建文件夹
-                      </button>
-                      <button type="button" class="console-pill console-pill--ghost px-5 py-3 text-xs font-black uppercase tracking-[0.2em]" on:click={refreshDriveData}>
+                      <button type="button" class="console-pill console-pill--ghost px-4 py-3 text-xs font-black uppercase tracking-[0.16em]" on:click={refreshDriveData}>
                         刷新
                       </button>
                     </div>
                   </div>
 
-                  <div class="mt-5">
-                    <div class="h-3 overflow-hidden rounded-full bg-white/10">
-                      <div class="h-full rounded-full bg-[var(--color-primary)] transition-[width] duration-300" style="width: {driveUsagePercent}%"></div>
+                  {#if driveStats.quota_bytes}
+                    <div class="mt-5">
+                      <div class="h-2 overflow-hidden rounded-full bg-white/10">
+                        <div class="h-full rounded-full bg-[var(--color-primary)] transition-[width] duration-300" style="width: {driveUsagePercent}%"></div>
+                      </div>
                     </div>
-                    <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-[10px] font-black uppercase tracking-[0.18em] opacity-35">
-                      <span>已用 {driveUsagePercent}%</span>
-                      <span>已占用 {formatBytes(driveStats.used_bytes || 0)}</span>
-                      <span>剩余 {formatBytes(driveStats.available_bytes || 0)}</span>
-                    </div>
-                  </div>
+                  {/if}
                 </section>
 
-                <section class="console-panel p-6">
+                <section class="console-panel p-5 md:p-6">
                   <div class="flex flex-wrap items-center gap-2">
                     {#each drivePath as crumb, index}
                       <button type="button" class="console-pill console-pill--ghost px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em]" on:click={() => goToDrivePath(index)}>
@@ -801,64 +825,61 @@
                     <p class="mt-4 rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-200">{driveError}</p>
                   {/if}
 
-                  <div class="mt-5 space-y-3">
+                  <div class="drive-grid mt-5">
                     {#if loadingDrive}
-                      {#each Array(5) as _}
-                        <div class="h-20 animate-pulse rounded-[22px] bg-[rgba(255,255,255,0.08)]"></div>
+                      {#each Array(6) as _}
+                        <div class="h-48 animate-pulse rounded-[24px] bg-[rgba(255,255,255,0.08)]"></div>
                       {/each}
                     {:else if driveItems.length > 0}
                       {#each driveItems as item (item.id)}
-                        <article class="flex flex-col gap-4 console-subpanel p-4 md:flex-row md:items-center md:justify-between">
-                          <div class="min-w-0 flex-1">
-                            <div class="flex items-start gap-3">
-                              <div class="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-[16px] bg-[var(--color-primary)] text-sm font-black text-[var(--color-bg)]">
-                                {#if isImageMimeType(item) && item.url}
-                                  <img
-                                    src={item.url}
-                                    alt={item.name}
-                                    class="h-full w-full object-cover"
-                                    loading="lazy"
-                                    on:load={() => markDrivePreviewReady(item.id)}
-                                    on:error={() => markDrivePreviewError(item.id)}
-                                  />
-                                {:else}
-                                  {item.is_folder ? 'DIR' : isMediaMimeType(item) ? 'MEDIA' : 'FILE'}
-                                {/if}
-                              </div>
-                              <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-black">{item.name}</p>
-                                <p class="mt-1 text-[10px] font-black uppercase tracking-[0.18em] opacity-35">
-                                  {describeDriveItem(item)} {#if !item.is_folder}/ {formatBytes(item.size || 0)}{/if}
-                                </p>
-                                {#if !item.is_folder && item.updated_at}
-                                  <p class="mt-2 text-xs font-medium opacity-45">最近更新于 {formatDate(item.updated_at)}</p>
-                                {/if}
-                              </div>
-                            </div>
+                        <article class="drive-card console-subpanel">
+                          <div class="drive-card__preview">
+                            {#if isImageMimeType(item) && item.url}
+                              <img
+                                src={item.url}
+                                alt={item.name}
+                                class="h-full w-full object-cover"
+                                loading="lazy"
+                                on:load={() => markDrivePreviewReady(item.id)}
+                                on:error={() => markDrivePreviewError(item.id)}
+                              />
+                            {:else}
+                              <span>{item.is_folder ? 'DIR' : isMediaMimeType(item) ? 'MEDIA' : 'FILE'}</span>
+                            {/if}
                           </div>
-
-                          <div class="flex flex-wrap gap-2">
+                          <div class="drive-card__body">
+                            <div class="min-w-0">
+                              <p class="truncate text-sm font-black">{item.name}</p>
+                              <p class="mt-1 text-[10px] font-black uppercase tracking-[0.16em] opacity-40">
+                                {describeDriveItem(item)} {#if !item.is_folder}/ {formatBytes(item.size || 0)}{/if}
+                              </p>
+                              <p class="mt-2 truncate text-xs font-semibold opacity-50">由 {getDriveOwnerLabel(item)} 创建</p>
+                            </div>
+                            <div class="drive-card__actions">
                             {#if item.is_folder}
-                              <button type="button" class="console-pill console-pill--primary px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--color-bg)]" on:click={() => enterFolder(item)}>
+                              <button type="button" class="console-pill console-pill--primary px-4 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--color-bg)]" on:click={() => enterFolder(item)}>
                                 {getDriveItemOpenLabel(item)}
                               </button>
                             {:else if item.url}
-                              <a href={item.url} target="_blank" rel="noreferrer" class="console-pill console-pill--primary px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--color-bg)]">
+                              <a href={item.url} target="_blank" rel="noreferrer" class="console-pill console-pill--primary px-4 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--color-bg)]">
                                 {getDriveItemOpenLabel(item)}
                               </a>
                             {/if}
-                            <button type="button" class="console-pill console-pill--ghost px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em]" on:click={() => renameDriveItem(item)}>
-                              改名
-                            </button>
-                            <button type="button" class="rounded-full border border-red-400/20 bg-red-500/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-red-200 transition-transform hover:scale-105" on:click={() => deleteDriveItem(item)}>
-                              删除
-                            </button>
+                            {#if isOwnDriveItem(item)}
+                              <button type="button" class="console-pill console-pill--ghost px-4 py-2 text-[10px] font-black uppercase tracking-[0.16em]" on:click={() => renameDriveItem(item)}>
+                                改名
+                              </button>
+                              <button type="button" class="danger-pill px-4 py-2 text-[10px] font-black uppercase tracking-[0.16em]" on:click={() => deleteDriveItem(item)}>
+                                删除
+                              </button>
+                            {/if}
+                            </div>
                           </div>
                         </article>
                       {/each}
                     {:else}
-                      <div class="console-empty-state px-4 py-10 text-center text-sm font-bold opacity-50">
-                        这个目录还没有文件。
+                      <div class="console-empty-state drive-empty px-4 py-12 text-center text-sm font-bold opacity-60">
+                        这里还没有内容。
                       </div>
                     {/if}
                   </div>
@@ -1079,19 +1100,88 @@
     text-transform: none;
   }
 
-  .account-layout {
-    display: grid;
-    gap: 1.5rem;
+  .public-square-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
   }
 
-  .account-form-grid {
+  .folder-create {
+    display: grid;
+    grid-template-columns: minmax(10rem, 1fr) auto;
+    gap: 0.5rem;
+    width: min(100%, 24rem);
+  }
+
+  .folder-create__input {
+    min-width: 0;
+  }
+
+  .folder-create__button {
+    white-space: nowrap;
+  }
+
+  .drive-grid {
     display: grid;
     gap: 1rem;
-    margin-top: 1.5rem;
+    grid-template-columns: repeat(auto-fill, minmax(13.5rem, 1fr));
   }
 
-  .account-form-grid .console-field {
-    min-height: 3.2rem;
+  .drive-card {
+    display: flex;
+    min-width: 0;
+    overflow: hidden;
+    flex-direction: column;
+    border-radius: 1.75rem;
+  }
+
+  .drive-card__preview {
+    display: flex;
+    aspect-ratio: 16 / 10;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border-bottom: 1px solid var(--hairline);
+    background: color-mix(in srgb, var(--surface) 72%, var(--ink) 6%);
+    color: var(--ink);
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+  }
+
+  .drive-card__body {
+    display: grid;
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .drive-card__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .danger-pill {
+    border-radius: 999px;
+    border: 1px solid rgba(139, 46, 36, 0.2);
+    background: rgba(139, 46, 36, 0.08);
+    color: #8b2e24;
+    transition:
+      transform 0.18s ease,
+      background 0.18s ease,
+      border-color 0.18s ease;
+  }
+
+  .danger-pill:hover {
+    transform: translateY(-1px);
+    border-color: rgba(139, 46, 36, 0.32);
+    background: rgba(139, 46, 36, 0.12);
+  }
+
+  .drive-empty {
+    grid-column: 1 / -1;
+    border-radius: 1.75rem;
   }
 
   .console-scrim {
@@ -1122,18 +1212,27 @@
     border-color: var(--hairline);
     background: var(--surface);
     color: var(--ink);
-    box-shadow: none;
+    box-shadow:
+      0 12px 28px rgba(var(--shadow-rgb), 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.42);
     backdrop-filter: none;
   }
 
   .console-hero-panel {
     background: var(--paper);
+    border-radius: 2rem;
+  }
+
+  .console-panel {
+    border-radius: 2rem;
   }
 
   .console-panel:hover,
   .console-tab-card:hover {
     border-color: var(--hairline-strong);
-    box-shadow: none;
+    box-shadow:
+      0 16px 34px rgba(var(--shadow-rgb), 0.11),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5);
   }
 
   .console-subpanel,
@@ -1141,12 +1240,15 @@
   .console-field,
   .console-tab-card {
     background: var(--paper);
+    border-radius: 1.5rem;
   }
 
   .console-tab-card.is-active {
     border-color: var(--clay);
     background: var(--surface);
-    box-shadow: inset 0 -2px 0 var(--clay);
+    box-shadow:
+      0 12px 26px rgba(var(--shadow-rgb), 0.1),
+      inset 0 -2px 0 var(--clay);
   }
 
   .console-pill--primary {
@@ -1159,7 +1261,7 @@
   .console-shell :global([class*=bg-\[rgba\(255\,255\,255\,0\.08\)\]]) {
     border-color: var(--hairline) !important;
     background: var(--surface) !important;
-    box-shadow: none;
+    box-shadow: 0 8px 18px rgba(var(--shadow-rgb), 0.06);
   }
 
   .console-shell :global([class*=border-white]),
@@ -1182,31 +1284,28 @@
     box-shadow: 0 0 0 2px rgba(var(--glow-primary-rgb), 0.12);
   }
 
-  @media (min-width: 768px) {
-    .account-form-grid {
-      grid-template-columns: minmax(0, 1.1fr) minmax(12rem, 0.95fr);
-    }
-
-    .account-form-grid label:first-child {
-      grid-row: span 2;
-    }
-
-    .account-form-grid.is-embedded-account {
-      grid-template-columns: 1fr;
-    }
-
-    .account-form-grid.is-embedded-account label:first-child {
-      grid-row: auto;
-    }
+  .drive-card.console-subpanel {
+    border-radius: 1.75rem;
   }
 
-  @media (min-width: 1280px) {
-    .account-layout {
-      grid-template-columns: minmax(0, 1.05fr) minmax(20rem, 0.95fr);
+  .public-square-panel {
+    overflow: hidden;
+  }
+
+  @media (max-width: 640px) {
+    .public-square-actions {
+      align-items: stretch;
+      flex-direction: column;
     }
 
-    .account-layout.is-embedded-account {
+    .folder-create,
+    .public-square-actions :global(.console-pill) {
+      width: 100%;
+    }
+
+    .folder-create {
       grid-template-columns: 1fr;
     }
   }
+
 </style>

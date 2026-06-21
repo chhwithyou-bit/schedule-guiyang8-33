@@ -106,21 +106,21 @@
       {#if $unreadNotificationsCount > 0}
         <span class="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-red-500 shadow-sm animate-pulse"></span>
       {/if}
-      <span class="slash" aria-hidden="true">/</span>
-      <span class="trigger-copy">
-        <small>Quick</small>
-        <strong>{currentViewLabel}</strong>
-      </span>
+	      <span class="slash" aria-hidden="true">/</span>
+	      <span class="trigger-copy">
+	        <small>Quick</small>
+	        <strong>{currentViewLabel}</strong>
+	      </span>
     </button>
 
     {#if isExpanded}
       <div id="liquid-bar-panel" class="liquid-panel" role="dialog" aria-label="快速导航菜单">
         <div class="panel-head">
           <div>
-            <p class="ui-kicker">Navigate</p>
-            <p class="panel-title">少量入口，保持手边可达。</p>
+	            <p class="ui-kicker">Navigate</p>
+	            <p class="panel-title">少量入口，保持手边可达。</p>
           </div>
-          <button type="button" class="mini-btn" on:click={closeBar}>收起</button>
+	          <button type="button" class="mini-btn" on:click={closeBar}>收起</button>
         </div>
 
         <div class="nav-grid">
@@ -136,7 +136,7 @@
             <span>{$isAuthenticated ? '发一条' : '登录后发帖'}</span><span aria-hidden="true">/</span>
           </button>
           <button type="button" data-liquid-target="notifications" class="liquid-console-btn flex items-center justify-between" on:click={openNotifications}>
-            <span>通知</span>
+            <span>提醒</span>
             {#if $unreadNotificationsCount > 0}
               <span class="flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">{$unreadNotificationsCount > 99 ? '99+' : $unreadNotificationsCount}</span>
             {/if}
@@ -144,7 +144,7 @@
           <button type="button" data-liquid-target="favorites" class="liquid-console-btn" on:click={openFavorites}>收藏</button>
           {#if $isAuthenticated}
             <button type="button" class="liquid-console-btn" on:click={() => { selectedProfile.set($user); closeBar(); }}>个人主页</button>
-            <button type="button" data-liquid-target="drive" class="liquid-console-btn" on:click={openDrive}>网盘</button>
+            <button type="button" data-liquid-target="drive" class="liquid-console-btn" on:click={openDrive}>广场</button>
           {/if}
         </div>
       </div>
@@ -166,26 +166,26 @@
     pointer-events: auto;
   }
 
-  .liquid-trigger,
-  .liquid-panel,
+	  .liquid-trigger,
+	  .liquid-panel,
   .liquid-nav-btn,
   .liquid-console-btn,
   .liquid-compose-btn,
   .mini-btn {
-    border: 1px solid var(--hairline-strong);
-    background: rgba(250, 249, 245, 0.92);
-    box-shadow: 0 18px 44px rgba(var(--shadow-rgb), 0.08);
-    backdrop-filter: blur(12px);
-  }
+	    border: 1px solid var(--hairline-strong);
+	    background: rgba(250, 249, 245, 0.92);
+	    box-shadow: 0 18px 44px rgba(var(--shadow-rgb), 0.08);
+	    backdrop-filter: blur(12px);
+	  }
 
   .liquid-trigger {
     display: inline-flex;
     align-items: center;
     gap: 0.72rem;
     min-width: 4.75rem;
-    min-height: 4.25rem;
-    border-radius: 12px;
-    padding: 0.78rem 0.92rem;
+	    min-height: 4.25rem;
+	    border-radius: 12px;
+	    padding: 0.78rem 0.92rem;
     font-family: var(--sans);
     transition: transform 180ms ease, border-color 180ms ease;
   }
@@ -196,10 +196,10 @@
   }
 
   .slash {
-    color: var(--clay);
-    font-size: 1.6rem;
-    line-height: 1;
-  }
+	    color: var(--clay);
+	    font-size: 1.6rem;
+	    line-height: 1;
+	  }
 
   .trigger-copy {
     display: flex;
@@ -223,10 +223,10 @@
   .liquid-panel {
     position: absolute;
     bottom: calc(100% + 0.8rem);
-    left: 0;
+	    left: 0;
     width: min(20rem, calc(100vw - 2rem));
-    border-radius: 12px;
-    padding: 1rem;
+	    border-radius: 12px;
+	    padding: 1rem;
     animation: panel-in 220ms var(--motion-ease-apple) both;
   }
 
@@ -239,15 +239,15 @@
 
   .panel-title {
     margin-top: 0.25rem;
-    color: var(--ink-soft);
-    font-size: 0.92rem;
-  }
+	    color: var(--ink-soft);
+	    font-size: 0.92rem;
+	  }
 
   .mini-btn,
   .liquid-nav-btn,
   .liquid-console-btn,
   .liquid-compose-btn {
-    border-radius: 8px;
+	    border-radius: 8px;
     font-family: var(--sans);
     font-size: 0.88rem;
     font-weight: 500;
@@ -273,11 +273,11 @@
     text-align: left;
   }
 
-  .liquid-nav-btn.is-active,
-  .liquid-compose-btn {
-    border-color: var(--clay);
-    background: var(--clay);
-    color: var(--paper);
+	  .liquid-nav-btn.is-active,
+	  .liquid-compose-btn {
+	    border-color: var(--clay);
+	    background: var(--clay);
+	    color: var(--paper);
   }
 
   .liquid-compose-btn {
@@ -315,10 +315,10 @@
       display: none;
     }
 
-    .liquid-trigger {
-      min-width: 3.75rem;
-      min-height: 3.75rem;
-      justify-content: center;
-    }
+	    .liquid-trigger {
+	      min-width: 3.75rem;
+	      min-height: 3.75rem;
+	      justify-content: center;
+	    }
   }
 </style>

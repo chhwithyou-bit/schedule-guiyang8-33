@@ -13,8 +13,8 @@
   let error = '';
 
   $: usernameLabel = isRegister ? '用户名' : '账号';
-  $: usernamePlaceholder = isRegister ? '想让大家怎么叫你' : '输入你的用户名';
-  $: passwordPlaceholder = isRegister ? '设置一个你记得住的密码' : '输入你的密码';
+	  $: usernamePlaceholder = isRegister ? '想让大家怎么叫你' : '输入你的用户名';
+	  $: passwordPlaceholder = isRegister ? '设置一个你记得住的密码' : '输入你的密码';
 
   async function hydrateCurrentUser(authToken: string) {
     const res = await fetch('/api/community/me', {
@@ -81,8 +81,8 @@
     <button type="button" class="close" on:click={closeModal} aria-label="关闭">×</button>
     <div class="brand">8Community<span>/</span></div>
 
-    <h1 id="auth-modal-title" class="title">{isRegister ? '来这里安个家' : '回来就好'}</h1>
-    <p id="auth-modal-description" class="subtitle">{isRegister ? '起个名字，就能开始说话。' : '一个安静的角落，等你继续。'}</p>
+	    <h1 id="auth-modal-title" class="title">{isRegister ? '来这里安个家' : '回来就好'}</h1>
+	    <p id="auth-modal-description" class="subtitle">{isRegister ? '起个名字，就能开始说话。' : '一个安静的角落，等你继续。'}</p>
 
     <div class="switch" role="tablist" aria-label="登录注册切换">
       <button type="button" aria-pressed={!isRegister} on:click={() => (isRegister = false)}>登录</button>
@@ -103,7 +103,7 @@
       {#if error}<p class="error">{error}</p>{/if}
 
       <button type="submit" class="submit" disabled={loading || !username.trim() || !password}>
-        {loading ? '正在处理...' : (isRegister ? '注册并进入 /' : '登录 /')}
+	        {loading ? '正在处理...' : (isRegister ? '注册并进入 /' : '登录 /')}
       </button>
     </form>
 
@@ -133,14 +133,14 @@
 	    content: '';
 	    position: fixed;
 	    inset: 0;
-	    background: var(--surface);
+		    background: var(--surface);
 	  }
 
 	  .scrim {
 	    position: fixed;
 	    inset: 0;
 	    background: rgba(25, 25, 25, 0.18);
-    backdrop-filter: blur(2px);
+	    backdrop-filter: blur(2px);
   }
 
   .modal {
@@ -148,10 +148,10 @@
     width: min(100%, 420px);
     max-height: calc(var(--app-modal-viewport-height, 100dvh) - (var(--s3) * 2));
     border: 1px solid var(--hairline);
-    border-radius: 16px;
-    background: var(--surface);
-    box-shadow: 0 24px 60px -24px rgba(25, 25, 25, 0.22);
-    padding: var(--s5) var(--s4) var(--s4);
+	    border-radius: 16px;
+	    background: var(--surface);
+	    box-shadow: 0 24px 60px -24px rgba(25, 25, 25, 0.22);
+	    padding: var(--s5) var(--s4) var(--s4);
     overflow-y: auto;
   }
 
@@ -174,10 +174,10 @@
   }
 
   .brand {
-    margin-bottom: var(--s4);
+	    margin-bottom: var(--s4);
     text-align: center;
     font-family: var(--sans);
-    font-size: 18px;
+	    font-size: 18px;
     font-weight: 600;
   }
 
@@ -188,14 +188,14 @@
   .title {
     margin-bottom: var(--s1);
     text-align: center;
-    font-family: var(--serif);
-    font-size: 32px;
-    font-weight: 400;
-    letter-spacing: -0.02em;
+	    font-family: var(--serif);
+	    font-size: 32px;
+	    font-weight: 400;
+	    letter-spacing: -0.02em;
   }
 
   .subtitle {
-    margin-bottom: var(--s5);
+	    margin-bottom: var(--s5);
     color: var(--ink-soft);
     text-align: center;
   }
@@ -205,7 +205,7 @@
     margin-bottom: var(--s4);
     border: 1px solid var(--hairline);
     border-radius: 999px;
-    background: var(--paper);
+	    background: var(--paper);
     padding: 3px;
   }
 
@@ -221,7 +221,7 @@
   }
 
   .switch button[aria-pressed='true'] {
-    background: var(--clay);
+	    background: var(--clay);
     color: var(--paper);
   }
 
@@ -245,7 +245,7 @@
     width: 100%;
     border: 1px solid var(--hairline);
     border-radius: var(--r-btn);
-    background: var(--paper);
+	    background: var(--paper);
     padding: 12px 14px;
     font-size: 17px;
   }
@@ -278,10 +278,10 @@
     transition: background 180ms ease, transform 180ms ease;
   }
 
-  .submit:hover:not(:disabled) {
-    background: #b5664c;
-    transform: translateY(-1px);
-  }
+	  .submit:hover:not(:disabled) {
+	    background: #b5664c;
+	    transform: translateY(-1px);
+	  }
 
   .submit:disabled {
     opacity: 0.5;
