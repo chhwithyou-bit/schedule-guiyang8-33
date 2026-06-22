@@ -15,6 +15,7 @@
   } from '../../stores/communityConsoleState';
   import { onMount, tick } from 'svelte';
   import { softReveal } from '../../lib/motion';
+  import { formatChinaTime } from '../../lib/chinaTime.mjs';
 
   type TabId = CommunityConsoleTab;
 
@@ -585,12 +586,7 @@
   }
 
   function formatDate(value?: string) {
-    if (!value) return '';
-    try {
-      return new Date(value).toLocaleString('zh-CN');
-    } catch {
-      return value;
-    }
+    return value ? formatChinaTime(value) : '';
   }
 
   function formatNotification(type: string) {

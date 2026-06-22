@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import AnimatedHeading from '../ui/AnimatedHeading.svelte';
   import { communityFetch } from '../../lib/communityApi';
+  import { formatChinaTime } from '../../lib/chinaTime.mjs';
 
   type AdminTab = 'reports' | 'users' | 'announcement' | 'media';
 
@@ -245,7 +246,7 @@
             style="background-color: rgba(255, 255, 255, 0.18);"
           ></textarea>
           <button on:click={updateAnnouncement} class="admin-primary w-full py-5 text-lg">更新公告</button>
-          <p class="mt-6 text-center text-[10px] font-bold uppercase tracking-widest opacity-20">上次更新：{announcement.updatedAt || '还没有更新过'}</p>
+          <p class="mt-6 text-center text-[10px] font-bold uppercase tracking-widest opacity-20">上次更新：{announcement.updatedAt ? formatChinaTime(announcement.updatedAt) : '还没有更新过'}</p>
         </div>
       {/if}
 

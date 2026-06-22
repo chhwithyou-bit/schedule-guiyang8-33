@@ -5,6 +5,7 @@
   import { openModal } from '../../stores/modalState';
   import { communityFetch } from '../../lib/communityApi';
   import { closeCommunitySurface, openCommunityProfile } from '../../lib/communityNavigation';
+  import { formatChinaDate, formatChinaTime } from '../../lib/chinaTime.mjs';
   import ReliableImage from '../ui/ReliableImage.svelte';
   import { softReveal } from '../../lib/motion';
 
@@ -665,7 +666,7 @@
                 {/if}
               </div>
               <p class="text-xs font-bold uppercase tracking-widest opacity-30">
-                {new Date($selectedPost.created_at || Date.now()).toLocaleString('zh-CN')}
+                {formatChinaTime($selectedPost.created_at || Date.now())}
               </p>
             </div>
           </div>
@@ -772,7 +773,7 @@
                         <!-- svelte-ignore a11y-no-static-element-interactions -->
                         <span on:click={() => handleProfileClick(comment)} class="cursor-pointer text-sm font-bold tracking-tight transition-colors hover:text-[var(--color-primary)]">{comment.username}</span>
                         <span class="text-[10px] font-bold uppercase tracking-widest opacity-30">
-                          {new Date(comment.created_at).toLocaleDateString()}
+                          {formatChinaDate(comment.created_at)}
                         </span>
                       </div>
 
@@ -811,7 +812,7 @@
                                   {reply.username}
                                 </button>
                                 <span class="text-[10px] font-bold uppercase tracking-widest opacity-30">
-                                  {new Date(reply.created_at).toLocaleDateString()}
+                                  {formatChinaDate(reply.created_at)}
                                 </span>
                               </div>
                               <p class="mt-1 whitespace-pre-wrap text-sm font-medium leading-relaxed opacity-78">{reply.content}</p>

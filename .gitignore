@@ -12,6 +12,7 @@ fix*.js
 .DS_Store
 *.log
 .aider*
+.claude/
 .vibeskills/
 outputs/
 docs/requirements/

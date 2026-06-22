@@ -3,6 +3,7 @@
   import { openModal } from '../../stores/modalState';
   import { communityFetch } from '../../lib/communityApi';
   import { openCommunityPost, openCommunityProfile } from '../../lib/communityNavigation';
+  import { formatChinaTime } from '../../lib/chinaTime.mjs';
   import ReliableImage from '../ui/ReliableImage.svelte';
 
   export let post: any;
@@ -29,7 +30,7 @@
   $: media = safeJsonArray(post.media_json).filter((item) => item && item.url);
   $: canDelete = Boolean(post.can_delete || ($user?.id && $user.id === post.user_id) || $isAdmin);
   $: dateStr = post.created_at
-    ? new Date(post.created_at).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+    ? formatChinaTime(post.created_at, { year: undefined, second: undefined, month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
     : '刚刚';
 
   function handleProfileClick(event: MouseEvent) {

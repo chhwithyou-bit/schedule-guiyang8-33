@@ -10,6 +10,7 @@
   import { communityFetch } from '../../lib/communityApi';
   import { navigateToView } from '../../lib/appRouter';
   import { installCommunityHistory, navigateCommunitySection, openCommunityProfile } from '../../lib/communityNavigation';
+  import { formatChinaTime } from '../../lib/chinaTime.mjs';
   import { communityViewState, type CommunitySection } from '../../stores/communityViewState';
 
   let posts: any[] = [];
@@ -313,7 +314,7 @@
       <section class="announce">
         <p class="label">公告</p>
 	        <p>{announcement?.content || '目前没有新的公告。'}</p>
-        {#if announcement?.updatedAt}<time>{new Date(announcement.updatedAt).toLocaleString('zh-CN')}</time>{/if}
+        {#if announcement?.updatedAt}<time>{formatChinaTime(announcement.updatedAt)}</time>{/if}
       </section>
 
       <section class="aside-links">
