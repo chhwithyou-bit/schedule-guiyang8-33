@@ -79,7 +79,7 @@
     in:fly={{ y: 12, duration: 220 }}
   >
     <button type="button" class="close" on:click={closeModal} aria-label="关闭">×</button>
-    <div class="brand">8Community<span>/</span></div>
+    <div class="brand">贵阳八中校园墙<span>/</span></div>
 
 	    <h1 id="auth-modal-title" class="title">{isRegister ? '来这里安个家' : '回来就好'}</h1>
 	    <p id="auth-modal-description" class="subtitle">{isRegister ? '起个名字，就能开始说话。' : '一个安静的角落，等你继续。'}</p>

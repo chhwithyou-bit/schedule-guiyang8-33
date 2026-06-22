@@ -66,8 +66,8 @@
 
 <header class="site-header {isScrolled ? 'is-scrolled' : ''}">
   <div class="header-inner site-header-shell">
-    <button type="button" on:click={goHome} class="wordmark" aria-label="返回 8Community 社区">
-      <span>8Community</span><span class="slash">/</span>
+    <button type="button" on:click={goHome} class="wordmark" aria-label="返回贵阳八中校园墙">
+      <span>贵阳八中校园墙</span><span class="slash">/</span>
     </button>
 
     <nav class="header-actions" aria-label="主导航">

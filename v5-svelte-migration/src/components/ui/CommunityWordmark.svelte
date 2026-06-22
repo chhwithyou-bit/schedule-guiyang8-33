@@ -3,10 +3,10 @@
   export { className as class };
 </script>
 
-<div class={`community-wordmark ${className}`} aria-label="8Community">
-  <span class="mark">8Community</span>
+<div class={`community-wordmark ${className}`} aria-label="贵阳八中校园墙">
+  <span class="mark">贵阳八中</span>
   <span class="slash" aria-hidden="true">/</span>
-  <span class="label">社区</span>
+  <span class="label">校园墙</span>
 </div>
 
 <style>
@@ -17,7 +17,7 @@
 	    font-family: var(--sans);
 	    font-size: clamp(2.6rem, 7vw, 4.6rem);
 	    font-weight: 600;
-	    letter-spacing: -0.03em;
+	    letter-spacing: 0;
 	    line-height: 0.96;
 	    color: var(--ink);
 	  }

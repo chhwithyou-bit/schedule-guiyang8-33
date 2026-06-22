@@ -115,7 +115,7 @@
     <header class="composer-topbar">
       <button type="button" class="composer-cancel" on:click={closeModal}>取消</button>
       <div class="composer-title">
-        <span>8Community</span>
+        <span>贵阳八中校园墙</span>
         <strong>写动态</strong>
       </div>
       <button
